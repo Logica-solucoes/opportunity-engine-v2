@@ -4,7 +4,8 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from api import db
+from api import auth, db
+from api.routes import auth as auth_routes
 
 router = APIRouter(prefix="/api")
 
@@ -33,7 +34,9 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
 
 def create_app(web_dist: Path | None = None) -> FastAPI:
     app = FastAPI(title="Marketing GEM")
+    app.middleware("http")(auth.check_origin)
     app.include_router(router)
+    app.include_router(auth_routes.router)
     mount_spa(app, web_dist or Path(os.environ.get("WEB_DIST", "web/dist")))
     return app
 

@@ -15,8 +15,14 @@ from sqlalchemy.engine import make_url  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from api import db as api_db  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from api import passwords  # noqa: E402
+from api.main import create_app  # noqa: E402
+from api.models import Membership, User, Workspace  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
+PASSWORD = "senha-de-teste-123"
 
 
 def create_database_if_missing(url: str) -> None:
@@ -44,3 +50,73 @@ def db(schema):
     session.close()
     outer.rollback()
     conn.close()
+
+
+@pytest.fixture(autouse=True)
+def fast_scrypt(monkeypatch):
+    monkeypatch.setattr(passwords, "SCRYPT_N", 2**14)
+
+
+@pytest.fixture
+def password():
+    return PASSWORD
+
+
+@pytest.fixture
+def app(db):
+    app = create_app(web_dist=ROOT / "no-dist")
+    app.dependency_overrides[api_db.get_db] = lambda: db
+    return app
+
+
+@pytest.fixture
+def make_client(app):
+    # https, or the Secure cookie never comes back
+    return lambda: TestClient(app, base_url="https://testserver")
+
+
+@pytest.fixture
+def client(make_client):
+    return make_client()
+
+
+@pytest.fixture
+def make_user(db):
+    def make(email, *, platform=False, must_change=False, active=True):
+        user = User(
+            email=email,
+            name=email.split("@")[0],
+            password_hash=passwords.hash_password(PASSWORD),
+            must_change_password=must_change,
+            is_platform_admin=platform,
+            active=active,
+        )
+        db.add(user)
+        db.flush()
+        return user
+
+    return make
+
+
+@pytest.fixture
+def make_workspace(db):
+    def make(slug, members=()):
+        workspace = Workspace(name=slug.upper(), slug=slug)
+        db.add(workspace)
+        db.flush()
+        for user, role in members:
+            db.add(Membership(user_id=user.id, workspace_id=workspace.id, role=role))
+        db.flush()
+        return workspace
+
+    return make
+
+
+@pytest.fixture
+def login_as():
+    def login(client, user, password=PASSWORD):
+        r = client.post("/api/auth/login", json={"email": user.email, "password": password})
+        assert r.status_code == 200, r.text
+        return r
+
+    return login
