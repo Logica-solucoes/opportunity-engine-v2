@@ -156,7 +156,7 @@ def test_parallel_wrong_guesses_still_lock(schema, password):
     with SessionLocal() as setup:
         setup.add(User(email="race@x.com", name="race", password_hash=passwords.hash_password(password)))
         setup.commit()
-    barrier = threading.Barrier(attempts)
+    barrier = threading.Barrier(attempts, timeout=10)
     results = []
 
     def guess(i):
@@ -172,7 +172,8 @@ def test_parallel_wrong_guesses_still_lock(schema, password):
     try:
         threads = [threading.Thread(target=guess, args=(i,)) for i in range(attempts)]
         [t.start() for t in threads]
-        [t.join() for t in threads]
+        [t.join(10) for t in threads]
+        assert not any(t.is_alive() for t in threads)
         with SessionLocal() as check:
             locked_until = check.scalar(select(User.locked_until).where(User.email == "race@x.com"))
     finally:
