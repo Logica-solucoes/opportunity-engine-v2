@@ -13,8 +13,17 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["httpx", "pytest"]
+dev = [
+    "httpx",
+    "pytest",
+    "ruff>=0.17.1",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+# plans/specs in docs/ embed code blocks as written at the time; formatting them rewrites history
+extend-exclude = ["docs"]
