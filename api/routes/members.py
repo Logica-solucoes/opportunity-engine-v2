@@ -7,6 +7,7 @@ from api import accounts
 from api.auth import Ctx, require_role
 from api.db import get_db
 from api.models import Membership, Role, User
+from api.routes import UserId
 
 router = APIRouter(prefix="/api/w/{slug}/members")
 workspace_admin = require_role("admin")
@@ -63,7 +64,7 @@ def add_member(body: MemberIn, ctx: Ctx = Depends(workspace_admin), db: Session 
 
 
 @router.patch("/{user_id}", response_model=MemberOut)
-def change_role(user_id: int, body: RoleIn, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
+def change_role(user_id: UserId, body: RoleIn, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
     membership = find_member(db, ctx, user_id)
     membership.role = body.role
     db.commit()
@@ -71,6 +72,6 @@ def change_role(user_id: int, body: RoleIn, ctx: Ctx = Depends(workspace_admin),
 
 
 @router.delete("/{user_id}", status_code=204)
-def remove_member(user_id: int, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
+def remove_member(user_id: UserId, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
     db.delete(find_member(db, ctx, user_id))
     db.commit()

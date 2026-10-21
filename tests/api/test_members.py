@@ -104,3 +104,13 @@ def test_pending_password_change_blocks_workspace_routes(client, make_user, make
 
     assert (r.status_code, r.json()) == (403, {"detail": "password_change_required"})
     assert client.get("/api/me").status_code == 200
+
+
+def test_out_of_range_user_id_is_422_not_500(client, make_user, make_workspace, login_as):
+    admin = make_user("admin@x.com")
+    make_workspace("a", [(admin, "admin")])
+    login_as(client, admin)
+
+    for user_id in (2**63, 0):
+        assert client.patch(f"/api/w/a/members/{user_id}", json={"role": "viewer"}).status_code == 422
+        assert client.delete(f"/api/w/a/members/{user_id}").status_code == 422

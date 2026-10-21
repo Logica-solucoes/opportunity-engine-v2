@@ -89,3 +89,11 @@ def test_unknown_user_is_404(client, make_user, login_as):
 
     assert client.post("/api/admin/users/999999/reset-password").status_code == 404
     assert client.patch("/api/admin/users/999999", json={"active": False}).status_code == 404
+
+
+def test_out_of_range_user_id_is_422_not_500(client, make_user, login_as):
+    login_as(client, make_user("root@x.com", platform=True))
+
+    for user_id in (2**63, 0):
+        assert client.post(f"/api/admin/users/{user_id}/reset-password").status_code == 422
+        assert client.patch(f"/api/admin/users/{user_id}", json={"active": False}).status_code == 422

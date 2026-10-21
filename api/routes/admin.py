@@ -9,6 +9,7 @@ from api import accounts
 from api.auth import require_platform_admin
 from api.db import get_db
 from api.models import User, Workspace
+from api.routes import UserId
 
 router = APIRouter(prefix="/api/admin")
 
@@ -72,13 +73,13 @@ def list_users(_: User = Depends(require_platform_admin), db: Session = Depends(
 
 
 @router.post("/users/{user_id}/reset-password", response_model=TempPasswordOut)
-def reset_password(user_id: int, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+def reset_password(user_id: UserId, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
     return TempPasswordOut(temp_password=accounts.reset_password(db, find_user(db, user_id), by=admin))
 
 
 @router.patch("/users/{user_id}", response_model=UserOut)
 def set_active(
-    user_id: int, body: ActiveIn, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)
+    user_id: UserId, body: ActiveIn, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)
 ):
     user = find_user(db, user_id)
     accounts.set_active(db, user, body.active, by=admin)
