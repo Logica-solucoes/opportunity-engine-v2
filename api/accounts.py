@@ -1,10 +1,11 @@
 import logging
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api.auth import drop_sessions
-from api.models import UserSession
-from api.passwords import hash_password, verify_password
+from api.auth import drop_sessions, normalize_email
+from api.models import Membership, User, UserSession, Workspace
+from api.passwords import hash_password, temp_password, verify_password
 
 log = logging.getLogger(__name__)
 
@@ -32,3 +33,22 @@ def change_password(db: Session, session: UserSession, current: str, new: str) -
     drop_sessions(db, user.id, keep=session.token_hash)
     db.commit()
     log.info("auth.password_changed user_id=%s", user.id)
+
+
+def add_member(db: Session, workspace: Workspace, email: str, name: str, role: str) -> tuple[Membership, str | None]:
+    email = normalize_email(email)
+    user = db.scalar(select(User).where(User.email == email))
+    temp = None
+    if user is None:
+        temp = temp_password()
+        user = User(email=email, name=name, password_hash=hash_password(temp), must_change_password=True)
+        db.add(user)
+        db.flush()
+    elif db.get(Membership, (user.id, workspace.id)) is not None:
+        raise Conflict
+
+    membership = Membership(user_id=user.id, workspace_id=workspace.id, role=role)
+    db.add(membership)
+    db.commit()
+    log.info("auth.member_added user_id=%s workspace_id=%s role=%s", user.id, workspace.id, role)
+    return membership, temp
