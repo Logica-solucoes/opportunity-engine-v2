@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 
 from api.models import Workspace
@@ -82,6 +83,34 @@ def test_deactivate_kills_sessions_and_blocks_login(make_client, make_user, logi
 
     admin_client.patch(f"/api/admin/users/{ana.id}", json={"active": True})
     login_as(ana_client, ana)
+
+
+def test_platform_admin_cannot_deactivate_self(client, db, make_user, login_as):
+    root = make_user("root@x.com", platform=True)
+    login_as(client, root)
+
+    r = client.patch(f"/api/admin/users/{root.id}", json={"active": False})
+
+    assert (r.status_code, r.json()) == (400, {"detail": "cannot_deactivate_self"})
+    db.refresh(root)
+    assert root.active is True
+    assert client.patch(f"/api/admin/users/{root.id}", json={"active": True}).status_code == 200
+
+
+def test_reactivation_clears_lockout_and_is_logged(client, make_client, caplog, db, make_user, login_as):
+    caplog.set_level(logging.INFO)
+    root, ana = make_user("root@x.com", platform=True), make_user("ana@x.com", active=False)
+    ana.failed_logins = 3
+    ana.locked_until = datetime.now(UTC) + timedelta(minutes=5)
+    db.flush()
+    login_as(client, root)
+
+    assert client.patch(f"/api/admin/users/{ana.id}", json={"active": True}).status_code == 200
+
+    db.refresh(ana)
+    assert (ana.failed_logins, ana.locked_until) == (0, None)
+    assert f"auth.user_reactivated user_id={ana.id} by={root.id}" in caplog.text
+    login_as(make_client(), ana)
 
 
 def test_unknown_user_is_404(client, make_user, login_as):

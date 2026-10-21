@@ -81,6 +81,8 @@ def reset_password(user_id: UserId, admin: User = Depends(require_platform_admin
 def set_active(
     user_id: UserId, body: ActiveIn, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)
 ):
+    if user_id == admin.id and not body.active:
+        raise HTTPException(400, "cannot_deactivate_self")
     user = find_user(db, user_id)
     accounts.set_active(db, user, body.active, by=admin)
     return user

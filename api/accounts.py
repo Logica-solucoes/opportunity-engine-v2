@@ -86,6 +86,10 @@ def set_active(db: Session, user: User, active: bool, by: User) -> None:
     if not active:
         drop_sessions(db, user.id)
         log.info("auth.user_deactivated user_id=%s by=%s", user.id, by.id)
+    else:
+        user.failed_logins = 0
+        user.locked_until = None
+        log.info("auth.user_reactivated user_id=%s by=%s", user.id, by.id)
     db.commit()
 
 
