@@ -76,4 +76,6 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 | --- | --- |
 | Imagem única, health, SPA, CI, deps | `docs/decisoes/infra-e-operacao.md` |
 
+Ao concluir um item `A*`/`B*`, atualize no mesmo commit o parágrafo "Estado atual" acima (o que já existe e o que falta) e a linha `Status` do item em `docs/m2/trilha-*.md`, com a data e o que foi verificado.
+
 Sempre que concluir uma tarefa que muda isso (nova feature, pendência resolvida, decisão revista), atualize o arquivo da área em `docs/decisoes/` no mesmo commit. Rota nova entra na tabela do `API-GUIDE.md`, tabela ou coluna nova na do `DATABASE.md`, regra nova no arquivo da raiz do seu ramo — no mesmo commit. Quando o `engine/` entrar: `COPY engine/ ./engine/` no `Dockerfile` e as deps dele no `pyproject.toml`.
