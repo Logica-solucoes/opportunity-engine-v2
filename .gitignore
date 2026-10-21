@@ -3,6 +3,13 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
-.claude/
+.claude/settings.local.json
 web/node_modules/
 web/dist/
+.serena/
+.playwright-mcp/
+
+# client data and the BRD never go in the repo
+*.docx
+inputs/
+outputs/

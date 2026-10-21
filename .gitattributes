@@ -1,0 +1,2 @@
+# Gerado pelo TanStack Router sempre em LF; com autocrlf o checkout em CRLF o deixava sujo com diff vazio.
+web/src/routeTree.gen.ts text eol=lf
