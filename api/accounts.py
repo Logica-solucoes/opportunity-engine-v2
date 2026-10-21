@@ -82,3 +82,15 @@ def set_active(db: Session, user: User, active: bool, by: User) -> None:
         drop_sessions(db, user.id)
         log.info("auth.user_deactivated user_id=%s by=%s", user.id, by.id)
     db.commit()
+
+
+def create_platform_admin(db: Session, email: str, name: str) -> str:
+    email = normalize_email(email)
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        user = User(email=email, name=name, password_hash="")
+        db.add(user)
+    user.is_platform_admin = True
+    user.active = True
+    db.flush()
+    return reset_password(db, user, by=None)
