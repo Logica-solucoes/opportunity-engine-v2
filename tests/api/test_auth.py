@@ -98,6 +98,18 @@ def test_session_dies_after_7d_even_if_active(client, db, make_user, login_as, m
     assert client.get("/api/me").status_code == 401
 
 
+def test_session_of_deactivated_user_is_rejected_and_deleted(client, db, make_user, login_as):
+    user = make_user("ana@x.com")
+    login_as(client, user)
+    user.active = False
+    db.flush()
+
+    r = client.get("/api/me")
+
+    assert (r.status_code, r.json()) == (401, {"detail": "not_authenticated"})
+    assert session_count(db) == 0
+
+
 def test_activity_slides_the_idle_window(client, db, make_user, login_as, monkeypatch):
     t0 = datetime.now(UTC)
     login_as(client, make_user("ana@x.com"))
