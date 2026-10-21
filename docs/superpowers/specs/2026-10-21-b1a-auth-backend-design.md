@@ -81,10 +81,10 @@ Timestamps em UTC (`DATABASE.md`).
 | GET | `/api/admin/workspaces` | `require_platform_admin` | `[{id, name, slug, created_at}]` |
 | POST | `/api/admin/workspaces` | `require_platform_admin` | `{name, slug}`; slug duplicado → 409; slug inválido → 422 |
 | GET | `/api/admin/users` | `require_platform_admin` | `[{id, email, name, active, is_platform_admin, locked_until}]` |
-| POST | `/api/admin/users/{id}/reset-password` | `require_platform_admin` | nova temporária, `must_change_password = true`, zera bloqueio, derruba todas as sessões; devolve `{temp_password}` |
-| PATCH | `/api/admin/users/{id}` | `require_platform_admin` | `{active}`; desativar derruba todas as sessões |
+| POST | `/api/admin/users/{user_id}/reset-password` | `require_platform_admin` | nova temporária, `must_change_password = true`, zera bloqueio, derruba todas as sessões; devolve `{temp_password}` |
+| PATCH | `/api/admin/users/{user_id}` | `require_platform_admin` | `{active}`; desativar derruba todas as sessões |
 
-Rotas literais antes das parametrizadas (`API-GUIDE.md`). Routers: `api/routes/auth.py`, `api/routes/members.py`, `api/routes/admin.py`, incluídos em `create_app()` antes do `mount_spa`.
+Rotas literais antes das parametrizadas (`API-GUIDE.md`). Routers: `api/routes/auth.py`, `api/routes/members.py`, `api/routes/admin.py`, incluídos em `create_app()` antes do `mount_spa`. Rotas finas: a regra de negócio de contas (troca e reset de senha, adicionar membro, criar workspace, desativar, bootstrap) mora em `api/accounts.py`.
 
 ## CLI
 
@@ -92,7 +92,7 @@ Rotas literais antes das parametrizadas (`API-GUIDE.md`). Routers: `api/routes/a
 
 ## Logs
 
-`logging` padrão, logger `api.auth`. Eventos: `auth.login_ok` (`user_id`), `auth.login_failed` (e-mail tentado), `auth.locked` (`user_id`), `auth.password_changed`, `auth.password_reset` (`user_id`, `by`), `auth.user_deactivated`. Senha, senha temporária, token e hash nunca entram em log.
+`logging` padrão, loggers `api.auth` (sessão e login) e `api.accounts` (mudanças em contas). Eventos: `auth.login_ok` (`user_id`), `auth.login_failed` (e-mail tentado), `auth.locked` (`user_id`), `auth.password_changed`, `auth.password_reset` (`user_id`, `by`), `auth.user_deactivated`. Senha, senha temporária, token e hash nunca entram em log.
 
 ## Testes
 
@@ -128,7 +128,7 @@ Outros testes:
 
 - `DATABASE.md`: as quatro tabelas saem de "planejada" e ganham o id da revisão; `target_metadata` atualizado.
 - `API-GUIDE.md`: as 13 rotas na tabela.
-- `SECURITY.md`: marcar o que foi implementado; seção "Mexer em auth" listando `api/auth.py`, `api/passwords.py`, `api/routes/{auth,members,admin}.py`, `api/cli.py`, o middleware de origem.
+- `SECURITY.md`: marcar o que foi implementado; seção "Mexer em auth" listando `api/auth.py`, `api/accounts.py`, `api/passwords.py`, `api/routes/{auth,members,admin}.py`, `api/cli.py`, o middleware de origem.
 - `docs/decisoes/auth.md` (novo, e linha no índice): por que Lax + Origin, 404 × 403, sessão deslizante 8h/7d, divisão conta × membership, CLI de bootstrap.
 - `CLAUDE.md` › Estado atual e a linha `Status` do B1 na trilha (B1a feito, B1b pendente).
 - `.env.example`: `TEST_DATABASE_URL`.
