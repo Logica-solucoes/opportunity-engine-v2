@@ -65,7 +65,7 @@ def register_failure(db: Session, user: User) -> None:
 
 
 def authenticate(db: Session, email: str, password: str) -> User:
-    user = db.scalar(select(User).where(User.email == normalize_email(email)).with_for_update())
+    user = db.scalar(select(User).where(User.email == normalize_email(email)).with_for_update(key_share=True))
     if user is None:
         verify_password(password, dummy_hash())
         log.info("auth.login_failed email=%r", email)

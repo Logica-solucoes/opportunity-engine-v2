@@ -24,7 +24,7 @@ class SamePassword(Exception):
 
 def change_password(db: Session, session: UserSession, current: str, new: str) -> None:
     user = session.user
-    db.refresh(user, with_for_update=True)
+    db.refresh(user, with_for_update={"key_share": True})
     if not user.active:
         raise WrongPassword
     check_lock(user)
