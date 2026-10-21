@@ -14,14 +14,14 @@ Postgres 16 (Docker no dev, Cloud SQL em produção), SQLAlchemy 2 com `DATABASE
 
 ## Tabelas
 
-Ainda nenhuma: o B0 deixou o Alembic sem revisões. O B1 cria as quatro primeiras.
+Models em `api/models.py` (`Base` em `api/db.py`).
 
 | Tabela | Colunas-chave | Migration |
 |---|---|---|
-| `users` | email único, nome, hash, `is_platform_admin`, `active` | B1 (planejada) |
-| `workspaces` | nome, slug único, `settings jsonb` | B1 (planejada) |
-| `memberships` | `(user_id, workspace_id)` único, `role` admin\|analyst\|viewer | B1 (planejada) |
-| `sessions` | hash do token, `user_id`, `expires_at` | B1 (planejada) |
+| `users` | email único (minúsculo), nome, `password_hash` (scrypt), `must_change_password`, `is_platform_admin`, `active`, `failed_logins`, `locked_until` | `0001` |
+| `workspaces` | nome, slug único e imutável, `settings jsonb` (default `{}`) | `0001` |
+| `memberships` | PK `(user_id, workspace_id)`, `role` enum `membership_role` (admin\|analyst\|viewer) | `0001` |
+| `sessions` | PK `token_hash` (sha256 do token), `user_id`, `created_at`, `last_seen_at` | `0001` |
 
 Atualize esta tabela no mesmo commit da migration (linha deixa de ser "planejada" e ganha o id da revisão).
 
@@ -29,7 +29,8 @@ Atualize esta tabela no mesmo commit da migration (linha deixa de ser "planejada
 
 - Uma migration por mudança, com `downgrade` que funciona.
 - Rodar sempre com `-c api/alembic.ini`: `mise run db-migrate` aplica; `uv run alembic -c api/alembic.ini revision -m "…"` cria.
-- `api/migrations/env.py` lê `DATABASE_URL` de `api/db.py` (a URL não vai no `.ini`). `target_metadata` é `None` hoje; o B1 troca para o `Base.metadata`.
+- `api/migrations/env.py` lê `DATABASE_URL` de `api/db.py` (a URL não vai no `.ini`) e usa `Base.metadata` (`import api.models` registra as tabelas). `fileConfig(..., disable_existing_loggers=False)`: os testes rodam o Alembic no mesmo processo e o default calaria os loggers da API.
+- `tests/api/test_migrations.py` compara migrations e models (`compare_metadata`); model novo sem migration quebra o teste.
 - Valor novo de enum do Postgres não pode ser usado na transação em que foi adicionado.
 
 ### Nova coluna ou tabela
@@ -39,4 +40,5 @@ model (`api/…`) → `uv run alembic -c api/alembic.ini revision -m "…"` → 
 ## Sessão e testes
 
 - `engine` com `pool_pre_ping` e `connect_timeout=2` (`api/db.py`): banco fora do ar falha rápido em vez de pendurar o health.
-- Teste que escreve no banco roda dentro de rollback; `alembic upgrade head` sobe o schema uma vez por sessão de testes. Duas rodadas de `pytest` simultâneas contra o mesmo banco podem se atrapalhar.
+- Testes usam o banco `app_test` (`TEST_DATABASE_URL`), que o `tests/conftest.py` cria se faltar; o conftest força `DATABASE_URL` para ele antes de importar `api`, então pytest nunca toca o banco de dev. `alembic upgrade head` roda uma vez por sessão (fixture `schema`).
+- Cada teste roda numa transação externa com `Session(join_transaction_mode="create_savepoint")` e rollback no fim; o `get_db` da app é sobrescrito por essa sessão. Duas rodadas de `pytest` simultâneas funcionam, mas podem esperar lock.

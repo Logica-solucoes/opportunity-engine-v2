@@ -4,7 +4,7 @@
 
 Abra um relato privado pelo GitHub: aba **Security → Report a vulnerability** deste repositório. Não abra issue pública. Só a versão em produção (a `main`) recebe correção.
 
-O resto deste arquivo são as regras que o código segue. O porquê de cada uma está no arquivo da área em `docs/decisoes/`. As regras de auth abaixo são o alvo do B1 (`docs/m2/trilha-b-plataforma.md`); marque aqui o que já está implementado ao entregar.
+O resto deste arquivo são as regras que o código segue. O porquê de cada uma está no arquivo da área em `docs/decisoes/`. As regras de auth e escopo abaixo estão implementadas desde o B1a (21/out/2026); as telas são do B1b.
 
 ## Escopo por workspace
 
@@ -20,6 +20,9 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 - Sessão em cookie `HttpOnly; Secure; SameSite=Lax` guardando um token aleatório; o banco guarda só o **hash**. Nunca guardar `user_id` ou `username` no cookie, nem token de sessão na URL (o protótipo fazia as duas coisas).
 - Cookie adulterado → 401.
 - Senha, token e chave nunca aparecem em log.
+- Sessão deslizante: expira com 8h sem uso, teto de 7d desde o login. Troca de senha derruba as outras sessões; reset e desativação derrubam todas.
+- Mutações (`POST/PUT/PATCH/DELETE` em `/api/*`) com `Origin` de outro host → 403, além do `SameSite=Lax`.
+- Conta é do platform admin (reset, desativar); membership é do admin do workspace (adicionar, papel, remover). Bootstrap do primeiro platform admin: `mise run create-admin <email> <nome>`, nunca senha em env.
 
 ## Segredos e superfícies expostas
 
@@ -32,4 +35,11 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 
 ## Mexer em auth
 
-Quando o B1 entregar, liste aqui os arquivos que o formam (sessão, dependência de membership, rotas de login, interceptors do front), como o Tally faz.
+- `api/passwords.py` — scrypt (params dentro do hash), `dummy_hash` contra timing, senha temporária.
+- `api/auth.py` — sessão (cookie, hash, expiração), login e bloqueio, dependências `current_user` / `active_user` / `require_role` / `require_platform_admin`, middleware `check_origin`.
+- `api/accounts.py` — troca e reset de senha, membros, workspaces, desativar, `create_platform_admin`.
+- `api/routes/auth.py`, `members.py`, `admin.py` — rotas finas.
+- `api/cli.py` — `create-admin`.
+- `tests/api/test_rbac.py` — matriz papel × rota; rota nova entra na tabela `ROUTES`.
+
+O porquê de cada escolha: `docs/decisoes/auth.md`.

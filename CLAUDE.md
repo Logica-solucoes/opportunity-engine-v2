@@ -12,8 +12,14 @@ Mapa do código (arquitetura, endpoints, schema, fluxos): `docs/CODEBASE_MAP.md`
 
 ```
 api/              Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + psycopg 3 (uv)
-  main.py         create_app(): router /api, health e SPA com fallback para index.html
-  db.py           DATABASE_URL, engine, SessionLocal, ping()
+  main.py         create_app(): middleware de Origin, routers e SPA com fallback para index.html
+  db.py           DATABASE_URL, engine, SessionLocal, Base, get_db, ping()
+  models.py       User, Workspace, Membership, UserSession
+  passwords.py    scrypt
+  auth.py         sessão, login, bloqueio, dependências de escopo (require_role…)
+  accounts.py     regra de negócio de contas, membros e workspaces
+  routes/         routers finos (auth, members, admin)
+  cli.py          python -m api.cli create-admin
   worker.py       entrypoint do Cloud Run Job (python -m api.worker)
   alembic.ini     config do Alembic (rodar sempre com -c api/alembic.ini)
   migrations/     revisões Alembic (env.py lê DATABASE_URL de api/db.py)
@@ -28,8 +34,9 @@ docs/m2/          plano do M2 · docs/superpowers/ specs e planos · docs/deciso
 
 1. `docker compose up -d` — Postgres 16 em `:5432` (usuário/senha/banco `app`). Variáveis em `.env.example`; sem `.env` valem os defaults.
 2. `mise run db-migrate` — aplica as migrations.
-3. `mise run api` — API em `:8000` com reload.
-4. `mise run web` — SPA em `:5173`, `/api` faz proxy para `:8000`. Abra `http://localhost:5173`: deve mostrar `API: ok · banco: ok`.
+3. `mise run create-admin voce@exemplo.com "Seu Nome"` — cria o primeiro platform admin e imprime a senha temporária (troca obrigatória no 1º login).
+4. `mise run api` — API em `:8000` com reload.
+5. `mise run web` — SPA em `:5173`, `/api` faz proxy para `:8000`. Abra `http://localhost:5173`: deve mostrar `API: ok · banco: ok`.
 
 ```bash
 mise run test                                       # uv run pytest
@@ -68,13 +75,14 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 
 ## Estado atual
 
-**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, Alembic sem revisões, worker stub, Postgres no compose, imagem única, CI (`py` + `web`). Faltam, em ordem: B1 (auth, papéis, workspaces), B2–B4 (upload, Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
+**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. Faltam, em ordem: B1b (telas de login, troca de senha, seletor de workspace, admin), B2–B4 (upload, Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
 
 **Onde as decisões estão escritas.** Este arquivo e os quatro da raiz dizem as regras; `docs/decisoes/` diz **por quê** (índice em `docs/decisoes/README.md`). Leia o arquivo da área antes de mexer nela:
 
 | Área | Arquivo |
 | --- | --- |
 | Imagem única, health, SPA, CI, deps | `docs/decisoes/infra-e-operacao.md` |
+| Auth, sessão, papéis, workspaces | `docs/decisoes/auth.md` |
 
 Ao concluir um item `A*`/`B*`, atualize no mesmo commit o parágrafo "Estado atual" acima (o que já existe e o que falta) e a linha `Status` do item em `docs/m2/trilha-*.md`, com a data e o que foi verificado.
 

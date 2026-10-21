@@ -39,7 +39,8 @@ O CI (`.github/workflows/ci.yml`) roda `uv run pytest -q` e, em `web/`, `bunx ts
 ## Testes
 
 - Teste novo nasce com o código (TDD): ver falhar, implementar, ver passar.
-- Teste que precisa de Postgres pula (`pytest.skip`) quando `api.db.ping()` falha, em vez de quebrar a suíte; no CI sem banco ele pula. Quando o B1 introduzir tabelas, o CI ganhará um service Postgres.
+- Teste que precisa de Postgres pede o fixture `db` (`tests/conftest.py`) e **falha** se o banco estiver fora do ar: um skip esconderia o RBAC no CI. O CI tem um service `postgres:16`. Exceção: `test_health_reports_db_ok`, que testa justamente o `ping()`.
+- Fixtures prontos: `client`/`make_client` (`https://testserver`, senão o cookie `Secure` não volta), `make_user`, `make_workspace`, `login_as`, `password`. O scrypt cai para N=2¹⁴ nos testes (`fast_scrypt`).
 - Cada teste que escreve no banco roda dentro de um rollback (detalhes em `DATABASE.md`).
 - `TestClient(create_app(web_dist=tmp_path))` para testar o SPA sem depender do build do `web/`.
 
