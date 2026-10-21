@@ -7,7 +7,7 @@ Simples, legível, fácil de depurar. Código só para o que é preciso agora, e
 | | Backend (`api/`, `engine/`) | Frontend (`web/`) |
 |---|---|---|
 | Runtime e deps | Python 3.13 com `uv` (`pyproject.toml` + `uv.lock` na raiz) | `bun` |
-| Lint | — (ruff ainda não configurado; adicionar junto com o `engine/`) | `bun run lint` (oxlint) |
+| Format / lint | `ruff format` (linha 120, checado no CI); `ruff check` ainda não configurado, adicionar junto com o `engine/` | `bun run lint` (oxlint) |
 | Tipos | — | `bun run build` (`tsc -b` + vite) |
 | Testes | `uv run pytest` | — (sem runner ainda) |
 
