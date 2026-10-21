@@ -212,9 +212,7 @@ def test_logout_kills_the_session(client, make_client, db, make_user, login_as):
     assert make_client().get("/api/me", headers={"Cookie": f"gem_session={token}"}).status_code == 401
 
 
-def test_change_password_keeps_current_session_and_kills_others(
-    make_client, make_user, login_as, password
-):
+def test_change_password_keeps_current_session_and_kills_others(make_client, make_user, login_as, password):
     user = make_user("ana@x.com", must_change=True)
     here, elsewhere = make_client(), make_client()
     login_as(here, user)

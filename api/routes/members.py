@@ -55,9 +55,7 @@ def list_members(ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_
 
 
 @router.post("", status_code=201, response_model=NewMemberOut)
-def add_member(
-    body: MemberIn, response: Response, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)
-):
+def add_member(body: MemberIn, response: Response, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
     try:
         membership, temp = accounts.add_member(db, ctx.workspace, body.email, body.name, body.role)
     except accounts.Conflict:

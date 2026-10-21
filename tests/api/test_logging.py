@@ -4,7 +4,9 @@ from contextlib import nullcontext
 from api import cli
 
 
-def test_secrets_never_reach_the_log(caplog, capsys, monkeypatch, db, client, make_client, make_user, login_as, password):
+def test_secrets_never_reach_the_log(
+    caplog, capsys, monkeypatch, db, client, make_client, make_user, login_as, password
+):
     caplog.set_level(logging.DEBUG)
     root = make_user("root@x.com", platform=True)
     ana = make_user("ana@x.com")

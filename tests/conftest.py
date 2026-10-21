@@ -1,9 +1,7 @@
 import os
 
 # before any `import api...`: api.db reads DATABASE_URL at import time, and tests must never touch the dev db
-os.environ["DATABASE_URL"] = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/app_test"
-)
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/app_test")
 
 from pathlib import Path  # noqa: E402
 

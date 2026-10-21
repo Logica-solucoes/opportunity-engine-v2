@@ -119,11 +119,7 @@ def current_session(
         raise HTTPException(401, "not_authenticated")
 
     t = now()
-    if (
-        not session.user.active
-        or t - session.last_seen_at >= IDLE_TIMEOUT
-        or t - session.created_at >= MAX_AGE
-    ):
+    if not session.user.active or t - session.last_seen_at >= IDLE_TIMEOUT or t - session.created_at >= MAX_AGE:
         db.delete(session)
         db.commit()
         raise HTTPException(401, "not_authenticated")
