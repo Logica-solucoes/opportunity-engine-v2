@@ -52,3 +52,33 @@ def add_member(db: Session, workspace: Workspace, email: str, name: str, role: s
     db.commit()
     log.info("auth.member_added user_id=%s workspace_id=%s role=%s", user.id, workspace.id, role)
     return membership, temp
+
+
+def create_workspace(db: Session, name: str, slug: str) -> Workspace:
+    if db.scalar(select(Workspace.id).where(Workspace.slug == slug)) is not None:
+        raise Conflict
+    workspace = Workspace(name=name, slug=slug)
+    db.add(workspace)
+    db.commit()
+    log.info("auth.workspace_created workspace_id=%s slug=%s", workspace.id, slug)
+    return workspace
+
+
+def reset_password(db: Session, user: User, by: User | None) -> str:
+    temp = temp_password()
+    user.password_hash = hash_password(temp)
+    user.must_change_password = True
+    user.failed_logins = 0
+    user.locked_until = None
+    drop_sessions(db, user.id)
+    db.commit()
+    log.info("auth.password_reset user_id=%s by=%s", user.id, by.id if by else "cli")
+    return temp
+
+
+def set_active(db: Session, user: User, active: bool, by: User) -> None:
+    user.active = active
+    if not active:
+        drop_sessions(db, user.id)
+        log.info("auth.user_deactivated user_id=%s by=%s", user.id, by.id)
+    db.commit()

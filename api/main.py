@@ -5,7 +5,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from api import auth, db
-from api.routes import auth as auth_routes, members
+from api.routes import admin, auth as auth_routes, members
 
 router = APIRouter(prefix="/api")
 
@@ -38,6 +38,7 @@ def create_app(web_dist: Path | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(auth_routes.router)
     app.include_router(members.router)
+    app.include_router(admin.router)
     mount_spa(app, web_dist or Path(os.environ.get("WEB_DIST", "web/dist")))
     return app
 
