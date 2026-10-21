@@ -28,7 +28,7 @@ Um analista da Almap atende várias marcas. Se o admin da marca X pudesse reseta
 
 ## Bloqueio por conta, não por IP
 
-5 falhas seguidas bloqueiam a conta por 15 min; acerto zera o contador. Conta bloqueada responde 429 e com isso revela que existe, o que é aceitável porque as contas são criadas por admin. E-mail inexistente roda um scrypt mesmo assim, para o tempo de resposta não separar os casos. Rate limit por IP fica para o B11.
+5 falhas seguidas bloqueiam a conta por 15 min; acerto zera o contador. A leitura e a escrita do contador rodam sob `SELECT … FOR UPDATE` na linha do usuário: sem isso, palpites em paralelo leem o mesmo valor e furam o bloqueio. Senha atual errada na troca de senha conta para o mesmo bloqueio, senão `POST /api/auth/password` viraria um oráculo de força bruta com sessão roubada. Conta bloqueada responde 429 e com isso revela que existe, o que é aceitável porque as contas são criadas por admin. E-mail inexistente roda um scrypt mesmo assim, para o tempo de resposta não separar os casos. Rate limit por IP fica para o B11.
 
 ## scrypt da stdlib
 

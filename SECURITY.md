@@ -16,7 +16,7 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 ## Auth
 
 - Sem auto-cadastro: o Admin cria usuários com senha temporária e troca obrigatória no 1º login. Reset de senha só pelo Admin no M2.
-- Senha com `hashlib.scrypt` (stdlib). Bloqueio após 5 falhas seguidas por 15 min.
+- Senha com `hashlib.scrypt` (stdlib). Bloqueio após 5 falhas seguidas por 15 min, com a linha do usuário travada (`FOR UPDATE`) para palpites em paralelo não furarem a contagem; senha atual errada na troca de senha conta para o mesmo bloqueio.
 - Sessão em cookie `HttpOnly; Secure; SameSite=Lax` guardando um token aleatório; o banco guarda só o **hash**. Nunca guardar `user_id` ou `username` no cookie, nem token de sessão na URL (o protótipo fazia as duas coisas).
 - Cookie adulterado → 401.
 - Senha, token e chave nunca aparecem em log.
