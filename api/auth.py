@@ -48,6 +48,21 @@ class AccountLocked(Exception):
         self.retry_after_s = retry_after_s
 
 
+def check_lock(user: User) -> None:
+    t = now()
+    if user.locked_until is not None and user.locked_until > t:
+        raise AccountLocked(math.ceil((user.locked_until - t).total_seconds()))
+
+
+def register_failure(db: Session, user: User) -> None:
+    user.failed_logins += 1
+    if user.failed_logins >= MAX_FAILED_LOGINS:
+        user.failed_logins = 0
+        user.locked_until = now() + LOCKOUT
+        log.warning("auth.locked user_id=%s", user.id)
+    db.commit()
+
+
 def authenticate(db: Session, email: str, password: str) -> User:
     user = db.scalar(select(User).where(User.email == normalize_email(email)).with_for_update())
     if user is None:
@@ -55,17 +70,10 @@ def authenticate(db: Session, email: str, password: str) -> User:
         log.info("auth.login_failed email=%s", email)
         raise InvalidCredentials
 
-    t = now()
-    if user.locked_until is not None and user.locked_until > t:
-        raise AccountLocked(math.ceil((user.locked_until - t).total_seconds()))
+    check_lock(user)
 
     if not verify_password(password, user.password_hash):
-        user.failed_logins += 1
-        if user.failed_logins >= MAX_FAILED_LOGINS:
-            user.failed_logins = 0
-            user.locked_until = t + LOCKOUT
-            log.warning("auth.locked user_id=%s", user.id)
-        db.commit()
+        register_failure(db, user)
         log.info("auth.login_failed email=%s", email)
         raise InvalidCredentials
 

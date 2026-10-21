@@ -3,7 +3,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api.auth import drop_sessions, normalize_email
+from api.auth import check_lock, drop_sessions, normalize_email, register_failure
 from api.models import Membership, User, UserSession, Workspace
 from api.passwords import hash_password, temp_password, verify_password
 
@@ -24,10 +24,15 @@ class SamePassword(Exception):
 
 def change_password(db: Session, session: UserSession, current: str, new: str) -> None:
     user = session.user
+    db.refresh(user, with_for_update=True)
+    check_lock(user)
     if not verify_password(current, user.password_hash):
+        register_failure(db, user)
         raise WrongPassword
     if new == current:
         raise SamePassword
+    user.failed_logins = 0
+    user.locked_until = None
     user.password_hash = hash_password(new)
     user.must_change_password = False
     drop_sessions(db, user.id, keep=session.token_hash)

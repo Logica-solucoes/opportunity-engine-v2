@@ -81,6 +81,8 @@ def change_password(
 ):
     try:
         accounts.change_password(db, session, body.current, body.new)
+    except auth.AccountLocked as e:
+        return JSONResponse({"detail": "locked", "retry_after_s": e.retry_after_s}, status_code=429)
     except accounts.WrongPassword:
         raise HTTPException(400, "invalid_current_password")
     except accounts.SamePassword:

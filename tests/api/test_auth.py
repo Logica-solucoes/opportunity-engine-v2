@@ -228,6 +228,36 @@ def test_change_password_rejects_bad_input(client, make_user, login_as, password
     assert short.status_code == 422
 
 
+def test_wrong_current_password_counts_toward_lockout(client, make_user, login_as, password, monkeypatch):
+    login_as(client, make_user("ana@x.com"))
+    t0 = datetime.now(UTC)
+    freeze(monkeypatch, t0)
+    wrong = {"current": "nao-e-essa", "new": NEW_PASSWORD}
+    right = {"current": password, "new": NEW_PASSWORD}
+
+    for _ in range(5):
+        assert client.post("/api/auth/password", json=wrong).status_code == 400
+
+    r = client.post("/api/auth/password", json=right)
+    assert (r.status_code, r.json()) == (429, {"detail": "locked", "retry_after_s": 900})
+    assert client.get("/api/me").status_code == 200
+
+    freeze(monkeypatch, t0 + timedelta(minutes=15, seconds=1))
+    assert client.post("/api/auth/password", json=right).status_code == 204
+
+
+def test_successful_password_change_resets_the_failure_counter(client, db, make_user, login_as, password):
+    user = make_user("ana@x.com")
+    login_as(client, user)
+
+    for _ in range(4):
+        client.post("/api/auth/password", json={"current": "nao-e-essa", "new": NEW_PASSWORD})
+    assert client.post("/api/auth/password", json={"current": password, "new": NEW_PASSWORD}).status_code == 204
+
+    db.refresh(user)
+    assert (user.failed_logins, user.locked_until) == (0, None)
+
+
 def test_foreign_origin_on_mutation_is_403(client, make_user, password):
     make_user("ana@x.com")
     body = {"email": "ana@x.com", "password": password}
