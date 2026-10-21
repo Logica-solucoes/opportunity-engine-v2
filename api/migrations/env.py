@@ -5,12 +5,12 @@ from sqlalchemy import pool
 
 from alembic import context
 
+import api.models  # noqa: F401  registers the tables on Base.metadata
+from api.db import DATABASE_URL, Base
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-
-import api.models  # noqa: F401  registers the tables on Base.metadata
-from api.db import DATABASE_URL, Base
 
 # configparser treats % as interpolation
 config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))

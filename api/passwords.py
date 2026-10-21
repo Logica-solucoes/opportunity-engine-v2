@@ -16,11 +16,14 @@ def _scrypt(password: str, salt: bytes, n: int, r: int, p: int) -> bytes:
     return hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, maxmem=MAXMEM)
 
 
+def _b64(b: bytes) -> str:
+    return base64.b64encode(b).decode()
+
+
 def hash_password(password: str) -> str:
     salt = os.urandom(16)
     digest = _scrypt(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P)
-    b64 = lambda b: base64.b64encode(b).decode()
-    return f"scrypt${SCRYPT_N}${SCRYPT_R}${SCRYPT_P}${b64(salt)}${b64(digest)}"
+    return f"scrypt${SCRYPT_N}${SCRYPT_R}${SCRYPT_P}${_b64(salt)}${_b64(digest)}"
 
 
 def verify_password(password: str, stored: str) -> bool:
