@@ -25,6 +25,8 @@ class SamePassword(Exception):
 def change_password(db: Session, session: UserSession, current: str, new: str) -> None:
     user = session.user
     db.refresh(user, with_for_update=True)
+    if not user.active:
+        raise WrongPassword
     check_lock(user)
     if not verify_password(current, user.password_hash):
         register_failure(db, user)
@@ -82,11 +84,12 @@ def reset_password(db: Session, user: User, by: User | None) -> str:
 
 
 def set_active(db: Session, user: User, active: bool, by: User) -> None:
+    was_active = user.active
     user.active = active
     if not active:
         drop_sessions(db, user.id)
         log.info("auth.user_deactivated user_id=%s by=%s", user.id, by.id)
-    else:
+    elif not was_active:
         user.failed_logins = 0
         user.locked_until = None
         log.info("auth.user_reactivated user_id=%s by=%s", user.id, by.id)

@@ -114,6 +114,21 @@ def test_reactivation_clears_lockout_and_is_logged(client, make_client, caplog, 
     login_as(make_client(), ana)
 
 
+def test_reactivating_active_user_does_not_unlock_or_log(client, caplog, db, make_user, login_as):
+    caplog.set_level(logging.INFO)
+    root, ana = make_user("root@x.com", platform=True), make_user("ana@x.com")
+    locked_until = datetime.now(UTC) + timedelta(minutes=5)
+    ana.failed_logins, ana.locked_until = 3, locked_until
+    db.flush()
+    login_as(client, root)
+
+    assert client.patch(f"/api/admin/users/{ana.id}", json={"active": True}).status_code == 200
+
+    db.refresh(ana)
+    assert (ana.failed_logins, ana.locked_until) == (3, locked_until)
+    assert "auth.user_reactivated" not in caplog.text
+
+
 def test_unknown_user_is_404(client, make_user, login_as):
     login_as(client, make_user("root@x.com", platform=True))
 
