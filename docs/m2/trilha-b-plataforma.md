@@ -10,6 +10,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B0 · Esqueleto do repo — semana 1
 
+- **Status:** ✅ feito em 21/out/2026. Aceite verificado: hot reload local, imagem com `/api/health` e SPA, Streamlit na imagem antiga. O esqueleto vive neste repo (`opportunity-engine-v2`), sem o Streamlit. A seção **Hoje** abaixo descreve o repo antigo.
 - **BRD:** Capabilities › Tech stack; Figure 2 (arquitetura).
 - **Depende de:** nada. **Bloqueia:** todo o resto da trilha B.
 - **Hoje:**
