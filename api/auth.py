@@ -51,6 +51,7 @@ class AccountLocked(Exception):
 def check_lock(user: User) -> None:
     t = now()
     if user.locked_until is not None and user.locked_until > t:
+        log.info("auth.login_locked user_id=%s", user.id)
         raise AccountLocked(math.ceil((user.locked_until - t).total_seconds()))
 
 
@@ -67,18 +68,18 @@ def authenticate(db: Session, email: str, password: str) -> User:
     user = db.scalar(select(User).where(User.email == normalize_email(email)).with_for_update())
     if user is None:
         verify_password(password, dummy_hash())
-        log.info("auth.login_failed email=%s", email)
+        log.info("auth.login_failed email=%r", email)
         raise InvalidCredentials
 
     check_lock(user)
 
     if not verify_password(password, user.password_hash):
         register_failure(db, user)
-        log.info("auth.login_failed email=%s", email)
+        log.info("auth.login_failed email=%r", email)
         raise InvalidCredentials
 
     if not user.active:
-        log.info("auth.login_failed email=%s", email)
+        log.info("auth.login_failed email=%r", email)
         raise InvalidCredentials
 
     user.failed_logins = 0

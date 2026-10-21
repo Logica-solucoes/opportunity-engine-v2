@@ -28,3 +28,16 @@ def test_secrets_never_reach_the_log(caplog, capsys, monkeypatch, db, client, ma
         assert event in log, f"{event} not logged: the test would pass vacuously"
     for secret in (password, wrong, new, temp, cli_temp, ana_token, admin.cookies["gem_session"]):
         assert secret not in log
+
+
+def test_failed_login_logs_email_repr_and_locked_attempts_are_logged(caplog, client, make_user, password):
+    caplog.set_level(logging.INFO)
+    ana = make_user("ana@x.com")
+
+    client.post("/api/auth/login", json={"email": "forged@x.com\nauth.login_ok user_id=1", "password": "x"})
+    for _ in range(5):
+        client.post("/api/auth/login", json={"email": "ana@x.com", "password": "errada-errada"})
+    client.post("/api/auth/login", json={"email": "ana@x.com", "password": password})
+
+    assert all(not line.startswith("auth.login_ok") for line in caplog.text.splitlines())
+    assert f"auth.login_locked user_id={ana.id}" in caplog.text
