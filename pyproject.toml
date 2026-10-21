@@ -1,0 +1,20 @@
+[project]
+name = "opportunity-engine-v2"
+version = "0.1.0"
+description = "Marketing GEM platform: API, worker and web"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2",
+    "alembic",
+    "psycopg[binary]",
+    "pillow",
+]
+
+[dependency-groups]
+dev = ["httpx", "pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
