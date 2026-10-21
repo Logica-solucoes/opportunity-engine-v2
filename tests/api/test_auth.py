@@ -1,9 +1,11 @@
+import threading
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
-from api import auth
-from api.models import UserSession
+from api import auth, passwords
+from api.db import SessionLocal
+from api.models import User, UserSession
 
 NEW_PASSWORD = "uma-senha-nova-longa"
 
@@ -135,6 +137,40 @@ def test_fifth_failure_locks_for_15_min(client, make_user, password, monkeypatch
 
     freeze(monkeypatch, t0 + timedelta(minutes=15, seconds=1))
     assert client.post("/api/auth/login", json={"email": "ana@x.com", "password": password}).status_code == 200
+
+
+def test_parallel_wrong_guesses_still_lock(schema, password):
+    attempts = 10
+    with SessionLocal() as setup:
+        setup.add(User(email="race@x.com", name="race", password_hash=passwords.hash_password(password)))
+        setup.commit()
+    barrier = threading.Barrier(attempts)
+    results = []
+
+    def guess(i):
+        with SessionLocal() as session:
+            barrier.wait()
+            try:
+                auth.authenticate(session, "race@x.com", f"errada-{i}")
+            except auth.InvalidCredentials:
+                results.append("invalid")
+            except auth.AccountLocked:
+                results.append("locked")
+
+    try:
+        threads = [threading.Thread(target=guess, args=(i,)) for i in range(attempts)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
+        with SessionLocal() as check:
+            locked_until = check.scalar(select(User.locked_until).where(User.email == "race@x.com"))
+    finally:
+        with SessionLocal() as cleanup:
+            cleanup.execute(delete(User).where(User.email == "race@x.com"))
+            cleanup.commit()
+
+    assert len(results) == attempts
+    assert locked_until is not None
+    assert results.count("invalid") <= auth.MAX_FAILED_LOGINS
 
 
 def test_success_resets_the_failure_counter(client, make_user, password):

@@ -49,7 +49,7 @@ class AccountLocked(Exception):
 
 
 def authenticate(db: Session, email: str, password: str) -> User:
-    user = db.scalar(select(User).where(User.email == normalize_email(email)))
+    user = db.scalar(select(User).where(User.email == normalize_email(email)).with_for_update())
     if user is None:
         verify_password(password, dummy_hash())
         log.info("auth.login_failed email=%s", email)
