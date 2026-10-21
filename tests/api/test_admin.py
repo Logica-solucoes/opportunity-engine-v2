@@ -61,6 +61,7 @@ def test_reset_password_kills_sessions_and_unlocks(make_client, db, make_user, l
     r = admin_client.post(f"/api/admin/users/{ana.id}/reset-password")
 
     assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
     temp = r.json()["temp_password"]
     assert ana_client.get("/api/me").status_code == 401
     fresh = make_client()

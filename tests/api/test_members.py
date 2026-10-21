@@ -23,6 +23,7 @@ def test_add_new_account_returns_temp_password_once(make_client, client, db, mak
     r = client.post("/api/w/a/members", json={"email": " Nova@X.com ", "name": "Nova", "role": "analyst"})
 
     assert r.status_code == 201
+    assert r.headers["cache-control"] == "no-store"
     body = r.json()
     assert body["email"] == "nova@x.com" and body["role"] == "analyst" and body["active"] is True
     temp = body["temp_password"]

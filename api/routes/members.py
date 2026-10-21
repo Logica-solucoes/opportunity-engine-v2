@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -55,11 +55,14 @@ def list_members(ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_
 
 
 @router.post("", status_code=201, response_model=NewMemberOut)
-def add_member(body: MemberIn, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
+def add_member(
+    body: MemberIn, response: Response, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)
+):
     try:
         membership, temp = accounts.add_member(db, ctx.workspace, body.email, body.name, body.role)
     except accounts.Conflict:
         raise HTTPException(409, "Usuário já é membro deste workspace")
+    response.headers["Cache-Control"] = "no-store"
     return NewMemberOut(**member_out(membership).model_dump(), temp_password=temp)
 
 

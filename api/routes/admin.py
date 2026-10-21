@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -73,7 +73,10 @@ def list_users(_: User = Depends(require_platform_admin), db: Session = Depends(
 
 
 @router.post("/users/{user_id}/reset-password", response_model=TempPasswordOut)
-def reset_password(user_id: UserId, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+def reset_password(
+    user_id: UserId, response: Response, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)
+):
+    response.headers["Cache-Control"] = "no-store"
     return TempPasswordOut(temp_password=accounts.reset_password(db, find_user(db, user_id), by=admin))
 
 
