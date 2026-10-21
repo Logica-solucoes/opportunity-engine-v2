@@ -9,7 +9,8 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
-from api.db import DATABASE_URL
+import api.models  # noqa: F401  registers the tables on Base.metadata
+from api.db import DATABASE_URL, Base
 
 # configparser treats % as interpolation
 config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
@@ -17,13 +18,10 @@ config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # tests run alembic in-process; the default would disable loggers created before it (api.auth...)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
