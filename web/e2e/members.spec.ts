@@ -41,7 +41,10 @@ test('workspace admin changes a role and removes a member', async ({ page }) => 
   const member = await addMember(page, slug, 'viewer')
 
   const row = page.getByRole('row', { name: new RegExp(member.email) })
-  await row.getByLabel('Papel').selectOption('analyst')
+  await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'PATCH' && r.ok()),
+    row.getByLabel('Papel').selectOption('analyst'),
+  ])
   await page.reload()
   await expect(page.getByRole('row', { name: new RegExp(member.email) }).getByLabel('Papel')).toHaveValue('analyst')
 
