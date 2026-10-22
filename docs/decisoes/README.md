@@ -7,6 +7,6 @@ Divisão de trabalho: o `CLAUDE.md` e os arquivos da raiz (`CODE-STYLE.md`, `DAT
 | Arquivo | Cobre |
 | --- | --- |
 | [infra-e-operacao.md](infra-e-operacao.md) | Imagem única, health, SPA, CI, dependências |
-| [auth.md](auth.md) | Sessão, cookie, CSRF, 404 × 403, papéis, bloqueio, bootstrap |
+| [auth.md](auth.md) | Sessão, cookie, CSRF, 404 × 403, papéis, bloqueio, bootstrap, guardas do front, workspace na URL, tema |
 
 Ao concluir uma tarefa que muda alguma dessas decisões, atualize o arquivo da área no mesmo commit.

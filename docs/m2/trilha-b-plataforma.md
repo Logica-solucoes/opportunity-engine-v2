@@ -32,7 +32,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B1 · Autenticação, papéis e workspaces — semanas 1–2
 
-- **Status:** 🟡 B1a (backend) feito em 21/out/2026: tabelas, sessão, bloqueio, RBAC por workspace, rotas de membros e admin, CLI `create-admin`; aceite verificado por `tests/api/test_rbac.py`, `test_auth.py` e `test_logging.py`. B1b (telas) pendente. Em aberto respondido: reset só pelo admin; contas do protótipo não migram.
+- **Status:** ✅ feito. B1a (backend) em 21/out/2026, verificado por `tests/api/test_rbac.py`, `test_auth.py` e `test_logging.py`; B1b (telas) em 22/out/2026, verificado por `web/e2e/*.spec.ts` (login, troca obrigatória, bloqueio, 404 entre workspaces, papel, admin) e screenshots nos dois temas. Em aberto respondido: reset só pelo admin; contas do protótipo não migram.
 - **BRD:** Capabilities › Authentication & user management; Journey 3 (Admin onboarding); Improvement Requests › Access; deliverable "Authentication & management".
 - **Depende de:** B0.
 - **Hoje:**

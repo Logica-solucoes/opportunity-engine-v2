@@ -41,3 +41,17 @@ Sem auto-cadastro, alguém cria o primeiro platform admin: `mise run create-admi
 ## `detail` em código estável nos erros de auth
 
 O front precisa decidir o fluxo (mandar para a troca de senha, mostrar o tempo de bloqueio), então esses `detail` são códigos e a tradução para pt-BR fica na apresentação. Erros sem fluxo especial, como o 409, já vêm em pt-BR.
+
+## Guardas do front no `beforeLoad`, lendo `/api/me`
+
+Decisões do B1b, 22/out/2026. Spec: `docs/superpowers/specs/2026-10-22-b1b-auth-telas-design.md`.
+
+O `/api/me` fica no cache do TanStack Query e as rotas `_auth`, `w/$slug` e `admin` decidem no `beforeLoad`, antes de renderizar: sem flash de tela protegida. Slug de workspace fora de `me.workspaces` cai na mesma tela de "não encontrado" de uma rota inexistente, como o 404 da API. Esconder link é só UX; quem barra é a API. Sessão que expira no meio do uso volta como 401 `not_authenticated` em qualquer query ou mutation e um handler global em `main.tsx` manda para o login com `redirect`; o 401 `invalid_credentials` do próprio login não dispara isso.
+
+## Workspace ativo na URL
+
+`/w/$slug/...` espelha `/api/w/{slug}`: link compartilhável e abas em marcas diferentes sem brigar por estado. O seletor do header só navega.
+
+## Tema do protótipo, trocável no B10
+
+Tailwind v4 + shadcn/ui com as cores do Streamlit (primária `#ff4b4b`, Inter), claro e escuro, padrão do sistema com escolha salva no `localStorage`. As cores moram só nos tokens de `web/src/index.css`; trocar pelo design system do Almap Metrics no B10 é trocar esses tokens.

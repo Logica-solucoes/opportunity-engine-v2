@@ -25,6 +25,9 @@ api/              Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + psycopg 3 (uv
   migrations/     revisões Alembic (env.py lê DATABASE_URL de api/db.py)
 web/              Vite + React 19 + TypeScript + TanStack Router/Query (bun)
   src/routes/     rotas file-based; routeTree.gen.ts é gerado mas versionado
+  src/lib/        api.ts (fetch + ApiError), auth.ts (meQuery, erros pt-BR), theme.ts
+  src/components/ ui/ é do shadcn (gerado por `bunx shadcn@latest add`); o resto é nosso
+  e2e/            Playwright contra a app real (banco app_e2e)
 engine/           (Trilha A, ainda não existe) motor estatístico — criado pelo A0
 tests/            pytest; tests/api/ para a plataforma
 docs/m2/          plano do M2 · docs/superpowers/ specs e planos · docs/decisoes/ porquês
@@ -36,15 +39,18 @@ docs/m2/          plano do M2 · docs/superpowers/ specs e planos · docs/deciso
 2. `mise run db-migrate` — aplica as migrations.
 3. `mise run create-admin voce@exemplo.com "Seu Nome"` — cria o primeiro platform admin e imprime a senha temporária (troca obrigatória no 1º login).
 4. `mise run api` — API em `:8000` com reload.
-5. `mise run web` — SPA em `:5173`, `/api` faz proxy para `:8000`. Abra `http://localhost:5173`: deve mostrar `API: ok · banco: ok`.
+5. `mise run web` — SPA em `:5173`, `/api` faz proxy para `:8000`. Abra `http://localhost:5173`: deve abrir a tela de login.
 
 ```bash
 mise run test                                       # uv run pytest
+mise run e2e                                        # Playwright: build do web + uvicorn em :8001 + banco app_e2e
 mise run worker                                     # python -m api.worker
 uv run alembic -c api/alembic.ini revision -m "…"   # nova migration
 cd web && bun run build                             # tsc -b + vite build
 cd web && bun run lint                              # oxlint
 ```
+
+Depois de criar arquivo novo em `web/src/routes/`, rode `cd web && bunx vite build` uma vez antes do `bun run build`: o `tsc -b` roda antes de o plugin do Vite regenerar o `routeTree.gen.ts`.
 
 Use `uv` e `bun` — não pip, poetry, npm ou yarn. Se a porta 5432 estiver ocupada por outro Postgres local, o `docker compose up` falha: libere a porta ou troque o mapeamento no compose.
 
@@ -75,7 +81,7 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 
 ## Estado atual
 
-**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. Faltam, em ordem: B1b (telas de login, troca de senha, seletor de workspace, admin), B2–B4 (upload, Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
+**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. **B1b (telas) concluído em 22/out/2026**: login, troca de senha obrigatória, seletor de workspace por slug na URL, membros, admin de workspaces e usuários, tema claro/escuro do protótipo (Tailwind + shadcn), E2E Playwright no CI. Faltam, em ordem: B2–B4 (upload, Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
 
 **Onde as decisões estão escritas.** Este arquivo e os quatro da raiz dizem as regras; `docs/decisoes/` diz **por quê** (índice em `docs/decisoes/README.md`). Leia o arquivo da área antes de mexer nela:
 

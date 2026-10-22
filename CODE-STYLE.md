@@ -9,9 +9,9 @@ Simples, legível, fácil de depurar. Código só para o que é preciso agora, e
 | Runtime e deps | Python 3.13 com `uv` (`pyproject.toml` + `uv.lock` na raiz) | `bun` |
 | Format / lint | `ruff format` (linha 120, checado no CI); `ruff check` ainda não configurado, adicionar junto com o `engine/` | `bun run lint` (oxlint) |
 | Tipos | — | `bun run build` (`tsc -b` + vite) |
-| Testes | `uv run pytest` | — (sem runner ainda) |
+| Testes | `uv run pytest` | `bun run e2e` (Playwright, ver abaixo) |
 
-O CI (`.github/workflows/ci.yml`) roda `uv run pytest -q` e, em `web/`, `bunx tsc -b` + `bun run build` em todo push e PR. Rode-os antes de dar uma tarefa como pronta. Tarefas do dia a dia estão no `mise.toml`.
+O CI (`.github/workflows/ci.yml`) roda `uv run pytest -q` e, em `web/`, `bunx tsc -b` + `bun run build` + `bun run lint` em todo push e PR; o job `e2e` roda o Playwright. Rode-os antes de dar uma tarefa como pronta. Tarefas do dia a dia estão no `mise.toml`.
 
 `src/routeTree.gen.ts` é gerado (e versionado). Dependência Python nova entra com `uv add`, sempre commitando o `uv.lock`.
 
@@ -43,6 +43,7 @@ O CI (`.github/workflows/ci.yml`) roda `uv run pytest -q` e, em `web/`, `bunx ts
 - Fixtures prontos: `client`/`make_client` (`https://testserver`, senão o cookie `Secure` não volta), `make_user`, `make_workspace`, `login_as`, `password`. O scrypt cai para N=2¹⁴ nos testes (`fast_scrypt`).
 - Cada teste que escreve no banco roda dentro de um rollback (detalhes em `DATABASE.md`).
 - `TestClient(create_app(web_dist=tmp_path))` para testar o SPA sem depender do build do `web/`.
+- Front: E2E com Playwright em `web/e2e/` contra a app real (`mise run e2e`, banco `app_e2e`). Cada teste cria os próprios usuários e workspaces com sufixo aleatório; nada de depender de ordem ou de limpar o banco. Sem testes de componente por ora.
 
 ## Regras do motor (`engine/`, Trilha A)
 
