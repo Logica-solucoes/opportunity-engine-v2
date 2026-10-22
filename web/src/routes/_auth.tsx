@@ -7,10 +7,11 @@ export const Route = createFileRoute('/_auth')({
   beforeLoad: async ({ context, location }) => {
     try {
       const me = await context.queryClient.ensureQueryData(meQuery)
-      if (me.must_change_password) throw redirect({ to: '/trocar-senha' })
+      if (me.must_change_password) throw redirect({ to: '/trocar-senha', search: { redirect: location.href } })
       return { me }
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) throw redirect({ to: '/login', search: { redirect: location.href } })
+      if (e instanceof ApiError && e.status === 401)
+        throw redirect({ to: '/login', search: { redirect: location.href } })
       throw e
     }
   },

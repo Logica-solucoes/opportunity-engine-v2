@@ -29,6 +29,7 @@ export async function changePassword(page: Page, current: string) {
   await page.getByLabel('Nova senha', { exact: true }).fill(NEW_PASSWORD)
   await page.getByLabel('Confirme a nova senha').fill(NEW_PASSWORD)
   await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page).not.toHaveURL(/\/trocar-senha/)
 }
 
 export async function loggedInAdmin(page: Page) {

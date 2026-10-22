@@ -6,16 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
-import { type Me, errorMessage, meQuery } from '@/lib/auth'
-
-// only same-site paths: an absolute URL here would be an open redirect
-const safePath = (v: unknown) => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : undefined)
+import { type Me, errorMessage, meQuery, redirectSearch } from '@/lib/auth'
 
 export const Route = createFileRoute('/login')({
-  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({ redirect: safePath(search.redirect) }),
-  beforeLoad: async ({ context }) => {
+  validateSearch: redirectSearch,
+  beforeLoad: async ({ context, search }) => {
     const me = await context.queryClient.ensureQueryData(meQuery).catch(() => null)
-    if (me) throw redirect({ to: '/' })
+    if (me) throw redirect({ href: search.redirect ?? '/' })
   },
   component: Login,
 })
@@ -28,7 +25,8 @@ function Login() {
     mutationFn: (body: { email: string; password: string }) => api<Me>('/auth/login', { method: 'POST', body }),
     onSuccess: (me) => {
       queryClient.setQueryData(meQuery.queryKey, me)
-      router.history.push(me.must_change_password ? '/trocar-senha' : (next ?? '/'))
+      if (me.must_change_password) router.navigate({ to: '/trocar-senha', search: { redirect: next } })
+      else router.history.push(next ?? '/')
     },
   })
 
@@ -49,7 +47,11 @@ function Login() {
           <Label htmlFor="password">Senha</Label>
           <Input id="password" name="password" type="password" autoComplete="current-password" required />
         </div>
-        {login.isError && <p className="text-sm text-destructive">{errorMessage(login.error)}</p>}
+        {login.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(login.error)}
+          </p>
+        )}
         <Button type="submit" className="w-full" disabled={login.isPending}>
           Entrar
         </Button>

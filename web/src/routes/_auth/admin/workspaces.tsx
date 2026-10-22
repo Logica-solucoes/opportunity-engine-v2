@@ -15,7 +15,7 @@ export const Route = createFileRoute('/_auth/admin/workspaces')({ component: Wor
 const slugify = (name: string) =>
   name
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
@@ -23,7 +23,10 @@ const slugify = (name: string) =>
 
 function Workspaces() {
   const queryClient = useQueryClient()
-  const workspaces = useQuery({ queryKey: ['admin', 'workspaces'], queryFn: () => api<Workspace[]>('/admin/workspaces') })
+  const workspaces = useQuery({
+    queryKey: ['admin', 'workspaces'],
+    queryFn: () => api<Workspace[]>('/admin/workspaces'),
+  })
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
@@ -76,7 +79,11 @@ function Workspaces() {
           Criar workspace
         </Button>
       </form>
-      {create.isError && <p className="text-sm text-destructive">{errorMessage(create.error)}</p>}
+      {create.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {errorMessage(create.error)}
+        </p>
+      )}
 
       <Table>
         <TableHeader>

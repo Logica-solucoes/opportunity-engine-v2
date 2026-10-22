@@ -1,4 +1,5 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { ApiError, api } from './api'
 
 export type Role = 'admin' | 'analyst' | 'viewer'
@@ -22,6 +23,27 @@ export const meQuery = queryOptions({
   meta: { skipAuthRedirect: true },
 })
 
+// same-site paths only: an absolute URL here would be an open redirect.
+// Browsers strip control chars, so `/\t/x` would become `//x`.
+export const safePath = (v: unknown) =>
+  typeof v === 'string' && /^\/(?![/\\])[^\x00-\x1f\x7f]*$/.test(v) ? v : undefined
+
+export const redirectSearch = (search: Record<string, unknown>): { redirect?: string } => ({
+  redirect: safePath(search.redirect),
+})
+
+export function useLogout() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  return useMutation({
+    mutationFn: () => api('/auth/logout', { method: 'POST' }),
+    onSettled: () => {
+      queryClient.clear()
+      navigate({ to: '/login', search: { redirect: undefined } })
+    },
+  })
+}
+
 export const roleIn = (me: Me, slug: string) => me.workspaces.find((w) => w.slug === slug)?.role
 
 const MESSAGES: Record<string, string> = {
@@ -29,6 +51,9 @@ const MESSAGES: Record<string, string> = {
   invalid_current_password: 'Senha atual incorreta.',
   password_unchanged: 'A nova senha precisa ser diferente da atual.',
   cannot_deactivate_self: 'Você não pode desativar a própria conta.',
+  account_not_found: 'Essa conta não existe. Peça ao platform admin para criá-la.',
+  name_required: 'Informe o nome para criar a conta.',
+  last_admin: 'O workspace precisa de ao menos um admin.',
 }
 
 export function errorMessage(error: unknown): string {

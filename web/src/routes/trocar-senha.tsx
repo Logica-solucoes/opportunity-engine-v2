@@ -1,14 +1,15 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { AuthCard } from '@/components/AuthCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
-import { errorMessage, meQuery } from '@/lib/auth'
+import { errorMessage, meQuery, redirectSearch, useLogout } from '@/lib/auth'
 
 export const Route = createFileRoute('/trocar-senha')({
+  validateSearch: redirectSearch,
   beforeLoad: async ({ context, location }) => {
     const me = await context.queryClient.ensureQueryData(meQuery).catch(() => null)
     if (!me) throw redirect({ to: '/login', search: { redirect: location.href } })
@@ -19,13 +20,15 @@ export const Route = createFileRoute('/trocar-senha')({
 function ChangePassword() {
   const { data: me } = useSuspenseQuery(meQuery)
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { redirect: next } = Route.useSearch()
+  const router = useRouter()
+  const logout = useLogout()
   const [mismatch, setMismatch] = useState(false)
   const change = useMutation({
     mutationFn: (body: { current: string; new: string }) => api('/auth/password', { method: 'POST', body }),
     onSuccess: () => {
       queryClient.setQueryData(meQuery.queryKey, { ...me, must_change_password: false })
-      navigate({ to: '/' })
+      router.history.push(next ?? '/')
     },
   })
 
@@ -54,10 +57,22 @@ function ChangePassword() {
           <Label htmlFor="confirm">Confirme a nova senha</Label>
           <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
         </div>
-        {mismatch && <p className="text-sm text-destructive">As senhas não conferem.</p>}
-        {change.isError && <p className="text-sm text-destructive">{errorMessage(change.error)}</p>}
+        {mismatch && (
+          <p role="alert" className="text-sm text-destructive">
+            As senhas não conferem.
+          </p>
+        )}
+        {change.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(change.error)}
+          </p>
+        )}
         <Button type="submit" className="w-full" disabled={change.isPending}>
           Salvar
+        </Button>
+        {/* this screen has no header, so this is the only way out, e.g. on a shared machine */}
+        <Button type="button" variant="ghost" className="w-full" onClick={() => logout.mutate()}>
+          Sair
         </Button>
       </form>
     </AuthCard>

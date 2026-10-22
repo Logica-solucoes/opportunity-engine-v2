@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Moon, Sun, User } from 'lucide-react'
 import almapDark from '@/assets/logos/almap-negativo.png'
@@ -15,8 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { api } from '@/lib/api'
-import { meQuery, roleIn } from '@/lib/auth'
+import { meQuery, roleIn, useLogout } from '@/lib/auth'
 import { setTheme } from '@/lib/theme'
 
 function Logo({ light, dark, alt }: { light: string; dark: string; alt: string }) {
@@ -32,14 +31,7 @@ export function AppHeader() {
   const { data: me } = useSuspenseQuery(meQuery)
   const { slug } = useParams({ strict: false })
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const logout = useMutation({
-    mutationFn: () => api('/auth/logout', { method: 'POST' }),
-    onSettled: () => {
-      queryClient.clear()
-      navigate({ to: '/login', search: { redirect: undefined } })
-    },
-  })
+  const logout = useLogout()
 
   return (
     <header className="border-b bg-card">
@@ -105,7 +97,9 @@ export function AppHeader() {
                 <div className="text-xs font-normal text-muted-foreground">{me.email}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate({ to: '/trocar-senha' })}>Trocar senha</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate({ to: '/trocar-senha', search: { redirect: undefined } })}>
+                Trocar senha
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => logout.mutate()}>Sair</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

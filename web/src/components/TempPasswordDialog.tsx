@@ -13,13 +13,22 @@ type Props = { password: string | null; email: string; onClose: () => void }
 
 export function TempPasswordDialog({ password, email, onClose }: Props) {
   async function copy() {
-    await navigator.clipboard.writeText(password!)
-    toast.success('Senha copiada.')
+    try {
+      await navigator.clipboard.writeText(password!)
+      toast.success('Senha copiada.')
+    } catch {
+      toast.error('Não foi possível copiar. Selecione a senha e copie.')
+    }
   }
 
   return (
     <Dialog open={password !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      {/* the password is shown once: only the explicit button closes it */}
+      <DialogContent
+        showCloseButton={false}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Senha temporária</DialogTitle>
           <DialogDescription>
