@@ -30,3 +30,8 @@ run = "uv run alembic -c api/alembic.ini upgrade head"
 [tasks.create-admin]
 description = "Create or promote a platform admin: mise run create-admin <email> <name>"
 run = "uv run python -m api.cli create-admin"
+
+[tasks.e2e]
+description = "Playwright E2E against the built SPA (needs docker compose up)"
+dir = "web"
+run = "bun run e2e"
