@@ -23,6 +23,7 @@ test('platform admin resets a password and sees it once', async ({ page }) => {
   const row = page.getByRole('row', { name: new RegExp(admin.email) })
   await expect(row).toBeVisible()
   await expect(row.getByRole('button', { name: 'Desativar' })).toHaveCount(0)
+  await expect(row.getByRole('button', { name: 'Resetar senha' })).toHaveCount(0)
 
   const other = createAdmin()
   await page.reload()

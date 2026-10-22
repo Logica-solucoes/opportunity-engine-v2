@@ -79,29 +79,32 @@ function Users() {
               <TableCell>{u.name}</TableCell>
               <TableCell>{status(u)}</TableCell>
               <TableCell className="space-x-2 text-right">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      Resetar senha
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Resetar a senha de {u.email}?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        As sessões dessa pessoa caem e ela terá de trocar a senha no próximo login.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => reset.mutate(u)}>Resetar</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {/* resetting your own password drops your own session; use "Trocar senha" instead */}
                 {u.id !== me.id && (
-                  <Button variant="outline" size="sm" onClick={() => setActive.mutate(u)}>
-                    {u.active ? 'Desativar' : 'Ativar'}
-                  </Button>
+                  <>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Resetar senha
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Resetar a senha de {u.email}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            As sessões dessa pessoa caem e ela terá de trocar a senha no próximo login.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => reset.mutate(u)}>Resetar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <Button variant="outline" size="sm" onClick={() => setActive.mutate(u)}>
+                      {u.active ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  </>
                 )}
               </TableCell>
             </TableRow>
