@@ -38,3 +38,36 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx tsc -b
       - run: bun run build
+      - run: bun run lint
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: uv sync --frozen
+      - run: bun install --frozen-lockfile
+        working-directory: web
+      - run: bunx playwright install --with-deps chromium
+        working-directory: web
+      - run: bun run e2e
+        working-directory: web
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: web/test-results
