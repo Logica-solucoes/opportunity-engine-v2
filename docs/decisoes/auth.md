@@ -24,7 +24,13 @@ BRD › Journey 3: o Data Tech cria workspaces e usuários, monitora uso e logs 
 
 ## Conta é do platform admin, membership é do workspace
 
-Um analista da Almap atende várias marcas. Se o admin da marca X pudesse resetar a senha ou desativar a conta, mexeria no acesso dele à marca Y. Então o admin do workspace adiciona (criando a conta se não existir), troca papel e remove; reset e desativação são do platform admin. Senha temporária aparece uma vez na resposta e o admin a passa por fora; sem e-mail no M2.
+Um analista da Almap atende várias marcas. Se o admin da marca X pudesse resetar a senha ou desativar a conta, mexeria no acesso dele à marca Y. Então reset e desativação são do platform admin, e o admin do workspace vincula contas existentes, troca papel e remove. Senha temporária aparece uma vez na resposta e o admin a passa por fora; sem e-mail no M2.
+
+**Só o platform admin cria conta** (revisão do B1, 22/out/2026). Antes, o admin do workspace criava a conta ao adicionar um e-mail novo e recebia a senha temporária: o admin da marca A podia criar `x@almap.com`, entrar com ela e definir a senha; quando a marca B adicionasse o mesmo e-mail, a conta já existia e ganhava a membership sem senha nova, e o admin de A passava a ler B. Agora `POST /api/w/{slug}/members` com e-mail desconhecido responde 404 `account_not_found` para o admin do workspace e só cria a conta (exigindo `name`) quando quem chama é o platform admin. Sem rota nova: o platform admin cria a conta já vinculando a um workspace, que é como toda conta nasce. Custo aceito: o admin do workspace descobre se um e-mail tem conta, e o nome dela, ao vinculá-la.
+
+## Workspace nunca fica sem admin
+
+Rebaixar ou remover o último admin do workspace responde 409 `last_admin`. As memberships admin do workspace são travadas (`FOR UPDATE`) antes da contagem, para dois admins rebaixando um ao outro ao mesmo tempo não zerarem a lista. Na tela de membros o próprio admin não vê papel editável nem "Remover" na sua linha: se rebaixar a si mesmo, o `/me` em cache e a tela ficariam desatualizados e toda ação seguinte falharia; outro admin faz isso.
 
 ## Bloqueio por conta, não por IP
 
@@ -32,7 +38,18 @@ Um analista da Almap atende várias marcas. Se o admin da marca X pudesse reseta
 
 ## scrypt da stdlib
 
-`hashlib.scrypt` com N=2¹⁷, r=8, p=1 (mínimo da OWASP), sem dependência nova. Cada login usa ~128 MB de RAM por ~0,3 s; considere isso ao dimensionar a instância do Cloud Run. Os parâmetros ficam no hash, então subir o custo depois não invalida senhas antigas.
+`hashlib.scrypt` com N=2¹⁷, r=8, p=1 (mínimo da OWASP), sem dependência nova. Cada login usa ~128 MB de RAM por ~0,3 s (1,5 s num notebook lento). Os parâmetros ficam no hash, então subir o custo depois não invalida senhas antigas.
+
+Como o login é público, uma rajada de requests derrubaria a instância. Por isso há dois limites (revisão do B1, 22/out/2026):
+
+- **Semáforo de 4 scrypts simultâneos** (`passwords.SLOTS`): o resto espera na fila, então o teto de RAM é ~512 MB. Ao dimensionar o Cloud Run no B11, deixe memória para isso ou reduza `SLOTS`.
+- **Login sem conexão presa durante o scrypt**: lê o usuário, encerra a transação, roda o scrypt e só então trava a linha para contar a falha ou zerar o contador. Se a senha mudou nesse meio-tempo, o palpite conta como errado. Sem isso, uns 15 logins ruins simultâneos esgotariam o pool (5+10) e travariam todas as rotas.
+
+Senha acima de 1024 caracteres é 422 antes de chegar ao scrypt.
+
+## Sessões vencidas somem no login
+
+Sessão expirada é apagada quando o cookie volta, mas cookie que nunca volta (sobrescrito por outro login, apagado) deixaria a linha para sempre. Todo login apaga as sessões já vencidas por ociosidade ou pelo teto de 7d. É um `DELETE` pequeno e dispensa job agendado.
 
 ## Bootstrap por CLI
 
@@ -46,7 +63,9 @@ O front precisa decidir o fluxo (mandar para a troca de senha, mostrar o tempo d
 
 Decisões do B1b, 22/out/2026. Spec: `docs/superpowers/specs/2026-10-22-b1b-auth-telas-design.md`.
 
-O `/api/me` fica no cache do TanStack Query e as rotas `_auth`, `w/$slug` e `admin` decidem no `beforeLoad`, antes de renderizar: sem flash de tela protegida. Slug de workspace fora de `me.workspaces` cai na mesma tela de "não encontrado" de uma rota inexistente, como o 404 da API. Esconder link é só UX; quem barra é a API. Sessão que expira no meio do uso volta como 401 `not_authenticated` em qualquer query ou mutation e um handler global em `main.tsx` manda para o login com `redirect`; o 401 `invalid_credentials` do próprio login não dispara isso.
+O `/api/me` fica no cache do TanStack Query e as rotas `_auth`, `w/$slug` e `admin` decidem no `beforeLoad`, antes de renderizar: sem flash de tela protegida. Slug de workspace fora de `me.workspaces` cai na mesma tela de "não encontrado" de uma rota inexistente, como o 404 da API. Esconder link é só UX; quem barra é a API. Sessão que expira no meio do uso volta como 401 `not_authenticated` em qualquer query ou mutation e um handler global em `main.tsx` manda para o login com `redirect`; o 401 `invalid_credentials` do próprio login não dispara isso. O `redirect` atravessa a troca de senha obrigatória e é aceito só como path do próprio site: começa com `/`, não com `//` nem `/\`, e não tem caractere de controle.
+
+Erro de carga (query com 5xx ou falha de rede) vira um toast genérico global, sem repetir a mesma mensagem. Mutation mostra o próprio erro, inline ou em toast, e o handler global não duplica.
 
 ## Workspace ativo na URL
 

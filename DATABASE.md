@@ -20,7 +20,7 @@ Models em `api/models.py` (`Base` em `api/db.py`).
 |---|---|---|
 | `users` | email único (minúsculo), nome, `password_hash` (scrypt), `must_change_password`, `is_platform_admin`, `active`, `failed_logins`, `locked_until` | `0001` |
 | `workspaces` | nome, slug único e imutável, `settings jsonb` (default `{}`) | `0001` |
-| `memberships` | PK `(user_id, workspace_id)`, `role` enum `membership_role` (admin\|analyst\|viewer) | `0001` |
+| `memberships` | PK `(user_id, workspace_id)`, índice em `workspace_id`, `role` enum `membership_role` (admin\|analyst\|viewer) | `0001`, `0002` |
 | `sessions` | PK `token_hash` (sha256 do token), `user_id`, `created_at`, `last_seen_at` | `0001` |
 
 Atualize esta tabela no mesmo commit da migration (linha deixa de ser "planejada" e ganha o id da revisão).

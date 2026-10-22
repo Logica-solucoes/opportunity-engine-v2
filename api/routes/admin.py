@@ -9,13 +9,13 @@ from api import accounts
 from api.auth import require_platform_admin
 from api.db import get_db
 from api.models import User, Workspace
-from api.routes import UserId
+from api.routes import Name, UserId
 
 router = APIRouter(prefix="/api/admin")
 
 
 class WorkspaceIn(BaseModel):
-    name: str = Field(min_length=1)
+    name: Name
     slug: str = Field(pattern=r"^[a-z0-9-]{2,40}$")
 
 

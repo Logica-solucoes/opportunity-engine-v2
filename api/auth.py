@@ -65,15 +65,21 @@ def register_failure(db: Session, user: User) -> None:
 
 
 def authenticate(db: Session, email: str, password: str) -> User:
-    user = db.scalar(select(User).where(User.email == normalize_email(email)).with_for_update(key_share=True))
+    user = db.scalar(select(User).where(User.email == normalize_email(email)))
+    if user is not None:
+        check_lock(user)
+    stored = user.password_hash if user is not None else dummy_hash()
+    # end the read first: scrypt takes ~0.3 s and must not sit on a pooled connection or a row lock
+    db.commit()
+    ok = verify_password(password, stored)
+
     if user is None:
-        verify_password(password, dummy_hash())
         log.info("auth.login_failed email=%r", email)
         raise InvalidCredentials
 
+    db.refresh(user, with_for_update={"key_share": True})
     check_lock(user)
-
-    if not verify_password(password, user.password_hash):
+    if not ok or user.password_hash != stored:
         register_failure(db, user)
         log.info("auth.login_failed email=%r", email)
         raise InvalidCredentials
@@ -90,6 +96,12 @@ def authenticate(db: Session, email: str, password: str) -> User:
 def create_session(db: Session, user: User) -> str:
     token = secrets.token_urlsafe(32)
     t = now()
+    # sessions whose cookie never comes back would otherwise live forever
+    db.execute(
+        delete(UserSession).where(
+            (UserSession.last_seen_at < t - IDLE_TIMEOUT) | (UserSession.created_at < t - MAX_AGE)
+        )
+    )
     db.add(UserSession(token_hash=hash_token(token), user_id=user.id, created_at=t, last_seen_at=t))
     db.commit()
     log.info("auth.login_ok user_id=%s", user.id)

@@ -96,6 +96,30 @@ def test_session_dies_after_7d_even_if_active(client, db, make_user, login_as, m
     freeze(monkeypatch, later)
 
     assert client.get("/api/me").status_code == 401
+    assert session_count(db) == 0
+
+
+def test_oversized_passwords_are_rejected(client, make_user, login_as):
+    huge = "x" * 1025
+    user = make_user("ana@x.com")
+
+    assert client.post("/api/auth/login", json={"email": user.email, "password": huge}).status_code == 422
+    login_as(client, user)
+    assert client.post("/api/auth/password", json={"current": huge, "new": "outra-senha-longa"}).status_code == 422
+    assert client.post("/api/auth/password", json={"current": "x", "new": huge}).status_code == 422
+
+
+def test_login_purges_expired_sessions(make_client, db, make_user, login_as):
+    stale = make_user("velho@x.com")
+    login_as(make_client(), stale)
+    old = datetime.now(UTC) - timedelta(days=8)
+    row = db.scalars(select(UserSession)).one()
+    row.created_at = row.last_seen_at = old
+    db.flush()
+
+    login_as(make_client(), make_user("ana@x.com"))
+
+    assert stale.id not in db.scalars(select(UserSession.user_id)).all()
 
 
 def test_session_of_deactivated_user_is_rejected_and_deleted(client, db, make_user, login_as):

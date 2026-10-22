@@ -7,18 +7,19 @@ from sqlalchemy.orm import Session
 from api import accounts, auth
 from api.db import get_db
 from api.models import Membership, Role, User, UserSession, Workspace
+from api.routes import Password
 
 router = APIRouter(prefix="/api")
 
 
 class LoginIn(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=320)
+    password: Password
 
 
 class PasswordIn(BaseModel):
-    current: str
-    new: str = Field(min_length=12)
+    current: Password
+    new: Password = Field(min_length=12)
 
 
 class MyWorkspace(BaseModel):

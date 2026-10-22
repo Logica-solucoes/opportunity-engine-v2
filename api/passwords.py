@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import threading
 from functools import cache
 
 # OWASP minimum for scrypt; params live in each hash, so raising N later keeps old hashes valid
@@ -10,10 +11,13 @@ SCRYPT_N = 2**17
 SCRYPT_R = 8
 SCRYPT_P = 1
 MAXMEM = 2**28
+# each run takes ~128 MB: a burst of logins must queue instead of OOM-killing the instance
+SLOTS = threading.BoundedSemaphore(4)
 
 
 def _scrypt(password: str, salt: bytes, n: int, r: int, p: int) -> bytes:
-    return hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, maxmem=MAXMEM)
+    with SLOTS:
+        return hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, maxmem=MAXMEM)
 
 
 def _b64(b: bytes) -> str:

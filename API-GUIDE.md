@@ -6,7 +6,7 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 
 - **Rota fina**: valida entrada, chama o serviço, traduz exceção de domínio em status. Regra de negócio fica fora da rota.
 - **Escopo por workspace**: rota de dado de cliente vive sob `/api/w/{slug}/…` e recebe `ctx: Ctx = Depends(require_role("viewer"|"analyst"|"admin"))` (`api/auth.py`); queries filtram por `ctx.workspace.id`. Workspace inexistente ou sem membership → **404, nunca 403**; papel insuficiente → 403. Rotas fora de workspace usam `current_user` (aceita troca de senha pendente), `active_user` ou `require_platform_admin`.
-- **`detail` dos erros de auth é código estável** (`not_authenticated`, `invalid_credentials`, `locked`, `password_change_required`, `bad_origin`, `invalid_current_password`, `password_unchanged`, `cannot_deactivate_self`): o front decide o fluxo por ele e traduz para pt-BR. Os demais erros trazem a mensagem pt-BR pronta.
+- **`detail` dos erros de auth é código estável** (`not_authenticated`, `invalid_credentials`, `locked`, `password_change_required`, `bad_origin`, `invalid_current_password`, `password_unchanged`, `cannot_deactivate_self`, `account_not_found`, `name_required`, `last_admin`): o front decide o fluxo por ele e traduz para pt-BR. Os demais erros trazem a mensagem pt-BR pronta.
 - **Status de erro**: 401 sem sessão, cookie adulterado ou sessão de usuário desativado; 400 senha atual errada ou desativar a si mesmo (`invalid_current_password`, `cannot_deactivate_self`); 403 papel insuficiente, troca de senha pendente ou `Origin` de outro site; 404 recurso inexistente ou de outro workspace; 422 entrada inválida; 429 conta bloqueada (`locked`, no login e na troca de senha); provedor externo fora do ar degrada, nunca vira 500.
 - **`/api/health` responde sempre 200** com `{"status":"ok","db":"ok|down"}`: liveness não depende do banco.
 - **Ordem de declaração**: rota literal antes da parametrizada.
@@ -23,9 +23,9 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | POST | `/api/auth/password` | Sessão (aceita troca pendente). `{current, new}` (≥ 12). 204; 400 `invalid_current_password` (conta para o bloqueio, como no login); 422 `password_unchanged`; 429 `{detail: "locked", retry_after_s}`. Derruba as outras sessões |
 | GET | `/api/me` | Sessão (aceita troca pendente). `{id, email, name, is_platform_admin, must_change_password, workspaces: [{slug, name, role}]}` |
 | GET | `/api/w/{slug}/members` | Admin do ws. `[{user_id, email, name, role, active}]` |
-| POST | `/api/w/{slug}/members` | Admin do ws. `{email, name, role}` → 201 + `temp_password` (só se a conta foi criada agora; senão `null`; resposta `Cache-Control: no-store`). 409 se já é membro |
-| PATCH | `/api/w/{slug}/members/{user_id}` | Admin do ws. `{role}` |
-| DELETE | `/api/w/{slug}/members/{user_id}` | Admin do ws. Remove só a membership; 204 |
+| POST | `/api/w/{slug}/members` | Admin do ws. `{email, role, name?}` → 201 + `temp_password` (só se a conta foi criada agora; senão `null`; resposta `Cache-Control: no-store`). Só o platform admin cria conta: e-mail desconhecido é 404 `account_not_found` para o admin do ws, e 422 `name_required` para o platform admin sem `name`. 409 se já é membro |
+| PATCH | `/api/w/{slug}/members/{user_id}` | Admin do ws. `{role}`; 409 `last_admin` ao rebaixar o último admin |
+| DELETE | `/api/w/{slug}/members/{user_id}` | Admin do ws. Remove só a membership; 204; 409 `last_admin` ao remover o último admin |
 | GET | `/api/admin/workspaces` | Platform admin |
 | POST | `/api/admin/workspaces` | Platform admin. `{name, slug}` (`^[a-z0-9-]{2,40}$`); 409 slug repetido |
 | GET | `/api/admin/users` | Platform admin. `[{id, email, name, active, is_platform_admin, locked_until}]` |

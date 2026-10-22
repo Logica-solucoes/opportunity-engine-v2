@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import select
 
 from api.models import Membership, User
@@ -15,10 +17,12 @@ def test_list_members_sorted_by_email(client, make_user, make_workspace, login_a
     ]
 
 
-def test_add_new_account_returns_temp_password_once(make_client, client, db, make_user, make_workspace, login_as):
-    admin = make_user("admin@x.com")
-    ws = make_workspace("a", [(admin, "admin")])
-    login_as(client, admin)
+def test_platform_admin_creates_account_with_temp_password_once(
+    make_client, client, db, make_user, make_workspace, login_as
+):
+    root = make_user("root@x.com", platform=True)
+    ws = make_workspace("a")
+    login_as(client, root)
 
     r = client.post("/api/w/a/members", json={"email": " Nova@X.com ", "name": "Nova", "role": "analyst"})
 
@@ -50,6 +54,33 @@ def test_add_existing_account_only_creates_membership(client, db, make_user, mak
     assert r.json()["temp_password"] is None
     db.refresh(other)
     assert (other.password_hash, other.name) == (before, "outro")
+
+
+def test_workspace_admin_cannot_create_accounts(client, db, make_user, make_workspace, login_as):
+    # an account minted by brand A's admin would later be linked to brand B, with A's admin holding its password
+    admin = make_user("admin@x.com")
+    make_workspace("a", [(admin, "admin")])
+    login_as(client, admin)
+
+    r = client.post("/api/w/a/members", json={"email": "nova@x.com", "name": "Nova", "role": "viewer"})
+
+    assert (r.status_code, r.json()) == (404, {"detail": "account_not_found"})
+    assert db.scalar(select(User).where(User.email == "nova@x.com")) is None
+
+
+def test_linking_needs_no_name_but_creating_does(client, make_user, make_workspace, login_as):
+    root = make_user("root@x.com", platform=True)
+    make_user("outro@x.com")
+    make_workspace("a")
+    login_as(client, root)
+
+    linked = client.post("/api/w/a/members", json={"email": "outro@x.com", "role": "viewer"})
+    unnamed = client.post("/api/w/a/members", json={"email": "nova@x.com", "role": "viewer"})
+    blank = client.post("/api/w/a/members", json={"email": "nova@x.com", "name": "  ", "role": "viewer"})
+
+    assert linked.status_code == 201
+    assert (unnamed.status_code, unnamed.json()) == (422, {"detail": "name_required"})
+    assert blank.status_code == 422
 
 
 def test_add_existing_member_is_409(client, make_user, make_workspace, login_as):
@@ -85,6 +116,45 @@ def test_change_role_and_remove(client, db, make_user, make_workspace, login_as)
     assert client.delete(f"/api/w/a/members/{member.id}").status_code == 204
     assert db.get(Membership, (member.id, ws.id)) is None
     assert db.get(User, member.id) is not None
+
+
+def test_last_admin_cannot_be_demoted_or_removed(client, make_user, make_workspace, login_as):
+    admin = make_user("admin@x.com")
+    make_workspace("a", [(admin, "admin")])
+    login_as(client, admin)
+
+    demote = client.patch(f"/api/w/a/members/{admin.id}", json={"role": "viewer"})
+    remove = client.delete(f"/api/w/a/members/{admin.id}")
+
+    assert (demote.status_code, demote.json()) == (409, {"detail": "last_admin"})
+    assert (remove.status_code, remove.json()) == (409, {"detail": "last_admin"})
+
+
+def test_admin_can_step_down_when_another_admin_remains(client, make_user, make_workspace, login_as):
+    admin = make_user("admin@x.com")
+    other = make_user("outro@x.com")
+    make_workspace("a", [(admin, "admin"), (other, "admin")])
+    login_as(client, admin)
+
+    assert client.patch(f"/api/w/a/members/{other.id}", json={"role": "viewer"}).status_code == 200
+    assert client.patch(f"/api/w/a/members/{other.id}", json={"role": "admin"}).status_code == 200
+    assert client.delete(f"/api/w/a/members/{other.id}").status_code == 204
+
+
+def test_role_change_and_removal_are_logged(caplog, client, make_user, make_workspace, login_as):
+    caplog.set_level(logging.INFO)
+    admin = make_user("admin@x.com")
+    member = make_user("m@x.com")
+    ws = make_workspace("a", [(admin, "admin"), (member, "viewer")])
+    login_as(client, admin)
+
+    client.patch(f"/api/w/a/members/{member.id}", json={"role": "analyst"})
+    client.delete(f"/api/w/a/members/{member.id}")
+
+    assert (
+        f"auth.member_role_changed user_id={member.id} workspace_id={ws.id} role=analyst by={admin.id}" in caplog.text
+    )
+    assert f"auth.member_removed user_id={member.id} workspace_id={ws.id} by={admin.id}" in caplog.text
 
 
 def test_unknown_member_is_404(client, make_user, make_workspace, login_as):

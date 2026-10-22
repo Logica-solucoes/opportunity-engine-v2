@@ -41,7 +41,7 @@ class Membership(Base):
 
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True
+        BigInteger, ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     role: Mapped[str] = mapped_column(Enum(*ROLES, name="membership_role"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

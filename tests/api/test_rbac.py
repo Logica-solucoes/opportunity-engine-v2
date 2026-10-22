@@ -12,7 +12,7 @@ ROUTES = {
     ("POST", "/api/auth/password"): (SESSION, 204, lambda e: {"current": e["password"], "new": "outra-senha-longa"}),
     ("GET", "/api/me"): (SESSION, 200, None),
     ("GET", "/api/w/{slug}/members"): ("admin", 200, None),
-    ("POST", "/api/w/{slug}/members"): ("admin", 201, lambda e: {"email": "novo@x.com", "name": "N", "role": "viewer"}),
+    ("POST", "/api/w/{slug}/members"): ("admin", 201, lambda e: {"email": "fora@x.com", "role": "viewer"}),
     ("PATCH", "/api/w/{slug}/members/{user_id}"): ("admin", 200, lambda e: {"role": "analyst"}),
     ("DELETE", "/api/w/{slug}/members/{user_id}"): ("admin", 204, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
@@ -41,6 +41,7 @@ def env(make_user, make_workspace, password):
     users = {role: make_user(f"{role}@x.com") for role in ("viewer", "analyst", "admin")}
     users["platform"] = make_user("platform@x.com", platform=True)
     target = make_user("target@x.com")
+    make_user("fora@x.com")
     make_workspace("a", [(users[r], r) for r in ("viewer", "analyst", "admin")] + [(target, "viewer")])
     return {"users": users, "target": target, "password": password}
 
@@ -60,6 +61,7 @@ def test_role_matrix(route, actor, client, env, login_as):
 
 
 def test_matrix_covers_every_api_route(app):
+    # a route with include_in_schema=False escapes this check.
     # app.routes only holds lazy _IncludedRouter entries on fastapi >= 0.158; the schema lists the flattened routes
     found = {
         (method.upper(), path)
@@ -81,7 +83,7 @@ def test_other_workspace_looks_like_it_does_not_exist(client, make_user, make_wo
 
     calls = [
         ("GET", "/api/w/b/members", None),
-        ("POST", "/api/w/b/members", {"email": "x@b.com", "name": "X", "role": "viewer"}),
+        ("POST", "/api/w/b/members", {"email": "admin@a.com", "role": "viewer"}),
         ("PATCH", f"/api/w/b/members/{stranger.id}", {"role": "admin"}),
         ("DELETE", f"/api/w/b/members/{stranger.id}", None),
         ("PATCH", f"/api/w/a/members/{stranger.id}", {"role": "admin"}),
