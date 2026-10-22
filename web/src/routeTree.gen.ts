@@ -13,6 +13,8 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthIndexRouteImport } from './routes/_auth/index'
+import { Route as AuthAdminRouteImport } from './routes/_auth/admin'
+import { Route as AuthAdminUsuariosRouteImport } from './routes/_auth/admin/usuarios'
 import { Route as AuthAdminWorkspacesRouteImport } from './routes/_auth/admin/workspaces'
 import { Route as AuthWSlugRouteImport } from './routes/_auth/w/$slug'
 import { Route as AuthWSlugIndexRouteImport } from './routes/_auth/w/$slug/index'
@@ -37,10 +39,20 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthRoute,
 } as any)
-const AuthAdminWorkspacesRoute = AuthAdminWorkspacesRouteImport.update({
-  id: '/admin/workspaces',
-  path: '/admin/workspaces',
+const AuthAdminRoute = AuthAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthRoute,
+} as any)
+const AuthAdminUsuariosRoute = AuthAdminUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthAdminRoute,
+} as any)
+const AuthAdminWorkspacesRoute = AuthAdminWorkspacesRouteImport.update({
+  id: '/workspaces',
+  path: '/workspaces',
+  getParentRoute: () => AuthAdminRoute,
 } as any)
 const AuthWSlugRoute = AuthWSlugRouteImport.update({
   id: '/w/$slug',
@@ -62,6 +74,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthIndexRoute
   '/login': typeof LoginRoute
   '/trocar-senha': typeof TrocarSenhaRoute
+  '/admin': typeof AuthAdminRouteWithChildren
+  '/admin/usuarios': typeof AuthAdminUsuariosRoute
   '/admin/workspaces': typeof AuthAdminWorkspacesRoute
   '/w/$slug': typeof AuthWSlugRouteWithChildren
   '/w/$slug/membros': typeof AuthWSlugMembrosRoute
@@ -70,7 +84,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/trocar-senha': typeof TrocarSenhaRoute
+  '/admin': typeof AuthAdminRouteWithChildren
   '/': typeof AuthIndexRoute
+  '/admin/usuarios': typeof AuthAdminUsuariosRoute
   '/admin/workspaces': typeof AuthAdminWorkspacesRoute
   '/w/$slug/membros': typeof AuthWSlugMembrosRoute
   '/w/$slug': typeof AuthWSlugIndexRoute
@@ -80,7 +96,9 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
   '/trocar-senha': typeof TrocarSenhaRoute
+  '/_auth/admin': typeof AuthAdminRouteWithChildren
   '/_auth/': typeof AuthIndexRoute
+  '/_auth/admin/usuarios': typeof AuthAdminUsuariosRoute
   '/_auth/admin/workspaces': typeof AuthAdminWorkspacesRoute
   '/_auth/w/$slug': typeof AuthWSlugRouteWithChildren
   '/_auth/w/$slug/membros': typeof AuthWSlugMembrosRoute
@@ -92,6 +110,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/trocar-senha'
+    | '/admin'
+    | '/admin/usuarios'
     | '/admin/workspaces'
     | '/w/$slug'
     | '/w/$slug/membros'
@@ -100,7 +120,9 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/trocar-senha'
+    | '/admin'
     | '/'
+    | '/admin/usuarios'
     | '/admin/workspaces'
     | '/w/$slug/membros'
     | '/w/$slug'
@@ -109,7 +131,9 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/login'
     | '/trocar-senha'
+    | '/_auth/admin'
     | '/_auth/'
+    | '/_auth/admin/usuarios'
     | '/_auth/admin/workspaces'
     | '/_auth/w/$slug'
     | '/_auth/w/$slug/membros'
@@ -152,12 +176,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/admin': {
+      id: '/_auth/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthAdminRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/usuarios': {
+      id: '/_auth/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AuthAdminUsuariosRouteImport
+      parentRoute: typeof AuthAdminRoute
+    }
     '/_auth/admin/workspaces': {
       id: '/_auth/admin/workspaces'
-      path: '/admin/workspaces'
+      path: '/workspaces'
       fullPath: '/admin/workspaces'
       preLoaderRoute: typeof AuthAdminWorkspacesRouteImport
-      parentRoute: typeof AuthRoute
+      parentRoute: typeof AuthAdminRoute
     }
     '/_auth/w/$slug': {
       id: '/_auth/w/$slug'
@@ -183,6 +221,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthAdminRouteChildren {
+  AuthAdminUsuariosRoute: typeof AuthAdminUsuariosRoute
+  AuthAdminWorkspacesRoute: typeof AuthAdminWorkspacesRoute
+}
+
+const AuthAdminRouteChildren: AuthAdminRouteChildren = {
+  AuthAdminUsuariosRoute: AuthAdminUsuariosRoute,
+  AuthAdminWorkspacesRoute: AuthAdminWorkspacesRoute,
+}
+
+const AuthAdminRouteWithChildren = AuthAdminRoute._addFileChildren(
+  AuthAdminRouteChildren,
+)
+
 interface AuthWSlugRouteChildren {
   AuthWSlugMembrosRoute: typeof AuthWSlugMembrosRoute
   AuthWSlugIndexRoute: typeof AuthWSlugIndexRoute
@@ -198,14 +250,14 @@ const AuthWSlugRouteWithChildren = AuthWSlugRoute._addFileChildren(
 )
 
 interface AuthRouteChildren {
+  AuthAdminRoute: typeof AuthAdminRouteWithChildren
   AuthIndexRoute: typeof AuthIndexRoute
-  AuthAdminWorkspacesRoute: typeof AuthAdminWorkspacesRoute
   AuthWSlugRoute: typeof AuthWSlugRouteWithChildren
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthAdminRoute: AuthAdminRouteWithChildren,
   AuthIndexRoute: AuthIndexRoute,
-  AuthAdminWorkspacesRoute: AuthAdminWorkspacesRoute,
   AuthWSlugRoute: AuthWSlugRouteWithChildren,
 }
 
