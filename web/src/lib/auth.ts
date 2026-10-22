@@ -39,6 +39,7 @@ export function errorMessage(error: unknown): string {
   }
   if (MESSAGES[error.detail]) return MESSAGES[error.detail]
   if (error.status === 403) return 'Sem permissão.'
+  if (error.status === 404) return 'Não encontrado.'
   if (error.status === 422) return 'Dados inválidos.'
   if (error.status >= 500) return 'Erro no servidor. Tente de novo.'
   // 409 and other domain errors already come in pt-BR

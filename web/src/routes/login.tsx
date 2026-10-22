@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 import { type Me, errorMessage, meQuery } from '@/lib/auth'
 
 // only same-site paths: an absolute URL here would be an open redirect
-const safePath = (v: unknown) => (typeof v === 'string' && v.startsWith('/') && !v.startsWith('//') ? v : undefined)
+const safePath = (v: unknown) => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : undefined)
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({ redirect: safePath(search.redirect) }),
