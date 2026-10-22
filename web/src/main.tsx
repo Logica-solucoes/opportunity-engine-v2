@@ -6,6 +6,7 @@ import { Link, RouterProvider, createRouter } from '@tanstack/react-router'
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ApiError } from './lib/api'
+import { applyTheme } from './lib/theme'
 import { routeTree } from './routeTree.gen'
 
 function onApiError(error: unknown, skipAuthRedirect = false) {
@@ -46,6 +47,8 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+applyTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

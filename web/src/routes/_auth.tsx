@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { AppHeader } from '@/components/AppHeader'
 import { ApiError } from '@/lib/api'
 import { meQuery } from '@/lib/auth'
 
@@ -18,8 +19,11 @@ export const Route = createFileRoute('/_auth')({
 
 function AuthLayout() {
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <Outlet />
-    </main>
+    <div className="min-h-screen">
+      <AppHeader />
+      <main className="mx-auto max-w-5xl p-6">
+        <Outlet />
+      </main>
+    </div>
   )
 }
