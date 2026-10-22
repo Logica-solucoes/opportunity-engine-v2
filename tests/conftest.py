@@ -3,21 +3,20 @@ import os
 # before any `import api...`: api.db reads DATABASE_URL at import time, and tests must never touch the dev db
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/app_test")
 
-from pathlib import Path  # noqa: E402
+from pathlib import Path
 
-import pytest  # noqa: E402
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
-from sqlalchemy import create_engine, text  # noqa: E402
-from sqlalchemy.engine import make_url  # noqa: E402
-from sqlalchemy.orm import Session  # noqa: E402
+import pytest
+from alembic import command
+from alembic.config import Config
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
-from api import db as api_db  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-
-from api import passwords  # noqa: E402
-from api.main import create_app  # noqa: E402
-from api.models import Membership, User, Workspace  # noqa: E402
+from api import db as api_db
+from api import passwords
+from api.main import create_app
+from api.models import Membership, User, Workspace
 
 ROOT = Path(__file__).resolve().parents[1]
 PASSWORD = "senha-de-teste-123"

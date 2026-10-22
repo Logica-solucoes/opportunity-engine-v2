@@ -22,7 +22,7 @@ def test_tampered_or_garbage_hash_is_rejected(monkeypatch):
     algo, n, r, p, salt, digest = stored.split("$")
     flipped = ("A" if digest[0] != "A" else "B") + digest[1:]
 
-    assert not verify_password("segredo-123456", "$".join([algo, n, r, p, salt, flipped]))
+    assert not verify_password("segredo-123456", f"{algo}${n}${r}${p}${salt}${flipped}")
     assert not verify_password("segredo-123456", "pbkdf2$1$2$3$x$y")
     assert not verify_password("segredo-123456", "lixo")
     assert not verify_password("segredo-123456", "")

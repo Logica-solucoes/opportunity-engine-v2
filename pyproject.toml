@@ -27,3 +27,7 @@ testpaths = ["tests"]
 line-length = 120
 # plans/specs in docs/ embed code blocks as written at the time; formatting them rewrites history
 extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+# Depends()/Cookie() in defaults is how FastAPI declares dependencies
+extend-ignore = ["B008"]

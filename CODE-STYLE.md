@@ -7,11 +7,11 @@ Simples, legível, fácil de depurar. Código só para o que é preciso agora, e
 | | Backend (`api/`, `engine/`) | Frontend (`web/`) |
 |---|---|---|
 | Runtime e deps | Python 3.13 com `uv` (`pyproject.toml` + `uv.lock` na raiz) | `bun` |
-| Format / lint | `ruff format` (linha 120, checado no CI); `ruff check` ainda não configurado, adicionar junto com o `engine/` | `bun run lint` (oxlint) |
+| Format / lint | `ruff format` (linha 120) e `ruff check` (regras padrão menos B008, que é o `Depends()` do FastAPI), ambos no CI | `bun run lint` (oxlint) |
 | Tipos | — | `bun run build` (`tsc -b` + vite) |
 | Testes | `uv run pytest` | `bun run e2e` (Playwright, ver abaixo) |
 
-O CI (`.github/workflows/ci.yml`) roda `uv run pytest -q` e, em `web/`, `bunx tsc -b` + `bun run build` + `bun run lint` em todo push e PR; o job `e2e` roda o Playwright. Rode-os antes de dar uma tarefa como pronta. Tarefas do dia a dia estão no `mise.toml`.
+O CI (`.github/workflows/ci.yml`) roda `ruff format --check`, `ruff check` e `uv run pytest -q` e, em `web/`, `bun run build` (que já roda o `tsc -b`) + `bun run lint` em todo push e PR; o job `e2e` roda o Playwright. Rode-os antes de dar uma tarefa como pronta. Tarefas do dia a dia estão no `mise.toml`.
 
 `src/routeTree.gen.ts` é gerado (e versionado). Dependência Python nova entra com `uv add`, sempre commitando o `uv.lock`.
 

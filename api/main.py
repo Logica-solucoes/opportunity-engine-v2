@@ -5,7 +5,8 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from api import auth, db
-from api.routes import admin, auth as auth_routes, members
+from api.routes import admin, members
+from api.routes import auth as auth_routes
 
 router = APIRouter(prefix="/api")
 
