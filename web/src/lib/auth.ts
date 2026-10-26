@@ -54,6 +54,7 @@ const MESSAGES: Record<string, string> = {
   account_not_found: 'Essa conta não existe. Peça ao platform admin para criá-la.',
   name_required: 'Informe o nome para criar a conta.',
   last_admin: 'O workspace precisa de ao menos um admin.',
+  busy: 'Muitos acessos agora. Tente de novo em instantes.',
 }
 
 export function errorMessage(error: unknown): string {
@@ -65,6 +66,8 @@ export function errorMessage(error: unknown): string {
   if (MESSAGES[error.detail]) return MESSAGES[error.detail]
   if (error.status === 403) return 'Sem permissão.'
   if (error.status === 404) return 'Não encontrado.'
+  // a 413 from Cloud Run itself (over 32 MiB) comes as HTML, without our detail
+  if (error.status === 413) return 'Arquivo maior que 30 MB.'
   // pydantic's 422 has a list in `detail`; ours (upload, mapping) is already a pt-BR sentence
   if (error.status === 422 && typeof error.body.detail !== 'string') return 'Dados inválidos.'
   if (error.status >= 500) return 'Erro no servidor. Tente de novo.'

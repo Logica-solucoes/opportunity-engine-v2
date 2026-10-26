@@ -7,6 +7,7 @@ export default defineConfig({
   fullyParallel: true,
   // parallel logins queue on api.passwords.SLOTS and one scrypt takes ~1.5 s on a slow laptop
   expect: { timeout: 15_000 },
+  timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },

@@ -70,7 +70,7 @@ Decisões do B1b, 22/out/2026. Spec: `docs/superpowers/specs/2026-10-22-b1b-auth
 
 O `/api/me` fica no cache do TanStack Query e as rotas `_auth`, `w/$slug` e `admin` decidem no `beforeLoad`, antes de renderizar: sem flash de tela protegida. Slug de workspace fora de `me.workspaces` cai na mesma tela de "não encontrado" de uma rota inexistente, como o 404 da API. Esconder link é só UX; quem barra é a API. Sessão que expira no meio do uso volta como 401 `not_authenticated` em qualquer query ou mutation e um handler global em `main.tsx` manda para o login com `redirect`; o 401 `invalid_credentials` do próprio login não dispara isso. O `redirect` atravessa a troca de senha obrigatória e é aceito só como path do próprio site: começa com `/`, não com `//` nem `/\`, e não tem caractere de controle.
 
-Erro de carga (query com 5xx ou falha de rede) vira um toast genérico global, sem repetir a mesma mensagem. Mutation mostra o próprio erro, inline ou em toast, e o handler global não duplica.
+Erro de carga (query com 5xx ou falha de rede) vira um toast genérico global, sem repetir a mesma mensagem. As listas mostram "Carregando…" e o erro da própria query (`LoadState`), para tabela vazia não ser confundida com falha. O `/api/me` fica em cache sem expirar, então uma query que volta 403 ou 404 o invalida: quem foi removido do workspace ou rebaixado no meio da sessão vê "Não encontrado." e o seletor do header se atualiza, sem tela em branco. Mutation mostra o próprio erro, inline ou em toast, e o handler global não duplica.
 
 ## Workspace ativo na URL
 

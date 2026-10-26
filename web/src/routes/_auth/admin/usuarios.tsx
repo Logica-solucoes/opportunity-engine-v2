@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
@@ -60,6 +61,7 @@ function Users() {
 
   return (
     <>
+      <LoadState query={users} />
       <Table>
         <TableHeader>
           <TableRow>

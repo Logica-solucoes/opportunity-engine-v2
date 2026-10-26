@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
+import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -85,6 +86,7 @@ function Workspaces() {
         </p>
       )}
 
+      <LoadState query={workspaces} />
       <Table>
         <TableHeader>
           <TableRow>

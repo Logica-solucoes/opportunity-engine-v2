@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tansta
 import { createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
+import { LoadState } from '@/components/LoadState'
 import { NativeSelect } from '@/components/NativeSelect'
 import { TempPasswordDialog } from '@/components/TempPasswordDialog'
 import {
@@ -69,7 +70,8 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
     add.mutate(
       {
         email: String(form.get('email')),
-        name: (form.get('name') as string | null) ?? undefined,
+        // blank means "link an existing account", and the api refuses an empty name
+        name: String(form.get('name') ?? '').trim() || undefined,
         role: form.get('role') as Role,
       },
       { onSuccess: () => formEl.reset() },
@@ -111,6 +113,7 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
         </p>
       )}
 
+      <LoadState query={members} />
       <Table>
         <TableHeader>
           <TableRow>
@@ -136,6 +139,8 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
                   <NativeSelect
                     aria-label="Papel"
                     value={m.role}
+                    // arrow keys fire change on every step: one PATCH at a time, in order
+                    disabled={changeRole.isPending}
                     onChange={(e) => changeRole.mutate({ id: m.user_id, role: e.target.value as Role })}
                   >
                     {ROLES.map(([value, label]) => (

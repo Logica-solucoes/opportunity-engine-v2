@@ -1,5 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { meQuery } from '@/lib/auth'
@@ -10,7 +11,9 @@ export const Route = createFileRoute('/_auth/w/$slug/')({ component: WorkspaceHo
 function WorkspaceHome() {
   const { slug } = Route.useParams()
   const { data: me } = useSuspenseQuery(meQuery)
-  const workspace = me.workspaces.find((w) => w.slug === slug)!
+  const workspace = me.workspaces.find((w) => w.slug === slug)
+  // access can drop mid-session: a 404 elsewhere refetches /me
+  if (!workspace) return <p>Não encontrado.</p>
   // the list route is analyst+ in the api, so a viewer never asks for it
   const canEdit = workspace.role !== 'viewer'
   return (
@@ -31,8 +34,9 @@ function WorkspaceHome() {
 }
 
 function SimulationList({ slug }: { slug: string }) {
-  const { data } = useQuery(simulationsQuery(slug))
-  if (!data) return null
+  const query = useQuery(simulationsQuery(slug))
+  const { data } = query
+  if (!data) return <LoadState query={query} />
   if (data.length === 0) return <p className="text-muted-foreground">Nenhuma simulação ainda.</p>
   return (
     <Table>

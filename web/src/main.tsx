@@ -6,7 +6,7 @@ import { Link, RouterProvider, createRouter } from '@tanstack/react-router'
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ApiError } from './lib/api'
-import { errorMessage } from './lib/auth'
+import { errorMessage, meQuery } from './lib/auth'
 import { applyTheme } from './lib/theme'
 import { routeTree } from './routeTree.gen'
 
@@ -18,6 +18,9 @@ function onApiError(error: unknown, { fromQuery = false, skipAuthRedirect = fals
     router.navigate({ to: '/login', search: { redirect: href } })
   } else if (error instanceof ApiError && error.detail === 'password_change_required') {
     router.navigate({ to: '/trocar-senha', search: { redirect: href } })
+  } else if (fromQuery && error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+    // /me is cached forever: access may have changed since (removed from the workspace, demoted)
+    queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
   } else if (fromQuery && !(error instanceof ApiError && error.status < 500)) {
     const message = errorMessage(error)
     toast.error(message, { id: message })
