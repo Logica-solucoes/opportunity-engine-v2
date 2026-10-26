@@ -12,4 +12,6 @@ export const pyEnv = {
   DATABASE_URL,
   PYTHONIOENCODING: 'utf-8',
   STORAGE_DIR: join(tmpdir(), 'gem-e2e-storage'),
+  // the E2E never calls Gemini: an empty key takes the "unavailable" path even if the dev shell has one
+  GEMINI_API_KEY: '',
 }

@@ -1,9 +1,10 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { CircleX, Info, TriangleAlert } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, type ReactNode, useState } from 'react'
 import { FileDrop } from '@/components/FileDrop'
 import { NativeSelect } from '@/components/NativeSelect'
+import { ParamsForm } from '@/components/ParamsForm'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery, roleIn } from '@/lib/auth'
+import { paramsSaved } from '@/lib/params'
 import {
   type Check,
   type ColumnMapping,
@@ -81,7 +83,10 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
         <MappingForm key={filesKey} slug={slug} sim={sim} busy={busy} onSaved={saved} />
       )}
 
-      <ValidationBlock key={JSON.stringify(sim.validation)} report={sim.validation} />
+      {/* a new report (new mapping or file) remounts the parameters too: their data suggestions changed */}
+      <ValidationBlock key={JSON.stringify(sim.validation)} report={sim.validation} saved={paramsSaved(sim)}>
+        {sim.validation && <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} />}
+      </ValidationBlock>
     </div>
   )
 }
@@ -220,7 +225,15 @@ function MappingForm({
   )
 }
 
-function ValidationBlock({ report }: { report: ValidationReport | null }) {
+function ValidationBlock({
+  report,
+  saved,
+  children,
+}: {
+  report: ValidationReport | null
+  saved: boolean
+  children?: ReactNode
+}) {
   // confirmations live only in the page until B4 stores them with the run
   const [confirmed, setConfirmed] = useState<Set<number>>(new Set())
 
@@ -265,10 +278,11 @@ function ValidationBlock({ report }: { report: ValidationReport | null }) {
           <span className="font-medium">Canais:</span> {report.channels.join(', ')}
         </p>
       )}
+      {children}
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
         {/* never enabled in B2: the run is B4's */}
         <Button disabled>Rodar</Button>
-        <p className="text-sm text-muted-foreground">{runBlockReason(report, confirmed)}</p>
+        <p className="text-sm text-muted-foreground">{runBlockReason(report, confirmed, saved)}</p>
       </div>
     </section>
   )

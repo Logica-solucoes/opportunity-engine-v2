@@ -20,6 +20,15 @@ async function createSimulation(page: Page, slug: string, name: string) {
   await expect(page).toHaveURL(new RegExp(`/w/${slug}/simulacoes/\\d+$`))
 }
 
+async function uploadTemplatesAndValidate(page: Page) {
+  await page.getByLabel('Arquivo de investimento').setInputFiles(template('investimento.csv'))
+  await expect(page.getByText('investimento.csv', { exact: true })).toBeVisible()
+  await page.getByLabel('Arquivo de performance').setInputFiles(template('performance.csv'))
+  await expect(page.getByText('performance.csv', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Validar' }).click()
+  await expect(page.getByText('Nenhum problema encontrado.')).toBeVisible()
+}
+
 test('analyst uploads the templates, accepts the suggested mapping and validates', async ({ page, browser }) => {
   const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
   await expect(analystPage.getByText('Nenhuma simulação ainda.')).toBeVisible()
@@ -37,7 +46,7 @@ test('analyst uploads the templates, accepts the suggested mapping and validates
   await expect(analystPage.getByText('Nenhum problema encontrado.')).toBeVisible()
   await expect(analystPage.getByText('SEARCH, YOUTUBE')).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
-  await expect(analystPage.getByText('Execução disponível em breve')).toBeVisible()
+  await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 
   await analystPage.getByRole('link', { name: '← Simulações' }).click()
   await expect(analystPage.getByRole('link', { name: 'Black Friday' })).toBeVisible()
@@ -111,4 +120,41 @@ test('a failed background refetch keeps the simulation on screen', async ({ page
   await expect(analystPage.getByText('Erro no servidor. Tente de novo.')).toBeVisible()
   await expect(analystPage.getByRole('heading', { name: 'Instável' })).toBeVisible()
   await expect(analystPage.getByText('investimento.csv', { exact: true })).toBeVisible()
+})
+
+test('parameters open with the data suggestions, save and persist', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'Parâmetros')
+  await uploadTemplatesAndValidate(analystPage)
+
+  // performance.csv has 3 days of history and a "conversoes" KPI
+  await expect(analystPage.getByText('Mínimo para série diária: o histórico tem só 3 dias.')).toBeVisible()
+  await expect(analystPage.getByLabel('Pré-período mínimo (dias)')).toHaveValue('28')
+  await expect(analystPage.getByLabel('Otimizar para')).toHaveValue('CONVERSIONS')
+  await expect(analystPage.getByText('Sugerido pelos dados')).toHaveCount(3)
+  await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
+
+  await analystPage.getByLabel('Fator limite de investimento').fill('2')
+  await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
+  await expect(analystPage.getByText('Execução disponível em breve')).toBeVisible()
+
+  await analystPage.reload()
+  await expect(analystPage.getByLabel('Fator limite de investimento')).toHaveValue('2')
+  await expect(analystPage.getByLabel('Pré-período mínimo (dias)')).toHaveValue('28')
+  await expect(analystPage.getByText('Sugerido pelos dados')).toHaveCount(0)
+})
+
+test('an invalid parameter shows its error and gemini unavailable keeps the form', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'Inválido')
+  await uploadTemplatesAndValidate(analystPage)
+
+  await analystPage.getByRole('button', { name: 'Sugerir com Gemini' }).click()
+  await expect(analystPage.getByText('Sugestão do Gemini indisponível. Os demais campos seguem valendo.')).toBeVisible()
+  await expect(analystPage.getByLabel('Pré-período mínimo (dias)')).toHaveValue('28')
+
+  await analystPage.getByLabel('Fator limite de investimento').fill('1')
+  await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
+  await expect(analystPage.getByText('Deve ser maior que 1.')).toBeVisible()
+  await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 })

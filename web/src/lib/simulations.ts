@@ -30,7 +30,8 @@ export type ColumnMapping = Record<string, Record<string, string>>
 export type Simulation = {
   id: number
   name: string
-  config: { column_mapping?: ColumnMapping }
+  // column_mapping from B2, the parameters from B3 (shape owned by the API's ParamsIn)
+  config: { column_mapping?: ColumnMapping; [param: string]: unknown }
   validation: ValidationReport | null
   files: Record<FileKind, SimulationFile | null>
 }
@@ -83,10 +84,11 @@ export function initialColumn(sim: Simulation, spec: FileSpec, field: string): s
 }
 
 // display only: B4 creates the run and checks the same gate on the server
-export function runBlockReason(report: ValidationReport | null, confirmed: Set<number>): string {
+export function runBlockReason(report: ValidationReport | null, confirmed: Set<number>, paramsSaved: boolean): string {
   if (!report) return 'Valide os arquivos antes de rodar.'
   if (!report.ok) return 'Corrija os erros antes de rodar.'
   if (report.checks.some((c, i) => c.level === 'warning' && !confirmed.has(i))) return 'Confirme os avisos antes de rodar.'
+  if (!paramsSaved) return 'Salve os parâmetros antes de rodar.'
   return 'Execução disponível em breve'
 }
 
