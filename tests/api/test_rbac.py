@@ -1,6 +1,7 @@
 import pytest
 
 from api.auth import RANK
+from tests.samples import INVESTMENT
 
 PUBLIC, SESSION, PLATFORM = "public", "session", "platform"
 ACTORS = ["anon", "viewer", "analyst", "admin", "platform"]
@@ -18,6 +19,11 @@ ROUTES = {
     ("GET", "/api/w/{slug}/simulations"): ("analyst", 200, None),
     ("POST", "/api/w/{slug}/simulations"): ("analyst", 201, lambda e: {"name": "Nova"}),
     ("GET", "/api/w/{slug}/simulations/{simulation_id}"): ("analyst", 200, None),
+    ("PUT", "/api/w/{slug}/simulations/{simulation_id}/files/{kind}"): (
+        "analyst",
+        200,
+        lambda e: Files(file=("investimento.csv", INVESTMENT, "text/csv")),
+    ),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
     ("GET", "/api/admin/users"): (PLATFORM, 200, None),
@@ -25,6 +31,10 @@ ROUTES = {
     ("PATCH", "/api/admin/users/{user_id}"): (PLATFORM, 200, lambda e: {"active": False}),
 }
 UNSCOPED = {("GET", "/api/health")}
+
+
+class Files(dict):
+    """multipart body: sent as client.request(files=...) instead of json="""
 
 
 def expected_status(minimum, ok, actor):
@@ -57,9 +67,13 @@ def test_role_matrix(route, actor, client, env, login_as):
     if actor != "anon":
         login_as(client, env["users"][actor])
     method, template = route
-    path = template.format(slug="a", user_id=env["target"].id, simulation_id=env["simulation"].id)
+    path = template.format(slug="a", user_id=env["target"].id, simulation_id=env["simulation"].id, kind="investment")
+    payload = body(env) if body else None
 
-    r = client.request(method, path, json=body(env) if body else None)
+    if isinstance(payload, Files):
+        r = client.request(method, path, files=payload)
+    else:
+        r = client.request(method, path, json=payload)
 
     assert r.status_code == expected_status(minimum, ok, actor), r.text
 

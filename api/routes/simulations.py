@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from api import simulations
 from api.auth import Ctx, require_role
 from api.db import get_db
-from api.models import FILE_KINDS, Simulation, SimulationFile
+from api.models import FILE_KINDS, FileKind, Simulation, SimulationFile
 from api.routes import SimulationId
 
 router = APIRouter(prefix="/api/w/{slug}/simulations")
@@ -102,3 +102,21 @@ def create_simulation(body: SimulationIn, ctx: Ctx = Depends(analyst), db: Sessi
 @router.get("/{simulation_id}", response_model=SimulationOut)
 def get_simulation(simulation_id: SimulationId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
     return simulation_out(find_simulation(db, ctx, simulation_id))
+
+
+@router.put("/{simulation_id}/files/{kind}", response_model=SimulationOut)
+def upload_file(
+    simulation_id: SimulationId,
+    kind: FileKind,
+    file: UploadFile,
+    ctx: Ctx = Depends(analyst),
+    db: Session = Depends(get_db),
+):
+    simulation = find_simulation(db, ctx, simulation_id)
+    try:
+        simulations.save_file(db, simulation, kind, file.file, file.filename or "", by=ctx.user)
+    except simulations.TooLarge:
+        raise HTTPException(413, "Arquivo maior que 30 MB.")
+    except simulations.InvalidInput as e:
+        raise HTTPException(422, str(e))
+    return simulation_out(simulation)

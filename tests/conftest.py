@@ -3,6 +3,7 @@ import os
 # before any `import api...`: api.db reads DATABASE_URL at import time, and tests must never touch the dev db
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/app_test")
 
+import io
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from api import db as api_db
-from api import passwords, simulations
+from api import passwords, simulations, storage
 from api.main import create_app
 from api.models import Membership, User, Workspace
 
@@ -119,9 +120,20 @@ def login_as():
     return login
 
 
+@pytest.fixture(autouse=True)
+def storage_dir(tmp_path, monkeypatch):
+    # never write uploads into the repo's ./data
+    root = tmp_path / "storage"
+    monkeypatch.setattr(storage, "ROOT", root)
+    return root
+
+
 @pytest.fixture
 def make_simulation(db):
-    def make(workspace, creator, name="Simulação"):
-        return simulations.create(db, workspace, name, by=creator)
+    def make(workspace, creator, name="Simulação", files=None):
+        simulation = simulations.create(db, workspace, name, by=creator)
+        for kind, content in (files or {}).items():
+            simulations.save_file(db, simulation, kind, io.BytesIO(content), f"{kind}.csv", by=creator)
+        return simulation
 
     return make
