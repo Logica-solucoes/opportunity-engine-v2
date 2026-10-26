@@ -66,7 +66,10 @@ function ParamsFields({
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       api<Simulation>(`/w/${slug}/simulations/${sim.id}/params`, { method: 'PUT', body }),
-    onSuccess: onSaved,
+    onSuccess: (saved) => {
+      setState((s) => ({ ...s, origin: {} }))
+      onSaved(saved)
+    },
   })
   const gemini = useMutation({
     mutationFn: () => api<GeminiAnswer>(`/w/${slug}/simulations/${sim.id}/suggestions/gemini`, { method: 'POST' }),
@@ -84,6 +87,8 @@ function ParamsFields({
     onError: (e) => toast.error(errorMessage(e)),
   })
   const errors = fieldErrors(save.error)
+  const paths = new Set(layout.flatMap((group) => group.fields.map((f) => f.path)))
+  const unmatched = save.isError && !(errors && Object.keys(errors).some((k) => paths.has(k)))
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -111,14 +116,14 @@ function ParamsFields({
           </div>
         </fieldset>
       ))}
-      {save.isError && !errors && (
+      {unmatched && (
         <p role="alert" className="text-sm text-destructive">
           {errorMessage(save.error)}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
         <Button type="button" variant="outline" disabled={busy} onClick={() => gemini.mutate()}>
-          Sugerir com Gemini
+          {gemini.isPending ? 'Consultando o Gemini…' : 'Sugerir com Gemini'}
         </Button>
         <Button type="submit" disabled={busy}>
           Salvar parâmetros
@@ -146,12 +151,19 @@ function ParamField({
   const id = `param-${field.path}`
   const { schema } = field
   const note = origin?.reason ?? field.help
+  const describedBy = [note && `${id}-note`, error && `${id}-error`].filter(Boolean).join(' ') || undefined
 
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">
         {schema.type === 'boolean' && (
-          <Checkbox id={id} checked={value === true} disabled={disabled} onCheckedChange={(v) => onChange(v === true)} />
+          <Checkbox
+            id={id}
+            checked={value === true}
+            disabled={disabled}
+            aria-describedby={describedBy}
+            onCheckedChange={(v) => onChange(v === true)}
+          />
         )}
         <Label htmlFor={id}>{field.label}</Label>
         {origin && (
@@ -163,6 +175,8 @@ function ParamField({
           id={id}
           className="w-full"
           value={String(value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -183,14 +197,19 @@ function ParamField({
             placeholder={field.nullable ? 'Opcional' : undefined}
             value={String(value)}
             aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
             disabled={disabled}
             onChange={(e) => onChange(e.target.value)}
           />
         )
       )}
-      {note && <p className="text-xs text-muted-foreground">{note}</p>}
+      {note && (
+        <p id={`${id}-note`} className="text-xs text-muted-foreground">
+          {note}
+        </p>
+      )}
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}

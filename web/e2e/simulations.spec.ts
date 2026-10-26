@@ -137,6 +137,7 @@ test('parameters open with the data suggestions, save and persist', async ({ pag
   await analystPage.getByLabel('Fator limite de investimento').fill('2')
   await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
   await expect(analystPage.getByText('Execução disponível em breve')).toBeVisible()
+  await expect(analystPage.getByText('Sugerido pelos dados')).toHaveCount(0)
 
   await analystPage.reload()
   await expect(analystPage.getByLabel('Fator limite de investimento')).toHaveValue('2')
