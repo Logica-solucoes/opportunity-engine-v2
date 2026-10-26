@@ -97,3 +97,12 @@ export const formatSize = (bytes: number) =>
   bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
+
+// the api's own limits, checked first so a big file isn't sent only to be refused
+const MAX_UPLOAD_BYTES = 30 * 1024 * 1024
+
+export function fileProblem(file: File): string | null {
+  if (!file.name.toLowerCase().endsWith('.csv')) return 'Envie um arquivo .csv.'
+  if (file.size > MAX_UPLOAD_BYTES) return 'Arquivo maior que 30 MB.'
+  return null
+}

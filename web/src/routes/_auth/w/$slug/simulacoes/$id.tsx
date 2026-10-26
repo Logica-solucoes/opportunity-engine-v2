@@ -21,6 +21,7 @@ import {
   LEVEL_LABELS,
   type Simulation,
   type ValidationReport,
+  fileProblem,
   formatDate,
   formatSize,
   initialColumn,
@@ -46,9 +47,9 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
   const { data: sim, isError } = useQuery(query)
   // one write at a time: a slower earlier response would overwrite the newer SimulationOut in the cache
   const busy = useIsMutating() > 0
-  // 404 (another workspace or deleted) and 422 (non-numeric id) look the same to the user
-  if (isError) return <p>Simulação não encontrada.</p>
-  if (!sim) return null
+  // 404 (another workspace or deleted) and 422 (non-numeric id) look the same to the user;
+  // a failed refetch keeps the data, so only a missing simulation replaces the page
+  if (!sim) return isError ? <p>Simulação não encontrada.</p> : null
 
   // every mutation answers with the whole SimulationOut, so the cache is set instead of refetched
   const saved = (next: Simulation) => {
@@ -99,6 +100,7 @@ function FileCard({
   onSaved: (sim: Simulation) => void
 }) {
   const file = sim.files[spec.kind]
+  const [problem, setProblem] = useState<string | null>(null)
   const upload = useMutation({
     mutationFn: (f: File) => {
       const body = new FormData()
@@ -121,7 +123,11 @@ function FileCard({
           id={`file-${spec.kind}`}
           label={`Arquivo de ${spec.label.toLowerCase()}`}
           disabled={busy}
-          onFile={(f) => upload.mutate(f)}
+          onFile={(f) => {
+            const p = fileProblem(f)
+            setProblem(p)
+            if (!p) upload.mutate(f)
+          }}
         />
         {file && (
           <p className="text-xs text-muted-foreground">
@@ -129,9 +135,9 @@ function FileCard({
             {formatDate(file.uploaded_at)}
           </p>
         )}
-        {upload.isError && (
+        {(problem || upload.isError) && (
           <p role="alert" className="text-sm text-destructive">
-            {errorMessage(upload.error)}
+            {problem ?? errorMessage(upload.error)}
           </p>
         )}
         <a href={spec.template} download className="text-sm text-primary hover:underline">

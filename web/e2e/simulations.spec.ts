@@ -75,3 +75,40 @@ test('viewer cannot create or edit simulations', async ({ page, browser }) => {
   await viewerPage.goto(`/w/${slug}/simulacoes/nova`)
   await expect(viewerPage.getByText('Sem permissão para editar simulações deste workspace.')).toBeVisible()
 })
+
+test('a file over 30 MB or not .csv is refused before any upload', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'Grande')
+  let uploads = 0
+  analystPage.on('request', (r) => {
+    if (r.method() === 'PUT') uploads++
+  })
+  const input = analystPage.getByLabel('Arquivo de investimento')
+
+  await input.setInputFiles({
+    name: 'grande.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.alloc(30 * 1024 * 1024 + 1, 'a'),
+  })
+  await expect(analystPage.getByRole('alert').filter({ hasText: 'Arquivo maior que 30 MB.' })).toBeVisible()
+
+  await input.setInputFiles({ name: 'planilha.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('x') })
+  await expect(analystPage.getByRole('alert').filter({ hasText: 'Envie um arquivo .csv.' })).toBeVisible()
+  expect(uploads).toBe(0)
+})
+
+test('a failed background refetch keeps the simulation on screen', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'Instável')
+  await analystPage.getByLabel('Arquivo de investimento').setInputFiles(template('investimento.csv'))
+  await expect(analystPage.getByText('investimento.csv', { exact: true })).toBeVisible()
+  await analystPage.route(/\/api\/w\/[^/]+\/simulations\/\d+$/, (route) =>
+    route.request().method() === 'GET' ? route.fulfill({ status: 500, json: {} }) : route.fallback(),
+  )
+
+  await analystPage.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
+
+  await expect(analystPage.getByText('Erro no servidor. Tente de novo.')).toBeVisible()
+  await expect(analystPage.getByRole('heading', { name: 'Instável' })).toBeVisible()
+  await expect(analystPage.getByText('investimento.csv', { exact: true })).toBeVisible()
+})
