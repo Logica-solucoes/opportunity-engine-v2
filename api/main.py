@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 
 from api import auth, db, passwords
@@ -19,6 +21,12 @@ def health():
 
 def busy(request: Request, exc: passwords.Busy):
     return JSONResponse({"detail": "busy"}, status_code=503, headers={"Retry-After": "1"})
+
+
+def invalid_request(request: Request, exc: RequestValidationError):
+    # without `input`: an echoed inf/nan is not valid JSON and would turn this 422 into a 500
+    detail = jsonable_encoder([{k: v for k, v in e.items() if k != "input"} for e in exc.errors()])
+    return JSONResponse({"detail": detail}, status_code=422)
 
 
 def mount_spa(app: FastAPI, dist: Path) -> None:
@@ -41,6 +49,7 @@ def create_app(web_dist: Path | None = None) -> FastAPI:
     app = FastAPI(title="Marketing GEM")
     app.middleware("http")(auth.check_origin)
     app.exception_handler(passwords.Busy)(busy)
+    app.exception_handler(RequestValidationError)(invalid_request)
     app.include_router(router)
     app.include_router(auth_routes.router)
     app.include_router(members.router)

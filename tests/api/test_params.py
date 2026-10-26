@@ -144,6 +144,7 @@ def test_gemini_suggestions_come_validated_with_their_reason(logged, mapped, mon
             ("investment_limit_factor", "2", "Os canais ainda têm folga."),
             ("financial_targets.target_cpa", "35.5", "CPA médio do período."),
             ("max_budget_step", "7", "Fora do limite."),
+            ("average_ticket", "inf", "Infinito."),
             ("column_mapping", "{}", "Campo que não é do formulário."),
         ),
     )
@@ -182,8 +183,13 @@ def sdk_error(prompt, schema):
 
 @pytest.mark.parametrize(
     "ask",
-    [None, sdk_error, lambda prompt, schema: "isto não é json"],
-    ids=["no key", "sdk error", "bad answer"],
+    [
+        None,
+        sdk_error,
+        lambda prompt, schema: "isto não é json",
+        lambda prompt, schema: json.dumps({"suggestions": None}),
+    ],
+    ids=["no key", "sdk error", "bad answer", "null suggestions"],
 )
 def test_gemini_unavailable_answers_200_and_nothing(logged, mapped, monkeypatch, ask):
     if ask:
@@ -228,10 +234,16 @@ def test_params_are_saved_with_defaults_and_keep_the_mapping(logged, mapped):
         ({"financial_targets": {"target_cpa": -1}}, ["body", "financial_targets", "target_cpa"], "greater_than"),
         ({"optimization_target": "CLICKS"}, ["body", "optimization_target"], "literal_error"),
         ({"column_mapping": {}}, ["body", "column_mapping"], "extra_forbidden"),
+        ({"average_ticket": float("inf")}, ["body", "average_ticket"], "finite_number"),
     ],
 )
 def test_invalid_params_are_422_with_the_field(logged, mapped, body, loc, kind):
-    r = logged.put(f"/api/w/a/simulations/{mapped.id}/params", json=body)
+    # raw content: httpx's json= refuses to serialize inf
+    r = logged.put(
+        f"/api/w/a/simulations/{mapped.id}/params",
+        content=json.dumps(body),
+        headers={"content-type": "application/json"},
+    )
 
     assert r.status_code == 422
     assert [(e["loc"], e["type"]) for e in r.json()["detail"]] == [(loc, kind)]
@@ -243,3 +255,18 @@ def test_params_need_a_confirmed_mapping(logged, analyst, ws, make_simulation):
     r = logged.put(f"/api/w/a/simulations/{bare.id}/params", json={})
 
     assert (r.status_code, r.json()) == (422, {"detail": "Confirme o mapeamento de colunas antes."})
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [("NaN", None), ("inf", None), ("1.234,56", 1234.56), ("12.5", 12.5), ("x", None)],
+)
+def test_number_parses_exports_and_rejects_non_finite(text, expected):
+    assert suggestions.number(text) == expected
+
+
+def test_422_keeps_the_limits_in_ctx_for_the_form(logged, mapped):
+    r = logged.put(f"/api/w/a/simulations/{mapped.id}/params", json={"investment_limit_factor": 1})
+
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["ctx"] == {"gt": 1.0}

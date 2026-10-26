@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import statistics
 from collections import defaultdict
 from collections.abc import Iterator
@@ -123,9 +124,10 @@ def number(text: str) -> float | None:
     if "," in text:
         text = text.replace(".", "").replace(",", ".")
     try:
-        return float(text)
+        n = float(text)
     except ValueError:
         return None
+    return n if math.isfinite(n) else None
 
 
 def summary(paths: dict[str, Path | None], mapping: dict) -> dict:
@@ -142,6 +144,7 @@ def summary(paths: dict[str, Path | None], mapping: dict) -> dict:
     total = sum(spend.values())
     return {
         "kpi_column": performance["kpi_col"],
+        "mapped_columns": mapping,
         "cadence": {1: "daily", 7: "weekly"}.get(step),
         "period": [dates[0].isoformat(), dates[-1].isoformat()] if dates else None,
         "total_investment": round(total, 2),
@@ -174,7 +177,7 @@ def from_gemini(paths: dict[str, Path | None], mapping: dict) -> dict[str, dict]
         schema=json.dumps(ParamsIn.model_json_schema(), ensure_ascii=False),
     )
     try:
-        items = json.loads(gemini.ask(prompt, GeminiAnswer.model_json_schema()))["suggestions"]
+        items = list(json.loads(gemini.ask(prompt, GeminiAnswer.model_json_schema()))["suggestions"])
     except gemini.Unavailable as e:
         log.warning("simulation.gemini_unavailable reason=%s", e)
         return None

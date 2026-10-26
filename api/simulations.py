@@ -87,10 +87,13 @@ def suggest_params(simulation: Simulation) -> dict[str, dict]:
         raise InvalidInput("Não foi possível ler o arquivo de performance.")
 
 
-def gemini_params(simulation: Simulation) -> dict[str, dict] | None:
+def gemini_params(db: Session, simulation: Simulation) -> dict[str, dict] | None:
     mapping = require_mapping(simulation)
+    paths = input_paths(simulation)
+    # hand the connection back to the pool: the Gemini call can take 20 s
+    db.rollback()
     try:
-        return suggestions.from_gemini(input_paths(simulation), mapping)
+        return suggestions.from_gemini(paths, mapping)
     except csvfile.Unreadable:
         raise InvalidInput("Não foi possível ler os arquivos da simulação.")
 
@@ -167,9 +170,9 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
 
 def save_params(db: Session, simulation: Simulation, params: dict) -> None:
     lock(db, simulation)
-    mapping = require_mapping(simulation)
+    require_mapping(simulation)
     # the parameters never touch the report: the stand-in validate reads only the mapping
-    simulation.config = {**params, "column_mapping": mapping}
+    simulation.config = {**simulation.config, **params}
     simulation.updated_at = func.now()
     db.commit()
     log.info("simulation.params_saved simulation_id=%s", simulation.id)

@@ -168,7 +168,7 @@ def get_suggestions(simulation_id: SimulationId, ctx: Ctx = Depends(analyst), db
 @router.post("/{simulation_id}/suggestions/gemini")
 def gemini_suggestions(simulation_id: SimulationId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)) -> dict:
     try:
-        found = simulations.gemini_params(find_simulation(db, ctx, simulation_id))
+        found = simulations.gemini_params(db, find_simulation(db, ctx, simulation_id))
     except simulations.InvalidInput as e:
         raise HTTPException(422, str(e))
     return {"available": found is not None, "suggestions": found or {}}
