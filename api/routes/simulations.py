@@ -154,3 +154,11 @@ def save_mapping(
     except simulations.InvalidInput as e:
         raise HTTPException(422, str(e))
     return simulation_out(simulation)
+
+
+@router.get("/{simulation_id}/suggestions")
+def get_suggestions(simulation_id: SimulationId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)) -> dict:
+    try:
+        return simulations.suggest_params(find_simulation(db, ctx, simulation_id))
+    except simulations.InvalidInput as e:
+        raise HTTPException(422, str(e))

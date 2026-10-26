@@ -1,14 +1,13 @@
 import hashlib
 import logging
 import tempfile
-import unicodedata
 from pathlib import Path
 from typing import BinaryIO
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from api import csvfile, storage, validation
+from api import csvfile, storage, suggestions, validation
 from api.models import Simulation, SimulationFile, User, Workspace
 
 log = logging.getLogger(__name__)
@@ -49,12 +48,8 @@ def create(db: Session, workspace: Workspace, name: str, by: User) -> Simulation
     return simulation
 
 
-def normalize(column: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFKD", column.lower()) if c.isalnum())
-
-
 def suggest_mapping(kind: str, columns: list[str]) -> dict[str, str | None]:
-    normalized = [normalize(c) for c in columns]
+    normalized = [csvfile.normalize(c) for c in columns]
     suggestion = {}
     for field in FIELDS[kind]:
         if field in ALIASES:
@@ -67,6 +62,29 @@ def suggest_mapping(kind: str, columns: list[str]) -> dict[str, str | None]:
 
 def input_key(simulation: Simulation, sha256: str) -> str:
     return f"ws/{simulation.workspace_id}/sim/{simulation.id}/inputs/{sha256}.csv"
+
+
+def input_paths(simulation: Simulation) -> dict[str, Path | None]:
+    files = {f.kind: f for f in simulation.files}
+    return {
+        key: storage.path(input_key(simulation, files[kind].sha256)) if kind in files else None
+        for key, kind in MAPPING_FILES.items()
+    }
+
+
+def require_mapping(simulation: Simulation) -> dict:
+    # every upload resets the report: no report means the mapping wasn't confirmed for these files
+    if simulation.validation is None:
+        raise InvalidInput("Confirme o mapeamento de colunas antes.")
+    return simulation.config["column_mapping"]
+
+
+def suggest_params(simulation: Simulation) -> dict[str, dict]:
+    mapping = require_mapping(simulation)
+    try:
+        return suggestions.from_data(input_paths(simulation), mapping)
+    except csvfile.Unreadable:
+        raise InvalidInput("Não foi possível ler o arquivo de performance.")
 
 
 def lock(db: Session, simulation: Simulation) -> None:
@@ -127,10 +145,7 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
             if column not in file.columns:
                 raise InvalidInput(f"Coluna '{column}' não existe no arquivo de {FILE_LABELS[file.kind]}.")
 
-    inputs = {
-        key: storage.path(input_key(simulation, files[kind].sha256)) if kind in files else None
-        for key, kind in MAPPING_FILES.items()
-    }
+    inputs = input_paths(simulation)
     simulation.config = {**simulation.config, "column_mapping": mapping}
     try:
         report = validation.validate(inputs, simulation.config)

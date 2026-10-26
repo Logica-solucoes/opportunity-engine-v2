@@ -1,5 +1,6 @@
 import pytest
 
+from api import simulations
 from api.auth import RANK
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
@@ -25,6 +26,7 @@ ROUTES = {
         lambda e: Files(file=("investimento.csv", INVESTMENT, "text/csv")),
     ),
     ("PUT", "/api/w/{slug}/simulations/{simulation_id}/mapping"): ("analyst", 200, lambda e: MAPPING),
+    ("GET", "/api/w/{slug}/simulations/{simulation_id}/suggestions"): ("analyst", 200, None),
     ("GET", "/api/engine/config-schema"): (SESSION, 200, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
@@ -52,13 +54,14 @@ def expected_status(minimum, ok, actor):
 
 
 @pytest.fixture
-def env(make_user, make_workspace, make_simulation, password):
+def env(db, make_user, make_workspace, make_simulation, password):
     users = {role: make_user(f"{role}@x.com") for role in ("viewer", "analyst", "admin")}
     users["platform"] = make_user("platform@x.com", platform=True)
     target = make_user("target@x.com")
     make_user("fora@x.com")
     ws = make_workspace("a", [(users[r], r) for r in ("viewer", "analyst", "admin")] + [(target, "viewer")])
     simulation = make_simulation(ws, users["analyst"], files={"investment": INVESTMENT, "performance": PERFORMANCE})
+    simulations.save_mapping(db, simulation, MAPPING)
     return {"users": users, "target": target, "password": password, "simulation": simulation}
 
 

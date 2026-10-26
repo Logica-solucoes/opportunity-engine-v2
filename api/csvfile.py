@@ -1,4 +1,5 @@
 import csv
+import unicodedata
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -47,3 +48,7 @@ def header(path: Path) -> list[str]:
     if len(columns) < 2 or not all(columns):
         raise Unreadable
     return columns
+
+
+def normalize(column: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", column.lower()) if c.isalnum())
