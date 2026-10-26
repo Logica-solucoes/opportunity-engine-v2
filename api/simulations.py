@@ -69,6 +69,11 @@ def input_key(simulation: Simulation, sha256: str) -> str:
     return f"ws/{simulation.workspace_id}/sim/{simulation.id}/inputs/{sha256}.csv"
 
 
+def lock(db: Session, simulation: Simulation) -> None:
+    # one write per simulation at a time: a mapping must not validate a file a concurrent upload just replaced
+    db.refresh(simulation, with_for_update={"key_share": True})
+
+
 def save_file(db: Session, simulation: Simulation, kind: str, src: BinaryIO, filename: str, by: User) -> None:
     if not filename.lower().endswith(".csv"):
         raise InvalidInput("Envie um arquivo .csv.")
@@ -89,6 +94,7 @@ def save_file(db: Session, simulation: Simulation, kind: str, src: BinaryIO, fil
         sha256 = digest.hexdigest()
         storage.put(input_key(simulation, sha256), local)
 
+    lock(db, simulation)
     row = db.get(SimulationFile, (simulation.id, kind)) or SimulationFile(simulation_id=simulation.id, kind=kind)
     row.sha256 = sha256
     # display only, never a path; browsers on Windows may send "C:\fakepath\name.csv"
@@ -107,6 +113,7 @@ def save_file(db: Session, simulation: Simulation, kind: str, src: BinaryIO, fil
 
 
 def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
+    lock(db, simulation)
     files = {f.kind: f for f in simulation.files}
     if "investment" not in files or "performance" not in files:
         raise InvalidInput("Envie investimento e performance antes de validar.")

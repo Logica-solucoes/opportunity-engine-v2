@@ -1,8 +1,13 @@
 import hashlib
+import io
+import threading
 
 import pytest
+from sqlalchemy import delete
 
-from api import simulations
+from api import simulations, storage, validation
+from api.db import SessionLocal
+from api.models import Simulation, User, Workspace
 from api.simulations import suggest_mapping
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE, TRENDS, TRENDS_MAPPING
 
@@ -266,3 +271,89 @@ def test_reupload_clears_the_validation(logged, analyst, ws, make_simulation):
 
     assert body["validation"] is None
     assert body["config"] == {"column_mapping": MAPPING}
+
+
+@pytest.fixture
+def committed():
+    # the race tests need real commits seen across connections, not the rolled-back db fixture
+    with SessionLocal() as s:
+        user = User(email="race-sim@x.com", name="race", password_hash="x")
+        workspace = Workspace(name="RACE", slug="race-sim")
+        s.add_all([user, workspace])
+        s.flush()
+        simulation = simulations.create(s, workspace, "Race", by=user)
+        ids = user.id, simulation.id
+    yield ids
+    with SessionLocal() as s:
+        s.execute(delete(Workspace).where(Workspace.slug == "race-sim"))
+        s.execute(delete(User).where(User.email == "race-sim@x.com"))
+        s.commit()
+
+
+def upload_in_new_session(user_id, simulation_id, content, kind="investment"):
+    with SessionLocal() as s:
+        simulation, user = s.get(Simulation, simulation_id), s.get(User, user_id)
+        simulations.save_file(s, simulation, kind, io.BytesIO(content), f"{kind}.csv", by=user)
+
+
+def run_parallel(*targets):
+    errors = []
+
+    def run(target):
+        try:
+            target()
+        except Exception as e:  # noqa: BLE001 - an exception in a thread is otherwise lost
+            errors.append(e)
+
+    threads = [threading.Thread(target=run, args=(t,)) for t in targets]
+    [t.start() for t in threads]
+    [t.join(10) for t in threads]
+    assert not any(t.is_alive() for t in threads)
+    return errors
+
+
+def test_parallel_first_uploads_of_one_kind_both_succeed(committed, monkeypatch):
+    user_id, simulation_id = committed
+    barrier = threading.Barrier(2, timeout=10)
+    real_put = storage.put
+
+    def put_then_meet(key, src):
+        real_put(key, src)
+        barrier.wait()
+
+    monkeypatch.setattr(storage, "put", put_then_meet)
+
+    errors = run_parallel(
+        lambda: upload_in_new_session(user_id, simulation_id, INVESTMENT),
+        lambda: upload_in_new_session(user_id, simulation_id, INVESTMENT + b"2024-01-03,SEARCH,1\n"),
+    )
+
+    assert errors == []
+
+
+def test_upload_during_validation_leaves_no_stale_report(committed, monkeypatch):
+    user_id, simulation_id = committed
+    upload_in_new_session(user_id, simulation_id, INVESTMENT)
+    upload_in_new_session(user_id, simulation_id, PERFORMANCE, "performance")
+    validating, uploaded = threading.Event(), threading.Event()
+    real_validate = validation.validate
+
+    def slow_validate(inputs, config):
+        validating.set()
+        uploaded.wait(1)
+        return real_validate(inputs, config)
+
+    monkeypatch.setattr(validation, "validate", slow_validate)
+
+    def map_columns():
+        with SessionLocal() as s:
+            simulations.save_mapping(s, s.get(Simulation, simulation_id), MAPPING)
+
+    def upload_new_file():
+        validating.wait(5)
+        upload_in_new_session(user_id, simulation_id, INVESTMENT + b"2024-01-03,SEARCH,1\n")
+        uploaded.set()
+
+    assert run_parallel(map_columns, upload_new_file) == []
+    with SessionLocal() as s:
+        assert s.get(Simulation, simulation_id).validation is None

@@ -18,6 +18,10 @@ O protótipo aceitava 200 MB. O Cloud Run corta corpo de requisição HTTP/1 em 
 
 `api/storage.py` tem só `put` e `path` sobre `STORAGE_DIR`. O GCS entra no B11, quando houver bucket para testar; até lá uma implementação sem teste real seria só aparência. A chave `ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv` dá rastreabilidade (o run do B4 guarda o sha256) e torna o re-upload idempotente. O blob substituído fica: quem apaga é a retenção do B9.
 
+## Uma escrita por simulação
+
+Upload e `PUT …/mapping` travam a linha da simulação (`FOR NO KEY UPDATE`, `simulations.lock`) antes de ler ou gravar os arquivos dela. Sem isso, um mapping que lia o arquivo antigo enquanto um re-upload entrava gravava `ok: true` para dados que nunca foram validados, e o B4 confiaria nesse report; e dois primeiros uploads do mesmo `kind` batiam na PK e viravam 500 (review de 26/out/2026). O upload trava só depois do `storage.put`, para não segurar a linha durante a escrita do arquivo. A trava do front (`useIsMutating`) evita a corrida na mesma aba; a do servidor cobre duas abas e duplo envio.
+
 ## Leitura do CSV
 
 Encoding: o arquivo inteiro decodifica como `utf-8-sig`? senão `latin-1` (exports de BI brasileiros). Delimitador: o mais frequente de `,;\t|` na linha do cabeçalho. O `csv.Sniffer` foi descartado porque em arquivo com `;` e decimal com vírgula (`1.234,56`) a vírgula aparece em todas as linhas de dado e ele pode escolhê-la. Arquivo com byte NUL (ex.: export UTF-16 do Excel) é recusado no upload: o Postgres não aceita `\u0000` em jsonb.
