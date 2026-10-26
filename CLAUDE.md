@@ -14,11 +14,15 @@ Mapa do código (arquitetura, endpoints, schema, fluxos): `docs/CODEBASE_MAP.md`
 api/              Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + psycopg 3 (uv)
   main.py         create_app(): middleware de Origin, routers e SPA com fallback para index.html
   db.py           DATABASE_URL, engine, SessionLocal, Base, get_db, ping()
-  models.py       User, Workspace, Membership, UserSession
+  models.py       User, Workspace, Membership, UserSession, Simulation, SimulationFile
   passwords.py    scrypt
   auth.py         sessão, login, bloqueio, dependências de escopo (require_role…)
   accounts.py     regra de negócio de contas, membros e workspaces
-  routes/         routers finos (auth, members, admin)
+  simulations.py  regra de negócio de simulações: upload, sugestão de mapeamento, validação
+  storage.py      put/path sobre STORAGE_DIR (local; GCS no B11)
+  csvfile.py      encoding, delimitador e cabeçalho de CSV
+  validation.py   validate falso até o A2 (vira `from engine import validate`)
+  routes/         routers finos (auth, members, admin, simulations)
   cli.py          python -m api.cli create-admin
   worker.py       entrypoint do Cloud Run Job (python -m api.worker)
   alembic.ini     config do Alembic (rodar sempre com -c api/alembic.ini)
@@ -81,7 +85,7 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 
 ## Estado atual
 
-**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. **B1b (telas) concluído em 22/out/2026**: login, troca de senha obrigatória, seletor de workspace por slug na URL, membros, admin de workspaces e usuários, tema claro/escuro do protótipo (Tailwind + shadcn), E2E Playwright no CI. Faltam, em ordem: B2–B4 (upload, Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
+**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. **B1b (telas) concluído em 22/out/2026**: login, troca de senha obrigatória, seletor de workspace por slug na URL, membros, admin de workspaces e usuários, tema claro/escuro do protótipo (Tailwind + shadcn), E2E Playwright no CI. **B2a (upload backend) concluído em 26/out/2026**: tabelas `simulations`/`simulation_files` (migration `0003`), upload de CSV ≤ 30 MB para storage local por conteúdo, sugestão e confirmação do mapeamento de colunas, `validate` falso (só `duplicate_date_channel`) até o A2. Faltam, em ordem: B2b (telas do upload), B3–B4 (Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
 
 **Onde as decisões estão escritas.** Este arquivo e os quatro da raiz dizem as regras; `docs/decisoes/` diz **por quê** (índice em `docs/decisoes/README.md`). Leia o arquivo da área antes de mexer nela:
 
@@ -89,6 +93,7 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 | --- | --- |
 | Imagem única, health, SPA, CI, deps | `docs/decisoes/infra-e-operacao.md` |
 | Auth, sessão, papéis, workspaces | `docs/decisoes/auth.md` |
+| Simulação, upload, storage, validate | `docs/decisoes/upload-e-storage.md` |
 
 Ao concluir um item `A*`/`B*`, atualize no mesmo commit o parágrafo "Estado atual" acima (o que já existe e o que falta) e a linha `Status` do item em `docs/m2/trilha-*.md`, com a data e o que foi verificado.
 

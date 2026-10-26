@@ -8,5 +8,6 @@ Divisão de trabalho: o `CLAUDE.md` e os arquivos da raiz (`CODE-STYLE.md`, `DAT
 | --- | --- |
 | [infra-e-operacao.md](infra-e-operacao.md) | Imagem única, health, SPA, CI, dependências |
 | [auth.md](auth.md) | Sessão, cookie, CSRF, 404 × 403, papéis, bloqueio, bootstrap, guardas do front, workspace na URL, tema |
+| [upload-e-storage.md](upload-e-storage.md) | Simulação como rascunho, mapeamento antes do validate, limite de 30 MB, storage local por conteúdo, leitura do CSV, validate falso até o A2 |
 
 Ao concluir uma tarefa que muda alguma dessas decisões, atualize o arquivo da área no mesmo commit.

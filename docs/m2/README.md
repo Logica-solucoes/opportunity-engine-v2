@@ -93,6 +93,7 @@ Síncrona e rápida (< 10 s para 2 anos diários × 15 canais). A API chama no u
                   "suggested_groups": [["PMAX","SEARCH"]]}}
 ```
 `level`: `error` bloqueia o run; `warning` exige confirmação do analista; `info` só informa. `message` sai em pt-BR, pronto para a tela. `id` é estável, e o front pode usá-lo para lógica específica (ex.: escolher entre DV360 e CM360).
+`inputs` (proposto pelo B2, a confirmar no spec do A2): `{"investment_file": Path, "performance_file": Path, "generic_trends_file": Path | None}`, as mesmas chaves do `column_mapping`. Até o A2 existir, a API usa um `validate` falso com a mesma assinatura (`api/validation.py`).
 
 ### 3. `engine.run(inputs, config, out_dir, on_log) -> dict` = `results.json` (dono: A, itens A0/A1)
 Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: o que falhou num gate vem marcado, e a API/front só escondem ou rotulam, sem recalcular nada.

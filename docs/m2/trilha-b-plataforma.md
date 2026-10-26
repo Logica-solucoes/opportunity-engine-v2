@@ -66,25 +66,26 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B2 · Upload, armazenamento e validação — semana 2
 
+- **Status:** 🟡 B2a (backend) feito em 26/out/2026, verificado por `tests/api/test_simulations.py` e `tests/api/test_rbac.py`. B2b (telas) pendente. Desvios em `docs/decisoes/upload-e-storage.md`.
 - **BRD:** Capabilities › Data upload & validation; Journey 1 passos 2–3; Figure 3 passos 3–4; Datasets; In scope ("aggregated, no personal data").
 - **Depende de:** B1, A2 (até lá, mock de `validate` com o fixture).
 - **Hoje:**
   - Upload direto para `inputs/user_{uid}/{proj}/` (`streamlit_app.py:1374`), limite de 200 MB.
   - O mapeamento de colunas é adivinhado pelos `guess_*_col` (`:1394-1403`) sem confirmação do usuário.
 - **Fazer:**
-  - `storage.py` com `put/get/delete/list`, e duas implementações escolhidas por env: GCS (`gs://bucket`) ou diretório local.
+  - `storage.py` com `put/path` sobre diretório local; GCS (`gs://bucket`) entra no B11.
   - Caminho `ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv`; o sha256 garante a rastreabilidade do histórico.
   - Fluxo:
-    1. criar a simulação (nome, KPI, alvo);
+    1. criar a simulação (nome; alvo e KPI vêm no B3);
     2. subir investimento, performance e trends opcional;
-    3. a API chama `engine.validate` e devolve o `ValidationReport`;
-    4. a tela mostra `error` (bloqueia), `warning` (checkbox de confirmação) e `info`;
-    5. o analista confirma o mapeamento de colunas;
+    3. o analista confirma o mapeamento de colunas (sugerido pela API a partir do cabeçalho);
+    4. a API chama `engine.validate` e devolve o `ValidationReport`;
+    5. a tela mostra `error` (bloqueia), `warning` (checkbox de confirmação) e `info`;
     6. se houver colinearidade, a tela de agrupamento (A3) oferece agrupar ou bloquear por canal.
   - Para DV360/CM360 sobrepostos, o analista escolhe qual manter.
   - Templates CSV padrão disponíveis para download.
   - Upload do resultado de experimento (A7 › calibração).
-  - Só CSV, ≤ 200 MB, nome sanitizado; nunca executar nada do arquivo.
+  - Só CSV, ≤ 30 MB (teto do Cloud Run), nome sanitizado; nunca executar nada do arquivo.
 - **Aceite:**
   - Upload com duplicata (data, canal) mostra o erro em pt-BR e o botão Rodar fica desabilitado.
   - O arquivo vai para o bucket do workspace certo.

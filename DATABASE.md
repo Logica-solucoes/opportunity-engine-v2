@@ -22,6 +22,8 @@ Models em `api/models.py` (`Base` em `api/db.py`).
 | `workspaces` | nome, slug único e imutável, `settings jsonb` (default `{}`) | `0001` |
 | `memberships` | PK `(user_id, workspace_id)`, índice em `workspace_id`, `role` enum `membership_role` (admin\|analyst\|viewer) | `0001`, `0002` |
 | `sessions` | PK `token_hash` (sha256 do token), `user_id`, `created_at`, `last_seen_at` | `0001` |
+| `simulations` | `workspace_id` (index), `name`, `config jsonb` (rascunho do `EngineConfig`; o B2 grava `column_mapping`), `validation jsonb` (último `ValidationReport`: snapshot de propósito, revalidar relê o CSV inteiro; zerado a cada upload), `created_by`, `created_at`, `updated_at` | `0003` |
+| `simulation_files` | PK `(simulation_id, kind)`, `kind` enum `simulation_file_kind` (investment\|performance\|trends), `sha256` (compõe a chave no storage), `filename` (só exibição), `size_bytes`, `columns jsonb` (cabeçalho), `uploaded_by`, `uploaded_at` | `0003` |
 
 Atualize esta tabela no mesmo commit da migration (linha deixa de ser "planejada" e ganha o id da revisão).
 

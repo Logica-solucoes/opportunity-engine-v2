@@ -20,7 +20,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM python:3.13-slim
 WORKDIR /app
 
-RUN groupadd -r app && useradd -r -m -d /home/app -g app app
+RUN groupadd -r app && useradd -r -m -d /home/app -g app app \
+    && mkdir /app/data && chown app:app /app/data
 ENV HOME=/home/app PATH=/app/.venv/bin:$PATH
 
 COPY --chown=app:app --from=builder /app/.venv /app/.venv

@@ -32,7 +32,7 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 - O BRD e dados de cliente (CSV de investimento, resultados) **não vão para o repositório** (`.gitignore`: `*.docx`, `inputs/`, `outputs/`).
 - `/docs`, `/redoc` e `/openapi.json`: fechar em produção (decisão a registrar no B11).
 - Mesma origem (API serve o SPA): sem CORS aberto.
-- Upload (B2): validar tipo e tamanho antes de processar; CSV exportado deve escapar texto que começa com `=`, `+`, `-`, `@`, tab ou CR (o Excel executaria a fórmula).
+- Upload (B2): só `.csv` até 30 MB, conferido antes de guardar; o conteúdo só é lido pelo `csv` da stdlib, nunca executado. O nome original só é exibido; o arquivo vive em `ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv`, chave montada pela API. CSV exportado deve escapar texto que começa com `=`, `+`, `-`, `@`, tab ou CR (o Excel executaria a fórmula).
 
 ## Mexer em auth
 
