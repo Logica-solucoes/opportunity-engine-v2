@@ -27,6 +27,7 @@ ROUTES = {
     ),
     ("PUT", "/api/w/{slug}/simulations/{simulation_id}/mapping"): ("analyst", 200, lambda e: MAPPING),
     ("GET", "/api/w/{slug}/simulations/{simulation_id}/suggestions"): ("analyst", 200, None),
+    ("POST", "/api/w/{slug}/simulations/{simulation_id}/suggestions/gemini"): ("analyst", 200, None),
     ("GET", "/api/engine/config-schema"): (SESSION, 200, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),

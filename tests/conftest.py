@@ -55,6 +55,12 @@ def fast_scrypt(monkeypatch):
     monkeypatch.setattr(passwords, "SCRYPT_N", 2**14)
 
 
+@pytest.fixture(autouse=True)
+def no_gemini_key(monkeypatch):
+    # tests never reach the real API; the ones that need an answer replace gemini.ask
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+
 @pytest.fixture
 def password():
     return PASSWORD

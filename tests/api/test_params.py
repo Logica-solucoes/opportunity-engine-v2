@@ -1,8 +1,9 @@
+import json
 from datetime import date, timedelta
 
 import pytest
 
-from api import simulations, suggestions
+from api import gemini, simulations, suggestions
 from api.engine_config import EngineConfig, ParamsIn
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
@@ -127,3 +128,73 @@ def test_suggestions_of_another_workspace_are_404(logged, analyst, make_workspac
     foreign = make_simulation(make_workspace("b", [(analyst, "analyst")]), analyst)
 
     assert logged.get(f"/api/w/a/simulations/{foreign.id}/suggestions").status_code == 404
+
+
+def answer(*items):
+    return lambda prompt, schema: json.dumps(
+        {"suggestions": [dict(zip(("field", "value", "reason"), i)) for i in items]}
+    )
+
+
+def test_gemini_suggestions_come_validated_with_their_reason(logged, mapped, monkeypatch):
+    monkeypatch.setattr(
+        gemini,
+        "ask",
+        answer(
+            ("investment_limit_factor", "2", "Os canais ainda têm folga."),
+            ("financial_targets.target_cpa", "35.5", "CPA médio do período."),
+            ("max_budget_step", "7", "Fora do limite."),
+            ("column_mapping", "{}", "Campo que não é do formulário."),
+        ),
+    )
+
+    r = logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
+
+    assert r.status_code == 200
+    assert r.json() == {
+        "available": True,
+        "suggestions": {
+            "investment_limit_factor": {"value": 2.0, "reason": "Os canais ainda têm folga.", "source": "gemini"},
+            "financial_targets.target_cpa": {"value": 35.5, "reason": "CPA médio do período.", "source": "gemini"},
+        },
+    }
+
+
+def test_gemini_prompt_carries_a_summary_and_no_rows(logged, mapped, monkeypatch):
+    prompts = []
+
+    def ask(prompt, schema):
+        prompts.append(prompt)
+        return json.dumps({"suggestions": []})
+
+    monkeypatch.setattr(gemini, "ask", ask)
+    logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
+
+    assert "SEARCH" in prompts[0] and "conversoes" in prompts[0]
+    for line in (INVESTMENT + PERFORMANCE).decode().splitlines():
+        if line[:1].isdigit():
+            assert line not in prompts[0]
+
+
+def sdk_error(prompt, schema):
+    raise gemini.Unavailable("Timeout")
+
+
+@pytest.mark.parametrize(
+    "ask",
+    [None, sdk_error, lambda prompt, schema: "isto não é json"],
+    ids=["no key", "sdk error", "bad answer"],
+)
+def test_gemini_unavailable_answers_200_and_nothing(logged, mapped, monkeypatch, ask):
+    if ask:
+        monkeypatch.setattr(gemini, "ask", ask)
+
+    r = logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
+
+    assert (r.status_code, r.json()) == (200, {"available": False, "suggestions": {}})
+
+
+def test_gemini_needs_a_confirmed_mapping(logged, analyst, ws, make_simulation):
+    bare = make_simulation(ws, analyst, files={"investment": INVESTMENT, "performance": PERFORMANCE})
+
+    assert logged.post(f"/api/w/a/simulations/{bare.id}/suggestions/gemini").status_code == 422

@@ -87,6 +87,14 @@ def suggest_params(simulation: Simulation) -> dict[str, dict]:
         raise InvalidInput("Não foi possível ler o arquivo de performance.")
 
 
+def gemini_params(simulation: Simulation) -> dict[str, dict] | None:
+    mapping = require_mapping(simulation)
+    try:
+        return suggestions.from_gemini(input_paths(simulation), mapping)
+    except csvfile.Unreadable:
+        raise InvalidInput("Não foi possível ler os arquivos da simulação.")
+
+
 def lock(db: Session, simulation: Simulation) -> None:
     # one write per simulation at a time: a mapping must not validate a file a concurrent upload just replaced
     db.refresh(simulation, with_for_update={"key_share": True})
