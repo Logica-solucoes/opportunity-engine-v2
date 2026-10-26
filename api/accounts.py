@@ -59,7 +59,7 @@ def change_password(db: Session, session: UserSession, current: str, new: str) -
     user.locked_until = None
     user.password_hash = hash_password(new)
     user.must_change_password = False
-    drop_sessions(db, user.id, keep=session.token_hash)
+    drop_sessions(db, user.id)
     db.commit()
     log.info("auth.password_changed user_id=%s", user.id)
 

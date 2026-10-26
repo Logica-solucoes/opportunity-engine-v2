@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 
-from api import auth, db
+from api import auth, db, passwords
 from api.routes import admin, members, simulations
 from api.routes import auth as auth_routes
 
@@ -15,6 +15,10 @@ router = APIRouter(prefix="/api")
 def health():
     # always 200: liveness must not depend on the DB; db state is reported, not enforced
     return {"status": "ok", "db": "ok" if db.ping() else "down"}
+
+
+def busy(request: Request, exc: passwords.Busy):
+    return JSONResponse({"detail": "busy"}, status_code=503, headers={"Retry-After": "1"})
 
 
 def mount_spa(app: FastAPI, dist: Path) -> None:
@@ -36,6 +40,7 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
 def create_app(web_dist: Path | None = None) -> FastAPI:
     app = FastAPI(title="Marketing GEM")
     app.middleware("http")(auth.check_origin)
+    app.exception_handler(passwords.Busy)(busy)
     app.include_router(router)
     app.include_router(auth_routes.router)
     app.include_router(members.router)

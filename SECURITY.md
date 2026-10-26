@@ -16,12 +16,12 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 ## Auth
 
 - Sem auto-cadastro: só o platform admin cria contas, com senha temporária e troca obrigatória no 1º login. O admin do workspace só vincula contas existentes, senão poderia criar uma conta, ficar com a senha e herdar o acesso que outra marca desse a ela. Reset de senha só pelo platform admin no M2.
-- Senha com `hashlib.scrypt` (stdlib). Bloqueio após 5 falhas seguidas por 15 min, com a linha do usuário travada (`FOR NO KEY UPDATE`) para palpites em paralelo não furarem a contagem; senha atual errada na troca de senha conta para o mesmo bloqueio. No máximo 4 scrypts simultâneos, e o login não segura conexão do pool durante o scrypt, para uma rajada de logins não derrubar a instância nem esgotar o pool. Senha acima de 1024 caracteres é 422.
+- Senha com `hashlib.scrypt` (stdlib). Bloqueio após 5 falhas seguidas por 15 min, com a linha do usuário travada (`FOR NO KEY UPDATE`) para palpites em paralelo não furarem a contagem; senha atual errada na troca de senha conta para o mesmo bloqueio. No máximo 4 scrypts simultâneos, e o login não segura conexão do pool durante o scrypt, para uma rajada de logins não derrubar a instância nem esgotar o pool; a espera por um slot tem teto de 5 s (503 `busy`), para não prender as threads de todas as rotas. Senha acima de 1024 caracteres é 422.
 - Sessão em cookie `HttpOnly; Secure; SameSite=Lax` guardando um token aleatório; o banco guarda só o **hash**. Nunca guardar `user_id` ou `username` no cookie, nem token de sessão na URL (o protótipo fazia as duas coisas).
 - Cookie adulterado → 401. Sessão de usuário desativado também é rejeitada, mesmo que tenha sobrevivido à desativação.
 - Senha temporária sai com `Cache-Control: no-store`, para não ficar em cache de browser ou proxy.
 - Senha, token e chave nunca aparecem em log.
-- Sessão deslizante: expira com 8h sem uso, teto de 7d desde o login. Troca de senha derruba as outras sessões; reset e desativação derrubam todas.
+- Sessão deslizante: expira com 8h sem uso, teto de 7d desde o login. Troca de senha derruba todas as sessões e emite um token novo para quem trocou; reset e desativação derrubam todas.
 - Mutações (`POST/PUT/PATCH/DELETE` em `/api/*`) com `Origin` de outro host → 403, além do `SameSite=Lax`.
 - Conta é do platform admin (criar, reset, desativar); membership é do admin do workspace (vincular conta existente, papel, remover). O último admin do workspace não pode ser rebaixado nem removido. Bootstrap do primeiro platform admin: `mise run create-admin <email> <nome>`, nunca senha em env.
 

@@ -13,11 +13,21 @@ SCRYPT_P = 1
 MAXMEM = 2**28
 # each run takes ~128 MB: a burst of logins must queue instead of OOM-killing the instance
 SLOTS = threading.BoundedSemaphore(4)
+# the wait is bounded: queued logins hold worker threads every other route shares
+SLOT_WAIT_S = 5
+
+
+class Busy(Exception):
+    pass
 
 
 def _scrypt(password: str, salt: bytes, n: int, r: int, p: int) -> bytes:
-    with SLOTS:
+    if not SLOTS.acquire(timeout=SLOT_WAIT_S):
+        raise Busy
+    try:
         return hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, maxmem=MAXMEM)
+    finally:
+        SLOTS.release()
 
 
 def _b64(b: bytes) -> str:

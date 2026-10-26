@@ -43,9 +43,14 @@ Rebaixar ou remover o último admin do workspace responde 409 `last_admin`. As m
 Como o login é público, uma rajada de requests derrubaria a instância. Por isso há dois limites (revisão do B1, 22/out/2026):
 
 - **Semáforo de 4 scrypts simultâneos** (`passwords.SLOTS`): o resto espera na fila, então o teto de RAM é ~512 MB. Ao dimensionar o Cloud Run no B11, deixe memória para isso ou reduza `SLOTS`.
+- **Espera na fila limitada a 5 s** (`SLOT_WAIT_S`), depois 503 `busy` com `Retry-After`. As rotas são `def` síncronas e dividem as 40 threads do AnyIO: sem teto, uma rajada de logins com e-mail aleatório deixava todas as threads paradas no semáforo e travava a API inteira, `/api/health` incluído (review de 26/out/2026). 5 s e não 1 s porque o E2E faz logins em paralelo num notebook lento, onde um scrypt leva ~1,5 s. É um teto, não um rate limit: o rate limit por IP continua no B11.
 - **Login sem conexão presa durante o scrypt**: lê o usuário, encerra a transação, roda o scrypt e só então trava a linha para contar a falha ou zerar o contador. Se a senha mudou nesse meio-tempo, o palpite conta como errado. Sem isso, uns 15 logins ruins simultâneos esgotariam o pool (5+10) e travariam todas as rotas.
 
 Senha acima de 1024 caracteres é 422 antes de chegar ao scrypt.
+
+## Troca de senha gira o token
+
+A troca de senha derruba todas as sessões do usuário, inclusive a que fez a troca, e responde com um cookie novo. Antes ela mantinha o token atual: quem trocava a senha por suspeitar de cookie roubado, no mesmo navegador, mantinha vivo justamente o token roubado por até 7 dias (review de 26/out/2026, OWASP pede renovar o ID de sessão na troca de senha).
 
 ## Sessões vencidas somem no login
 

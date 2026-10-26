@@ -210,6 +210,18 @@ def test_parallel_wrong_guesses_still_lock(schema, password):
     assert results.count("invalid") <= auth.MAX_FAILED_LOGINS
 
 
+def test_login_answers_503_when_every_scrypt_slot_stays_busy(client, make_user, password, monkeypatch):
+    make_user("ana@x.com")
+    monkeypatch.setattr(passwords, "SLOTS", threading.BoundedSemaphore(1))
+    monkeypatch.setattr(passwords, "SLOT_WAIT_S", 0.01)
+    passwords.SLOTS.acquire()
+
+    r = client.post("/api/auth/login", json={"email": "ana@x.com", "password": password})
+
+    assert r.status_code == 503
+    assert r.headers["retry-after"] == "1"
+
+
 def test_success_resets_the_failure_counter(client, make_user, password):
     make_user("ana@x.com")
     wrong = {"email": "ana@x.com", "password": "errada-errada"}
@@ -236,17 +248,20 @@ def test_logout_kills_the_session(client, make_client, db, make_user, login_as):
     assert make_client().get("/api/me", headers={"Cookie": f"gem_session={token}"}).status_code == 401
 
 
-def test_change_password_keeps_current_session_and_kills_others(make_client, make_user, login_as, password):
+def test_change_password_rotates_current_session_and_kills_others(make_client, make_user, login_as, password):
     user = make_user("ana@x.com", must_change=True)
     here, elsewhere = make_client(), make_client()
     login_as(here, user)
     login_as(elsewhere, user)
+    stolen = make_client()
+    stolen.cookies.set(auth.COOKIE, here.cookies.get(auth.COOKIE))
 
     r = here.post("/api/auth/password", json={"current": password, "new": NEW_PASSWORD})
 
     assert r.status_code == 204
     assert here.get("/api/me").json()["must_change_password"] is False
     assert elsewhere.get("/api/me").status_code == 401
+    assert stolen.get("/api/me").status_code == 401
     fresh = make_client()
     login_as(fresh, user, NEW_PASSWORD)
 

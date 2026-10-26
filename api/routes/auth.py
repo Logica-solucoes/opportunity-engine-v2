@@ -78,8 +78,12 @@ def logout(response: Response, session: UserSession = Depends(auth.current_sessi
 
 @router.post("/auth/password", status_code=204)
 def change_password(
-    body: PasswordIn, session: UserSession = Depends(auth.current_session), db: Session = Depends(get_db)
+    body: PasswordIn,
+    response: Response,
+    session: UserSession = Depends(auth.current_session),
+    db: Session = Depends(get_db),
 ):
+    user = session.user
     try:
         accounts.change_password(db, session, body.current, body.new)
     except auth.AccountLocked as e:
@@ -88,6 +92,8 @@ def change_password(
         raise HTTPException(400, "invalid_current_password")
     except accounts.SamePassword:
         raise HTTPException(422, "password_unchanged")
+    # every session dies, this one too: a stolen copy of the cookie must not survive the change
+    auth.set_session_cookie(response, auth.create_session(db, user))
 
 
 @router.get("/me", response_model=MeOut)

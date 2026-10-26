@@ -108,11 +108,8 @@ def create_session(db: Session, user: User) -> str:
     return token
 
 
-def drop_sessions(db: Session, user_id: int, keep: bytes | None = None) -> None:
-    query = delete(UserSession).where(UserSession.user_id == user_id)
-    if keep is not None:
-        query = query.where(UserSession.token_hash != keep)
-    db.execute(query)
+def drop_sessions(db: Session, user_id: int) -> None:
+    db.execute(delete(UserSession).where(UserSession.user_id == user_id))
 
 
 def set_session_cookie(response: Response, token: str) -> None:
