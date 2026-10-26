@@ -25,7 +25,8 @@ export function FileDrop({
       onDragOver={(e) => e.preventDefault()}
       onDrop={drop}
       className={cn(
-        'flex flex-col items-center gap-2 rounded-md border border-dashed border-input px-4 py-6 text-center text-sm text-muted-foreground',
+        // the input is sr-only, so the ring is the only sign of keyboard focus
+        'flex flex-col items-center gap-2 rounded-md border border-dashed border-input px-4 py-6 text-center text-sm text-muted-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
         disabled && 'opacity-50',
       )}
     >

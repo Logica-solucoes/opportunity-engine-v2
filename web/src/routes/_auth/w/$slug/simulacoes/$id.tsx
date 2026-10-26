@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { CircleX, Info, TriangleAlert } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
@@ -44,6 +44,8 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
   const queryClient = useQueryClient()
   const query = simulationQuery(slug, id)
   const { data: sim, isError } = useQuery(query)
+  // one write at a time: a slower earlier response would overwrite the newer SimulationOut in the cache
+  const busy = useIsMutating() > 0
   // 404 (another workspace or deleted) and 422 (non-numeric id) look the same to the user
   if (isError) return <p>Simulação não encontrada.</p>
   if (!sim) return null
@@ -69,13 +71,13 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
         <h2 className="text-lg font-medium">Arquivos</h2>
         <div className="grid gap-4 md:grid-cols-3">
           {FILES.map((spec) => (
-            <FileCard key={spec.kind} slug={slug} sim={sim} spec={spec} onSaved={saved} />
+            <FileCard key={spec.kind} slug={slug} sim={sim} spec={spec} busy={busy} onSaved={saved} />
           ))}
         </div>
       </section>
 
       {sim.files.investment && sim.files.performance && (
-        <MappingForm key={filesKey} slug={slug} sim={sim} onSaved={saved} />
+        <MappingForm key={filesKey} slug={slug} sim={sim} busy={busy} onSaved={saved} />
       )}
 
       <ValidationBlock key={JSON.stringify(sim.validation)} report={sim.validation} />
@@ -87,11 +89,13 @@ function FileCard({
   slug,
   sim,
   spec,
+  busy,
   onSaved,
 }: {
   slug: string
   sim: Simulation
   spec: FileSpec
+  busy: boolean
   onSaved: (sim: Simulation) => void
 }) {
   const file = sim.files[spec.kind]
@@ -116,7 +120,7 @@ function FileCard({
         <FileDrop
           id={`file-${spec.kind}`}
           label={`Arquivo de ${spec.label.toLowerCase()}`}
-          disabled={upload.isPending}
+          disabled={busy}
           onFile={(f) => upload.mutate(f)}
         />
         {file && (
@@ -138,7 +142,17 @@ function FileCard({
   )
 }
 
-function MappingForm({ slug, sim, onSaved }: { slug: string; sim: Simulation; onSaved: (sim: Simulation) => void }) {
+function MappingForm({
+  slug,
+  sim,
+  busy,
+  onSaved,
+}: {
+  slug: string
+  sim: Simulation
+  busy: boolean
+  onSaved: (sim: Simulation) => void
+}) {
   const save = useMutation({
     mutationFn: (body: ColumnMapping) =>
       api<Simulation>(`/w/${slug}/simulations/${sim.id}/mapping`, { method: 'PUT', body }),
@@ -192,7 +206,7 @@ function MappingForm({ slug, sim, onSaved }: { slug: string; sim: Simulation; on
             {errorMessage(save.error)}
           </p>
         )}
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" disabled={busy}>
           Validar
         </Button>
       </form>
