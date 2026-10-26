@@ -12,7 +12,7 @@ O `trilha-b` listava "validar → confirmar mapeamento", mas o `validate` recebe
 
 ## 30 MB, não 200 MB
 
-O protótipo aceitava 200 MB. O Cloud Run corta corpo de requisição HTTP/1 em 32 MiB, e o dado é agregado por dia e canal: 2 anos × 15 canais ≈ 11 mil linhas, menos de 1 MB. 30 MB é ~30× o arquivo real e cabe no Cloud Run sem signed URL.
+O protótipo aceitava 200 MB. O Cloud Run corta corpo de requisição HTTP/1 em 32 MiB, e o dado é agregado por dia e canal: 2 anos × 15 canais ≈ 11 mil linhas, menos de 1 MB. 30 MB é ~30× o arquivo real e cabe no Cloud Run sem signed URL. O Starlette grava o corpo inteiro em arquivo temporário antes do auth e do nosso teto rodarem; quem limita de fato é o Cloud Run (32 MiB). Fora dele (local, testes) não há teto de corpo.
 
 ## Storage local, endereçado por conteúdo
 
@@ -20,7 +20,7 @@ O protótipo aceitava 200 MB. O Cloud Run corta corpo de requisição HTTP/1 em 
 
 ## Leitura do CSV
 
-Encoding: o arquivo inteiro decodifica como `utf-8-sig`? senão `latin-1` (exports de BI brasileiros). Delimitador: o mais frequente de `,;\t|` na linha do cabeçalho. O `csv.Sniffer` foi descartado porque em arquivo com `;` e decimal com vírgula (`1.234,56`) a vírgula aparece em todas as linhas de dado e ele pode escolhê-la.
+Encoding: o arquivo inteiro decodifica como `utf-8-sig`? senão `latin-1` (exports de BI brasileiros). Delimitador: o mais frequente de `,;\t|` na linha do cabeçalho. O `csv.Sniffer` foi descartado porque em arquivo com `;` e decimal com vírgula (`1.234,56`) a vírgula aparece em todas as linhas de dado e ele pode escolhê-la. Arquivo com byte NUL (ex.: export UTF-16 do Excel) é recusado no upload: o Postgres não aceita `\u0000` em jsonb.
 
 ## `validate` falso até o A2
 

@@ -12,6 +12,8 @@ class Unreadable(Exception):
 def detect(path: Path) -> tuple[str, str]:
     # ponytail: reads the whole file to pick the encoding; fine under the 30 MB upload cap
     data = path.read_bytes()
+    if b"\x00" in data:
+        raise Unreadable
     try:
         data.decode("utf-8-sig")
         encoding = "utf-8-sig"
@@ -28,7 +30,10 @@ def detect(path: Path) -> tuple[str, str]:
 def rows(path: Path) -> Iterator[list[str]]:
     encoding, delimiter = detect(path)
     with path.open(newline="", encoding=encoding) as f:
-        yield from csv.reader(f, delimiter=delimiter)
+        try:
+            yield from csv.reader(f, delimiter=delimiter)
+        except csv.Error:
+            raise Unreadable
 
 
 def header(path: Path) -> list[str]:

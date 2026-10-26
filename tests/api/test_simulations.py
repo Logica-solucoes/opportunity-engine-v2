@@ -133,6 +133,8 @@ def test_upload_rejects_file_over_the_limit(logged, analyst, ws, make_simulation
         ("dados.csv", b"data\n2024-01-01\n", "Não foi possível ler o cabeçalho do CSV."),
         ("dados.csv", b"", "Não foi possível ler o cabeçalho do CSV."),
         ("dados.csv", b"data,,canal\n", "Não foi possível ler o cabeçalho do CSV."),
+        ("dados.csv", b"data,ca\x00nal,x\n2024-01-01,A,1\n", "Não foi possível ler o cabeçalho do CSV."),
+        ("dados.csv", "data,canal,investimento\n".encode("utf-16"), "Não foi possível ler o cabeçalho do CSV."),
     ],
 )
 def test_upload_rejects_unreadable_file(logged, analyst, ws, make_simulation, filename, content, message):
@@ -187,6 +189,15 @@ def test_mapping_runs_the_validation(logged, analyst, ws, make_simulation):
         "checks": [],
         "collinearity": None,
     }
+
+
+def test_mapping_rejects_unreadable_data_rows(logged, analyst, ws, make_simulation):
+    huge_field = b'data,canal,investimento\n2024-01-01,SEARCH,"' + b"x" * 200_000 + b'"\n'
+    simulation = make_simulation(ws, analyst, files={"investment": huge_field, "performance": PERFORMANCE})
+
+    r = put_mapping(logged, simulation.id, MAPPING)
+
+    assert (r.status_code, r.json()["detail"]) == (422, "Não foi possível ler o arquivo de investimento.")
 
 
 def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulation):

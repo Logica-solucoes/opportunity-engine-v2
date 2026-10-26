@@ -125,7 +125,10 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
         for key, kind in MAPPING_FILES.items()
     }
     simulation.config = {**simulation.config, "column_mapping": mapping}
-    report = validation.validate(inputs, simulation.config)
+    try:
+        report = validation.validate(inputs, simulation.config)
+    except csvfile.Unreadable:
+        raise InvalidInput("Não foi possível ler o arquivo de investimento.")
     simulation.validation = report
     simulation.updated_at = func.now()
     db.commit()
