@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from api import simulations
 from api.auth import Ctx, require_role
 from api.db import get_db
+from api.engine_config import ParamsIn
 from api.models import FILE_KINDS, FileKind, Simulation, SimulationFile
 from api.routes import SimulationId
 
@@ -171,3 +172,15 @@ def gemini_suggestions(simulation_id: SimulationId, ctx: Ctx = Depends(analyst),
     except simulations.InvalidInput as e:
         raise HTTPException(422, str(e))
     return {"available": found is not None, "suggestions": found or {}}
+
+
+@router.put("/{simulation_id}/params", response_model=SimulationOut)
+def save_params(
+    simulation_id: SimulationId, body: ParamsIn, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)
+):
+    simulation = find_simulation(db, ctx, simulation_id)
+    try:
+        simulations.save_params(db, simulation, body.model_dump(mode="json"))
+    except simulations.InvalidInput as e:
+        raise HTTPException(422, str(e))
+    return simulation_out(simulation)

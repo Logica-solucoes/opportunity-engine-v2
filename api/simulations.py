@@ -163,3 +163,13 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
     simulation.updated_at = func.now()
     db.commit()
     log.info("simulation.validated simulation_id=%s ok=%s", simulation.id, report["ok"])
+
+
+def save_params(db: Session, simulation: Simulation, params: dict) -> None:
+    lock(db, simulation)
+    mapping = require_mapping(simulation)
+    # the parameters never touch the report: the stand-in validate reads only the mapping
+    simulation.config = {**params, "column_mapping": mapping}
+    simulation.updated_at = func.now()
+    db.commit()
+    log.info("simulation.params_saved simulation_id=%s", simulation.id)

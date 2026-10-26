@@ -198,3 +198,48 @@ def test_gemini_needs_a_confirmed_mapping(logged, analyst, ws, make_simulation):
     bare = make_simulation(ws, analyst, files={"investment": INVESTMENT, "performance": PERFORMANCE})
 
     assert logged.post(f"/api/w/a/simulations/{bare.id}/suggestions/gemini").status_code == 422
+
+
+def test_params_are_saved_with_defaults_and_keep_the_mapping(logged, mapped):
+    url = f"/api/w/a/simulations/{mapped.id}"
+
+    r = logged.put(f"{url}/params", json={"investment_limit_factor": 2, "financial_targets": {"target_cpa": 30}})
+
+    assert r.status_code == 200
+    config = r.json()["config"]
+    assert config["column_mapping"] == MAPPING
+    assert config["investment_limit_factor"] == 2.0 and config["max_budget_step"] == 0.2
+    assert config["financial_targets"] == {
+        "target_cpa": 30.0,
+        "target_icpa": None,
+        "target_roas": None,
+        "target_iroas": None,
+    }
+    assert r.json()["validation"] is not None
+
+    remapped = logged.put(f"{url}/mapping", json=MAPPING).json()
+    assert remapped["config"]["investment_limit_factor"] == 2.0
+
+
+@pytest.mark.parametrize(
+    "body, loc, kind",
+    [
+        ({"investment_limit_factor": 1}, ["body", "investment_limit_factor"], "greater_than"),
+        ({"financial_targets": {"target_cpa": -1}}, ["body", "financial_targets", "target_cpa"], "greater_than"),
+        ({"optimization_target": "CLICKS"}, ["body", "optimization_target"], "literal_error"),
+        ({"column_mapping": {}}, ["body", "column_mapping"], "extra_forbidden"),
+    ],
+)
+def test_invalid_params_are_422_with_the_field(logged, mapped, body, loc, kind):
+    r = logged.put(f"/api/w/a/simulations/{mapped.id}/params", json=body)
+
+    assert r.status_code == 422
+    assert [(e["loc"], e["type"]) for e in r.json()["detail"]] == [(loc, kind)]
+
+
+def test_params_need_a_confirmed_mapping(logged, analyst, ws, make_simulation):
+    bare = make_simulation(ws, analyst, files={"investment": INVESTMENT, "performance": PERFORMANCE})
+
+    r = logged.put(f"/api/w/a/simulations/{bare.id}/params", json={})
+
+    assert (r.status_code, r.json()) == (422, {"detail": "Confirme o mapeamento de colunas antes."})
