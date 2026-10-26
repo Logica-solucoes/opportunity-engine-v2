@@ -8,7 +8,7 @@ from typing import BinaryIO
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from api import csvfile, storage
+from api import csvfile, storage, validation
 from api.models import Simulation, SimulationFile, User, Workspace
 
 log = logging.getLogger(__name__)
@@ -16,6 +16,10 @@ log = logging.getLogger(__name__)
 # Cloud Run caps HTTP/1 request bodies at 32 MiB; aggregated daily data is well under 1 MB
 MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 CHUNK_BYTES = 1024 * 1024
+
+# EngineConfig.column_mapping key -> uploaded file kind
+MAPPING_FILES = {"investment_file": "investment", "performance_file": "performance", "generic_trends_file": "trends"}
+FILE_LABELS = {"investment": "investimento", "performance": "performance", "trends": "trends"}
 
 FIELDS = {
     "investment": ("date_col", "channel_col", "investment_col"),
@@ -100,3 +104,29 @@ def save_file(db: Session, simulation: Simulation, kind: str, src: BinaryIO, fil
     log.info(
         "simulation.file_uploaded simulation_id=%s kind=%s sha256=%s size_bytes=%s", simulation.id, kind, sha256, size
     )
+
+
+def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
+    files = {f.kind: f for f in simulation.files}
+    if "investment" not in files or "performance" not in files:
+        raise InvalidInput("Envie investimento e performance antes de validar.")
+    if "trends" in files and "generic_trends_file" not in mapping:
+        raise InvalidInput("Mapeie as colunas do arquivo de trends.")
+    if "trends" not in files and "generic_trends_file" in mapping:
+        raise InvalidInput("Envie o arquivo de trends antes de mapeá-lo.")
+    for key, columns in mapping.items():
+        file = files[MAPPING_FILES[key]]
+        for column in columns.values():
+            if column not in file.columns:
+                raise InvalidInput(f"Coluna '{column}' não existe no arquivo de {FILE_LABELS[file.kind]}.")
+
+    inputs = {
+        key: storage.path(input_key(simulation, files[kind].sha256)) if kind in files else None
+        for key, kind in MAPPING_FILES.items()
+    }
+    simulation.config = {**simulation.config, "column_mapping": mapping}
+    report = validation.validate(inputs, simulation.config)
+    simulation.validation = report
+    simulation.updated_at = func.now()
+    db.commit()
+    log.info("simulation.validated simulation_id=%s ok=%s", simulation.id, report["ok"])

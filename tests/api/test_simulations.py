@@ -4,7 +4,7 @@ import pytest
 
 from api import simulations
 from api.simulations import suggest_mapping
-from tests.samples import INVESTMENT
+from tests.samples import INVESTMENT, MAPPING, PERFORMANCE, TRENDS, TRENDS_MAPPING
 
 
 @pytest.fixture
@@ -161,3 +161,97 @@ def test_reupload_replaces_the_file(logged, analyst, ws, make_simulation):
 
     assert body["files"]["investment"]["sha256"] == hashlib.sha256(new).hexdigest()
     assert body["files"]["investment"]["columns"] == ["dia", "canal", "valor"]
+
+
+BOTH = {"investment": INVESTMENT, "performance": PERFORMANCE}
+
+
+def put_mapping(client, simulation_id, mapping, slug="a"):
+    return client.put(f"/api/w/{slug}/simulations/{simulation_id}/mapping", json=mapping)
+
+
+def test_mapping_runs_the_validation(logged, analyst, ws, make_simulation):
+    simulation = make_simulation(ws, analyst, files=BOTH)
+
+    r = put_mapping(logged, simulation.id, MAPPING)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["config"] == {"column_mapping": MAPPING}
+    assert body["validation"] == {
+        "ok": True,
+        "cadence": None,
+        "period_days": None,
+        "date_range": None,
+        "channels": ["SEARCH", "YOUTUBE"],
+        "checks": [],
+        "collinearity": None,
+    }
+
+
+def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulation):
+    duplicated = INVESTMENT + b"2024-01-01,SEARCH,30\n"
+    simulation = make_simulation(ws, analyst, files={"investment": duplicated, "performance": PERFORMANCE})
+
+    validation = put_mapping(logged, simulation.id, MAPPING).json()["validation"]
+
+    assert validation["ok"] is False
+    assert validation["checks"] == [
+        {
+            "id": "duplicate_date_channel",
+            "level": "error",
+            "message": "1 linha repetida de (data, canal) no investimento",
+            "details": {"rows": [{"date": "2024-01-01", "channel": "SEARCH", "count": 2}]},
+        }
+    ]
+
+
+def test_mapping_with_trends(logged, analyst, ws, make_simulation):
+    simulation = make_simulation(ws, analyst, files=BOTH | {"trends": TRENDS})
+    mapping = MAPPING | {"generic_trends_file": TRENDS_MAPPING}
+
+    r = put_mapping(logged, simulation.id, mapping)
+
+    assert r.status_code == 200
+    assert r.json()["config"]["column_mapping"] == mapping
+
+
+@pytest.mark.parametrize(
+    "files, mapping, message",
+    [
+        ({"investment": INVESTMENT}, MAPPING, "Envie investimento e performance antes de validar."),
+        (
+            BOTH,
+            MAPPING | {"generic_trends_file": TRENDS_MAPPING},
+            "Envie o arquivo de trends antes de mapeá-lo.",
+        ),
+        (BOTH | {"trends": TRENDS}, MAPPING, "Mapeie as colunas do arquivo de trends."),
+        (
+            BOTH,
+            MAPPING | {"investment_file": MAPPING["investment_file"] | {"date_col": "dia"}},
+            "Coluna 'dia' não existe no arquivo de investimento.",
+        ),
+    ],
+)
+def test_mapping_rejects_inconsistent_input(logged, analyst, ws, make_simulation, files, mapping, message):
+    simulation = make_simulation(ws, analyst, files=files)
+
+    r = put_mapping(logged, simulation.id, mapping)
+
+    assert (r.status_code, r.json()["detail"]) == (422, message)
+
+
+def test_mapping_of_another_workspace_simulation_is_404(logged, analyst, make_workspace, make_simulation):
+    foreign = make_simulation(make_workspace("b", [(analyst, "analyst")]), analyst, files=BOTH)
+
+    assert put_mapping(logged, foreign.id, MAPPING).status_code == 404
+
+
+def test_reupload_clears_the_validation(logged, analyst, ws, make_simulation):
+    simulation = make_simulation(ws, analyst, files=BOTH)
+    put_mapping(logged, simulation.id, MAPPING)
+
+    body = upload(logged, simulation.id, "investment", INVESTMENT).json()
+
+    assert body["validation"] is None
+    assert body["config"] == {"column_mapping": MAPPING}

@@ -22,6 +22,28 @@ class SimulationIn(BaseModel):
     name: SimulationName
 
 
+class InvestmentColumns(BaseModel):
+    date_col: str
+    channel_col: str
+    investment_col: str
+
+
+class PerformanceColumns(BaseModel):
+    date_col: str
+    kpi_col: str
+
+
+class TrendsColumns(BaseModel):
+    date_col: str
+    trends_col: str
+
+
+class MappingIn(BaseModel):
+    investment_file: InvestmentColumns
+    performance_file: PerformanceColumns
+    generic_trends_file: TrendsColumns | None = None
+
+
 class SimulationSummary(BaseModel):
     id: int
     name: str
@@ -117,6 +139,18 @@ def upload_file(
         simulations.save_file(db, simulation, kind, file.file, file.filename or "", by=ctx.user)
     except simulations.TooLarge:
         raise HTTPException(413, "Arquivo maior que 30 MB.")
+    except simulations.InvalidInput as e:
+        raise HTTPException(422, str(e))
+    return simulation_out(simulation)
+
+
+@router.put("/{simulation_id}/mapping", response_model=SimulationOut)
+def save_mapping(
+    simulation_id: SimulationId, body: MappingIn, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)
+):
+    simulation = find_simulation(db, ctx, simulation_id)
+    try:
+        simulations.save_mapping(db, simulation, body.model_dump(exclude_none=True))
     except simulations.InvalidInput as e:
         raise HTTPException(422, str(e))
     return simulation_out(simulation)

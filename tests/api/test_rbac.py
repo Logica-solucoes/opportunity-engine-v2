@@ -1,7 +1,7 @@
 import pytest
 
 from api.auth import RANK
-from tests.samples import INVESTMENT
+from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 PUBLIC, SESSION, PLATFORM = "public", "session", "platform"
 ACTORS = ["anon", "viewer", "analyst", "admin", "platform"]
@@ -24,6 +24,7 @@ ROUTES = {
         200,
         lambda e: Files(file=("investimento.csv", INVESTMENT, "text/csv")),
     ),
+    ("PUT", "/api/w/{slug}/simulations/{simulation_id}/mapping"): ("analyst", 200, lambda e: MAPPING),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
     ("GET", "/api/admin/users"): (PLATFORM, 200, None),
@@ -56,7 +57,7 @@ def env(make_user, make_workspace, make_simulation, password):
     target = make_user("target@x.com")
     make_user("fora@x.com")
     ws = make_workspace("a", [(users[r], r) for r in ("viewer", "analyst", "admin")] + [(target, "viewer")])
-    simulation = make_simulation(ws, users["analyst"])
+    simulation = make_simulation(ws, users["analyst"], files={"investment": INVESTMENT, "performance": PERFORMANCE})
     return {"users": users, "target": target, "password": password, "simulation": simulation}
 
 
