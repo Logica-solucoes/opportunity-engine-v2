@@ -5,7 +5,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from api import auth, db, passwords
-from api.routes import admin, members, simulations
+from api.routes import admin, engine, members, simulations
 from api.routes import auth as auth_routes
 
 router = APIRouter(prefix="/api")
@@ -46,6 +46,7 @@ def create_app(web_dist: Path | None = None) -> FastAPI:
     app.include_router(members.router)
     app.include_router(admin.router)
     app.include_router(simulations.router)
+    app.include_router(engine.router)
     mount_spa(app, web_dist or Path(os.environ.get("WEB_DIST", "web/dist")))
     return app
 
