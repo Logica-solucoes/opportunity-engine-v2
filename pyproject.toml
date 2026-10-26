@@ -10,6 +10,7 @@ dependencies = [
     "alembic",
     "psycopg[binary]",
     "pillow",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]
