@@ -66,7 +66,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B2 · Upload, armazenamento e validação — semana 2
 
-- **Status:** 🟡 B2a (backend) feito em 26/out/2026, verificado por `tests/api/test_simulations.py` e `tests/api/test_rbac.py`. B2b (telas) pendente. Desvios em `docs/decisoes/upload-e-storage.md`.
+- **Status:** ✅ feito. B2a (backend) em 26/out/2026, verificado por `tests/api/test_simulations.py` e `tests/api/test_rbac.py`; B2b (telas) em 26/out/2026, verificado por `web/e2e/simulations.spec.ts` (fluxo com templates, duplicata bloqueia o Rodar, viewer sem permissão) e screenshots nos dois temas. Fora até a Trilha A: agrupamento por colinearidade (A3), DV360/CM360 (A2), resultado de experimento (A7). Desvios em `docs/decisoes/upload-e-storage.md`.
 - **BRD:** Capabilities › Data upload & validation; Journey 1 passos 2–3; Figure 3 passos 3–4; Datasets; In scope ("aggregated, no personal data").
 - **Depende de:** B1, A2 (até lá, mock de `validate` com o fixture).
 - **Hoje:**

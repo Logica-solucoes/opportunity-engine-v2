@@ -29,3 +29,10 @@ O `engine/` não existe ainda. `api/validation.py` segue a assinatura e o format
 ## O gate do Rodar é do B4
 
 O B2 só devolve o report; as confirmações de warning ficam na tela. Quem recusa um run com `error` ou warning não confirmado é a criação do run no B4, no servidor.
+
+## Telas (B2b)
+
+- **Pré-preenchimento do mapping.** Um re-upload zera o `validation` mas mantém o `config.column_mapping`, que pode apontar para uma coluna que o arquivo novo não tem. A tela usa o salvo só se a coluna ainda existe e cai no `suggested` caso contrário (`initialColumn` em `web/src/lib/simulations.ts`). O backend não limpa o mapping: quem decide o que mostrar é a tela, e o `PUT …/mapping` recusa coluna inexistente de qualquer jeito.
+- **Cache sem refetch.** Upload, mapping e criação devolvem o `SimulationOut` inteiro; a tela grava a resposta com `setQueryData` e só invalida a lista.
+- **Rodar sempre desabilitado no B2.** O texto ao lado diz o motivo (não validado, erro, aviso sem confirmação) ou "Execução disponível em breve". As confirmações de aviso vivem no estado da página e zeram quando o report muda; o B4 as guarda com o run e confere o gate no servidor.
+- **Upload ao escolher o arquivo**, sem botão. A área de drag & drop é o `file-upload-04` do blocks.so sem a barra de progresso fake (o arquivo real é < 1 MB).

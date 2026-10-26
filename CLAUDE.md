@@ -29,7 +29,7 @@ api/              Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + psycopg 3 (uv
   migrations/     revisões Alembic (env.py lê DATABASE_URL de api/db.py)
 web/              Vite + React 19 + TypeScript + TanStack Router/Query (bun)
   src/routes/     rotas file-based; routeTree.gen.ts é gerado mas versionado
-  src/lib/        api.ts (fetch + ApiError), auth.ts (meQuery, erros pt-BR), theme.ts
+  src/lib/        api.ts (fetch + ApiError), auth.ts (meQuery, erros pt-BR), theme.ts, simulations.ts (tipos e regras de tela da simulação)
   src/components/ ui/ é do shadcn (gerado por `bunx shadcn@latest add`); o resto é nosso
   e2e/            Playwright contra a app real (banco app_e2e)
 engine/           (Trilha A, ainda não existe) motor estatístico — criado pelo A0
@@ -83,9 +83,22 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 
 **Cuidado ao escrever em `web/src/routes/**` com o dev server rodando.** O gerador do TanStack Router reescreve o arquivo com um placeholder (`Hello "/rota"!`) se ler conteúdo vazio. Um heredoc de shell trunca o arquivo antes de escrever e pode perder a escrita; prefira `Write`/`Edit` e confira com um screenshot.
 
+## UI stack
+
+Tone: Dense system — ferramenta interna de análise, densa e sóbria.
+- Blocks: shadcn (estilo `radix-nova`) para primitivos; blocks.so (`@blocks-so`) para telas de app (o `FileDrop` vem do `file-upload-04`)
+- Motion: nenhum por ora
+- Icons: lucide (o padrão do shadcn), até o B10
+- Theme: tema próprio do protótipo em `web/src/index.css`, até o B10 trazer os tokens do Almap Metrics
+- Fonts: Inter, até o B10
+- Showpiece: nenhum
+- Extras: —
+
+Pick UI from this stack only. At the start of a UI task, offer once to scout the `ui-sources` catalog for components that fit this tone; load that skill for the scouting pass or when the stack can't cover a need. Ícones, tema e fontes são trocados juntos no B10, não peça a peça.
+
 ## Estado atual
 
-**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. **B1b (telas) concluído em 22/out/2026**: login, troca de senha obrigatória, seletor de workspace por slug na URL, membros, admin de workspaces e usuários, tema claro/escuro do protótipo (Tailwind + shadcn), E2E Playwright no CI. **B2a (upload backend) concluído em 26/out/2026**: tabelas `simulations`/`simulation_files` (migration `0003`), upload de CSV ≤ 30 MB para storage local por conteúdo, sugestão e confirmação do mapeamento de colunas, `validate` falso (só `duplicate_date_channel`) até o A2. Faltam, em ordem: B2b (telas do upload), B3–B4 (Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
+**B0 (esqueleto) concluído em 21/out/2026**: API com `/api/health`, SPA servida com fallback, worker stub, Postgres no compose, imagem única, CI (`py` com Postgres + `web`). **B1a (auth backend) concluído em 21/out/2026**: tabelas `users`/`workspaces`/`memberships`/`sessions` (migration `0001`), sessão por cookie opaco com expiração deslizante, bloqueio por falhas, troca de senha obrigatória, RBAC por workspace (`require_role`, 404 entre workspaces), rotas de membros e de platform admin, CLI `create-admin`. **B1b (telas) concluído em 22/out/2026**: login, troca de senha obrigatória, seletor de workspace por slug na URL, membros, admin de workspaces e usuários, tema claro/escuro do protótipo (Tailwind + shadcn), E2E Playwright no CI. **B2a (upload backend) concluído em 26/out/2026**: tabelas `simulations`/`simulation_files` (migration `0003`), upload de CSV ≤ 30 MB para storage local por conteúdo, sugestão e confirmação do mapeamento de colunas, `validate` falso (só `duplicate_date_channel`) até o A2. **B2b (telas do upload) concluído em 26/out/2026**: lista de simulações em `/w/$slug`, criação, detalhe com upload por drag & drop, mapeamento pré-preenchido, report de validação e botão Rodar sempre desabilitado com o motivo (o run é do B4). Faltam, em ordem: B3–B4 (Gemini, jobs), B5–B9, B10 (visual, contínuo), B11 (deploy). A Trilha A (`engine/`) é do outro dev.
 
 **Onde as decisões estão escritas.** Este arquivo e os quatro da raiz dizem as regras; `docs/decisoes/` diz **por quê** (índice em `docs/decisoes/README.md`). Leia o arquivo da área antes de mexer nela:
 
