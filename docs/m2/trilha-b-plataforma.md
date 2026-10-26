@@ -93,6 +93,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B3 · Parâmetros com sugestão do Gemini — semana 2
 
+- **Status:** 🟡 B3a (backend) feito em 26/out/2026, verificado por `tests/api/test_params.py` e `tests/api/test_rbac.py`; B3b (tela) pendente. Desvios em `docs/decisoes/parametros-e-gemini.md`.
 - **BRD:** Capabilities › Parameter configuration with Gemini assist ("explaining each suggestion; the analyst accepts or edits"); deliverables "Parameter input" e "Gemini AI".
 - **Depende de:** A0 (`EngineConfig`), B2.
 - **Hoje:**
