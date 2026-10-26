@@ -25,3 +25,18 @@ A saída estruturada pede `{field, value, reason}` com `value` em string, e cada
 ## Parâmetros não zeram a validação
 
 O `validate` falso só lê o `column_mapping`, que o formulário não toca. Quando o `validate` real (A2) passar a depender de outro campo, o `PUT …/params` passa a zerar o report.
+
+## Tela (B3b)
+
+- **Formulário gerado do schema, com layout no front.** `FORM_LAYOUT` (`web/src/lib/params.ts`) diz quais campos aparecem, em que grupo e com qual rótulo; tipo, limites e defaults vêm do `GET /api/engine/config-schema`. Campo novo do A0 não aparece sem rótulo, e campo do layout que sumiu do schema é ignorado.
+- **Valor inicial:** o salvo, depois a sugestão dos dados, depois o default. Só o que veio de sugestão ganha selo e explicação; editar ou salvar tira os dois.
+- **Gemini só nos campos não editados**, inclusive os salvos; nada é gravado até "Salvar parâmetros".
+- **Números como texto no estado.** Input controlado com `Number()` a cada tecla engolia o "1." ou o "0.0" do meio da digitação; a conversão acontece só no corpo do `PUT`.
+- **`noValidate` no form.** A API valida, e o 422 do pydantic cai em cada campo pelo `loc`, com mensagem pt-BR pelo `type` e pelos limites do `ctx`. Erro que não casa com nenhum campo da tela aparece como mensagem geral.
+- **O formulário remonta a cada report novo.** Novo mapeamento ou arquivo muda as sugestões dos dados; edições não salvas se perdem nesse caso, como no mapeamento.
+
+## Ajustes da revisão
+
+- **`inf`/`nan` recusados.** `ParamsIn` tem `allow_inf_nan=False`: `Infinity` passava pelo `gt=0` e quebrava o JSONB com 500. O 422 da API inteira deixou de ecoar o `input` (um `inf` ecoado também virava 500); `type`, `loc`, `msg` e `ctx` seguem iguais.
+- **Conexão devolvida antes do Gemini.** A rota lê os arquivos e faz `rollback` antes da chamada de até 20 s, para não segurar conexão do pool.
+- **`save_params` preserva as outras chaves do `config`** (`channel_groups`, `controls` quando o A3/A4 chegarem).
