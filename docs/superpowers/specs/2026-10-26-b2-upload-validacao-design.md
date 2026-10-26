@@ -72,11 +72,11 @@ Subir de novo o mesmo `kind` substitui a linha e zera `simulations.validation`. 
 
 ### Storage — `api/storage.py`
 
-Funções de módulo sobre `STORAGE_DIR` (env, default `./data`; `data/` entra no `.gitignore`):
+Funções de módulo sobre `STORAGE_DIR` (env, default `./data`; `data/` entra no `.gitignore` e no `.dockerignore`):
 
-- `put(key, fileobj) -> None`, `open(key)`, `delete(key)`, `list(prefix) -> list[str]`, `path(key) -> Path`.
+- `put(key, src: Path) -> None` e `path(key) -> Path`. Só o que o B2 usa; leitura para o worker entra no B4, `delete`/`list` na retenção do B9.
 - Chave: `ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv`.
-- `put` escreve num temporário no mesmo diretório e faz `os.replace` para a chave: nunca deixa arquivo pela metade.
+- `put` copia para `<destino>.part` e faz `os.replace` para a chave: nunca deixa arquivo pela metade.
 - Sem classe nem interface. O GCS entra no B11 escolhido por env no topo do módulo; `path(key)` vira download para temp.
 
 ### Upload
@@ -85,7 +85,7 @@ Fluxo do `PUT …/files/{kind}` (serviço em `api/simulations.py`):
 
 1. Copia o `UploadFile` em blocos para um temporário, somando bytes e o sha256; passou de 30 MB (`30 * 1024 * 1024`) → aborta com 413 `"Arquivo maior que 30 MB."`.
 2. Extensão diferente de `.csv` → 422 `"Envie um arquivo .csv."`.
-3. Lê o cabeçalho: decodifica as primeiras linhas como `utf-8-sig` e cai para `latin-1`; `csv.Sniffer` com delimitadores `,;\t|`. Falhou ou menos de 2 colunas → 422 `"Não foi possível ler o cabeçalho do CSV."`.
+3. Lê o cabeçalho (`api/csvfile.py`): o arquivo todo decodifica como `utf-8-sig`, senão `latin-1`. O delimitador é o mais frequente de `,;\t|` na **linha do cabeçalho** (o `csv.Sniffer` erra em CSV brasileiro com `;` e decimal com vírgula). Nenhum delimitador, coluna vazia ou menos de 2 colunas → 422 `"Não foi possível ler o cabeçalho do CSV."`.
 4. `storage.put` na chave do workspace da simulação, upsert em `simulation_files`, `validation = null`.
 5. `log.info` com `simulation_id`, `kind`, `sha256` e `size_bytes` (nunca conteúdo).
 
