@@ -15,6 +15,9 @@ ROUTES = {
     ("POST", "/api/w/{slug}/members"): ("admin", 201, lambda e: {"email": "fora@x.com", "role": "viewer"}),
     ("PATCH", "/api/w/{slug}/members/{user_id}"): ("admin", 200, lambda e: {"role": "analyst"}),
     ("DELETE", "/api/w/{slug}/members/{user_id}"): ("admin", 204, None),
+    ("GET", "/api/w/{slug}/simulations"): ("analyst", 200, None),
+    ("POST", "/api/w/{slug}/simulations"): ("analyst", 201, lambda e: {"name": "Nova"}),
+    ("GET", "/api/w/{slug}/simulations/{simulation_id}"): ("analyst", 200, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
     ("GET", "/api/admin/users"): (PLATFORM, 200, None),
@@ -37,13 +40,14 @@ def expected_status(minimum, ok, actor):
 
 
 @pytest.fixture
-def env(make_user, make_workspace, password):
+def env(make_user, make_workspace, make_simulation, password):
     users = {role: make_user(f"{role}@x.com") for role in ("viewer", "analyst", "admin")}
     users["platform"] = make_user("platform@x.com", platform=True)
     target = make_user("target@x.com")
     make_user("fora@x.com")
-    make_workspace("a", [(users[r], r) for r in ("viewer", "analyst", "admin")] + [(target, "viewer")])
-    return {"users": users, "target": target, "password": password}
+    ws = make_workspace("a", [(users[r], r) for r in ("viewer", "analyst", "admin")] + [(target, "viewer")])
+    simulation = make_simulation(ws, users["analyst"])
+    return {"users": users, "target": target, "password": password, "simulation": simulation}
 
 
 @pytest.mark.parametrize("actor", ACTORS)
@@ -53,7 +57,7 @@ def test_role_matrix(route, actor, client, env, login_as):
     if actor != "anon":
         login_as(client, env["users"][actor])
     method, template = route
-    path = template.format(slug="a", user_id=env["target"].id)
+    path = template.format(slug="a", user_id=env["target"].id, simulation_id=env["simulation"].id)
 
     r = client.request(method, path, json=body(env) if body else None)
 

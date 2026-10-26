@@ -14,7 +14,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from api import db as api_db
-from api import passwords
+from api import passwords, simulations
 from api.main import create_app
 from api.models import Membership, User, Workspace
 
@@ -117,3 +117,11 @@ def login_as():
         return r
 
     return login
+
+
+@pytest.fixture
+def make_simulation(db):
+    def make(workspace, creator, name="Simulação"):
+        return simulations.create(db, workspace, name, by=creator)
+
+    return make
