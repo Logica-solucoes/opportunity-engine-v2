@@ -13,11 +13,12 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  const hasBody = init.body !== undefined
+  // FormData sets its own multipart Content-Type with the boundary
+  const json = init.body !== undefined && !(init.body instanceof FormData)
   const r = await fetch(`/api${path}`, {
     method: init.method ?? 'GET',
-    headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
-    body: hasBody ? JSON.stringify(init.body) : undefined,
+    headers: json ? { 'Content-Type': 'application/json' } : undefined,
+    body: json ? JSON.stringify(init.body) : (init.body as FormData | undefined),
   })
   if (r.status === 204) return undefined as T
   const body = await r.json().catch(() => ({}))

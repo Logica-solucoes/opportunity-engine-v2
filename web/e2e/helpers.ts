@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { expect, type Page } from '@playwright/test'
+import { type Browser, expect, type Page } from '@playwright/test'
 import { ROOT, pyEnv } from './env'
 
 export const NEW_PASSWORD = 'senha-nova-e2e-123'
@@ -61,4 +61,11 @@ export async function addMember(page: Page, slug: string, role: 'admin' | 'analy
   const temp = (await page.getByTestId('temp-password').textContent())!.trim()
   await page.getByRole('button', { name: 'Fechar' }).click()
   return { email, temp }
+}
+
+export async function newSession(browser: Browser, user: { email: string; temp: string }) {
+  const page = await (await browser.newContext()).newPage()
+  await login(page, user.email, user.temp)
+  await changePassword(page, user.temp)
+  return page
 }
