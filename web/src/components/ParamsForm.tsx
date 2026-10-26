@@ -166,9 +166,6 @@ function ParamField({
           />
         )}
         <Label htmlFor={id}>{field.label}</Label>
-        {origin && (
-          <Badge variant="secondary">{origin.source === 'gemini' ? 'Sugerido pelo Gemini' : 'Sugerido pelos dados'}</Badge>
-        )}
       </div>
       {schema.enum ? (
         <NativeSelect
@@ -203,10 +200,17 @@ function ParamField({
           />
         )
       )}
-      {note && (
-        <p id={`${id}-note`} className="text-xs text-muted-foreground">
-          {note}
-        </p>
+      {(origin || note) && (
+        <div className="space-y-1">
+          {origin && (
+            <Badge variant="secondary">{origin.source === 'gemini' ? 'Sugerido pelo Gemini' : 'Sugerido pelos dados'}</Badge>
+          )}
+          {note && (
+            <p id={`${id}-note`} className="text-xs text-muted-foreground">
+              {note}
+            </p>
+          )}
+        </div>
       )}
       {error && (
         <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
