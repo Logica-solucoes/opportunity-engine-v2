@@ -120,9 +120,11 @@ Schema dos parâmetros:
 
 
 def number(text: str) -> float | None:
-    # exports come as "1.234,56" (pt-BR) or "1234.56"
-    if "," in text:
+    # exports come as "1.234,56" (pt-BR) or "1,234.56"; the rightmost separator is the decimal one
+    if text.rfind(",") > text.rfind("."):
         text = text.replace(".", "").replace(",", ".")
+    else:
+        text = text.replace(",", "")
     try:
         n = float(text)
     except ValueError:
@@ -177,11 +179,13 @@ def from_gemini(paths: dict[str, Path | None], mapping: dict) -> dict[str, dict]
         schema=json.dumps(ParamsIn.model_json_schema(), ensure_ascii=False),
     )
     try:
-        items = list(json.loads(gemini.ask(prompt, GeminiAnswer.model_json_schema()))["suggestions"])
+        items = json.loads(gemini.ask(prompt, GeminiAnswer.model_json_schema()))["suggestions"]
     except gemini.Unavailable as e:
         log.warning("simulation.gemini_unavailable reason=%s", e)
         return None
     except (ValueError, KeyError, TypeError):
+        items = None
+    if not isinstance(items, list):
         log.warning("simulation.gemini_unavailable reason=bad_answer")
         return None
 
@@ -192,7 +196,10 @@ def from_gemini(paths: dict[str, Path | None], mapping: dict) -> dict[str, dict]
             s = GeminiSuggestion.model_validate(item)
             value = checked(s.field, s.value)
         except ValidationError:
-            log.info("simulation.gemini_dropped field=%r", item.get("field") if isinstance(item, dict) else None)
+            # model output: cap it before it reaches the log
+            log.info(
+                "simulation.gemini_dropped field=%r", str(item.get("field"))[:60] if isinstance(item, dict) else None
+            )
             continue
         found[s.field] = {"value": value, "reason": s.reason[:300], "source": "gemini"}
     return found

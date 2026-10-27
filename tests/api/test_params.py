@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from api import gemini, simulations, suggestions
+from api import csvfile, gemini, simulations, suggestions
 from api.engine_config import EngineConfig, ParamsIn
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
@@ -188,8 +188,9 @@ def sdk_error(prompt, schema):
         sdk_error,
         lambda prompt, schema: "isto não é json",
         lambda prompt, schema: json.dumps({"suggestions": None}),
+        lambda prompt, schema: json.dumps({"suggestions": {"field": "average_ticket"}}),
     ],
-    ids=["no key", "sdk error", "bad answer", "null suggestions"],
+    ids=["no key", "sdk error", "bad answer", "null suggestions", "object suggestions"],
 )
 def test_gemini_unavailable_answers_200_and_nothing(logged, mapped, monkeypatch, ask):
     if ask:
@@ -198,6 +199,38 @@ def test_gemini_unavailable_answers_200_and_nothing(logged, mapped, monkeypatch,
     r = logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
 
     assert (r.status_code, r.json()) == (200, {"available": False, "suggestions": {}})
+
+
+def test_gemini_item_that_is_not_an_object_drops_only_itself(logged, mapped, monkeypatch):
+    items = ["average_ticket", {"field": "average_ticket", "value": "80", "reason": "Ticket médio."}]
+    monkeypatch.setattr(gemini, "ask", lambda prompt, schema: json.dumps({"suggestions": items}))
+
+    r = logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
+
+    assert r.json()["suggestions"] == {"average_ticket": {"value": 80.0, "reason": "Ticket médio.", "source": "gemini"}}
+
+
+def test_gemini_client_error_is_unavailable(logged, mapped, monkeypatch):
+    def broken_client(**kwargs):
+        raise RuntimeError("bad options")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    monkeypatch.setattr(gemini.genai, "Client", broken_client)
+
+    r = logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
+
+    assert (r.status_code, r.json()) == (200, {"available": False, "suggestions": {}})
+
+
+def test_unreadable_files_are_422(logged, mapped, monkeypatch):
+    def unreadable(path):
+        raise csvfile.Unreadable
+
+    monkeypatch.setattr(csvfile, "rows", unreadable)
+    url = f"/api/w/a/simulations/{mapped.id}/suggestions"
+
+    assert logged.get(url).status_code == 422
+    assert logged.post(f"{url}/gemini").status_code == 422
 
 
 def test_gemini_needs_a_confirmed_mapping(logged, analyst, ws, make_simulation):
@@ -225,6 +258,15 @@ def test_params_are_saved_with_defaults_and_keep_the_mapping(logged, mapped):
 
     remapped = logged.put(f"{url}/mapping", json=MAPPING).json()
     assert remapped["config"]["investment_limit_factor"] == 2.0
+
+
+def test_params_keep_the_config_keys_outside_the_form(logged, db, mapped):
+    mapped.config = {**mapped.config, "channel_groups": {"Busca": ["SEARCH"]}}
+    db.commit()
+
+    r = logged.put(f"/api/w/a/simulations/{mapped.id}/params", json={})
+
+    assert r.json()["config"]["channel_groups"] == {"Busca": ["SEARCH"]}
 
 
 @pytest.mark.parametrize(
@@ -259,7 +301,17 @@ def test_params_need_a_confirmed_mapping(logged, analyst, ws, make_simulation):
 
 @pytest.mark.parametrize(
     "text, expected",
-    [("NaN", None), ("inf", None), ("1.234,56", 1234.56), ("12.5", 12.5), ("x", None)],
+    [
+        ("NaN", None),
+        ("inf", None),
+        ("1.234,56", 1234.56),
+        ("1,234.56", 1234.56),
+        ("1.234.567,8", 1234567.8),
+        ("1,234,567.8", 1234567.8),
+        ("12,5", 12.5),
+        ("12.5", 12.5),
+        ("x", None),
+    ],
 )
 def test_number_parses_exports_and_rejects_non_finite(text, expected):
     assert suggestions.number(text) == expected

@@ -16,8 +16,8 @@ def ask(prompt: str, response_schema: dict) -> str:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise Unavailable("no_key")
-    client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=TIMEOUT_MS))
     try:
+        client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=TIMEOUT_MS))
         response = client.models.generate_content(
             model=MODEL,
             contents=prompt,
