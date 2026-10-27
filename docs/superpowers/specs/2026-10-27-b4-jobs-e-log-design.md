@@ -117,7 +117,7 @@ As quatro primeiras frases são as do `runBlockReason` em `web/src/lib/simulatio
 
 1. Em transação: `UPDATE runs SET status='running', started_at=now() WHERE id=:id AND status='queued' RETURNING …`. Nenhuma linha → loga e sai (worker idempotente; run já pego ou morto).
 2. Caminhos dos inputs pela mesma chave do B2 (`ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv`, `storage.path`).
-3. `engine_run.run(inputs, config, tmpdir, on_log)`. O `on_log` insere uma linha em `run_logs` e faz commit numa sessão própria, curta.
+3. `engine_run.run(inputs, config, tmpdir, on_log)`. O `on_log` insere uma linha em `run_logs` e faz commit na sessão do worker, que fica ociosa entre as linhas (uma sessão só deixa o worker testável com a transação do pytest).
 4. Sucesso: `storage.put` de `results.json` em `ws/{w}/sim/{s}/runs/{r}/results.json`; grava `status = results["status"]`, `engine_version`, `results_uri`, `summary = {"status": …}`, `finished_at`.
 5. Exceção: `log.exception` (traceback no stdout), linha `error` em `run_logs` e `runs.error` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução {id})."; `status = failed`. A mensagem da exceção nunca vai para o banco: pode estar em inglês ou carregar dado. Fica a pergunta ao dev A (no README › contrato §3): uma exceção do motor com mensagem pt-BR própria para a tela.
 6. A gravação final (4 ou 5) é `UPDATE … WHERE id=:id AND status='running'`: um run que a API já marcou como morto não ressuscita.
@@ -154,7 +154,7 @@ As quatro rotas entram na tabela do `API-GUIDE.md` e na matriz do `tests/api/tes
 - Cabeçalho: nome da simulação (link de volta), selo de status (Na fila, Rodando, Concluída, Inconclusiva, Falhou), autor, horário de criação.
 - Painel monoespaçado com as últimas 300 linhas (`ts` em hora local, `message`); `error` em vermelho, `warning` em âmbar. Acompanha o fim só se o usuário já estava no fim.
 - "Etapa em andamento há N s": agora menos o `ts` da última linha, atualizado a cada 1 s enquanto o run está ativo.
-- No `end`: invalida a query do run. `failed` mostra um card com `runs.error`; `succeeded`/`inconclusive` mostram "Execução concluída. Os dashboards chegam na B5."
+- No `end`: invalida a query do run. `failed` mostra um card com `runs.error`; `succeeded`/`inconclusive` mostram "Execução concluída. Os dashboards chegam em breve."
 - O `EventSource` fechado sem `end` (401, 404) mostra "Não foi possível acompanhar o log."
 - `useRunLog(slug, runId)` em `web/src/lib/runs.ts`, sobre o `EventSource` nativo (cookie same-origin, reconexão com `Last-Event-ID` automática). Tipos e rótulos de status no mesmo arquivo.
 
