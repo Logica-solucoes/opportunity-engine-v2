@@ -90,13 +90,15 @@ def suggest_params(simulation: Simulation) -> dict[str, dict]:
 def gemini_params(db: Session, simulation: Simulation) -> dict[str, dict] | None:
     mapping = require_mapping(simulation)
     paths = input_paths(simulation)
+    # read before the rollback expires it: a reload after the call would fail if the row was deleted meanwhile
+    simulation_id = simulation.id
     # hand the connection back to the pool: the Gemini call can take 20 s
     db.rollback()
     try:
         found = suggestions.from_gemini(paths, mapping)
     except csvfile.Unreadable:
         raise InvalidInput("Não foi possível ler os arquivos da simulação.")
-    log.info("simulation.gemini_suggested simulation_id=%s available=%s", simulation.id, found is not None)
+    log.info("simulation.gemini_suggested simulation_id=%s available=%s", simulation_id, found is not None)
     return found
 
 
