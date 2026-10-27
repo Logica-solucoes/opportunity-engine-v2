@@ -14,20 +14,23 @@ Mapa do código (arquitetura, endpoints, schema, fluxos): `docs/CODEBASE_MAP.md`
 api/              Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + psycopg 3 (uv)
   main.py         create_app(): middleware de Origin, routers e SPA com fallback para index.html
   db.py           DATABASE_URL, engine, SessionLocal, Base, get_db, ping()
-  models.py       User, Workspace, Membership, UserSession, Simulation, SimulationFile
+  models.py       User, Workspace, Membership, UserSession, Simulation, SimulationFile, Run, RunLog
   passwords.py    scrypt
   auth.py         sessão, login, bloqueio, dependências de escopo (require_role…)
   accounts.py     regra de negócio de contas, membros e workspaces
   simulations.py  regra de negócio de simulações: upload, sugestão de mapeamento, validação
+  runs.py         regra de negócio de runs: gate, criação, run morto, visibilidade
+  launcher.py     dispara o worker por subprocess (Cloud Run Jobs no B11)
   engine_config.py EngineConfig provisório até o A0 (vira `from engine.config import …`)
   suggestions.py  sugestões de parâmetros: regras dos dados, resumo e validação do Gemini
   gemini.py       chamada ao Gemini (GEMINI_API_KEY); trocada por fake nos testes
   storage.py      put/path sobre STORAGE_DIR (local; GCS no B11)
   csvfile.py      encoding, delimitador e cabeçalho de CSV
   validation.py   validate falso até o A2 (vira `from engine import validate`)
-  routes/         routers finos (auth, members, admin, simulations)
+  engine_run.py   engine.run falso até o A0 (vira `from engine import run`)
+  routes/         routers finos (auth, members, admin, simulations, runs, engine)
   cli.py          python -m api.cli create-admin
-  worker.py       entrypoint do Cloud Run Job (python -m api.worker)
+  worker.py       executa um run do Cloud Run Job (`python -m api.worker <run_id>`)
   alembic.ini     config do Alembic (rodar sempre com -c api/alembic.ini)
   migrations/     revisões Alembic (env.py lê DATABASE_URL de api/db.py)
 web/              Vite + React 19 + TypeScript + TanStack Router/Query (bun)
@@ -110,6 +113,7 @@ Pick UI from this stack only. At the start of a UI task, offer once to scout the
 | Imagem única, health, SPA, CI, deps | `docs/decisoes/infra-e-operacao.md` |
 | Auth, sessão, papéis, workspaces | `docs/decisoes/auth.md` |
 | Simulação, upload, storage, validate | `docs/decisoes/upload-e-storage.md` |
+| Runs, jobs, log do worker, SSE | `docs/decisoes/runs-e-jobs.md` |
 
 Ao concluir um item `A*`/`B*`, atualize no mesmo commit o parágrafo "Estado atual" acima (o que já existe e o que falta) e a linha `Status` do item em `docs/m2/trilha-*.md`, com a data e o que foi verificado.
 

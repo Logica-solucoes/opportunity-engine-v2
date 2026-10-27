@@ -24,6 +24,8 @@ Models em `api/models.py` (`Base` em `api/db.py`).
 | `sessions` | PK `token_hash` (sha256 do token), `user_id`, `created_at`, `last_seen_at` | `0001` |
 | `simulations` | `workspace_id` (index), `name`, `config jsonb` (rascunho do `EngineConfig`; o B2 grava `column_mapping`), `validation jsonb` (último `ValidationReport`: snapshot de propósito, revalidar relê o CSV inteiro; zerado a cada upload), `created_by`, `created_at`, `updated_at` | `0003` |
 | `simulation_files` | PK `(simulation_id, kind)`, `kind` enum `simulation_file_kind` (investment\|performance\|trends), `sha256` (compõe a chave no storage), `filename` (só exibição), `size_bytes`, `columns jsonb` (cabeçalho), `uploaded_by`, `uploaded_at` | `0003` |
+| `runs` | `workspace_id` (index, desnormalizado para escopo direto), `simulation_id` (index), `status` enum `run_status` (queued\|running\|succeeded\|inconclusive\|failed), `config jsonb` e `inputs jsonb` (snapshot: o run nunca relê a simulação), `confirmed_warnings jsonb`, `engine_version`, `results_uri`, `summary jsonb`, `error` (pt-BR para a tela), `published_at/by` (B6), `created_by`, `created_at`, `started_at`, `finished_at`. Índice único parcial `runs_one_active_per_simulation` em `simulation_id` com status ativo | `0004` |
+| `run_logs` | `id` identity (ordem e cursor do SSE), `run_id` (index), `ts`, `level`, `message` (pt-BR) | `0004` |
 
 Atualize esta tabela no mesmo commit da migration (linha deixa de ser "planejada" e ganha o id da revisão).
 

@@ -22,7 +22,7 @@ dir = "web"
 run = "bun run dev"
 
 [tasks.worker]
-description = "Run the job worker once"
+description = "Run one queued run: mise run worker <run_id>"
 run = "uv run python -m api.worker"
 
 [tasks.db-migrate]
