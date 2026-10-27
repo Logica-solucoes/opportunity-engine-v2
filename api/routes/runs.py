@@ -22,12 +22,14 @@ analyst = require_role("analyst")
 viewer = require_role("viewer")
 
 POLL_SECONDS = 0.5
+# proxies drop a quiet connection; a comment line every 15 s keeps it open through a long engine step
+PING_SECONDS = 15
 BACKLOG = 300
 BATCH = 500
 
 
 class RunIn(BaseModel):
-    confirmed_warnings: list[str] = Field(default=[], max_length=100)
+    confirmed_warnings: list[Annotated[str, Field(max_length=100)]] = Field(default=[], max_length=100)
 
 
 class SimulationRef(BaseModel):
@@ -100,10 +102,11 @@ def get_run(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get
     return run_out(find_run(db, ctx, run_id))
 
 
-def poll(run_id: int, after: int | None) -> tuple[str | None, str, int | None]:
+def poll(run_id: int, after: int | None, sweep: bool = False) -> tuple[str | None, str, int | None]:
     # a short session per poll: the stream lasts the whole run and must not pin a pooled connection
     with SessionLocal() as db:
-        runs.fail_stale(db, Run.id == run_id)
+        if sweep:
+            runs.fail_stale(db, Run.id == run_id)
         # status before lines: the worker writes every line before the final status
         status = db.scalar(select(Run.status).where(Run.id == run_id))
         query = select(RunLog).where(RunLog.run_id == run_id)
@@ -119,18 +122,25 @@ def poll(run_id: int, after: int | None) -> tuple[str | None, str, int | None]:
 
 
 async def log_events(run_id: int, after: int | None):
+    idle = 0.0
     while True:
-        status, chunk, last_id = await run_in_threadpool(poll, run_id, after)
+        # the stale check rides the ping: a worker that stops logging is failed within PING_SECONDS + a poll
+        sweep = idle >= PING_SECONDS
+        status, chunk, last_id = await run_in_threadpool(poll, run_id, after, sweep)
         if chunk:
             yield chunk
-            after = last_id
+            after, idle = last_id, 0.0
             continue
         # a deleted run (status None) ends the stream too
         if status not in runs.ACTIVE:
             yield f"event: end\ndata: {json.dumps({'status': status})}\n\n"
             return
+        if sweep:
+            yield ": ping\n\n"
+            idle = 0.0
         after = after or 0
         await asyncio.sleep(POLL_SECONDS)
+        idle += POLL_SECONDS
 
 
 @router.get("/runs/{run_id}/logs/stream")

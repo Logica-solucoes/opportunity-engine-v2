@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 from api import engine_run, launcher, runs, simulations, storage, worker
 from api.engine_config import ParamsIn
 from api.models import Membership, Run, RunLog
+from api.routes import runs as runs_routes
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 DUPLICATE = INVESTMENT + b"2024-01-01,SEARCH,30\n"
@@ -157,7 +158,7 @@ def test_one_active_run_per_simulation(logged, ready, db):
 
 def test_launch_failure_fails_the_run(logged, ready, monkeypatch):
     def broken(run_id):
-        raise OSError("no python")
+        raise RuntimeError("cloud run refused the job")
 
     monkeypatch.setattr(launcher, "launch", broken)
 
@@ -205,6 +206,7 @@ def test_viewer_does_not_see_unpublished_runs(client, ready, make_user, ws, db, 
 
     assert client.get(f"/api/w/a/runs/{run.id}").status_code == 404
     assert client.get(f"/api/w/a/simulations/{simulation.id}/runs").json() == []
+    assert stream(client, run.id).status_code == 404
 
     run.published_at = func.now()
     db.commit()
@@ -359,6 +361,30 @@ def test_stream_resumes_after_last_event_id(logged, stream_db, db, ready, analys
 
     assert [int(e["id"]) for e in got[:-1]] == ids[15:]
     assert got[-1]["event"] == "end"
+
+
+def test_a_live_stream_pings_follows_new_lines_and_ends_when_the_run_goes_stale(
+    logged, stream_db, db, ready, analyst, monkeypatch
+):
+    run = runs.create(db, ready(), set(), by=analyst)
+    real_poll = runs_routes.poll
+    calls = []
+
+    def poll(run_id, after, sweep=False):
+        calls.append(sweep)
+        if len(calls) == 2:  # the worker logs a line and then dies, after the stream opened
+            db.add(RunLog(run_id=run_id, level="info", message="linha ao vivo"))
+            make_stale(db, run_id)
+        return real_poll(run_id, after, sweep)
+
+    monkeypatch.setattr(runs_routes, "poll", poll)
+    monkeypatch.setattr(runs_routes, "PING_SECONDS", 0)
+
+    got = events(stream(logged, run.id).text)
+
+    assert got[0] == {"": "ping"}
+    assert json.loads(got[1]["data"])["message"] == "linha ao vivo"
+    assert got[2] == {"event": "end", "data": json.dumps({"status": "failed"})}
 
 
 def test_two_runs_in_two_workspaces_do_not_mix_logs_or_files(logged, stream_db, db, ready, analyst, make_workspace):
