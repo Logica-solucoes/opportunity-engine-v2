@@ -20,7 +20,7 @@ O `POST …/runs` refaz a conta do `runBlockReason` da tela, com as mesmas frase
 
 ## Run morto sem heartbeat
 
-O trilha-b pedia heartbeat. O Job tem timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e a cada volta do stream. O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Localmente nada mata um worker pendurado; ele só deixa de importar depois dos 20 min.
+O trilha-b pedia heartbeat. O Job tem timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e no stream a cada 15 s sem linha nova (junto com o ping, não a cada volta). O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Localmente nada mata um worker pendurado; ele só deixa de importar depois dos 20 min.
 
 ## Uma linha de log por insert
 
@@ -34,6 +34,8 @@ Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam n
 
 `GET …/logs/stream` é um gerador assíncrono no `StreamingResponse`. A rota checa auth e escopo com a sessão da requisição e a devolve ao pool antes de abrir o stream; cada volta do laço (0,5 s) roda `poll` no threadpool (`run_in_threadpool`), que abre uma sessão curta, lê o status e depois as linhas novas (nessa ordem: o worker grava todas as linhas antes do status final); a espera entre voltas é `asyncio.sleep`. Sem `Last-Event-ID` vão as 300 últimas linhas; com ele, as de id maior, e o `EventSource` reconecta sozinho mandando o último id. Uma aba parada não segura thread (só as queries de cada volta passam pelo threadpool), e uma aba fechada é notada no próximo `await`. O front (B4b) deve chamar `close()` no `EventSource` ao receber `end`: o servidor encerrar a conexão faz o `EventSource` reconectar.
 
+Depois de 15 s sem linha nova o stream manda um comentário (`: ping`), para proxy não derrubar a conexão parada durante uma etapa longa do motor. A auth e o escopo são checados só ao abrir o stream: quem sai, perde a sessão ou é removido do workspace continua recebendo as linhas daquele run até ele acabar (no máximo 20 min). É só leitura, de um run que a pessoa já podia ver; rechecar a sessão a cada volta não compensa.
+
 ## Viewer e publicação
 
 As rotas de leitura aceitam viewer, mas ele só enxerga run com `published_at`, que só o B6 preenche. Até lá, run não publicado é 404 para o viewer, como recurso de outro workspace.
@@ -41,9 +43,9 @@ As rotas de leitura aceitam viewer, mas ele só enxerga run com `published_at`, 
 ## Tela (B4b)
 
 - **Página própria do run** (`/w/$slug/execucoes/$runId`), onde os dashboards do B5 vão entrar. A simulação lista os runs dela (até 20); a lista do workspace é do B6.
-- **`EventSource` nativo**, sem lib. Ele reconecta sozinho mandando `Last-Event-ID`; um fechamento sem `end` (401, 404) vira "Não foi possível acompanhar o log." O hook descarta linha com id menor ou igual à última, porque o segundo efeito do StrictMode reabre o stream e recebe o backlog de novo.
+- **`EventSource` nativo**, sem lib. Ele reconecta sozinho mandando `Last-Event-ID`; um fechamento sem `end` (401, 404) vira "Não foi possível acompanhar o log." O hook descarta linha com id menor ou igual à última, porque um Fast Refresh reabre o stream mantendo as linhas e recebe o backlog de novo.
 - **Status por polling curto** enquanto o run está ativo (2 s na página, 3 s na lista): `queued → running` não tem evento próprio. O `end` do stream invalida a query na hora.
 - **"Etapa em andamento há N s"** é o relógio do navegador menos o `ts` da última linha, nunca negativo (relógios diferentes). É exibição, não conta do motor.
 - **Confirmações de aviso** continuam por índice na tela e viram `check.id` no `POST`.
-- **Rodar com run ativo** fica desabilitado com "Já há uma execução em andamento." e o link para ela; o 409 do servidor cobre duas abas e recarrega a lista, que passa a mostrar o run e o link. Rodar também fica desabilitado enquanto um upload ou um salvamento está em voo, para o run não sair dos dados anteriores.
+- **Rodar com run ativo** fica desabilitado com "Já há uma execução em andamento." e o link para ela; o 409 do servidor cobre duas abas e recarrega a lista, que passa a mostrar o run e o link. Rodar também fica desabilitado enquanto um upload ou um salvamento está em voo, para o run não sair dos dados anteriores, e enquanto a lista de runs carrega. O erro do último clique some quando um run começa ou termina. Quem sai da página durante o `POST` não é levado para o run.
 - **Parâmetro editado e não salvo** desabilita Rodar com "Salve os parâmetros antes de rodar.": o run usa a config salva, não a da tela. A comparação é no formato do corpo do `PUT` ("0.20" na tela é igual a 0,2 salvo). O servidor não sabe da tela, então o gate dele não cobre isso.
