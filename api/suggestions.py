@@ -19,7 +19,8 @@ log = logging.getLogger(__name__)
 # history step in days -> (label, lowest, highest pre-period in days)
 PRE_PERIOD = {1: ("diária", 28, 90), 7: ("semanal", 56, 182)}
 # stems of the normalized KPI column name
-MONETARY = ("receita", "revenue", "faturamento", "gmv", "valor")
+# "value" before "convers": "Conversion value" is revenue, not a count
+MONETARY = ("receita", "revenue", "faturamento", "gmv", "valor", "value")
 CONVERSIONS = ("convers", "venda", "pedido", "lead")
 
 
@@ -120,11 +121,15 @@ Schema dos parâmetros:
 
 
 def number(text: str) -> float | None:
-    # exports come as "1.234,56" (pt-BR) or "1,234.56"; the rightmost separator is the decimal one
-    if text.rfind(",") > text.rfind("."):
-        text = text.replace(".", "").replace(",", ".")
-    else:
-        text = text.replace(",", "")
+    # exports come as "R$ 1.234,56" (pt-BR) or "1,234.56": the rightmost separator is the decimal one,
+    # unless it repeats ("1.234.567"), then it only groups thousands
+    for noise in ("R$", "$", " ", "\xa0"):
+        text = text.replace(noise, "")
+    decimal, thousands = (",", ".") if text.rfind(",") > text.rfind(".") else (".", ",")
+    text = text.replace(thousands, "")
+    if text.count(decimal) > 1:
+        text = text.replace(decimal, "")
+    text = text.replace(decimal, ".")
     try:
         n = float(text)
     except ValueError:

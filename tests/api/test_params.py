@@ -2,9 +2,11 @@ import json
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy import delete
 
 from api import csvfile, gemini, simulations, suggestions
 from api.engine_config import EngineConfig, ParamsIn
+from api.models import Simulation
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 
@@ -85,7 +87,12 @@ def test_unknown_cadence_or_unreadable_dates_suggest_no_pre_period(tmp_path):
 
 @pytest.mark.parametrize(
     "kpi, target, monetary",
-    [("Receita Líquida", "REVENUE", True), ("conversões", "CONVERSIONS", False), ("pedidos", "CONVERSIONS", False)],
+    [
+        ("Receita Líquida", "REVENUE", True),
+        ("Conversion value", "REVENUE", True),
+        ("conversões", "CONVERSIONS", False),
+        ("pedidos", "CONVERSIONS", False),
+    ],
 )
 def test_kpi_column_name_suggests_the_target(tmp_path, kpi, target, monetary):
     got = from_performance(tmp_path, days(10), kpi=kpi)
@@ -222,6 +229,21 @@ def test_gemini_client_error_is_unavailable(logged, mapped, monkeypatch):
     assert (r.status_code, r.json()) == (200, {"available": False, "suggestions": {}})
 
 
+def test_simulation_deleted_during_the_gemini_call_still_answers(logged, db, mapped, monkeypatch):
+    def delete_then_answer(prompt, schema):
+        db.execute(
+            delete(Simulation).where(Simulation.id == mapped.id), execution_options={"synchronize_session": False}
+        )
+        db.commit()
+        return json.dumps({"suggestions": []})
+
+    monkeypatch.setattr(gemini, "ask", delete_then_answer)
+
+    r = logged.post(f"/api/w/a/simulations/{mapped.id}/suggestions/gemini")
+
+    assert (r.status_code, r.json()) == (200, {"available": True, "suggestions": {}})
+
+
 def test_unreadable_files_are_422(logged, mapped, monkeypatch):
     def unreadable(path):
         raise csvfile.Unreadable
@@ -308,6 +330,11 @@ def test_params_need_a_confirmed_mapping(logged, analyst, ws, make_simulation):
         ("1,234.56", 1234.56),
         ("1.234.567,8", 1234567.8),
         ("1,234,567.8", 1234567.8),
+        ("1.234.567", 1234567.0),
+        ("1,234,567", 1234567.0),
+        ("R$ 1.234,56", 1234.56),
+        ("1\xa0234,56", 1234.56),
+        ("-1.234,5", -1234.5),
         ("12,5", 12.5),
         ("12.5", 12.5),
         ("x", None),
