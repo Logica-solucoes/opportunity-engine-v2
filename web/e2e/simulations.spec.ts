@@ -139,6 +139,13 @@ test('parameters open with the data suggestions, save and persist', async ({ pag
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
   await expect(analystPage.getByText('Sugerido pelos dados')).toHaveCount(0)
 
+  // an edit still on screen would not reach the run, which uses the saved config
+  await analystPage.getByLabel('Fator limite de investimento').fill('3')
+  await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
+  await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
+  await analystPage.getByLabel('Fator limite de investimento').fill('2.0')
+  await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
+
   await analystPage.reload()
   await expect(analystPage.getByLabel('Fator limite de investimento')).toHaveValue('2')
   await expect(analystPage.getByLabel('Pré-período mínimo (dias)')).toHaveValue('28')

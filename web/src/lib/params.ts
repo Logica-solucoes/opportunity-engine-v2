@@ -177,6 +177,10 @@ export function paramsBody(layout: FormGroup[], values: Record<string, FormValue
   return body
 }
 
+// compared as the PUT body would carry it, so "0.20" on screen equals a saved 0.2
+export const unsavedParams = (layout: FormGroup[], values: Record<string, FormValue>, config: Record<string, unknown>) =>
+  allFields(layout).some((field) => fromForm(field, values[field.path]) !== (getPath(config, field.path) ?? null))
+
 type PydanticError = { type: string; loc: (string | number)[]; ctx?: Record<string, unknown> }
 
 const num = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('pt-BR') : String(v))

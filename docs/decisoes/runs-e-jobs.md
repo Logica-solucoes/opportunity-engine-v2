@@ -28,7 +28,7 @@ O trilha-b pedia lote de 0,5 s. O motor emite centenas de linhas por run, não m
 
 ## Erro do motor nunca chega cru à tela
 
-Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução N)." em `runs.error` e numa linha `error` do log. O traceback e a mensagem crua vão só para o stdout JSON (`severity`, `message`, `run_id`, `workspace_id`), que o Cloud Logging lê. A mensagem crua pode estar em inglês ou carregar dado do cliente. Pergunta ao dev A no contrato §3: uma exceção do motor com mensagem pt-BR própria para a tela.
+Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução N)." em `runs.error` e numa linha `error` do log; o mesmo vale quando o motor devolve `status: "failed"` sem exceção (o `results.json` fica guardado). O traceback e a mensagem crua vão só para o stdout JSON (`severity`, `message`, `run_id`, `workspace_id`), que o Cloud Logging lê. A mensagem crua pode estar em inglês ou carregar dado do cliente. Pergunta ao dev A no contrato §3: uma exceção do motor com mensagem pt-BR própria para a tela.
 
 ## SSE com sessões curtas
 
@@ -46,3 +46,4 @@ As rotas de leitura aceitam viewer, mas ele só enxerga run com `published_at`, 
 - **"Etapa em andamento há N s"** é o relógio do navegador menos o `ts` da última linha, nunca negativo (relógios diferentes). É exibição, não conta do motor.
 - **Confirmações de aviso** continuam por índice na tela e viram `check.id` no `POST`.
 - **Rodar com run ativo** fica desabilitado com "Já há uma execução em andamento." e o link para ela; o 409 do servidor cobre duas abas e recarrega a lista, que passa a mostrar o run e o link. Rodar também fica desabilitado enquanto um upload ou um salvamento está em voo, para o run não sair dos dados anteriores.
+- **Parâmetro editado e não salvo** desabilita Rodar com "Salve os parâmetros antes de rodar.": o run usa a config salva, não a da tela. A comparação é no formato do corpo do `PUT` ("0.20" na tela é igual a 0,2 salvo). O servidor não sabe da tela, então o gate dele não cobre isso.

@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { LoadState } from '@/components/LoadState'
 import { NativeSelect } from '@/components/NativeSelect'
@@ -25,11 +25,18 @@ import {
   initialState,
   paramsBody,
   suggestionsQuery,
+  unsavedParams,
   visibleLayout,
 } from '@/lib/params'
 import { FILES, type Simulation } from '@/lib/simulations'
 
-type Props = { slug: string; sim: Simulation; busy: boolean; onSaved: (sim: Simulation) => void }
+type Props = {
+  slug: string
+  sim: Simulation
+  busy: boolean
+  onSaved: (sim: Simulation) => void
+  onDirty: (dirty: boolean) => void
+}
 
 export function ParamsForm(props: Props) {
   const { slug, sim } = props
@@ -58,11 +65,16 @@ function ParamsFields({
   sim,
   busy,
   onSaved,
+  onDirty,
   schema,
   suggestions,
 }: Props & { schema: ConfigSchema; suggestions: Suggestions }) {
   const layout = visibleLayout(schema)
   const [state, setState] = useState(() => initialState(layout, sim.config, suggestions))
+  // Rodar runs the saved config, so an edit still on screen blocks it
+  const dirty = unsavedParams(layout, state.values, sim.config)
+  useEffect(() => onDirty(dirty), [dirty, onDirty])
+  useEffect(() => () => onDirty(false), [onDirty])
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       api<Simulation>(`/w/${slug}/simulations/${sim.id}/params`, { method: 'PUT', body }),

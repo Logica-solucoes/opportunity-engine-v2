@@ -52,6 +52,7 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
   const { data: sim, isError } = useQuery(query)
   // one write at a time: a slower earlier response would overwrite the newer SimulationOut in the cache
   const busy = useIsMutating() > 0
+  const [paramsDirty, setParamsDirty] = useState(false)
   // 404 (another workspace or deleted) and 422 (non-numeric id) look the same to the user;
   // a failed refetch keeps the data, so only a missing simulation replaces the page
   if (!sim) return isError ? <p>Simulação não encontrada.</p> : null
@@ -92,10 +93,12 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
         slug={slug}
         simId={sim.id}
         report={sim.validation}
-        saved={paramsSaved(sim)}
+        saved={paramsSaved(sim) && !paramsDirty}
         busy={busy}
       >
-        {sim.validation && <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} />}
+        {sim.validation && (
+          <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} onDirty={setParamsDirty} />
+        )}
       </ValidationBlock>
     </div>
   )
