@@ -282,7 +282,7 @@ function ValidationBlock({
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
         {/* never enabled in B2: the run is B4's */}
         <Button disabled>Rodar</Button>
-        <p className="text-sm text-muted-foreground">{runBlockReason(report, confirmed, saved)}</p>
+        <p className="text-sm text-muted-foreground">{runBlockReason(report, confirmed, saved, false)}</p>
       </div>
     </section>
   )

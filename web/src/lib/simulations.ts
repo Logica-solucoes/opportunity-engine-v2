@@ -83,13 +83,19 @@ export function initialColumn(sim: Simulation, spec: FileSpec, field: string): s
   return saved && file.columns.includes(saved) ? saved : (file.suggested[field] ?? '')
 }
 
-// display only: B4 creates the run and checks the same gate on the server
-export function runBlockReason(report: ValidationReport | null, confirmed: Set<number>, paramsSaved: boolean): string {
+// display only: POST …/runs checks the same gate on the server (block_reason in api/runs.py)
+export function runBlockReason(
+  report: ValidationReport | null,
+  confirmed: Set<number>,
+  paramsSaved: boolean,
+  hasActiveRun: boolean,
+): string {
+  if (hasActiveRun) return 'Já há uma execução em andamento.'
   if (!report) return 'Valide os arquivos antes de rodar.'
   if (!report.ok) return 'Corrija os erros antes de rodar.'
   if (report.checks.some((c, i) => c.level === 'warning' && !confirmed.has(i))) return 'Confirme os avisos antes de rodar.'
   if (!paramsSaved) return 'Salve os parâmetros antes de rodar.'
-  return 'Execução disponível em breve'
+  return ''
 }
 
 export const formatDate = (iso: string) =>
