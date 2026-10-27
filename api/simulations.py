@@ -60,14 +60,16 @@ def suggest_mapping(kind: str, columns: list[str]) -> dict[str, str | None]:
     return suggestion
 
 
-def input_key(simulation: Simulation, sha256: str) -> str:
-    return f"ws/{simulation.workspace_id}/sim/{simulation.id}/inputs/{sha256}.csv"
+def input_key(workspace_id: int, simulation_id: int, sha256: str) -> str:
+    return f"ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv"
 
 
 def input_paths(simulation: Simulation) -> dict[str, Path | None]:
     files = {f.kind: f for f in simulation.files}
     return {
-        key: storage.path(input_key(simulation, files[kind].sha256)) if kind in files else None
+        key: storage.path(input_key(simulation.workspace_id, simulation.id, files[kind].sha256))
+        if kind in files
+        else None
         for key, kind in MAPPING_FILES.items()
     }
 
@@ -125,7 +127,7 @@ def save_file(db: Session, simulation: Simulation, kind: str, src: BinaryIO, fil
         except csvfile.Unreadable:
             raise InvalidInput("Não foi possível ler o cabeçalho do CSV.")
         sha256 = digest.hexdigest()
-        storage.put(input_key(simulation, sha256), local)
+        storage.put(input_key(simulation.workspace_id, simulation.id, sha256), local)
 
     lock(db, simulation)
     row = db.get(SimulationFile, (simulation.id, kind)) or SimulationFile(simulation_id=simulation.id, kind=kind)

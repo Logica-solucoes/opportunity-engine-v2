@@ -1,11 +1,14 @@
+import json
+import logging
+import sys
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import func
+from sqlalchemy import func, select, update
 
-from api import engine_run, launcher, runs, simulations
+from api import engine_run, launcher, runs, simulations, storage, worker
 from api.engine_config import ParamsIn
-from api.models import Membership, Run
+from api.models import Membership, Run, RunLog
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 DUPLICATE = INVESTMENT + b"2024-01-01,SEARCH,30\n"
@@ -191,3 +194,93 @@ def test_viewer_does_not_see_unpublished_runs(client, ready, make_user, ws, db, 
     run.published_at = func.now()
     db.commit()
     assert client.get(f"/api/w/a/runs/{run.id}").status_code == 200
+
+
+def messages(db, run_id):
+    return db.scalars(select(RunLog.message).where(RunLog.run_id == run_id).order_by(RunLog.id)).all()
+
+
+def test_worker_runs_the_engine_and_stores_the_result(db, ready, analyst):
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    assert (run.status, run.engine_version, run.summary) == ("succeeded", "fake", {"status": "succeeded"})
+    assert run.started_at is not None and run.finished_at is not None
+    assert run.results_uri == f"ws/{run.workspace_id}/sim/{run.simulation_id}/runs/{run.id}/results.json"
+    assert json.loads(storage.path(run.results_uri).read_text(encoding="utf-8"))["status"] == "succeeded"
+    assert messages(db, run.id) == engine_run.STEPS + ["Execução concluída"]
+
+
+def test_engine_error_shows_ptbr_and_keeps_the_traceback_out_of_the_db(db, ready, analyst, monkeypatch, caplog):
+    monkeypatch.setenv("FAKE_ENGINE_FAIL", "1")
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    expected = f"O motor falhou. Detalhes técnicos ficam no log do servidor (execução {run.id})."
+    assert (run.status, run.error) == ("failed", expected)
+    assert messages(db, run.id)[-1] == expected
+    assert all("converge" not in m for m in messages(db, run.id))
+    failure = next(r for r in caplog.records if r.exc_info)
+    assert "did not converge" in str(failure.exc_info[1]) and failure.run_id == run.id
+
+
+def test_worker_ignores_a_run_that_is_not_queued(db, ready, analyst):
+    run = runs.create(db, ready(), set(), by=analyst)
+    run.status = "succeeded"
+    db.commit()
+
+    worker.execute(db, run.id)
+
+    assert messages(db, run.id) == []
+
+
+def test_a_run_failed_as_stale_is_not_revived(db, ready, analyst, monkeypatch):
+    run = runs.create(db, ready(), set(), by=analyst)
+    real_run = engine_run.run
+
+    def killed_midway(inputs, config, out_dir, on_log):
+        db.execute(update(Run).where(Run.id == run.id).values(status="failed", error=runs.STALE_ERROR))
+        db.commit()
+        return real_run(inputs, config, out_dir, on_log)
+
+    monkeypatch.setattr(engine_run, "run", killed_midway)
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    assert (run.status, run.error, run.results_uri) == ("failed", runs.STALE_ERROR, None)
+
+
+def test_worker_reads_the_inputs_by_sha256(db, ready, analyst, monkeypatch):
+    simulation = ready()
+    run = runs.create(db, simulation, set(), by=analyst)
+    seen = {}
+    real_run = engine_run.run
+
+    def spy(inputs, config, out_dir, on_log):
+        seen.update(inputs)
+        return real_run(inputs, config, out_dir, on_log)
+
+    monkeypatch.setattr(engine_run, "run", spy)
+
+    worker.execute(db, run.id)
+
+    assert seen["investment_file"].read_bytes() == INVESTMENT
+    assert seen["generic_trends_file"] is None
+
+
+def test_json_formatter_writes_one_cloud_logging_line_with_the_traceback():
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError:
+        record = logging.LogRecord("api.worker", logging.ERROR, __file__, 1, "worker.failed", None, sys.exc_info())
+    record.run_id, record.workspace_id = 7, 3
+
+    entry = json.loads(worker.JsonFormatter().format(record))
+
+    assert entry["severity"] == "ERROR" and (entry["run_id"], entry["workspace_id"]) == (7, 3)
+    assert entry["message"].startswith("worker.failed") and "RuntimeError: boom" in entry["message"]
