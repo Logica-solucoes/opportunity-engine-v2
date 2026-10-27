@@ -32,7 +32,7 @@ Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam n
 
 ## SSE com sessões curtas
 
-`GET …/logs/stream` é um gerador síncrono no `StreamingResponse`. A rota checa auth e escopo com a sessão da requisição e a devolve ao pool antes de abrir o stream; cada volta do laço (0,5 s) abre uma sessão curta, lê o status e depois as linhas novas (nessa ordem: o worker grava todas as linhas antes do status final). Sem `Last-Event-ID` vão as 300 últimas linhas; com ele, as de id maior, e o `EventSource` reconecta sozinho mandando o último id. Cada aba assistindo segura uma thread do threadpool durante o run.
+`GET …/logs/stream` é um gerador assíncrono no `StreamingResponse`. A rota checa auth e escopo com a sessão da requisição e a devolve ao pool antes de abrir o stream; cada volta do laço (0,5 s) roda `poll` no threadpool (`run_in_threadpool`), que abre uma sessão curta, lê o status e depois as linhas novas (nessa ordem: o worker grava todas as linhas antes do status final); a espera entre voltas é `asyncio.sleep`. Sem `Last-Event-ID` vão as 300 últimas linhas; com ele, as de id maior, e o `EventSource` reconecta sozinho mandando o último id. Uma aba parada não segura thread (só as queries de cada volta passam pelo threadpool), e uma aba fechada é notada no próximo `await`. O front (B4b) deve chamar `close()` no `EventSource` ao receber `end`: o servidor encerrar a conexão faz o `EventSource` reconectar.
 
 ## Viewer e publicação
 

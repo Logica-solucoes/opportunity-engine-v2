@@ -1,9 +1,10 @@
+import asyncio
 import json
-import time
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -99,32 +100,37 @@ def get_run(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get
     return run_out(find_run(db, ctx, run_id))
 
 
-def log_events(run_id: int, after: int | None):
+def poll(run_id: int, after: int | None) -> tuple[str | None, str, int | None]:
+    # a short session per poll: the stream lasts the whole run and must not pin a pooled connection
+    with SessionLocal() as db:
+        runs.fail_stale(db, Run.id == run_id)
+        # status before lines: the worker writes every line before the final status
+        status = db.scalar(select(Run.status).where(Run.id == run_id))
+        query = select(RunLog).where(RunLog.run_id == run_id)
+        if after is None:
+            rows = db.scalars(query.order_by(RunLog.id.desc()).limit(BACKLOG)).all()[::-1]
+        else:
+            rows = db.scalars(query.where(RunLog.id > after).order_by(RunLog.id).limit(BATCH)).all()
+        chunk = "".join(
+            f"id: {r.id}\ndata: {json.dumps({'ts': r.ts.isoformat(), 'level': r.level, 'message': r.message}, ensure_ascii=False)}\n\n"
+            for r in rows
+        )
+        return status, chunk, rows[-1].id if rows else None
+
+
+async def log_events(run_id: int, after: int | None):
     while True:
-        # a short session per poll: the stream lasts the whole run and must not pin a pooled connection
-        with SessionLocal() as db:
-            runs.fail_stale(db, Run.id == run_id)
-            # status before lines: the worker writes every line before the final status
-            status = db.scalar(select(Run.status).where(Run.id == run_id))
-            query = select(RunLog).where(RunLog.run_id == run_id)
-            if after is None:
-                rows = db.scalars(query.order_by(RunLog.id.desc()).limit(BACKLOG)).all()[::-1]
-            else:
-                rows = db.scalars(query.where(RunLog.id > after).order_by(RunLog.id).limit(BATCH)).all()
-            chunk = "".join(
-                f"id: {r.id}\ndata: {json.dumps({'ts': r.ts.isoformat(), 'level': r.level, 'message': r.message}, ensure_ascii=False)}\n\n"
-                for r in rows
-            )
+        status, chunk, last_id = await run_in_threadpool(poll, run_id, after)
         if chunk:
             yield chunk
-            after = rows[-1].id
+            after = last_id
             continue
         # a deleted run (status None) ends the stream too
         if status not in runs.ACTIVE:
             yield f"event: end\ndata: {json.dumps({'status': status})}\n\n"
             return
         after = after or 0
-        time.sleep(POLL_SECONDS)
+        await asyncio.sleep(POLL_SECONDS)
 
 
 @router.get("/runs/{run_id}/logs/stream")
