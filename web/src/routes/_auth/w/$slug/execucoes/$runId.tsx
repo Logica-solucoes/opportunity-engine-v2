@@ -67,7 +67,7 @@ function RunPage() {
         <p>Execução concluída. Os dashboards chegam em breve.</p>
       )}
 
-      <LogPanel lines={log.lines} active={active} />
+      <LogPanel lines={log.lines} active={active} ended={log.state === 'ended'} />
       {log.state === 'lost' && (
         <p role="alert" className="text-sm text-destructive">
           Não foi possível acompanhar o log.
@@ -77,7 +77,7 @@ function RunPage() {
   )
 }
 
-function LogPanel({ lines, active }: { lines: LogLine[]; active: boolean }) {
+function LogPanel({ lines, active, ended }: { lines: LogLine[]; active: boolean; ended: boolean }) {
   const box = useRef<HTMLDivElement>(null)
   // follow new lines only while the reader is at the bottom; scrolling up to read stops it
   const atEnd = useRef(true)
@@ -104,7 +104,8 @@ function LogPanel({ lines, active }: { lines: LogLine[]; active: boolean }) {
         }}
         className="h-96 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed"
       >
-        {lines.length === 0 && (
+        {/* a finished run's backlog may arrive after the run itself: "no lines" waits for the stream's end */}
+        {lines.length === 0 && (active || ended) && (
           <p className="text-muted-foreground">{active ? 'Aguardando o início da execução…' : 'Nenhuma linha de log.'}</p>
         )}
         {lines.map((line) => (

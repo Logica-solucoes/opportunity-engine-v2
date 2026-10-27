@@ -29,7 +29,7 @@ export const STATUS_LABELS: Record<RunStatus, string> = {
 
 export const isActive = (status: RunStatus) => status === 'queued' || status === 'running'
 
-export const MAX_LINES = 300
+const MAX_LINES = 300
 
 export const runQuery = (slug: string, runId: string) =>
   queryOptions({
@@ -56,7 +56,7 @@ export function useRunLog(slug: string, runId: string) {
     const source = new EventSource(`/api/w/${slug}/runs/${runId}/logs/stream`)
     source.onmessage = (e) => {
       const line: LogLine = { id: Number(e.lastEventId), ...JSON.parse(e.data) }
-      // a reconnect resumes after Last-Event-ID, but StrictMode's second effect replays the backlog
+      // a reconnect resumes after Last-Event-ID, but a Fast Refresh reopens the stream and replays the backlog onto the kept lines
       setLines((prev) => (prev.length && prev[prev.length - 1].id >= line.id ? prev : [...prev, line].slice(-MAX_LINES)))
     }
     source.addEventListener('end', () => {

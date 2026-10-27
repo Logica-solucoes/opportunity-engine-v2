@@ -14,7 +14,7 @@ export const pyEnv = {
   STORAGE_DIR: join(tmpdir(), 'gem-e2e-storage'),
   // the E2E never calls Gemini: an empty key takes the "unavailable" path even if the dev shell has one
   GEMINI_API_KEY: '',
-  // the worker subprocess inherits this env: ~3 s per run, long enough to reload mid-run
-  FAKE_ENGINE_STEP_SECONDS: '0.5',
+  // the worker subprocess inherits this env: ~5 s per run, long enough to see "Rodando" and reload mid-run
+  FAKE_ENGINE_STEP_SECONDS: '1',
   FAKE_ENGINE_FAIL: '',
 }

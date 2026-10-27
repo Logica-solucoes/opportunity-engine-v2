@@ -1,7 +1,7 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { CircleX, Info, TriangleAlert } from 'lucide-react'
-import { type FormEvent, type ReactNode, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { FileDrop } from '@/components/FileDrop'
 import { NativeSelect } from '@/components/NativeSelect'
 import { ParamsForm } from '@/components/ParamsForm'
@@ -256,7 +256,7 @@ function ValidationBlock({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const runsQuery = simulationRunsQuery(slug, simId)
-  const { data: runs } = useQuery(runsQuery)
+  const { data: runs, isPending: runsPending } = useQuery(runsQuery)
   const activeRun = runs?.find((r) => isActive(r.status))
   // by index, since two checks may share an id; the server gets the ids of the confirmed ones
   const [confirmed, setConfirmed] = useState<Set<number>>(new Set())
@@ -272,11 +272,21 @@ function ValidationBlock({
       }),
     // a 409 means a run started elsewhere: refetching shows it and its Acompanhar link
     onSettled: () => queryClient.invalidateQueries({ queryKey: runsQuery.queryKey }),
-    onSuccess: (run) => {
-      navigate({ to: '/w/$slug/execucoes/$runId', params: { slug, runId: String(run.id) } })
-    },
   })
   const reason = runBlockReason(report, confirmed, saved, Boolean(activeRun))
+  // a run that started or ended since the last click makes its answer stale (and the 409 repeats the reason)
+  const { reset } = start
+  const activeId = activeRun?.id
+  useEffect(() => {
+    reset()
+  }, [activeId, reset])
+
+  function run() {
+    // passed to mutate, not useMutation: leaving the page during the POST must not pull the user back
+    start.mutate(undefined, {
+      onSuccess: (created) => navigate({ to: '/w/$slug/execucoes/$runId', params: { slug, runId: String(created.id) } }),
+    })
+  }
 
   function toggle(i: number, on: boolean) {
     const next = new Set(confirmed)
@@ -321,7 +331,7 @@ function ValidationBlock({
       )}
       {children}
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button disabled={Boolean(reason) || busy} onClick={() => start.mutate()}>
+        <Button disabled={Boolean(reason) || busy || runsPending} onClick={run}>
           Rodar
         </Button>
         {reason && (

@@ -190,6 +190,8 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
   await expect(analystPage).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+$`))
   const log = analystPage.getByRole('log', { name: 'Log da execução' })
   await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
+  // the reload must land mid-run, or the test would only prove the backlog of a finished run
+  await expect(analystPage.getByText('Rodando', { exact: true })).toBeVisible()
 
   await analystPage.reload()
 
