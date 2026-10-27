@@ -1,19 +1,22 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { CircleX, Info, TriangleAlert } from 'lucide-react'
 import { type FormEvent, type ReactNode, useState } from 'react'
 import { FileDrop } from '@/components/FileDrop'
 import { NativeSelect } from '@/components/NativeSelect'
 import { ParamsForm } from '@/components/ParamsForm'
+import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery, roleIn } from '@/lib/auth'
 import { paramsSaved } from '@/lib/params'
+import { type Run, isActive, simulationRunsQuery } from '@/lib/runs'
 import {
   type Check,
   type ColumnMapping,
@@ -84,7 +87,13 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
       )}
 
       {/* a new report (new mapping or file) remounts the parameters too: their data suggestions changed */}
-      <ValidationBlock key={JSON.stringify(sim.validation)} report={sim.validation} saved={paramsSaved(sim)}>
+      <ValidationBlock
+        key={JSON.stringify(sim.validation)}
+        slug={slug}
+        simId={sim.id}
+        report={sim.validation}
+        saved={paramsSaved(sim)}
+      >
         {sim.validation && <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} />}
       </ValidationBlock>
     </div>
@@ -226,16 +235,41 @@ function MappingForm({
 }
 
 function ValidationBlock({
+  slug,
+  simId,
   report,
   saved,
   children,
 }: {
+  slug: string
+  simId: number
   report: ValidationReport | null
   saved: boolean
   children?: ReactNode
 }) {
-  // confirmations live only in the page until B4 stores them with the run
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const runsQuery = simulationRunsQuery(slug, simId)
+  const { data: runs } = useQuery(runsQuery)
+  const activeRun = runs?.find((r) => isActive(r.status))
+  // by index, since two checks may share an id; the server gets the ids of the confirmed ones
   const [confirmed, setConfirmed] = useState<Set<number>>(new Set())
+  const start = useMutation({
+    mutationFn: () =>
+      api<Run>(`/w/${slug}/simulations/${simId}/runs`, {
+        method: 'POST',
+        body: {
+          confirmed_warnings: (report?.checks ?? [])
+            .filter((c, i) => c.level === 'warning' && confirmed.has(i))
+            .map((c) => c.id),
+        },
+      }),
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: runsQuery.queryKey })
+      navigate({ to: '/w/$slug/execucoes/$runId', params: { slug, runId: String(run.id) } })
+    },
+  })
+  const reason = runBlockReason(report, confirmed, saved, Boolean(activeRun))
 
   function toggle(i: number, on: boolean) {
     const next = new Set(confirmed)
@@ -280,10 +314,68 @@ function ValidationBlock({
       )}
       {children}
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        {/* never enabled in B2: the run is B4's */}
-        <Button disabled>Rodar</Button>
-        <p className="text-sm text-muted-foreground">{runBlockReason(report, confirmed, saved, false)}</p>
+        <Button disabled={Boolean(reason) || start.isPending} onClick={() => start.mutate()}>
+          Rodar
+        </Button>
+        {reason && (
+          <p className="text-sm text-muted-foreground">
+            {reason}{' '}
+            {activeRun && (
+              <Link
+                to="/w/$slug/execucoes/$runId"
+                params={{ slug, runId: String(activeRun.id) }}
+                className="text-primary hover:underline"
+              >
+                Acompanhar
+              </Link>
+            )}
+          </p>
+        )}
+        {start.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(start.error)}
+          </p>
+        )}
       </div>
+      {runs && runs.length > 0 && <RunList slug={slug} runs={runs} />}
     </section>
+  )
+}
+
+function RunList({ slug, runs }: { slug: string; runs: Run[] }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="font-medium">Execuções</h3>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Execução</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Criada por</TableHead>
+            <TableHead>Criada em</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {runs.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell>
+                <Link
+                  to="/w/$slug/execucoes/$runId"
+                  params={{ slug, runId: String(r.id) }}
+                  className="font-medium hover:text-primary"
+                >
+                  #{r.id}
+                </Link>
+              </TableCell>
+              <TableCell>
+                <RunStatusBadge status={r.status} />
+              </TableCell>
+              <TableCell>{r.created_by_name}</TableCell>
+              <TableCell>{formatDate(r.created_at)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
