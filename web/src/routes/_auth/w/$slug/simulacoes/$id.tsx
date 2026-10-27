@@ -93,6 +93,7 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
         simId={sim.id}
         report={sim.validation}
         saved={paramsSaved(sim)}
+        busy={busy}
       >
         {sim.validation && <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} />}
       </ValidationBlock>
@@ -239,12 +240,14 @@ function ValidationBlock({
   simId,
   report,
   saved,
+  busy,
   children,
 }: {
   slug: string
   simId: number
   report: ValidationReport | null
   saved: boolean
+  busy: boolean
   children?: ReactNode
 }) {
   const navigate = useNavigate()
@@ -264,8 +267,9 @@ function ValidationBlock({
             .map((c) => c.id),
         },
       }),
+    // a 409 means a run started elsewhere: refetching shows it and its Acompanhar link
+    onSettled: () => queryClient.invalidateQueries({ queryKey: runsQuery.queryKey }),
     onSuccess: (run) => {
-      queryClient.invalidateQueries({ queryKey: runsQuery.queryKey })
       navigate({ to: '/w/$slug/execucoes/$runId', params: { slug, runId: String(run.id) } })
     },
   })
@@ -314,7 +318,7 @@ function ValidationBlock({
       )}
       {children}
       <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button disabled={Boolean(reason) || start.isPending} onClick={() => start.mutate()}>
+        <Button disabled={Boolean(reason) || busy} onClick={() => start.mutate()}>
           Rodar
         </Button>
         {reason && (
