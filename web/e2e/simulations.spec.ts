@@ -136,7 +136,7 @@ test('parameters open with the data suggestions, save and persist', async ({ pag
 
   await analystPage.getByLabel('Fator limite de investimento').fill('2')
   await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
-  await expect(analystPage.getByText('Execução disponível em breve')).toBeVisible()
+  await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
   await expect(analystPage.getByText('Sugerido pelos dados')).toHaveCount(0)
 
   await analystPage.reload()
@@ -170,4 +170,29 @@ test('a mistyped optional target is refused instead of saved as no target', asyn
   await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
   await expect(analystPage.getByText('Informe um número.')).toBeVisible()
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
+})
+
+test('analyst runs a simulation and the log resumes after a reload', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'Rodada')
+  await uploadTemplatesAndValidate(analystPage)
+  await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
+
+  await analystPage.getByRole('button', { name: 'Rodar' }).click()
+
+  await expect(analystPage).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+$`))
+  const log = analystPage.getByRole('log', { name: 'Log da execução' })
+  await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
+
+  await analystPage.reload()
+
+  await expect(analystPage.getByText('Concluída', { exact: true })).toBeVisible()
+  await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
+  await expect(log.getByText('Montando o resultado')).toBeVisible()
+  await expect(analystPage.getByText('Execução concluída. Os dashboards chegam em breve.')).toBeVisible()
+
+  await analystPage.getByRole('link', { name: '← Rodada' }).click()
+  await expect(analystPage.getByRole('heading', { name: 'Execuções' })).toBeVisible()
+  await expect(analystPage.getByRole('cell', { name: 'Concluída' })).toBeVisible()
+  await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
 })
