@@ -284,3 +284,60 @@ def test_json_formatter_writes_one_cloud_logging_line_with_the_traceback():
 
     assert entry["severity"] == "ERROR" and (entry["run_id"], entry["workspace_id"]) == (7, 3)
     assert entry["message"].startswith("worker.failed") and "RuntimeError: boom" in entry["message"]
+
+
+def events(text):
+    return [dict(line.split(": ", 1) for line in block.splitlines()) for block in text.strip().split("\n\n")]
+
+
+def stream(client, run_id, slug="a", last=None):
+    headers = {"Last-Event-ID": str(last)} if last is not None else {}
+    return client.get(f"/api/w/{slug}/runs/{run_id}/logs/stream", headers=headers)
+
+
+def finished_run_with_lines(db, simulation, analyst, n):
+    run = runs.create(db, simulation, set(), by=analyst)
+    db.add_all(RunLog(run_id=run.id, level="info", message=f"linha {i}") for i in range(n))
+    run.status = "succeeded"
+    db.commit()
+    return run, db.scalars(select(RunLog.id).where(RunLog.run_id == run.id).order_by(RunLog.id)).all()
+
+
+def test_stream_sends_the_last_300_lines_then_end(logged, stream_db, db, ready, analyst):
+    run, ids = finished_run_with_lines(db, ready(), analyst, 350)
+
+    r = stream(logged, run.id)
+
+    assert r.headers["content-type"].startswith("text/event-stream")
+    got = events(r.text)
+    assert [int(e["id"]) for e in got[:-1]] == ids[50:]
+    assert json.loads(got[0]["data"])["message"] == "linha 50"
+    assert got[-1] == {"event": "end", "data": json.dumps({"status": "succeeded"})}
+
+
+def test_stream_resumes_after_last_event_id(logged, stream_db, db, ready, analyst):
+    run, ids = finished_run_with_lines(db, ready(), analyst, 20)
+
+    got = events(stream(logged, run.id, last=ids[14]).text)
+
+    assert [int(e["id"]) for e in got[:-1]] == ids[15:]
+    assert got[-1]["event"] == "end"
+
+
+def test_two_runs_in_two_workspaces_do_not_mix_logs_or_files(logged, stream_db, db, ready, analyst, make_workspace):
+    other = make_workspace("b", [(analyst, "analyst")])
+    run_a = runs.create(db, ready(), set(), by=analyst)
+    run_b = runs.create(db, ready(workspace=other), set(), by=analyst)
+    worker.execute(db, run_a.id)
+    worker.execute(db, run_b.id)
+
+    for run, slug in ((run_a, "a"), (run_b, "b")):
+        got = events(stream(logged, run.id, slug=slug).text)
+        own = db.scalars(select(RunLog.id).where(RunLog.run_id == run.id).order_by(RunLog.id)).all()
+        assert [int(e["id"]) for e in got[:-1]] == own
+        db.refresh(run)
+        assert run.results_uri.startswith(f"ws/{run.workspace_id}/sim/{run.simulation_id}/")
+    assert run_a.workspace_id != run_b.workspace_id
+
+    assert logged.get(f"/api/w/a/runs/{run_b.id}").status_code == 404
+    assert stream(logged, run_b.id, slug="a").status_code == 404

@@ -4,6 +4,7 @@ import os
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://app:app@localhost:5432/app_test")
 
 import io
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from api import db as api_db
 from api import launcher, passwords, simulations, storage
 from api.main import create_app
 from api.models import Membership, User, Workspace
+from api.routes import runs as runs_routes
 
 ROOT = Path(__file__).resolve().parents[1]
 PASSWORD = "senha-de-teste-123"
@@ -146,6 +148,13 @@ def storage_dir(tmp_path, monkeypatch):
     root = tmp_path / "storage"
     monkeypatch.setattr(storage, "ROOT", root)
     return root
+
+
+@pytest.fixture
+def stream_db(db, monkeypatch):
+    # the log stream opens short sessions of its own; in tests they must see the test transaction
+    monkeypatch.setattr(runs_routes, "SessionLocal", lambda: nullcontext(db))
+    monkeypatch.setattr(runs_routes, "POLL_SECONDS", 0)
 
 
 @pytest.fixture
