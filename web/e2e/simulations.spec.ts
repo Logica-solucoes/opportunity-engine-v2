@@ -159,3 +159,15 @@ test('an invalid parameter shows its error and gemini unavailable keeps the form
   await expect(analystPage.getByText('Deve ser maior que 1.')).toBeVisible()
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 })
+
+test('a mistyped optional target is refused instead of saved as no target', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'CPA errado')
+  await uploadTemplatesAndValidate(analystPage)
+
+  // "1e" leaves the number input with value "" and validity.badInput
+  await analystPage.getByLabel('CPA alvo', { exact: true }).pressSequentially('1e')
+  await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
+  await expect(analystPage.getByText('Informe um número.')).toBeVisible()
+  await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
+})

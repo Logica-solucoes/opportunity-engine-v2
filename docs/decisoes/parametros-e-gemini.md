@@ -32,14 +32,15 @@ O `validate` falso só lê o `column_mapping`, que o formulário não toca. Quan
 - **Valor inicial:** o salvo, depois a sugestão dos dados, depois o default. Só o que veio de sugestão ganha selo e explicação; editar ou salvar tira os dois.
 - **Gemini só nos campos não editados**, inclusive os salvos; nada é gravado até "Salvar parâmetros".
 - **Números como texto no estado.** Input controlado com `Number()` a cada tecla engolia o "1." ou o "0.0" do meio da digitação; a conversão acontece só no corpo do `PUT`.
-- **`noValidate` no form.** A API valida, e o 422 do pydantic cai em cada campo pelo `loc`, com mensagem pt-BR pelo `type` e pelos limites do `ctx`. Erro que não casa com nenhum campo da tela aparece como mensagem geral.
+- **`noValidate` no form.** A API valida, e o 422 do pydantic cai em cada campo pelo `loc`, com mensagem pt-BR pelo `type` e pelos limites do `ctx`. Erro que não casa com nenhum campo da tela aparece como mensagem geral, mesmo quando outros casam. Campo numérico com texto inválido (`1e`) chega ao JS como `""`; o submit confere `validity.badInput` e recusa com "Informe um número.", em vez de salvar uma meta opcional como "sem meta".
 - **O formulário remonta a cada arquivo ou mapeamento novo.** Os dois mudam as sugestões dos dados; edições não salvas se perdem nesse caso, como no mapeamento.
 
 ## Ajustes da revisão
 
 - **`inf`/`nan` recusados.** `ParamsIn` tem `allow_inf_nan=False`: `Infinity` passava pelo `gt=0` e quebrava o JSONB com 500. O 422 da API inteira deixou de ecoar o `input` (um `inf` ecoado também virava 500); `type`, `loc`, `msg` e `ctx` seguem iguais.
-- **Conexão devolvida antes do Gemini.** A rota lê os arquivos e faz `rollback` antes da chamada de até 20 s, para não segurar conexão do pool.
+- **Conexão devolvida antes do Gemini.** A rota lê os arquivos e faz `rollback` antes da chamada de até 20 s, para não segurar conexão do pool. O id da simulação é lido antes do `rollback`: lê-lo depois recarregava a linha e dava 500 se ela tivesse sido apagada durante a chamada.
+- **`Conversion value` é receita.** O radical `value` entra nos monetários, que são checados antes de `convers`.
 - **`save_params` preserva as outras chaves do `config`** (`channel_groups`, `controls` quando o A3/A4 chegarem).
-- **Número com os dois separadores:** o mais à direita é o decimal, então `1.234,56` e `1,234.56` viram 1234,56 no resumo do Gemini. Só com vírgula, ela é decimal (`12,5`); `1.234` sem vírgula é ambíguo e vale 1,234.
+- **Números dos exports:** `R$`, `$` e espaços saem. O separador mais à direita é o decimal, então `1.234,56` e `1,234.56` viram 1234,56 no resumo do Gemini; se ele se repete (`1.234.567`), é só milhar. Só com vírgula, ela é decimal (`12,5`); `1.234` sozinho é ambíguo e vale 1,234.
 - **Sem limite de chamadas ao Gemini por usuário.** Cada chamada é cobrada e prende uma thread por até 20 s; a tela só trava o botão durante a chamada. Para ferramenta interna basta por ora; rever no B11 (limite por usuário ou cota no projeto GCP).
 - **O mise carrega o `.env`** (`_.file` no `mise.toml`), para a `GEMINI_API_KEY` local; sem o arquivo, valem os defaults.

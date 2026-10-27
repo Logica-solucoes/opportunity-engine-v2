@@ -86,13 +86,20 @@ function ParamsFields({
     },
     onError: (e) => toast.error(errorMessage(e)),
   })
+  const [badInput, setBadInput] = useState<string[]>([])
   const errors = fieldErrors(save.error)
   const paths = new Set(layout.flatMap((group) => group.fields.map((f) => f.path)))
-  const unmatched = save.isError && !(errors && Object.keys(errors).some((k) => paths.has(k)))
+  const stray = errors ? Object.entries(errors).filter(([path]) => !paths.has(path)) : []
+  const general = save.isError && (!errors || stray.length > 0)
 
-  function submit(e: FormEvent) {
+  function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    save.mutate(paramsBody(layout, state.values))
+    // a number input with garbage reports value "", which would save an optional target as "no target"
+    const bad = Array.from(e.currentTarget.querySelectorAll('input'))
+      .filter((input) => input.validity.badInput)
+      .map((input) => input.name)
+    setBadInput(bad)
+    if (bad.length === 0) save.mutate(paramsBody(layout, state.values))
   }
 
   return (
@@ -108,7 +115,7 @@ function ParamsFields({
                 field={field}
                 value={state.values[field.path]}
                 origin={state.origin[field.path]}
-                error={errors?.[field.path]}
+                error={badInput.includes(field.path) ? 'Informe um número.' : errors?.[field.path]}
                 disabled={busy}
                 onChange={(v) => setState((s) => edit(s, field.path, v))}
               />
@@ -116,9 +123,11 @@ function ParamsFields({
           </div>
         </fieldset>
       ))}
-      {unmatched && (
+      {general && (
         <p role="alert" className="text-sm text-destructive">
-          {errorMessage(save.error)}
+          {stray.length > 0
+            ? stray.map(([path, message]) => (path ? `${path}: ${message}` : message)).join(' ')
+            : errorMessage(save.error)}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
@@ -187,6 +196,7 @@ function ParamField({
         schema.type !== 'boolean' && (
           <Input
             id={id}
+            name={field.path}
             type="number"
             step={schema.type === 'integer' ? 1 : 'any'}
             min={schema.minimum ?? schema.exclusiveMinimum}
