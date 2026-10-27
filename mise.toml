@@ -5,6 +5,8 @@ node = "22"
 
 [env]
 _.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed"] }
+# optional: no .env means the defaults in .env.example
+_.file = ".env"
 
 [tasks.test]
 description = "Run tests"

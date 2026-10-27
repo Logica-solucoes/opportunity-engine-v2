@@ -93,7 +93,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B3 · Parâmetros com sugestão do Gemini — semana 2
 
-- **Status:** ✅ feito. B3a (backend) em 26/out/2026, verificado por `tests/api/test_params.py` e `tests/api/test_rbac.py`; B3b (tela) em 26/out/2026, verificado por `web/e2e/simulations.spec.ts` (sugestões dos dados, salvar e recarregar, erro de campo, Gemini indisponível) e screenshots nos dois temas. Fora até a Trilha A: `channel_groups` (A3), `controls` (A4), `gate_thresholds` (A0). Desvios em `docs/decisoes/parametros-e-gemini.md`.
+- **Status:** ✅ feito. B3a (backend) em 26/out/2026, verificado por `tests/api/test_params.py` e `tests/api/test_rbac.py`; B3b (tela) em 26/out/2026, verificado por `web/e2e/simulations.spec.ts` (sugestões dos dados, salvar e recarregar, erro de campo, Gemini indisponível) e screenshots nos dois temas. Chamada real ao Gemini (`gemini-flash-latest`, saída estruturada) verificada em 26/out/2026. Fora até a Trilha A: `channel_groups` (A3), `controls` (A4), `gate_thresholds` (A0). Desvios em `docs/decisoes/parametros-e-gemini.md`.
 - **BRD:** Capabilities › Parameter configuration with Gemini assist ("explaining each suggestion; the analyst accepts or edits"); deliverables "Parameter input" e "Gemini AI".
 - **Depende de:** A0 (`EngineConfig`), B2.
 - **Hoje:**
@@ -104,7 +104,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 - **Fazer:**
   - O formulário é gerado do JSON Schema do `EngineConfig`, com agrupamento e rótulos pt-BR definidos no front. A validação final é da API, com o mesmo modelo pydantic.
   - Todos os campos do BRD: alvo, KPI, ticket, CPA/iCPA/ROAS/iROAS, limit factor, p-value e os causais.
-  - `POST /api/simulations/{id}/suggest` devolve `{campo: {value, reason, source: "gemini"|"dados"}}`. Ajustar o prompt de `suggest_form_fields` para incluir `reason`.
+  - `GET /api/w/{slug}/simulations/{id}/suggestions` (dados) e `POST …/suggestions/gemini` devolvem `{campo: {value, reason, source: "gemini"|"dados"}}`. Ajustar o prompt de `suggest_form_fields` para incluir `reason`.
   - Na UI, o campo sugerido ganha um selo e a explicação; o analista aceita ou edita.
   - Chave Gemini da plataforma (Secret Manager); remover chave e modelo por usuário.
   - Gemini fora do ar → as sugestões determinísticas continuam funcionando.

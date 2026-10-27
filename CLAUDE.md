@@ -42,7 +42,7 @@ docs/m2/          plano do M2 · docs/superpowers/ specs e planos · docs/deciso
 
 ## Rodando o projeto
 
-1. `docker compose up -d` — Postgres 16 em `:5432` (usuário/senha/banco `app`). Variáveis em `.env.example`; sem `.env` valem os defaults.
+1. `docker compose up -d` — Postgres 16 em `:5432` (usuário/senha/banco `app`). Variáveis em `.env.example`; o mise carrega o `.env` se existir, e sem ele valem os defaults.
 2. `mise run db-migrate` — aplica as migrations.
 3. `mise run create-admin voce@exemplo.com "Seu Nome"` — cria o primeiro platform admin e imprime a senha temporária (troca obrigatória no 1º login).
 4. `mise run api` — API em `:8000` com reload.
