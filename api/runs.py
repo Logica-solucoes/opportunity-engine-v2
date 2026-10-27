@@ -90,7 +90,7 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
 
     try:
         launcher.launch(run.id)
-    except OSError:
+    except Exception:  # Popen's OSError locally, the Cloud Run client's own errors in the B11
         log.exception("run.launch_failed run_id=%s", run.id)
         run.status, run.error, run.finished_at = "failed", LAUNCH_ERROR, func.now()
         db.commit()

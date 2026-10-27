@@ -94,4 +94,10 @@ if __name__ == "__main__":
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(level=logging.INFO, handlers=[handler])
-    main()
+    # a crash before execute (database down, bad RUN_ID) still reaches Cloud Logging as one JSON line;
+    # the run stays queued until the API fails it as stale
+    try:
+        main()
+    except Exception:
+        log.exception("worker.crashed")
+        sys.exit(1)
