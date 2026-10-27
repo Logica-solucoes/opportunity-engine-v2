@@ -15,7 +15,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from api import db as api_db
-from api import passwords, simulations, storage
+from api import launcher, passwords, simulations, storage
 from api.main import create_app
 from api.models import Membership, User, Workspace
 
@@ -59,6 +59,20 @@ def fast_scrypt(monkeypatch):
 def no_gemini_key(monkeypatch):
     # tests never reach the real API; the ones that need an answer replace gemini.ask
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def launched(monkeypatch):
+    # no test ever spawns a real worker against the test db; the ones that run it call worker.execute
+    ids = []
+    monkeypatch.setattr(launcher, "launch", ids.append)
+    return ids
+
+
+@pytest.fixture(autouse=True)
+def fast_engine(monkeypatch):
+    monkeypatch.setenv("FAKE_ENGINE_STEP_SECONDS", "0")
+    monkeypatch.delenv("FAKE_ENGINE_FAIL", raising=False)
 
 
 @pytest.fixture
