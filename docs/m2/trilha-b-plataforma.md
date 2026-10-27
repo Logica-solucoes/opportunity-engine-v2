@@ -114,6 +114,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B4 · Jobs assíncronos e log em tempo real — semana 2
 
+- **Status:** ✅ feito. B4a (backend) em 27/out/2026, verificado por `tests/api/test_runs.py` (gate, snapshot, worker, run morto, SSE com retomada, isolamento entre workspaces, erro do motor em pt-BR com traceback só no stdout) e `tests/api/test_rbac.py`; B4b (tela) em 27/out/2026, verificado por `web/e2e/simulations.spec.ts` (rodar, log ao vivo, recarregar e retomar) e screenshots nos dois temas (rodando, concluída, falhou, lista com run ativo). Fora até a Trilha A: `engine.run` real e tradução do log (A0/A1). Fora até o B11: launcher do Cloud Run Jobs. Desvios em `docs/decisoes/runs-e-jobs.md`.
 - **BRD:** Capabilities › Processing engine & real-time log; Improvement Requests › Execution e Logs; deliverable "Real-time log".
 - **Depende de:** A0, B2, B3.
 - **Hoje:**

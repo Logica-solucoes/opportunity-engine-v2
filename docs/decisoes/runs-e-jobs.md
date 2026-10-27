@@ -37,3 +37,12 @@ Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam n
 ## Viewer e publicação
 
 As rotas de leitura aceitam viewer, mas ele só enxerga run com `published_at`, que só o B6 preenche. Até lá, run não publicado é 404 para o viewer, como recurso de outro workspace.
+
+## Tela (B4b)
+
+- **Página própria do run** (`/w/$slug/execucoes/$runId`), onde os dashboards do B5 vão entrar. A simulação lista os runs dela (até 20); a lista do workspace é do B6.
+- **`EventSource` nativo**, sem lib. Ele reconecta sozinho mandando `Last-Event-ID`; um fechamento sem `end` (401, 404) vira "Não foi possível acompanhar o log." O hook descarta linha com id menor ou igual à última, porque o segundo efeito do StrictMode reabre o stream e recebe o backlog de novo.
+- **Status por polling curto** enquanto o run está ativo (2 s na página, 3 s na lista): `queued → running` não tem evento próprio. O `end` do stream invalida a query na hora.
+- **"Etapa em andamento há N s"** é o relógio do navegador menos o `ts` da última linha, nunca negativo (relógios diferentes). É exibição, não conta do motor.
+- **Confirmações de aviso** continuam por índice na tela e viram `check.id` no `POST`.
+- **Rodar com run ativo** fica desabilitado com "Já há uma execução em andamento." e o link para ela; o 409 do servidor cobre duas abas e recarrega a lista, que passa a mostrar o run e o link. Rodar também fica desabilitado enquanto um upload ou um salvamento está em voo, para o run não sair dos dados anteriores.
