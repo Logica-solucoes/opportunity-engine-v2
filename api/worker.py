@@ -64,6 +64,9 @@ def execute(db: Session, run_id: int) -> None:
             "results_uri": key,
             "summary": {"status": results["status"]},
         }
+        if results["status"] == "failed":
+            values["error"] = ENGINE_ERROR.format(id=rid)
+            db.add(RunLog(run_id=rid, level="error", message=values["error"]))
     except Exception:  # any engine failure fails the run; the raw message may be English or carry data
         log.exception("worker.engine_failed run_id=%s", rid, extra=ids)
         db.rollback()

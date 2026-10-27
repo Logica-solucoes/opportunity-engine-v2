@@ -254,6 +254,17 @@ def test_an_unknown_engine_status_fails_the_run(db, ready, analyst, monkeypatch)
     assert run.results_uri is None
 
 
+def test_a_failed_engine_status_shows_the_ptbr_error(db, ready, analyst, monkeypatch):
+    run = runs.create(db, ready(), set(), by=analyst)
+    monkeypatch.setattr(engine_run, "run", lambda *a: {"status": "failed", "engine_version": "fake"})
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    assert (run.status, run.error) == ("failed", worker.ENGINE_ERROR.format(id=run.id))
+    assert messages(db, run.id)[-1] == run.error
+
+
 def test_worker_ignores_a_run_that_is_not_queued(db, ready, analyst):
     run = runs.create(db, ready(), set(), by=analyst)
     run.status = "succeeded"
