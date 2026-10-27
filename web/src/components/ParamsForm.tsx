@@ -47,7 +47,7 @@ export function ParamsForm(props: Props) {
         <LoadState query={suggestions} />
       ) : (
         // a failed suggestions call still opens the form, on the saved values and defaults
-        <ParamsFields {...props} schema={schema.data} suggestions={suggestions.data ?? {}} />
+        <ParamsFields key={version} {...props} schema={schema.data} suggestions={suggestions.data ?? {}} />
       )}
     </section>
   )
