@@ -7,7 +7,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { type LogLine, isActive, runQuery, useRunLog } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
 
-export const Route = createFileRoute('/_auth/w/$slug/execucoes/$runId')({ component: RunPage })
+export const Route = createFileRoute('/_auth/w/$slug/execucoes/$runId')({ component: RunRoute })
+
+// the router keeps the component when only runId changes; log ids are global, so the old lines would also hide the new ones
+function RunRoute() {
+  return <RunPage key={Route.useParams().runId} />
+}
 
 const LEVEL_CLASS: Record<LogLine['level'], string> = {
   info: '',
