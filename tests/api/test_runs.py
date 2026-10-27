@@ -127,6 +127,21 @@ def test_gate_requires_every_warning_confirmed(logged, ready, db):
     assert db.get(Run, full.json()["id"]).confirmed_warnings == ["gap_days", "short_history"]
 
 
+def test_only_real_warning_ids_are_stored(logged, ready, db):
+    simulation = ready()
+    warnings = [
+        {"id": "short_history", "level": "warning", "message": "Histórico curto"},
+        {"id": "gap_days", "level": "warning", "message": "Dias sem dado"},
+    ]
+    simulation.validation = {**simulation.validation, "checks": warnings}
+    db.commit()
+
+    r = post_run(logged, simulation, ["short_history", "gap_days", "bogus"])
+
+    assert r.status_code == 201
+    assert db.get(Run, r.json()["id"]).confirmed_warnings == ["gap_days", "short_history"]
+
+
 def test_one_active_run_per_simulation(logged, ready, db):
     simulation = ready()
     first = post_run(logged, simulation).json()
@@ -226,6 +241,17 @@ def test_engine_error_shows_ptbr_and_keeps_the_traceback_out_of_the_db(db, ready
     assert all("converge" not in m for m in messages(db, run.id))
     failure = next(r for r in caplog.records if r.exc_info)
     assert "did not converge" in str(failure.exc_info[1]) and failure.run_id == run.id
+
+
+def test_an_unknown_engine_status_fails_the_run(db, ready, analyst, monkeypatch):
+    run = runs.create(db, ready(), set(), by=analyst)
+    monkeypatch.setattr(engine_run, "run", lambda *a: {"status": "running", "engine_version": "fake"})
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    assert (run.status, run.error) == ("failed", worker.ENGINE_ERROR.format(id=run.id))
+    assert run.results_uri is None
 
 
 def test_worker_ignores_a_run_that_is_not_queued(db, ready, analyst):

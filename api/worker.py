@@ -14,6 +14,7 @@ from api.models import Run, RunLog
 
 log = logging.getLogger("api.worker")
 
+FINAL_STATUSES = ("succeeded", "inconclusive", "failed")
 ENGINE_ERROR = "O motor falhou. Detalhes técnicos ficam no log do servidor (execução {id})."
 
 
@@ -51,6 +52,8 @@ def execute(db: Session, run_id: int) -> None:
     try:
         with tempfile.TemporaryDirectory() as tmp:
             results = engine_run.run(inputs, config, Path(tmp), on_log)
+            if results["status"] not in FINAL_STATUSES:
+                raise ValueError(f"engine returned status {results['status']!r}")
             out = Path(tmp) / "results.json"
             out.write_text(json.dumps(results, ensure_ascii=False), encoding="utf-8")
             key = f"ws/{wid}/sim/{sid}/runs/{rid}/results.json"

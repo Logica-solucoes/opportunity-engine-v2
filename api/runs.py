@@ -61,6 +61,7 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
         raise Blocked(reason)
 
     files = {f.kind: f for f in simulation.files}
+    warning_ids = {c["id"] for c in simulation.validation["checks"] if c["level"] == "warning"}
     run = Run(
         workspace_id=simulation.workspace_id,
         simulation_id=simulation.id,
@@ -70,7 +71,7 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
             key: {"sha256": files[kind].sha256, "filename": files[kind].filename} if kind in files else None
             for key, kind in simulations.MAPPING_FILES.items()
         },
-        confirmed_warnings=sorted(confirmed),
+        confirmed_warnings=sorted(confirmed & warning_ids),
         created_by=by.id,
     )
     db.add(run)
