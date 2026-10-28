@@ -41,7 +41,14 @@ function WorkspaceHome() {
           </div>
         )}
       </div>
-      {canEdit ? <SimulationList slug={slug} /> : <p className="text-muted-foreground">Nenhuma simulação ainda.</p>}
+      {/* a viewer only lands here when demoted mid-session, before beforeLoad runs again */}
+      {canEdit ? (
+        <SimulationList slug={slug} />
+      ) : (
+        <Link to="/w/$slug/execucoes" params={{ slug }} className="text-primary hover:underline">
+          Ver execuções publicadas
+        </Link>
+      )}
     </div>
   )
 }
