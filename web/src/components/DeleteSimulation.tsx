@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/auth'
-import { type Simulation, simulationQuery, simulationsQuery } from '@/lib/simulations'
+import { type Simulation, type SimulationSummary, simulationQuery, simulationsQuery } from '@/lib/simulations'
 
 export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation }) {
   const queryClient = useQueryClient()
@@ -25,11 +25,16 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
   const remove = useMutation({
     mutationFn: () => api<void>(`/w/${slug}/simulations/${sim.id}`, { method: 'DELETE' }),
     onSuccess: async () => {
+      queryClient.setQueryData<SimulationSummary[]>(simulationsQuery(slug).queryKey, (list) =>
+        list?.filter((s) => s.id !== sim.id),
+      )
       // leave first: dropping the query while the page is mounted would refetch it into a 404
       await navigate({ to: '/w/$slug', params: { slug } })
       queryClient.removeQueries({ queryKey: simulationQuery(slug, String(sim.id)).queryKey })
       queryClient.invalidateQueries({ queryKey: simulationsQuery(slug).queryKey })
       queryClient.invalidateQueries({ queryKey: ['runs', slug] })
+      // the deleted simulation's runs must not come back from cache on Back
+      queryClient.removeQueries({ queryKey: ['runs', slug], type: 'inactive' })
     },
   })
 
@@ -67,7 +72,7 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
             </p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={remove.isPending}>Cancelar</AlertDialogCancel>
             {/* a plain Button: AlertDialogAction would close the dialog before a 409 could show */}
             <Button
               variant="destructive"

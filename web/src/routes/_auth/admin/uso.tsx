@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,6 +55,14 @@ function Usage() {
   const navigate = useNavigate({ from: Route.fullPath })
   const month = search.month === 'todos' ? undefined : (search.month ?? thisMonth())
   const qs = month ? `?month=${month}` : ''
+  // the field keeps its own text: Safari/Firefox render type=month as a text box, and a half-typed
+  // value (or Chrome's '' mid-edit) must not round-trip through the URL
+  const [draft, setDraft] = useState(month ?? '')
+  const changeMonth = (value: string) => {
+    setDraft(value)
+    if (value === '') navigate({ search: { month: 'todos' }, replace: true })
+    else if (MONTH.test(value)) navigate({ search: { month: value }, replace: true })
+  }
   const usage = useQuery({
     queryKey: ['admin', 'usage', month ?? 'todos'],
     queryFn: () => api<UsageRow[]>(`/admin/usage${qs}`),
@@ -68,12 +77,12 @@ function Usage() {
             id="usage-month"
             type="month"
             className="w-44"
-            value={month ?? ''}
-            onChange={(e) => navigate({ search: { month: e.target.value || 'todos' }, replace: true })}
+            value={draft}
+            onChange={(e) => changeMonth(e.target.value)}
           />
         </div>
         {month && (
-          <Button variant="outline" size="sm" onClick={() => navigate({ search: { month: 'todos' }, replace: true })}>
+          <Button variant="outline" size="sm" onClick={() => changeMonth('')}>
             Todos os meses
           </Button>
         )}
