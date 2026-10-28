@@ -44,13 +44,20 @@ function RunPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Link
-          to="/w/$slug/simulacoes/$id"
-          params={{ slug, id: String(run.simulation.id) }}
-          className="text-sm text-muted-foreground hover:text-primary"
-        >
-          ← {run.simulation.name}
-        </Link>
+        {/* viewers can't open simulations, so their way back is the history */}
+        {canEdit ? (
+          <Link
+            to="/w/$slug/simulacoes/$id"
+            params={{ slug, id: String(run.simulation.id) }}
+            className="text-sm text-muted-foreground hover:text-primary"
+          >
+            ← {run.simulation.name}
+          </Link>
+        ) : (
+          <Link to="/w/$slug/execucoes" params={{ slug }} className="text-sm text-muted-foreground hover:text-primary">
+            ← Execuções
+          </Link>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">Execução #{run.id}</h1>
           <RunStatusBadge status={run.status} />

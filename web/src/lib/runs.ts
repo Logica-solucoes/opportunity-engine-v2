@@ -73,7 +73,7 @@ export function parseRunFilters(search: Record<string, unknown>): RunFilters {
   const status = text(search.status)
   return {
     q: text(search.q),
-    status: status && status in STATUS_LABELS ? (status as RunStatus) : undefined,
+    status: status && Object.hasOwn(STATUS_LABELS, status) ? (status as RunStatus) : undefined,
     author: text(search.author),
     from: text(search.from),
     to: text(search.to),
