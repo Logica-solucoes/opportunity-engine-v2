@@ -19,6 +19,9 @@ function AdminLayout() {
         <Link to="/admin/usuarios" className={tab} activeProps={{ className: 'border-primary! text-primary' }}>
           Usuários
         </Link>
+        <Link to="/admin/uso" className={tab} activeProps={{ className: 'border-primary! text-primary' }}>
+          Uso
+        </Link>
       </nav>
       <Outlet />
     </div>
