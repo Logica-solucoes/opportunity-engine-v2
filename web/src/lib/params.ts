@@ -80,7 +80,8 @@ export function displayValue(field: FormField, value: unknown): string {
   if (value == null) return '—'
   if (field.schema.type === 'boolean') return value ? 'Sim' : 'Não'
   if (field.schema.enum) return ENUM_LABELS[String(value)] ?? String(value)
-  return typeof value === 'number' ? value.toLocaleString('pt-BR') : String(value)
+  // the default rounds to 3 decimals, and a p-value of 0.0001 would read "0"
+  return typeof value === 'number' ? value.toLocaleString('pt-BR', { maximumFractionDigits: 20 }) : String(value)
 }
 
 export const configSchemaQuery = queryOptions({
