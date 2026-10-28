@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { type Browser, expect, type Page } from '@playwright/test'
 import { ROOT, pyEnv } from './env'
 
@@ -68,4 +69,36 @@ export async function newSession(browser: Browser, user: { email: string; temp: 
   await login(page, user.email, user.temp)
   await changePassword(page, user.temp)
   return page
+}
+
+export const template = (name: string) => fileURLToPath(new URL(`../public/templates/${name}`, import.meta.url))
+
+export async function createSimulation(page: Page, slug: string, name: string) {
+  await page.goto(`/w/${slug}`)
+  await page.getByRole('link', { name: 'Nova simulação' }).click()
+  await page.getByLabel('Nome').fill(name)
+  await page.getByRole('button', { name: 'Criar' }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}/simulacoes/\\d+$`))
+}
+
+export async function uploadTemplatesAndValidate(page: Page) {
+  await page.getByLabel('Arquivo de investimento').setInputFiles(template('investimento.csv'))
+  await expect(page.getByText('investimento.csv', { exact: true })).toBeVisible()
+  await page.getByLabel('Arquivo de performance').setInputFiles(template('performance.csv'))
+  await expect(page.getByText('performance.csv', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Validar' }).click()
+  await expect(page.getByText('Nenhum problema encontrado.')).toBeVisible()
+}
+
+// the fake engine takes ~5 s (FAKE_ENGINE_STEP_SECONDS=1 in env.ts); returns the run page's URL
+export async function runToCompletion(page: Page, slug: string, name: string) {
+  await createSimulation(page, slug, name)
+  await uploadTemplatesAndValidate(page)
+  await page.getByRole('button', { name: 'Salvar parâmetros' }).click()
+  await expect(page.getByRole('button', { name: 'Rodar' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Rodar' }).click()
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+$`))
+  await expect(page.getByText('Concluída', { exact: true })).toBeVisible()
+  return page.url()
 }
