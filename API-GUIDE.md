@@ -29,6 +29,7 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | GET | `/api/w/{slug}/simulations` | Analyst+. `[{id, name, created_by_name, created_at, updated_at}]`, mais recente primeiro |
 | POST | `/api/w/{slug}/simulations` | Analyst+. `{name}` (1–120) → 201 `SimulationOut` = `{id, name, config, validation, files: {investment\|performance\|trends: {filename, size_bytes, sha256, columns, suggested, uploaded_at} \| null}}` |
 | GET | `/api/w/{slug}/simulations/{simulation_id}` | Analyst+. `SimulationOut` |
+| DELETE | `/api/w/{slug}/simulations/{simulation_id}` | Admin do workspace. → 204; apaga a simulação, os arquivos, os runs e os logs (cascade) e depois a pasta `ws/{wid}/sim/{sid}/` no storage. 409 "Há uma execução em andamento." com run `queued`/`running` (depois do `fail_stale`) |
 | PUT | `/api/w/{slug}/simulations/{simulation_id}/files/{kind}` | Analyst+. Multipart `file` (`.csv`, ≤ 30 MB) → `SimulationOut`; substitui o arquivo do `kind` e zera `validation`. 413 acima de 30 MB; 422 extensão ou cabeçalho ilegível |
 | PUT | `/api/w/{slug}/simulations/{simulation_id}/mapping` | Analyst+. `{investment_file, performance_file, generic_trends_file?}` (formato do `column_mapping`) → salva em `config`, roda o validate e devolve `SimulationOut`; 422 arquivo faltando ou coluna inexistente |
 | GET | `/api/engine/config-schema` | Sessão ativa. JSON Schema do `ParamsIn` (campos do formulário de parâmetros, com defaults e limites) |
@@ -48,6 +49,8 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | GET | `/api/admin/users` | Platform admin. `[{id, email, name, active, is_platform_admin, locked_until}]` |
 | POST | `/api/admin/users/{user_id}/reset-password` | Platform admin. `{temp_password}` (`Cache-Control: no-store`); derruba as sessões e desbloqueia |
 | PATCH | `/api/admin/users/{user_id}` | Platform admin. `{active}`; desativar derruba as sessões; reativar zera o bloqueio; 400 `cannot_deactivate_self` ao desativar a si mesmo |
+| GET | `/api/admin/usage` | Platform admin. `?month=YYYY-MM` opcional (fora do formato → 422). `[{month, workspace_id, workspace_name, user_id, user_name, user_email, succeeded, inconclusive, failed, active, total, run_seconds}]`, mês mais recente primeiro; mês no fuso de São Paulo |
+| GET | `/api/admin/usage.csv` | Platform admin. Mesmo filtro. CSV como anexo `uso-YYYY-MM.csv` (ou `uso.csv`), `;` e vírgula decimal, com BOM, minutos com uma casa |
 
 Os demais entram com B5–B9. Cada rota nova ganha uma linha aqui **e** uma entrada em `ROUTES` de `tests/api/test_rbac.py` no mesmo commit; o teste falha se uma rota `/api/*` ficar de fora.
 

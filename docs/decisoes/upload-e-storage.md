@@ -34,6 +34,14 @@ O `engine/` não existe ainda. `api/validation.py` segue a assinatura e o format
 
 O B2 só devolve o report; as confirmações de warning ficam na tela. Quem recusa um run com `error` ou warning não confirmado é a criação do run no B4, no servidor.
 
+## Apagar simulação (B9)
+
+Só o admin do workspace (e o platform admin, que o `require_role` trata como admin) apaga. Com run `queued`/`running` é 409: o worker gravaria o resultado numa pasta e numa linha que já não existem. A linha da simulação é travada `FOR UPDATE` antes da checagem, para um run criado ao mesmo tempo esperar e achar a simulação apagada.
+
+A ordem é banco, depois storage. Apagar a linha leva `simulation_files`, `runs` e `run_logs` pelo `ON DELETE CASCADE`; depois sai a pasta `ws/{wid}/sim/{sid}/` inteira (entradas e `results.json`). Se o storage falhar, a resposta continua 204 e o log registra `simulation.files_orphaned` com o prefixo, para limpeza manual. O contrário (arquivos apagados e linhas de pé) deixaria runs apontando para arquivos que não existem. Retenção automática espera o prazo de LGPD do Data Tech.
+
+Limites conhecidos: um upload que ainda está gravando no storage quando o apagar confirma recria a pasta `inputs/` com um arquivo órfão (o `save_file` grava antes de travar a linha), e um worker vivo de um run já marcado como morto recria a pasta do run com um `results.json` órfão. Os dois são raros (o Job do Cloud Run expira em 15 min e o run só é morto aos 20) e ficam para o B11, junto com o GCS. Duas operações simultâneas sobre uma simulação que acabou de ser apagada dão 500, não 404.
+
 ## Telas (B2b)
 
 - **Pré-preenchimento do mapping.** Um re-upload zera o `validation` mas mantém o `config.column_mapping`, que pode apontar para uma coluna que o arquivo novo não tem. A tela usa o salvo só se a coluna ainda existe e cai no `suggested` caso contrário (`initialColumn` em `web/src/lib/simulations.ts`). O backend não limpa o mapping: quem decide o que mostrar é a tela, e o `PUT …/mapping` recusa coluna inexistente de qualquer jeito.

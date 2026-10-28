@@ -37,3 +37,13 @@ O CI roda `tsc -b` antes de qualquer geração do plugin do TanStack Router, ent
 ## Porta 5432 e o compose de dev
 
 O `docker-compose.yml` publica `5432:5432`. **Sintoma:** com outro Postgres local na 5432 (já aconteceu), o `docker compose up` falha. Libere a porta ou troque o mapeamento no seu compose.
+
+## Logs em JSON com os IDs da request (B9)
+
+Uma linha JSON por evento no stdout (`severity`, `logger`, `message` e, quando existem, `user_id`, `workspace_id`, `run_id`), na API e no worker, inclusive no dev: o Cloud Logging lê assim, e o dev vê o mesmo que a produção. `api/logs.py` concentra o formatter, o filtro e o `setup()`, que também troca os handlers do uvicorn (o access log incluso). O `setup()` roda no import de `api/main.py` porque o uvicorn configura os loggers dele antes de importar a app. O `cli.py` continua em texto: a saída dele é para quem está no terminal.
+
+**Sintoma que guiou o desenho:** dependência síncrona do FastAPI roda numa cópia do contexto, então um `ContextVar.set()` feito no `require_role` não chega à rota. O middleware cria um `dict` por request no `ContextVar`, e `current_session`/`require_role`/`find_run` **mutam** esse objeto (`logs.tag`), que é o mesmo nas cópias. O worker abre o seu no `main` (`logs.scope(run_id=…)`) e completa com workspace e autor no `execute`. Nenhuma chamada `log.info` precisa passar `extra=`. O middleware não reseta o `ContextVar` ao sair: o uvicorn loga o traceback de um 500 e a linha de access log depois que o middleware retorna, e cada request roda na sua própria task, então o `dict` morre com ela.
+
+## Uso derivado de `runs` (B9)
+
+A view `usage` agrega `runs` por workspace × usuário × mês, com status em colunas e o tempo de execução somado: sem tabela nova, sem job de consolidação, e um BI pode ler a view direto. O mês é o de São Paulo, não o de UTC (um run às 22h do dia 31 é daquele mês). O CSV sai com `;`, vírgula decimal e BOM, o que o Excel em pt-BR abre sem assistente. Nomes e e-mails no CSV que começam com `=`, `+`, `-`, `@`, tab ou CR saem com `'` na frente (`SECURITY.md`). A cópia no BigQuery do trilha-b ficou para o B11, quando houver projeto GCP; é o 6º da ordem de corte.
