@@ -78,10 +78,10 @@ function Rerun({ slug, run }: { slug: string; run: Run }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const restore = useMutation({
-    mutationFn: () => {
-      // ParamsIn forbids unknown keys, and the PUT keeps the simulation's own column_mapping
-      const params = { ...run.config }
-      delete params.column_mapping
+    mutationFn: async () => {
+      // ParamsIn forbids unknown keys: column_mapping, channel_groups etc. stay as the simulation has them
+      const schema = await queryClient.fetchQuery(configSchemaQuery)
+      const params = Object.fromEntries(Object.entries(run.config).filter(([key]) => key in (schema.properties ?? {})))
       return api<Simulation>(`/w/${slug}/simulations/${run.simulation.id}/params`, { method: 'PUT', body: params })
     },
   })
