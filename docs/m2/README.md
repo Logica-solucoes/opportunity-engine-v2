@@ -164,7 +164,7 @@ Em paralelo: o onboarding das 4 marcas Core vai de 26/out a 13/nov. Rode `engine
 3. Uso do resultado de experimento como calibração (A7) — guardar o upload basta.
 4. Comparação lado a lado no histórico (B6) — busca e filtro bastam.
 5. Overlap DV360/CM360 (A2) — vira warning manual.
-6. Cópia do histórico no BigQuery (B9) — Postgres basta para o M2.
+6. Cópia do histórico no BigQuery (B11; era B9) — Postgres basta para o M2.
 7. OAuth nativo Ads/GA4 (B8) — o fallback DTS já é o padrão.
 
 **Nunca cortar:** gates de publicação, RBAC por workspace, jobs na nuvem, grounding do Gemini e auditoria. É isso que o Google homologa no M2.

@@ -40,6 +40,8 @@ Só o admin do workspace (e o platform admin, que o `require_role` trata como ad
 
 A ordem é banco, depois storage. Apagar a linha leva `simulation_files`, `runs` e `run_logs` pelo `ON DELETE CASCADE`; depois sai a pasta `ws/{wid}/sim/{sid}/` inteira (entradas e `results.json`). Se o storage falhar, a resposta continua 204 e o log registra `simulation.files_orphaned` com o prefixo, para limpeza manual. O contrário (arquivos apagados e linhas de pé) deixaria runs apontando para arquivos que não existem. Retenção automática espera o prazo de LGPD do Data Tech.
 
+Apagar a simulação também tira os runs dela do uso (a view `usage` lê `runs`). É de propósito: o hard delete é o que uma limpeza no estilo LGPD precisa, e um uso que sobrevivesse ao apagar exigiria uma tabela própria.
+
 Limites conhecidos: um upload que ainda está gravando no storage quando o apagar confirma recria a pasta `inputs/` com um arquivo órfão (o `save_file` grava antes de travar a linha), e um worker vivo de um run já marcado como morto recria a pasta do run com um `results.json` órfão. Os dois são raros (o Job do Cloud Run expira em 15 min e o run só é morto aos 20) e ficam para o B11, junto com o GCS. Duas operações simultâneas sobre uma simulação que acabou de ser apagada dão 500, não 404.
 
 ## Telas (B2b e B9b)
