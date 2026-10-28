@@ -46,7 +46,7 @@ Spec: `docs/superpowers/specs/2026-10-28-b6-historico-design.md`.
 - **"Rodar de novo" restaura na simulação.** O front faz `PUT …/params` com o `config` do run e leva à simulação; o gate da B4 continua sendo o único caminho para criar run. Os arquivos são os atuais da simulação.
 - **Fora até o A1:** comparar runs lado a lado e colunas de métricas do `summary` (hoje ele só repete o status). **Fora até haver dataset anonimizado e motor real:** o modo demo.
 
-## Tela (B4b)
+## Telas (B4b e B6b)
 
 - **Página própria do run** (`/w/$slug/execucoes/$runId`), onde os dashboards do B5 vão entrar. A simulação lista os runs dela (até 20); a lista do workspace é do B6.
 - **`EventSource` nativo**, sem lib. Ele reconecta sozinho mandando `Last-Event-ID`; um fechamento sem `end` (401, 404) vira "Não foi possível acompanhar o log." O hook descarta linha com id menor ou igual à última, porque um Fast Refresh reabre o stream mantendo as linhas e recebe o backlog de novo.
@@ -55,3 +55,6 @@ Spec: `docs/superpowers/specs/2026-10-28-b6-historico-design.md`.
 - **Confirmações de aviso** continuam por índice na tela e viram `check.id` no `POST`.
 - **Rodar com run ativo** fica desabilitado com "Já há uma execução em andamento." e o link para ela; o 409 do servidor cobre duas abas e recarrega a lista, que passa a mostrar o run e o link. Rodar também fica desabilitado enquanto um upload ou um salvamento está em voo, para o run não sair dos dados anteriores, e enquanto a lista de runs carrega. O erro do último clique some quando um run começa ou termina. Quem sai da página durante o `POST` não é levado para o run.
 - **Parâmetro editado e não salvo** desabilita Rodar com "Salve os parâmetros antes de rodar.": o run usa a config salva, não a da tela. A comparação é no formato do corpo do `PUT` ("0.20" na tela é igual a 0,2 salvo). O servidor não sabe da tela, então o gate dele não cobre isso.
+- **Histórico em `/w/$slug/execucoes`.** Os filtros (busca, status, autor, período) ficam nos search params, com `replace` para a digitação não encher o histórico do navegador. O período compara o dia local de `created_at` com o `<input type="date">`. O autor é filtrado pelo nome, porque o `RunOut` não traz o id de quem criou.
+- **Viewer cai no histórico.** A home do workspace redireciona o viewer no `beforeLoad`; para ele o histórico não tem o link "← Simulações", que voltaria em loop, e a página do run volta para "← Execuções" em vez da simulação, que ele não abre.
+- **"Rodar de novo" no diálogo.** O botão de confirmar é um `Button` comum, não o `AlertDialogAction`, para o 422 (parâmetros que o motor atual não aceita mais) aparecer no próprio diálogo. O corpo do `PUT` é o `config` do run sem o `column_mapping`; quando o A3/A4 gravarem `channel_groups`, `controls` ou `gate_thresholds` no `config`, o `ParamsIn` precisa aceitá-los ou o front precisa tirá-los do corpo.
