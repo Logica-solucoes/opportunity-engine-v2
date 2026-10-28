@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from api import logs
 from api.db import get_db
 from api.models import Membership, User, UserSession, Workspace
 from api.passwords import dummy_hash, verify_password
@@ -140,6 +141,7 @@ def current_session(
 
 
 def current_user(session: UserSession = Depends(current_session)) -> User:
+    logs.tag(user_id=session.user_id)
     return session.user
 
 
@@ -161,6 +163,7 @@ def require_role(min_role: str):
         workspace = db.scalar(select(Workspace).where(Workspace.slug == slug))
         if workspace is None:
             raise HTTPException(404)
+        logs.tag(workspace_id=workspace.id)
 
         if user.is_platform_admin:
             role = "admin"

@@ -83,3 +83,39 @@ def test_setup_turns_the_root_and_uvicorn_loggers_into_json():
         ("uvicorn.access", "INFO", "GET / 200"),
         ("api.x", "WARNING", "oi"),
     ]
+
+
+def test_request_logs_carry_the_user_and_the_workspace(lines, client, make_user, make_workspace, login_as):
+    ana = make_user("ana@x.com")
+    ws = make_workspace("a", [(ana, "analyst")])
+    login_as(client, ana)
+
+    client.post("/api/w/a/simulations", json={"name": "Black Friday"})
+
+    e = entry(lines, "simulation.created")
+    assert (e["user_id"], e["workspace_id"], e["logger"]) == (ana.id, ws.id, "api.simulations")
+    assert "run_id" not in e
+
+
+def test_run_routes_add_the_run(lines, db, client, finished_run, login_as):
+    ana, ws, run = finished_run
+    run.status = "succeeded"
+    db.commit()
+    login_as(client, ana)
+
+    client.post(f"/api/w/a/runs/{run.id}/publish")
+
+    e = entry(lines, "run.published")
+    assert (e["user_id"], e["workspace_id"], e["run_id"]) == (ana.id, ws.id, run.id)
+
+
+def test_ids_do_not_leak_into_the_next_request(lines, client, make_user, make_workspace, login_as):
+    ana = make_user("ana@x.com")
+    make_workspace("a", [(ana, "analyst")])
+    login_as(client, ana)
+    client.post("/api/w/a/simulations", json={"name": "Black Friday"})
+
+    client.post("/api/auth/login", json={"email": "ana@x.com", "password": "senha-errada-123"})
+
+    e = entry(lines, "auth.login_failed")
+    assert not {"user_id", "workspace_id", "run_id"} & e.keys()

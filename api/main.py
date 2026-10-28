@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 
-from api import auth, db, passwords
+from api import auth, db, logs, passwords
 from api.routes import admin, engine, members, runs, simulations
 from api.routes import auth as auth_routes
 
@@ -47,6 +47,7 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
 
 def create_app(web_dist: Path | None = None) -> FastAPI:
     app = FastAPI(title="Marketing GEM")
+    app.middleware("http")(logs.request_context)
     app.middleware("http")(auth.check_origin)
     app.exception_handler(passwords.Busy)(busy)
     app.exception_handler(RequestValidationError)(invalid_request)
@@ -61,4 +62,6 @@ def create_app(web_dist: Path | None = None) -> FastAPI:
     return app
 
 
+# at import, so uvicorn (which configures its loggers before importing the app) ends up with JSON
+logs.setup()
 app = create_app()

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from api import runs, simulations, storage
+from api import logs, runs, simulations, storage
 from api.auth import Ctx, require_role
 from api.db import SessionLocal, get_db
 from api.models import Run, RunLog
@@ -82,6 +82,7 @@ def find_run(db: Session, ctx: Ctx, run_id: int) -> Run:
     run = db.scalar(select(Run).where(Run.id == run_id, *runs.visible(ctx)))
     if run is None:
         raise HTTPException(404)
+    logs.tag(run_id=run.id)
     return run
 
 
