@@ -14,6 +14,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # the 20 minutes are runs.STALE_AFTER: fail_stale stamps finished_at when someone next looks, long after a dead run died
     # the business month is São Paulo's: a run at 22:00 on the 31st belongs to that month, not the next
     op.execute(
         """
@@ -27,7 +28,9 @@ def upgrade() -> None:
             count(*) FILTER (WHERE status = 'failed') AS failed,
             count(*) FILTER (WHERE status IN ('queued', 'running')) AS active,
             count(*) AS total,
-            coalesce(sum(extract(epoch FROM finished_at - started_at)), 0)::bigint AS run_seconds
+            coalesce(sum(extract(
+                epoch FROM least(finished_at, created_at + interval '20 minutes') - started_at
+            )), 0)::bigint AS run_seconds
         FROM runs
         GROUP BY workspace_id, created_by, month
         """

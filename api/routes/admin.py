@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api import accounts, usage
+from api import accounts, runs, usage
 from api.auth import require_platform_admin
 from api.db import get_db
 from api.models import User, Workspace
@@ -112,11 +112,13 @@ def set_active(
 
 @router.get("/usage", response_model=list[UsageRow])
 def list_usage(month: Month = None, _: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    runs.fail_stale(db)
     return usage.rows(db, month)
 
 
 @router.get("/usage.csv")
 def export_usage(month: Month = None, _: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    runs.fail_stale(db)
     name = f"uso-{month}.csv" if month else "uso.csv"
     return Response(
         usage.to_csv(usage.rows(db, month)),

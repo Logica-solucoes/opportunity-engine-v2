@@ -69,6 +69,15 @@ def test_usage_counts_runs_by_status_and_sums_the_run_time(db, ws, ana, add_run)
     }
 
 
+def test_a_run_that_died_counts_at_most_the_stale_window(db, ws, ana, add_run):
+    # fail_stale stamps finished_at days later, when someone next touches the workspace
+    add_run(ws, ana, "failed", seconds=3 * 24 * 3600)
+
+    [row] = usage.rows(db, None)
+
+    assert row["run_seconds"] == 20 * 60 - 5
+
+
 def test_the_month_is_the_business_month_in_sao_paulo(db, ws, ana, add_run):
     # 01:00 UTC on Oct 1 is still Sep 30 in São Paulo
     add_run(ws, ana, "succeeded", created_at=datetime(2026, 10, 1, 1, 0, tzinfo=UTC))
@@ -121,6 +130,19 @@ def test_usage_route_filters_by_month(root_client, ws, ana, add_run):
 
     assert [r["month"] for r in every.json()] == ["2026-11", "2026-10"]
     assert [(r["month"], r["user_email"], r["succeeded"]) for r in october.json()] == [("2026-10", "ana@x.com", 1)]
+
+
+def test_usage_routes_fail_a_dead_run_instead_of_showing_it_active(root_client, ws, ana, add_run):
+    add_run(ws, ana, "running")
+
+    [row] = root_client.get("/api/admin/usage").json()
+    assert (row["failed"], row["active"]) == (1, 0)
+
+
+def test_usage_csv_fails_a_dead_run_too(root_client, ws, ana, add_run):
+    add_run(ws, ana, "running")
+
+    assert root_client.get("/api/admin/usage.csv").text.endswith("2026-10;A;ana;ana@x.com;0;0;1;0;1;0,0\n")
 
 
 @pytest.mark.parametrize("month", ["2026-13", "2026-1", "out/2026", "2026-10-01", "٢٠٢٦-10"])
