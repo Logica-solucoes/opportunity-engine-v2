@@ -1,5 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { LoadState } from '@/components/LoadState'
 import { NativeSelect } from '@/components/NativeSelect'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
@@ -34,7 +35,12 @@ function HistoryPage() {
   const { data } = query
   // replace: typing in the search box must not push one history entry per key
   const set = (patch: RunFilters) => navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true })
-  const clear = () => navigate({ search: {}, replace: true })
+  // the box keeps its own text: fed from the URL, which updates a frame late, the caret jumped to the end
+  const [q, setQ] = useState(filters.q ?? '')
+  const clear = () => {
+    setQ('')
+    navigate({ search: {}, replace: true })
+  }
   const authors = [...new Set(data?.map((r) => r.created_by_name))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   const shown = data ? filterRuns(data, filters) : []
 
@@ -58,8 +64,11 @@ function HistoryPage() {
             type="search"
             placeholder="Buscar pelo nome"
             className="w-56"
-            value={filters.q ?? ''}
-            onChange={(e) => set({ q: e.target.value || undefined })}
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value)
+              set({ q: e.target.value || undefined })
+            }}
           />
         </div>
         <div className="space-y-1">
