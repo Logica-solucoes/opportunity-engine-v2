@@ -1,16 +1,16 @@
 import asyncio
 import json
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from api import runs
+from api import runs, simulations, storage
 from api.auth import Ctx, require_role
 from api.db import SessionLocal, get_db
 from api.models import Run, RunLog
@@ -28,6 +28,8 @@ BACKLOG = 300
 BATCH = 500
 # ponytail: the history filters run in the browser over the newest 500; past that, move them to query params
 HISTORY_LIMIT = 500
+
+InputKey = Literal["investment_file", "performance_file", "generic_trends_file"]
 
 
 class RunIn(BaseModel):
@@ -140,6 +142,17 @@ def unpublish_run(run_id: RunId, ctx: Ctx = Depends(analyst), db: Session = Depe
     run = find_run(db, ctx, run_id)
     runs.unpublish(db, run, by=ctx.user)
     return run_out(run)
+
+
+@router.get("/runs/{run_id}/inputs/{key}")
+def download_input(run_id: RunId, key: InputKey, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
+    # viewers see the published result, never the client's raw csv
+    run = find_run(db, ctx, run_id)
+    entry = run.inputs.get(key)
+    if entry is None:
+        raise HTTPException(404)
+    path = storage.path(simulations.input_key(run.workspace_id, run.simulation_id, entry["sha256"]))
+    return FileResponse(path, media_type="text/csv", filename=entry["filename"])
 
 
 def poll(run_id: int, after: int | None, sweep: bool = False) -> tuple[str | None, str, int | None]:

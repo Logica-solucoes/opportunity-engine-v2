@@ -38,6 +38,7 @@ ROUTES = {
     ("GET", "/api/w/{slug}/runs/{run_id}/logs/stream"): ("viewer", 200, None),
     ("POST", "/api/w/{slug}/runs/{run_id}/publish"): ("analyst", 200, None),
     ("POST", "/api/w/{slug}/runs/{run_id}/unpublish"): ("analyst", 200, None),
+    ("GET", "/api/w/{slug}/runs/{run_id}/inputs/{key}"): ("analyst", 200, None),
     ("GET", "/api/engine/config-schema"): (SESSION, 200, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
@@ -93,6 +94,7 @@ def test_role_matrix(route, actor, client, env, login_as):
         simulation_id=env["simulation"].id,
         run_id=env["run"].id,
         kind="investment",
+        key="investment_file",
     )
     payload = body(env) if body else None
 

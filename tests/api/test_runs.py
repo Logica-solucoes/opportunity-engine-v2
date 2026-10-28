@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import sys
@@ -322,6 +323,39 @@ def test_unpublishing_a_run_never_published_is_a_no_op(logged, ready, db, analys
     r = logged.post(f"/api/w/a/runs/{run.id}/unpublish")
 
     assert (r.status_code, r.json()["published_at"]) == (200, None)
+
+
+def test_input_download_serves_the_snapshot_even_after_a_new_upload(logged, ready, db, analyst):
+    simulation = ready()
+    run = runs.create(db, simulation, set(), by=analyst)
+    simulations.save_file(db, simulation, "investment", io.BytesIO(DUPLICATE), "novo.csv", by=analyst)
+
+    r = logged.get(f"/api/w/a/runs/{run.id}/inputs/investment_file")
+
+    assert r.status_code == 200
+    assert r.content == INVESTMENT
+    assert r.headers["content-type"].startswith("text/csv")
+    assert 'filename="investment.csv"' in r.headers["content-disposition"]
+
+
+def test_input_download_of_a_missing_or_unknown_input(logged, ready, db, analyst):
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    assert logged.get(f"/api/w/a/runs/{run.id}/inputs/generic_trends_file").status_code == 404
+    assert logged.get(f"/api/w/a/runs/{run.id}/inputs/senhas").status_code == 422
+
+
+def test_history_routes_hide_runs_of_another_workspace(logged, ready, db, analyst, make_user, make_workspace):
+    other = make_workspace("b", [(make_user("bo@x.com"), "analyst")])
+    run = finished(db, ready(workspace=other), analyst)
+
+    for method, path in [
+        ("POST", f"/api/w/a/runs/{run.id}/publish"),
+        ("POST", f"/api/w/a/runs/{run.id}/unpublish"),
+        ("GET", f"/api/w/a/runs/{run.id}/inputs/investment_file"),
+        ("POST", f"/api/w/b/runs/{run.id}/publish"),
+    ]:
+        assert logged.request(method, path).status_code == 404, (method, path)
 
 
 def messages(db, run_id):
