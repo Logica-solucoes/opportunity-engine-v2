@@ -48,7 +48,7 @@ def setup() -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     handler.addFilter(ContextFilter())
-    # no force=: under pytest the root already holds the capture handlers, and basicConfig leaves them alone
+    # no force=: if the root already has handlers (a second setup() call), basicConfig adds nothing
     logging.basicConfig(level=logging.INFO, handlers=[handler])
     # uvicorn's loggers bring their own text handlers and don't propagate; uvicorn.error goes through "uvicorn"
     for name in ("uvicorn", "uvicorn.access"):
@@ -58,5 +58,7 @@ def setup() -> None:
 
 
 async def request_context(request: Request, call_next):
-    with scope():
-        return await call_next(request)
+    # no reset: uvicorn logs a 500's traceback and the access line after this returns, and still needs the ids.
+    # The server runs each request in its own task, so the dict dies with it
+    context.set({})
+    return await call_next(request)

@@ -137,11 +137,11 @@ def current_session(
     if t - session.last_seen_at > TOUCH_EVERY:
         session.last_seen_at = t
         db.commit()
+    logs.tag(user_id=session.user_id)
     return session
 
 
 def current_user(session: UserSession = Depends(current_session)) -> User:
-    logs.tag(user_id=session.user_id)
     return session.user
 
 
