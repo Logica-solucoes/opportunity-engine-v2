@@ -37,7 +37,11 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | PUT | `/api/w/{slug}/simulations/{simulation_id}/params` | Analyst+. `ParamsIn` → `SimulationOut`; grava em `config` com os defaults e preserva o `column_mapping`; não mexe no `validation`. 422 do pydantic com `loc` por campo; 422 sem mapeamento confirmado |
 | POST | `/api/w/{slug}/simulations/{simulation_id}/runs` | Analyst+. `{confirmed_warnings: [check_id]}` → 201 `RunOut` (`queued`, ou `failed` se o worker não subiu); snapshot de `config` e do sha256 dos inputs. 409 com a frase pt-BR: sem validação, erro na validação, aviso não confirmado, parâmetros não salvos, ou já há run ativo na simulação |
 | GET | `/api/w/{slug}/simulations/{simulation_id}/runs` | Viewer+ (viewer só vê publicados). Até 20 `RunOut`, mais recente primeiro |
-| GET | `/api/w/{slug}/runs/{run_id}` | Viewer+ (viewer só vê publicado; senão 404). `RunOut`: `{id, status, simulation: {id, name}, created_by_name, created_at, started_at, finished_at, error, summary, engine_version}` |
+| GET | `/api/w/{slug}/runs` | Viewer+ (viewer só vê publicados). Até 500 `RunOut` do workspace, mais recente primeiro; os filtros do histórico rodam no front |
+| GET | `/api/w/{slug}/runs/{run_id}` | Viewer+ (viewer só vê publicado; senão 404). `RunOut`: `{id, status, simulation: {id, name}, created_by_name, created_at, started_at, finished_at, error, summary, engine_version, config, inputs: {investment_file\|performance_file\|generic_trends_file: {filename, sha256} \| null}, published_at, published_by_name}` |
+| POST | `/api/w/{slug}/runs/{run_id}/publish` | Analyst+. → `RunOut`; só `succeeded`/`inconclusive`, senão 409 "Só execuções concluídas podem ser publicadas."; publicar de novo atualiza `published_at/by` |
+| POST | `/api/w/{slug}/runs/{run_id}/unpublish` | Analyst+. → `RunOut`; idempotente |
+| GET | `/api/w/{slug}/runs/{run_id}/inputs/{key}` | Analyst+. `key` ∈ `investment_file`, `performance_file`, `generic_trends_file` (outro → 422). CSV do snapshot do run, como anexo com o nome do upload; entrada ausente → 404 |
 | GET | `/api/w/{slug}/runs/{run_id}/logs/stream` | Viewer+, mesma visibilidade. SSE: `id: <log id>` + `data: {ts, level, message}`; sem `Last-Event-ID` manda as 300 últimas, com ele as de id maior; `event: end` + `data: {status}` quando o run termina |
 | GET | `/api/admin/workspaces` | Platform admin |
 | POST | `/api/admin/workspaces` | Platform admin. `{name, slug}` (`^[a-z0-9-]{2,40}$`); 409 slug repetido |

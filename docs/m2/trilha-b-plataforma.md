@@ -183,6 +183,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B6 · Histórico de simulações — semana 3
 
+- **Status:** 🟡 em andamento. B6a (backend) em 28/out/2026, verificado por `tests/api/test_runs.py` (histórico do workspace, publicar/despublicar, 409 de run não concluído, download do snapshot, isolamento entre workspaces) e `tests/api/test_rbac.py`. Falta o B6b (telas). Fora: comparar runs (até o A1 trazer métricas no `summary`) e modo demo (até haver dataset anonimizado e motor real). Desvios em `docs/decisoes/runs-e-jobs.md`.
 - **BRD:** Capabilities › Simulation history & traceability; deliverable "Simulation history"; Journey 1 passo 4; Improvement Requests › Outputs ("re-runs overwrite results" hoje).
 - **Depende de:** B4.
 - **Hoje:** "Projetos Anteriores" na sidebar com renomear e apagar (`streamlit_app.py:854-971`). Re-run sobrescreve.

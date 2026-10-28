@@ -36,9 +36,15 @@ Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam n
 
 Depois de 15 s sem linha nova o stream manda um comentário (`: ping`), para proxy não derrubar a conexão parada durante uma etapa longa do motor. A auth e o escopo são checados só ao abrir o stream: quem sai, perde a sessão ou é removido do workspace continua recebendo as linhas daquele run até ele acabar (no máximo 20 min). É só leitura, de um run que a pessoa já podia ver; rechecar a sessão a cada volta não compensa.
 
-## Viewer e publicação
+## Histórico e publicação (B6)
 
-As rotas de leitura aceitam viewer, mas ele só enxerga run com `published_at`, que só o B6 preenche. Até lá, run não publicado é 404 para o viewer, como recurso de outro workspace.
+Spec: `docs/superpowers/specs/2026-10-28-b6-historico-design.md`.
+
+- **Publicar é revisão humana, não gate.** Os gates são do motor e vêm marcados no `results.json`; o analista só decide quando o viewer passa a ver o run. Só `succeeded` e `inconclusive` podem ser publicados (o inconclusivo mostra o experiment design, que interessa ao viewer). Publicar de novo atualiza quem e quando; despublicar é idempotente. Viewer só enxerga run com `published_at`, e o resto é 404, como recurso de outro workspace.
+- **Filtros no front, sobre os últimos 500 runs.** `GET …/runs` devolve até 500 `RunOut`; busca, status, autor e período rodam na tela. Sem endpoint de autores e sem paginação. Passando de 500 runs por workspace, os mais antigos somem da busca: a saída é mover os filtros para query params (marcado com `ponytail:` na rota).
+- **Download das entradas só para analyst+.** O viewer vê o resultado publicado, não o CSV bruto do cliente. O storage é por conteúdo, então o arquivo do snapshot continua lá depois de a simulação trocar o arquivo.
+- **"Rodar de novo" restaura na simulação.** O front faz `PUT …/params` com o `config` do run e leva à simulação; o gate da B4 continua sendo o único caminho para criar run. Os arquivos são os atuais da simulação.
+- **Fora até o A1:** comparar runs lado a lado e colunas de métricas do `summary` (hoje ele só repete o status). **Fora até haver dataset anonimizado e motor real:** o modo demo.
 
 ## Tela (B4b)
 
