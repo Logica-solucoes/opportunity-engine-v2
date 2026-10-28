@@ -10,7 +10,7 @@ export default defineConfig({
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
-  use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
+  use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure', timezoneId: 'America/Sao_Paulo' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     // serves the built SPA from web/dist, so run `bun run build` first (the e2e script does)
