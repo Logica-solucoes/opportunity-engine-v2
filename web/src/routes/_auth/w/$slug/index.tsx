@@ -1,12 +1,18 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { meQuery } from '@/lib/auth'
+import { meQuery, roleIn } from '@/lib/auth'
 import { formatDate, simulationsQuery } from '@/lib/simulations'
 
-export const Route = createFileRoute('/_auth/w/$slug/')({ component: WorkspaceHome })
+export const Route = createFileRoute('/_auth/w/$slug/')({
+  // the run history is all a viewer sees in a workspace
+  beforeLoad: ({ context: { me }, params }) => {
+    if (roleIn(me, params.slug) === 'viewer') throw redirect({ to: '/w/$slug/execucoes', params })
+  },
+  component: WorkspaceHome,
+})
 
 function WorkspaceHome() {
   const { slug } = Route.useParams()
@@ -21,11 +27,18 @@ function WorkspaceHome() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">{workspace.name}</h1>
         {canEdit && (
-          <Button asChild>
-            <Link to="/w/$slug/simulacoes/nova" params={{ slug }}>
-              Nova simulação
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/w/$slug/execucoes" params={{ slug }}>
+                Execuções
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/w/$slug/simulacoes/nova" params={{ slug }}>
+                Nova simulação
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
       {canEdit ? <SimulationList slug={slug} /> : <p className="text-muted-foreground">Nenhuma simulação ainda.</p>}
