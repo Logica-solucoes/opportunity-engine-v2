@@ -33,6 +33,7 @@ ROUTES = {
     ("PUT", "/api/w/{slug}/simulations/{simulation_id}/params"): ("analyst", 200, lambda e: {}),
     ("POST", "/api/w/{slug}/simulations/{simulation_id}/runs"): ("analyst", 201, lambda e: {"confirmed_warnings": []}),
     ("GET", "/api/w/{slug}/simulations/{simulation_id}/runs"): ("viewer", 200, None),
+    ("GET", "/api/w/{slug}/runs"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs/{run_id}"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs/{run_id}/logs/stream"): ("viewer", 200, None),
     ("GET", "/api/engine/config-schema"): (SESSION, 200, None),

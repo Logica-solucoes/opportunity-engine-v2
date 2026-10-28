@@ -212,6 +212,29 @@ def test_simulation_runs_newest_first(logged, ready, db):
     assert [r["id"] for r in body] == [new, old]
 
 
+def test_workspace_runs_list_every_simulation_newest_first_and_stay_in_the_workspace(
+    logged, ready, db, analyst, make_user, make_workspace
+):
+    old = runs.create(db, ready(), set(), by=analyst)
+    new = runs.create(db, ready(), set(), by=analyst)
+    other = make_workspace("b", [(make_user("bo@x.com"), "analyst")])
+    runs.create(db, ready(workspace=other), set(), by=analyst)
+
+    body = logged.get("/api/w/a/runs").json()
+
+    assert [r["id"] for r in body] == [new.id, old.id]
+    assert body[0]["config"]["column_mapping"] == MAPPING
+
+
+def test_workspace_runs_fail_stale_runs_before_listing(logged, ready, db, analyst):
+    run = runs.create(db, ready(), set(), by=analyst)
+    make_stale(db, run.id)
+
+    body = logged.get("/api/w/a/runs").json()
+
+    assert (body[0]["status"], body[0]["error"]) == ("failed", runs.STALE_ERROR)
+
+
 def test_viewer_does_not_see_unpublished_runs(client, ready, make_user, ws, db, login_as, analyst):
     simulation = ready()
     run = runs.create(db, simulation, set(), by=analyst)

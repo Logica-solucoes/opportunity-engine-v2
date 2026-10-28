@@ -26,6 +26,8 @@ POLL_SECONDS = 0.5
 PING_SECONDS = 15
 BACKLOG = 300
 BATCH = 500
+# ponytail: the history filters run in the browser over the newest 500; past that, move them to query params
+HISTORY_LIMIT = 500
 
 
 class RunIn(BaseModel):
@@ -101,6 +103,19 @@ def list_runs(simulation_id: SimulationId, ctx: Ctx = Depends(viewer), db: Sessi
         .where(Run.simulation_id == simulation_id, *runs.visible(ctx))
         .order_by(Run.id.desc())
         .limit(20)
+    )
+    return [run_out(r) for r in rows]
+
+
+@router.get("/runs", response_model=list[RunOut])
+def list_workspace_runs(ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
+    runs.fail_stale(db, Run.workspace_id == ctx.workspace.id)
+    rows = db.scalars(
+        select(Run)
+        .options(joinedload(Run.creator), joinedload(Run.publisher), joinedload(Run.simulation))
+        .where(*runs.visible(ctx))
+        .order_by(Run.id.desc())
+        .limit(HISTORY_LIMIT)
     )
     return [run_out(r) for r in rows]
 
