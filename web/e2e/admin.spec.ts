@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { createAdmin, createWorkspace, loggedInAdmin } from './helpers'
+import { createAdmin, createWorkspace, loggedInAdmin, runToCompletion } from './helpers'
 
 test('platform admin creates a workspace and sees it on the home page', async ({ page }) => {
   await loggedInAdmin(page)
@@ -30,4 +31,28 @@ test('platform admin resets a password and sees it once', async ({ page }) => {
   await page.getByRole('row', { name: new RegExp(other.email) }).getByRole('button', { name: 'Resetar senha' }).click()
   await page.getByRole('button', { name: 'Resetar', exact: true }).click()
   await expect(page.getByTestId('temp-password')).not.toBeEmpty()
+})
+
+test('platform admin sees a finished run in the usage and exports it', async ({ page }) => {
+  await loggedInAdmin(page)
+  const slug = await createWorkspace(page)
+  await runToCompletion(page, slug, 'Uso do mês')
+
+  await page.goto('/admin/workspaces')
+  await page.getByRole('link', { name: 'Uso' }).click()
+  const row = page.getByRole('row').filter({ hasText: `Marca ${slug}` })
+  // columns: Mês, Workspace, Usuário, Concluídas, …, Total
+  await expect(row.getByRole('cell').nth(2)).toHaveText('E2E')
+  await expect(row.getByRole('cell').nth(3)).toHaveText('1')
+  await expect(row.getByRole('cell').nth(7)).toHaveText('1')
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('link', { name: 'Exportar CSV' }).click()
+  const file = await download
+  expect(file.suggestedFilename()).toMatch(/^uso-\d{4}-\d{2}\.csv$/)
+  expect(readFileSync(await file.path(), 'utf8')).toContain(`Marca ${slug};E2E;`)
+
+  await page.getByRole('button', { name: 'Todos os meses' }).click()
+  await expect(page).toHaveURL(/month=todos/)
+  await expect(page.getByRole('row').filter({ hasText: `Marca ${slug}` })).toBeVisible()
 })

@@ -5,6 +5,7 @@ import {
   createWorkspace,
   loggedInAdmin,
   newSession,
+  runToCompletion,
   template,
   uploadTemplatesAndValidate,
 } from './helpers'
@@ -192,4 +193,36 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
   await expect(analystPage.getByRole('heading', { name: 'Execuções' })).toBeVisible()
   await expect(analystPage.getByRole('cell', { name: 'Concluída' })).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
+})
+
+test('workspace admin deletes a simulation and its runs; analysts never see the button', async ({
+  page,
+  browser,
+}) => {
+  await loggedInAdmin(page)
+  const slug = await createWorkspace(page)
+  const analystPage = await newSession(browser, await addMember(page, slug, 'analyst'))
+
+  const runUrl = await runToCompletion(page, slug, 'Descartável')
+  await page.getByRole('link', { name: '← Descartável' }).click()
+  const simUrl = page.url()
+
+  await analystPage.goto(simUrl)
+  await expect(analystPage.getByRole('heading', { name: 'Descartável' })).toBeVisible()
+  await expect(analystPage.getByRole('button', { name: 'Apagar simulação' })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Apagar simulação' }).click()
+  const confirm = page.getByRole('button', { name: 'Apagar', exact: true })
+  await expect(confirm).toBeDisabled()
+  await page.getByLabel('Nome da simulação').fill('Descartáve')
+  await expect(confirm).toBeDisabled()
+  await page.getByLabel('Nome da simulação').fill('Descartável')
+  await confirm.click()
+
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}$`))
+  await expect(page.getByText('Descartável')).toHaveCount(0)
+  await page.goto(runUrl)
+  await expect(page.getByText('Execução não encontrada.')).toBeVisible()
+  await analystPage.goto(simUrl)
+  await expect(analystPage.getByText('Simulação não encontrada.')).toBeVisible()
 })
