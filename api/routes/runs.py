@@ -48,6 +48,10 @@ class RunOut(BaseModel):
     error: str | None
     summary: dict | None
     engine_version: str | None
+    config: dict
+    inputs: dict
+    published_at: datetime | None
+    published_by_name: str | None
 
 
 def run_out(r: Run) -> RunOut:
@@ -62,6 +66,10 @@ def run_out(r: Run) -> RunOut:
         error=r.error,
         summary=r.summary,
         engine_version=r.engine_version,
+        config=r.config,
+        inputs=r.inputs,
+        published_at=r.published_at,
+        published_by_name=r.publisher.name if r.publisher else None,
     )
 
 
@@ -89,7 +97,7 @@ def list_runs(simulation_id: SimulationId, ctx: Ctx = Depends(viewer), db: Sessi
     runs.fail_stale(db, Run.simulation_id == simulation_id)
     rows = db.scalars(
         select(Run)
-        .options(joinedload(Run.creator), joinedload(Run.simulation))
+        .options(joinedload(Run.creator), joinedload(Run.publisher), joinedload(Run.simulation))
         .where(Run.simulation_id == simulation_id, *runs.visible(ctx))
         .order_by(Run.id.desc())
         .limit(20)

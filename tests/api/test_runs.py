@@ -91,6 +91,22 @@ def test_create_run_snapshots_config_and_inputs_and_launches(logged, ready, laun
     assert run.config["investment_limit_factor"] == 1.5
 
 
+def test_run_out_carries_the_snapshot_and_the_publication(logged, ready, db, analyst):
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    body = logged.get(f"/api/w/a/runs/{run.id}").json()
+
+    assert body["config"]["column_mapping"] == MAPPING
+    assert body["inputs"]["investment_file"]["filename"] == "investment.csv"
+    assert body["inputs"]["generic_trends_file"] is None
+    assert (body["published_at"], body["published_by_name"]) == (None, None)
+
+    run.published_at, run.published_by = func.now(), analyst.id
+    db.commit()
+    body = logged.get(f"/api/w/a/runs/{run.id}").json()
+    assert body["published_at"] is not None and body["published_by_name"] == "ana"
+
+
 def test_gate_refuses_a_simulation_without_validation(logged, ws, analyst, make_simulation):
     simulation = make_simulation(ws, analyst, files={"investment": INVESTMENT, "performance": PERFORMANCE})
 

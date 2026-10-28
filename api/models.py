@@ -130,6 +130,7 @@ class Run(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     creator: Mapped[User] = relationship(foreign_keys=[created_by])
+    publisher: Mapped[User | None] = relationship(foreign_keys=[published_by])
     simulation: Mapped[Simulation] = relationship()
 
 
