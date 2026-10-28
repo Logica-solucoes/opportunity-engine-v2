@@ -252,6 +252,78 @@ def test_viewer_does_not_see_unpublished_runs(client, ready, make_user, ws, db, 
     assert client.get(f"/api/w/a/runs/{run.id}").status_code == 200
 
 
+def finished(db, simulation, analyst, status="succeeded"):
+    run = runs.create(db, simulation, set(), by=analyst)
+    run.status = status
+    db.commit()
+    return run
+
+
+def test_publishing_shows_the_run_to_viewers_until_unpublished(
+    logged, make_client, ready, db, ws, analyst, make_user, login_as
+):
+    run = finished(db, ready(), analyst)
+    viewer = make_user("vi@x.com")
+    db.add(Membership(user_id=viewer.id, workspace_id=ws.id, role="viewer"))
+    db.commit()
+    viewer_client = make_client()
+    login_as(viewer_client, viewer)
+    assert viewer_client.get("/api/w/a/runs").json() == []
+
+    published = logged.post(f"/api/w/a/runs/{run.id}/publish")
+
+    assert published.status_code == 200, published.text
+    assert published.json()["published_by_name"] == "ana" and published.json()["published_at"] is not None
+    assert [r["id"] for r in viewer_client.get("/api/w/a/runs").json()] == [run.id]
+
+    unpublished = logged.post(f"/api/w/a/runs/{run.id}/unpublish")
+
+    assert unpublished.status_code == 200
+    assert (unpublished.json()["published_at"], unpublished.json()["published_by_name"]) == (None, None)
+    assert viewer_client.get("/api/w/a/runs").json() == []
+    assert viewer_client.get(f"/api/w/a/runs/{run.id}").status_code == 404
+
+
+@pytest.mark.parametrize("status", ["queued", "running", "failed"])
+def test_only_finished_runs_can_be_published(logged, ready, db, analyst, status):
+    run = finished(db, ready(), analyst, status)
+
+    r = logged.post(f"/api/w/a/runs/{run.id}/publish")
+
+    assert (r.status_code, r.json()["detail"]) == (409, "Só execuções concluídas podem ser publicadas.")
+    db.refresh(run)
+    assert run.published_at is None
+
+
+@pytest.mark.parametrize("status", ["succeeded", "inconclusive"])
+def test_succeeded_and_inconclusive_runs_can_be_published(logged, ready, db, analyst, status):
+    run = finished(db, ready(), analyst, status)
+
+    assert logged.post(f"/api/w/a/runs/{run.id}/publish").status_code == 200
+
+
+def test_publishing_again_records_the_new_publisher(logged, make_client, ready, db, ws, analyst, make_user, login_as):
+    run = finished(db, ready(), analyst)
+    logged.post(f"/api/w/a/runs/{run.id}/publish")
+    other = make_user("bia@x.com")
+    db.add(Membership(user_id=other.id, workspace_id=ws.id, role="analyst"))
+    db.commit()
+    other_client = make_client()
+    login_as(other_client, other)
+
+    body = other_client.post(f"/api/w/a/runs/{run.id}/publish").json()
+
+    assert body["published_by_name"] == "bia"
+
+
+def test_unpublishing_a_run_never_published_is_a_no_op(logged, ready, db, analyst):
+    run = finished(db, ready(), analyst)
+
+    r = logged.post(f"/api/w/a/runs/{run.id}/unpublish")
+
+    assert (r.status_code, r.json()["published_at"]) == (200, None)
+
+
 def messages(db, run_id):
     return db.scalars(select(RunLog.message).where(RunLog.run_id == run_id).order_by(RunLog.id)).all()
 

@@ -14,6 +14,8 @@ log = logging.getLogger(__name__)
 # the Cloud Run Job times out at 15 min: a run still active after 20 is dead
 STALE_AFTER = timedelta(minutes=20)
 ACTIVE = ("queued", "running")
+PUBLISHABLE = ("succeeded", "inconclusive")
+PUBLISH_ERROR = "Só execuções concluídas podem ser publicadas."
 STALE_ERROR = "A execução parou de responder."
 LAUNCH_ERROR = "Não foi possível iniciar a execução."
 
@@ -95,3 +97,18 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
         run.status, run.error, run.finished_at = "failed", LAUNCH_ERROR, func.now()
         db.commit()
     return run
+
+
+def publish(db: Session, run: Run, by: User) -> None:
+    # the engine already marks what failed a gate; this is the analyst's review before viewers see it
+    if run.status not in PUBLISHABLE:
+        raise Blocked(PUBLISH_ERROR)
+    run.published_at, run.published_by = func.now(), by.id
+    db.commit()
+    log.info("run.published run_id=%s workspace_id=%s by=%s", run.id, run.workspace_id, by.id)
+
+
+def unpublish(db: Session, run: Run, by: User) -> None:
+    run.published_at, run.published_by = None, None
+    db.commit()
+    log.info("run.unpublished run_id=%s workspace_id=%s by=%s", run.id, run.workspace_id, by.id)

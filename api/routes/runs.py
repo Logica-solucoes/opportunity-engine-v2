@@ -125,6 +125,23 @@ def get_run(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get
     return run_out(find_run(db, ctx, run_id))
 
 
+@router.post("/runs/{run_id}/publish", response_model=RunOut)
+def publish_run(run_id: RunId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
+    run = find_run(db, ctx, run_id)
+    try:
+        runs.publish(db, run, by=ctx.user)
+    except runs.Blocked as e:
+        raise HTTPException(409, str(e))
+    return run_out(run)
+
+
+@router.post("/runs/{run_id}/unpublish", response_model=RunOut)
+def unpublish_run(run_id: RunId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
+    run = find_run(db, ctx, run_id)
+    runs.unpublish(db, run, by=ctx.user)
+    return run_out(run)
+
+
 def poll(run_id: int, after: int | None, sweep: bool = False) -> tuple[str | None, str, int | None]:
     # a short session per poll: the stream lasts the whole run and must not pin a pooled connection
     with SessionLocal() as db:
