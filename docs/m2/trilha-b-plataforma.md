@@ -115,6 +115,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 ## B4 · Jobs assíncronos e log em tempo real — semana 2
 
 - **Status:** ✅ feito. B4a (backend) em 27/out/2026, verificado por `tests/api/test_runs.py` (gate, snapshot, worker, run morto, SSE com retomada, isolamento entre workspaces, erro do motor em pt-BR com traceback só no stdout) e `tests/api/test_rbac.py`; B4b (tela) em 27/out/2026, verificado por `web/e2e/simulations.spec.ts` (rodar, log ao vivo, recarregar e retomar) e screenshots nos dois temas (rodando, concluída, falhou, lista com run ativo). Fora até a Trilha A: `engine.run` real e tradução do log (A0/A1). Fora até o B11: launcher do Cloud Run Jobs. Desvios em `docs/decisoes/runs-e-jobs.md`.
+- **Observação:** a B4 foi verificada só com um **motor falso** (`api/engine_run.py`). Ele imita as etapas do log com pausa configurável (`FAKE_ENGINE_STEP_SECONDS`), simula falha com `FAKE_ENGINE_FAIL=1` e devolve um `results.json` com todas as seções `null`. Quando o A0/A1 entrar, o módulo vira `from engine import run` e o fluxo precisa ser verificado de novo com o motor real: duração, volume de log, tradução pt-BR e `results.json` preenchido.
 - **BRD:** Capabilities › Processing engine & real-time log; Improvement Requests › Execution e Logs; deliverable "Real-time log".
 - **Depende de:** A0, B2, B3.
 - **Hoje:**
@@ -145,6 +146,11 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B5 · Dashboards Causal Impact e Elasticidade — semana 3
 
+- **Status:** ⛔ bloqueado em 28/out/2026. Faltam duas entregas da Trilha A:
+  - os fixtures do A1 em `tests/fixtures/results/`, previstos para 23/out e ainda não entregues (`engine/` também não existe);
+  - o `engine.scenario` do A8, previsto para a semana 3.
+
+  O schema do `results.json` só existe como esboço no README › contrato §3, e o `engine.run` falso devolve todas as seções `null`. Começar com um fixture feito à mão daria retrabalho quando o A1 fechar o schema e não permitiria conferir a paridade numérica com o Streamlit. Por isso a B6 foi adiantada.
 - **BRD:** deliverables "Causal Impact dashboard" e "Elasticity dashboard"; Journeys 1 e 2; Wireframe 2; Capabilities › gates ("kept out of dashboards").
 - **Depende de:** A1 (fixtures servem desde a semana 1), A8 (`scenario`).
 - **Hoje:**
