@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from api import logs, runs, simulations, worker
+from api import logs, main, runs, simulations, worker
 from api.engine_config import ParamsIn
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
@@ -119,3 +119,8 @@ def test_ids_do_not_leak_into_the_next_request(lines, client, make_user, make_wo
 
     e = entry(lines, "auth.login_failed")
     assert not {"user_id", "workspace_id", "run_id"} & e.keys()
+
+
+def test_the_log_context_is_the_outermost_middleware():
+    # only the outermost one runs in uvicorn's own task, where the access line and a 500's traceback are logged
+    assert main.app.user_middleware[0].kwargs["dispatch"] is logs.request_context
