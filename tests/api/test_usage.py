@@ -123,7 +123,7 @@ def test_usage_route_filters_by_month(root_client, ws, ana, add_run):
     assert [(r["month"], r["user_email"], r["succeeded"]) for r in october.json()] == [("2026-10", "ana@x.com", 1)]
 
 
-@pytest.mark.parametrize("month", ["2026-13", "2026-1", "out/2026", "2026-10-01"])
+@pytest.mark.parametrize("month", ["2026-13", "2026-1", "out/2026", "2026-10-01", "٢٠٢٦-10"])
 def test_usage_rejects_a_malformed_month(root_client, month):
     assert root_client.get("/api/admin/usage", params={"month": month}).status_code == 422
     assert root_client.get("/api/admin/usage.csv", params={"month": month}).status_code == 422
@@ -139,3 +139,14 @@ def test_usage_csv_is_an_attachment_named_after_the_month(root_client, ws, ana, 
     assert month.headers["content-disposition"] == 'attachment; filename="uso-2026-10.csv"'
     assert month.text.endswith("2026-10;A;ana;ana@x.com;1;0;0;0;1;1,5\n")
     assert every.headers["content-disposition"] == 'attachment; filename="uso.csv"'
+
+
+def test_csv_escapes_cells_that_excel_would_run_as_a_formula(db, ws, make_user, add_run):
+    evil = make_user("=1+1@x.com")
+    evil.name = "=1+1"
+    db.commit()
+    add_run(ws, evil, "succeeded")
+
+    text = usage.to_csv(usage.rows(db, None))
+
+    assert ";'=1+1;'=1+1@x.com;" in text

@@ -48,7 +48,7 @@ class TempPasswordOut(BaseModel):
     temp_password: str
 
 
-Month = Annotated[str | None, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
+Month = Annotated[str | None, Query(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$")]
 
 
 class UsageRow(BaseModel):

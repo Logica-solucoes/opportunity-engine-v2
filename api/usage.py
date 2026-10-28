@@ -36,11 +36,16 @@ def rows(db: Session, month: str | None) -> list[dict]:
         )
         .join(Workspace, Workspace.id == usage.c.workspace_id)
         .join(User, User.id == usage.c.user_id)
-        .order_by(usage.c.month.desc(), Workspace.name, User.name)
+        .order_by(usage.c.month.desc(), Workspace.name, User.name, usage.c.workspace_id, usage.c.user_id)
     )
     if month:
         query = query.where(usage.c.month == month)
     return [dict(r._mapping) for r in db.execute(query)]
+
+
+def safe(cell: str) -> str:
+    # Excel runs a cell that starts with these as a formula; names and e-mails are typed by workspace admins
+    return "'" + cell if cell.startswith(("=", "+", "-", "@", "\t", "\r")) else cell
 
 
 def to_csv(rows: list[dict]) -> str:
@@ -50,7 +55,6 @@ def to_csv(rows: list[dict]) -> str:
     writer.writerow(CSV_HEADER)
     for r in rows:
         minutes = f"{r['run_seconds'] / 60:.1f}".replace(".", ",")
-        writer.writerow(
-            [r["month"], r["workspace_name"], r["user_name"], r["user_email"], *(r[c] for c in COUNTS), minutes]
-        )
+        name, user, email = safe(r["workspace_name"]), safe(r["user_name"]), safe(r["user_email"])
+        writer.writerow([r["month"], name, user, email, *(r[c] for c in COUNTS), minutes])
     return "﻿" + out.getvalue()
