@@ -66,6 +66,7 @@ function HistoryPage() {
           <Label htmlFor="filter-status">Status</Label>
           <NativeSelect
             id="filter-status"
+            className="h-8"
             value={filters.status ?? ''}
             onChange={(e) => set({ status: (e.target.value || undefined) as RunStatus | undefined })}
           >
@@ -81,6 +82,7 @@ function HistoryPage() {
           <Label htmlFor="filter-author">Autor</Label>
           <NativeSelect
             id="filter-author"
+            className="h-8"
             value={filters.author ?? ''}
             onChange={(e) => set({ author: e.target.value || undefined })}
           >
