@@ -97,6 +97,7 @@ class SimulationFile(Base):
 
 RunStatus = Literal["queued", "running", "succeeded", "inconclusive", "failed"]
 RUN_STATUSES = get_args(RunStatus)
+ACTIVE_RUN_STATUSES = ("queued", "running")
 
 
 class Run(Base):

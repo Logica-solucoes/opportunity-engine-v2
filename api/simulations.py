@@ -4,11 +4,12 @@ import tempfile
 from pathlib import Path
 from typing import BinaryIO
 
-from sqlalchemy import func
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from api import csvfile, storage, suggestions, validation
-from api.models import Simulation, SimulationFile, User, Workspace
+from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, SimulationFile, User, Workspace
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,13 @@ class TooLarge(Exception):
 
 class InvalidInput(Exception):
     pass
+
+
+class Blocked(Exception):
+    pass
+
+
+ACTIVE_RUN_ERROR = "Há uma execução em andamento."
 
 
 def create(db: Session, workspace: Workspace, name: str, by: User) -> Simulation:
@@ -182,3 +190,22 @@ def save_params(db: Session, simulation: Simulation, params: dict) -> None:
     simulation.updated_at = func.now()
     db.commit()
     log.info("simulation.params_saved simulation_id=%s", simulation.id)
+
+
+def delete(db: Session, simulation: Simulation, by: User) -> None:
+    # FOR UPDATE: a run being created waits for this commit, then finds the simulation gone
+    db.refresh(simulation, with_for_update=True)
+    active = select(Run.id).where(Run.simulation_id == simulation.id, Run.status.in_(ACTIVE_RUN_STATUSES))
+    if db.scalar(active.limit(1)) is not None:
+        raise Blocked(ACTIVE_RUN_ERROR)
+    sid, wid = simulation.id, simulation.workspace_id
+    prefix = f"ws/{wid}/sim/{sid}"
+    # files, runs and run logs go with it through ON DELETE CASCADE
+    db.execute(sql_delete(Simulation).where(Simulation.id == sid))
+    db.commit()
+    log.info("simulation.deleted simulation_id=%s workspace_id=%s by=%s", sid, wid, by.id)
+    # rows first: files gone with rows still standing would leave runs pointing at nothing
+    try:
+        storage.delete_prefix(prefix)
+    except OSError:
+        log.exception("simulation.files_orphaned prefix=%s", prefix)

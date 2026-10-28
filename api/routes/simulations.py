@@ -6,15 +6,16 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from api import simulations
+from api import runs, simulations
 from api.auth import Ctx, require_role
 from api.db import get_db
 from api.engine_config import ParamsIn
-from api.models import FILE_KINDS, FileKind, Simulation, SimulationFile
+from api.models import FILE_KINDS, FileKind, Run, Simulation, SimulationFile
 from api.routes import SimulationId
 
 router = APIRouter(prefix="/api/w/{slug}/simulations")
 analyst = require_role("analyst")
+workspace_admin = require_role("admin")
 
 SimulationName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 
@@ -125,6 +126,16 @@ def create_simulation(body: SimulationIn, ctx: Ctx = Depends(analyst), db: Sessi
 @router.get("/{simulation_id}", response_model=SimulationOut)
 def get_simulation(simulation_id: SimulationId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
     return simulation_out(find_simulation(db, ctx, simulation_id))
+
+
+@router.delete("/{simulation_id}", status_code=204)
+def delete_simulation(simulation_id: SimulationId, ctx: Ctx = Depends(workspace_admin), db: Session = Depends(get_db)):
+    simulation = find_simulation(db, ctx, simulation_id)
+    runs.fail_stale(db, Run.simulation_id == simulation.id)
+    try:
+        simulations.delete(db, simulation, by=ctx.user)
+    except simulations.Blocked as e:
+        raise HTTPException(409, str(e))
 
 
 @router.put("/{simulation_id}/files/{kind}", response_model=SimulationOut)

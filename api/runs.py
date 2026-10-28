@@ -7,13 +7,13 @@ from sqlalchemy.orm import Session
 
 from api import launcher, simulations
 from api.auth import Ctx
-from api.models import Run, Simulation, User
+from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, User
 
 log = logging.getLogger(__name__)
 
 # the Cloud Run Job times out at 15 min: a run still active after 20 is dead
 STALE_AFTER = timedelta(minutes=20)
-ACTIVE = ("queued", "running")
+ACTIVE = ACTIVE_RUN_STATUSES
 PUBLISHABLE = ("succeeded", "inconclusive")
 PUBLISH_ERROR = "Só execuções concluídas podem ser publicadas."
 STALE_ERROR = "A execução parou de responder."

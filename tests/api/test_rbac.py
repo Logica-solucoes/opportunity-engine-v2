@@ -22,6 +22,7 @@ ROUTES = {
     ("GET", "/api/w/{slug}/simulations"): ("analyst", 200, None),
     ("POST", "/api/w/{slug}/simulations"): ("analyst", 201, lambda e: {"name": "Nova"}),
     ("GET", "/api/w/{slug}/simulations/{simulation_id}"): ("analyst", 200, None),
+    ("DELETE", "/api/w/{slug}/simulations/{simulation_id}"): ("admin", 204, None),
     ("PUT", "/api/w/{slug}/simulations/{simulation_id}/files/{kind}"): (
         "analyst",
         200,
