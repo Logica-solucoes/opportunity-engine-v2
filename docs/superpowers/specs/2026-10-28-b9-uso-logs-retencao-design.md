@@ -34,11 +34,11 @@ Os desvios entram em `docs/decisoes/` (logs e uso em `infra-e-operacao.md`, apag
 |---|---|
 | `workspace_id` | `runs.workspace_id` |
 | `user_id` | `runs.created_by` |
-| `month` | `date_trunc('month', created_at AT TIME ZONE 'America/Sao_Paulo')::date` — o mês do negócio, não o de UTC |
+| `month` | `to_char(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM')` — o mês do negócio, não o de UTC; texto, para filtrar e exibir sem conversão |
 | `succeeded`, `inconclusive`, `failed` | `count(*) FILTER (WHERE status = …)` |
 | `active` | `count(*) FILTER (WHERE status IN ('queued', 'running'))` |
 | `total` | `count(*)` |
-| `run_seconds` | `coalesce(sum(extract(epoch FROM finished_at - started_at)) FILTER (WHERE finished_at IS NOT NULL AND started_at IS NOT NULL), 0)` |
+| `run_seconds` | `coalesce(sum(extract(epoch FROM finished_at - started_at)), 0)::bigint` (o `sum` ignora a diferença `NULL` de run sem início ou fim) |
 
 Sem tabela nova: um BI pode ler a view direto. No Python ela é lida com `sqlalchemy.table("usage", column(...))`, sem model; o downgrade da migration faz `DROP VIEW`. Um run morto (`fail_stale`) conta como `failed` e, sem `started_at` ou `finished_at`, não soma tempo.
 
@@ -47,7 +47,7 @@ Sem tabela nova: um BI pode ler a view direto. No Python ela é lida com `sqlalc
 | Método | Rota | Regra |
 |---|---|---|
 | GET | `/api/admin/usage?month=YYYY-MM` | Platform admin (`require_platform_admin`; outro → 403, como as rotas de admin). Linhas da view com `workspace_name`, `user_name`, `user_email`, ordenadas por mês desc, workspace e usuário. Sem `month`, todos os meses; `month` fora do formato → 422 |
-| GET | `/api/admin/usage.csv?month=YYYY-MM` | Mesma regra e mesmo filtro. `text/csv` como anexo (`uso-YYYY-MM.csv`, ou `uso.csv` sem filtro), cabeçalho em pt-BR, `run_seconds` em minutos com uma casa decimal |
+| GET | `/api/admin/usage.csv?month=YYYY-MM` | Mesma regra e mesmo filtro. `text/csv` como anexo (`uso-YYYY-MM.csv`, ou `uso.csv` sem filtro), cabeçalho em pt-BR, `;` e vírgula decimal com BOM (o Excel em pt-BR abre direto), `run_seconds` em minutos com uma casa decimal |
 | DELETE | `/api/w/{slug}/simulations/{simulation_id}` | Admin do workspace (`require_role("admin")`). Simulação de outro workspace → 404. Roda `fail_stale` da simulação; com run `queued` ou `running` → 409 "Há uma execução em andamento.". → 204 |
 
 A regra de apagar fica em `api/simulations.py` (`delete`), e a rota só traduz o bloqueio em 409.
@@ -63,8 +63,8 @@ O banco vai primeiro porque o contrário (arquivos apagados e linhas de pé) dei
 ### Logs JSON
 
 - **`api/logs.py`** (novo): o `JsonFormatter` sai de `api/worker.py` para cá e passa a emitir `severity`, `message`, `logger` e, quando existem, `user_id`, `workspace_id` e `run_id`. Um `logging.Filter` copia os IDs do contexto da request para o record. `setup()` põe o handler JSON no stdout para o root e para os loggers do uvicorn (`uvicorn`, `uvicorn.error`, `uvicorn.access`, que não propagam). JSON sempre, inclusive no dev, igual ao worker hoje.
-- **Contexto:** um `ContextVar` guarda um `dict` de IDs. Dependência síncrona do FastAPI roda numa cópia do contexto, então um `.set()` dentro dela não chegaria à rota. Por isso um middleware cria o `dict` no começo de cada request, e quem conhece os IDs **muta** esse mesmo objeto: `active_user` (`user_id`), `require_role` (`workspace_id`) e `find_run` (`run_id`). O worker cria o seu `dict` no `execute` com `run_id`, `workspace_id` e `user_id` (o `created_by` do run), e deixa de passar `extra=ids` em cada chamada.
-- **Onde liga:** `create_app()` chama `logs.setup()`; o `__main__` do worker também. O `cli.py` continua com `basicConfig` (saída de terminal para humano; a senha temporária nunca passa por log). As chamadas `log.info(...)` existentes não mudam.
+- **Contexto:** um `ContextVar` guarda um `dict` de IDs. Dependência síncrona do FastAPI roda numa cópia do contexto, então um `.set()` dentro dela não chegaria à rota. Por isso um middleware cria o `dict` no começo de cada request, e quem conhece os IDs **muta** esse mesmo objeto: `current_user` (`user_id`), `require_role` (`workspace_id`) e `find_run` (`run_id`). O worker abre o seu `dict` no `main` com o `run_id` e completa no `execute` com `workspace_id` e `user_id` (o `created_by` do run), e deixa de passar `extra=ids` em cada chamada.
+- **Onde liga:** `api/main.py` chama `logs.setup()` no import, antes de `app = create_app()` (o uvicorn configura os loggers dele antes de importar a app), e o `create_app()` registra o middleware; o `__main__` do worker chama `logs.setup()` também. O `cli.py` continua com `basicConfig` (saída de terminal para humano; a senha temporária nunca passa por log). As chamadas `log.info(...)` existentes não mudam.
 - O que nunca vai para o log continua igual (`SECURITY.md`): senha, token de sessão, conteúdo de CSV.
 
 ### Testes (`tests/api/`)
