@@ -1,9 +1,11 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { CircleX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { RunDetails } from '@/components/RunDetails'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { meQuery, roleIn } from '@/lib/auth'
 import { type LogLine, isActive, runQuery, useRunLog } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
 
@@ -27,6 +29,8 @@ function RunPage() {
   const queryClient = useQueryClient()
   const { data: run, isError } = useQuery(runQuery(slug, runId))
   const log = useRunLog(slug, runId)
+  const { data: me } = useSuspenseQuery(meQuery)
+  const canEdit = roleIn(me, slug) !== 'viewer'
 
   // the key is rebuilt inside: a fresh array in the deps would re-run this after every refetch
   useEffect(() => {
@@ -52,7 +56,7 @@ function RunPage() {
           <RunStatusBadge status={run.status} />
         </div>
         <p className="text-sm text-muted-foreground">
-          {run.created_by_name} · {formatDate(run.created_at)}
+          {run.created_by_name} · {formatDate(run.created_at)} · motor {run.engine_version ?? '—'}
         </p>
       </div>
 
@@ -66,6 +70,7 @@ function RunPage() {
       {(run.status === 'succeeded' || run.status === 'inconclusive') && (
         <p>Execução concluída. Os dashboards chegam em breve.</p>
       )}
+      <RunDetails slug={slug} run={run} canEdit={canEdit} />
 
       <LogPanel lines={log.lines} active={active} ended={log.state === 'ended'} />
       {log.state === 'lost' && (
