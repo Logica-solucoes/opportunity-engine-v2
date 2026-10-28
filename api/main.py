@@ -47,8 +47,9 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
 
 def create_app(web_dist: Path | None = None) -> FastAPI:
     app = FastAPI(title="Marketing GEM")
-    app.middleware("http")(logs.request_context)
     app.middleware("http")(auth.check_origin)
+    # added last = outermost: it must run in uvicorn's own task, which logs the access line and a 500's traceback
+    app.middleware("http")(logs.request_context)
     app.exception_handler(passwords.Busy)(busy)
     app.exception_handler(RequestValidationError)(invalid_request)
     app.include_router(router)
