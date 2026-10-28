@@ -1,11 +1,12 @@
 from datetime import datetime
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api import accounts
+from api import accounts, usage
 from api.auth import require_platform_admin
 from api.db import get_db
 from api.models import User, Workspace
@@ -45,6 +46,24 @@ class ActiveIn(BaseModel):
 
 class TempPasswordOut(BaseModel):
     temp_password: str
+
+
+Month = Annotated[str | None, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
+
+
+class UsageRow(BaseModel):
+    month: str
+    workspace_id: int
+    workspace_name: str
+    user_id: int
+    user_name: str
+    user_email: str
+    succeeded: int
+    inconclusive: int
+    failed: int
+    active: int
+    total: int
+    run_seconds: int
 
 
 def find_user(db: Session, user_id: int) -> User:
@@ -89,3 +108,18 @@ def set_active(
     user = find_user(db, user_id)
     accounts.set_active(db, user, body.active, by=admin)
     return user
+
+
+@router.get("/usage", response_model=list[UsageRow])
+def list_usage(month: Month = None, _: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    return usage.rows(db, month)
+
+
+@router.get("/usage.csv")
+def export_usage(month: Month = None, _: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
+    name = f"uso-{month}.csv" if month else "uso.csv"
+    return Response(
+        usage.to_csv(usage.rows(db, month)),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )

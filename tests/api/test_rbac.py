@@ -45,6 +45,8 @@ ROUTES = {
     ("GET", "/api/admin/users"): (PLATFORM, 200, None),
     ("POST", "/api/admin/users/{user_id}/reset-password"): (PLATFORM, 200, None),
     ("PATCH", "/api/admin/users/{user_id}"): (PLATFORM, 200, lambda e: {"active": False}),
+    ("GET", "/api/admin/usage"): (PLATFORM, 200, None),
+    ("GET", "/api/admin/usage.csv"): (PLATFORM, 200, None),
 }
 UNSCOPED = {("GET", "/api/health")}
 

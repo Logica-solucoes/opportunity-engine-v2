@@ -104,3 +104,38 @@ def test_csv_is_ready_for_a_ptbr_spreadsheet(db, ws, ana, add_run):
         "Mês;Workspace;Usuário;E-mail;Concluídas;Inconclusivas;Falharam;Em andamento;Total;Minutos de execução"
     )
     assert line == "2026-10;A;ana;ana@x.com;1;0;0;0;1;1,5"
+
+
+@pytest.fixture
+def root_client(client, make_user, login_as):
+    login_as(client, make_user("root@x.com", platform=True))
+    return client
+
+
+def test_usage_route_filters_by_month(root_client, ws, ana, add_run):
+    add_run(ws, ana, "succeeded")
+    add_run(ws, ana, "succeeded", created_at=OCT + timedelta(days=31))
+
+    every = root_client.get("/api/admin/usage")
+    october = root_client.get("/api/admin/usage", params={"month": "2026-10"})
+
+    assert [r["month"] for r in every.json()] == ["2026-11", "2026-10"]
+    assert [(r["month"], r["user_email"], r["succeeded"]) for r in october.json()] == [("2026-10", "ana@x.com", 1)]
+
+
+@pytest.mark.parametrize("month", ["2026-13", "2026-1", "out/2026", "2026-10-01"])
+def test_usage_rejects_a_malformed_month(root_client, month):
+    assert root_client.get("/api/admin/usage", params={"month": month}).status_code == 422
+    assert root_client.get("/api/admin/usage.csv", params={"month": month}).status_code == 422
+
+
+def test_usage_csv_is_an_attachment_named_after_the_month(root_client, ws, ana, add_run):
+    add_run(ws, ana, "succeeded", seconds=90)
+
+    month = root_client.get("/api/admin/usage.csv", params={"month": "2026-10"})
+    every = root_client.get("/api/admin/usage.csv")
+
+    assert month.headers["content-type"] == "text/csv; charset=utf-8"
+    assert month.headers["content-disposition"] == 'attachment; filename="uso-2026-10.csv"'
+    assert month.text.endswith("2026-10;A;ana;ana@x.com;1;0;0;0;1;1,5\n")
+    assert every.headers["content-disposition"] == 'attachment; filename="uso.csv"'
