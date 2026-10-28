@@ -67,6 +67,10 @@ export const workspaceRunsQuery = (slug: string) =>
 export type RunFilters = { q?: string; status?: RunStatus; author?: string; from?: string; to?: string }
 
 const text = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
+const day = (v: unknown) => {
+  const s = text(v)
+  return s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined
+}
 
 // unknown or empty values drop out, so a hand-edited URL never breaks the page
 export function parseRunFilters(search: Record<string, unknown>): RunFilters {
@@ -75,8 +79,8 @@ export function parseRunFilters(search: Record<string, unknown>): RunFilters {
     q: text(search.q),
     status: status && Object.hasOwn(STATUS_LABELS, status) ? (status as RunStatus) : undefined,
     author: text(search.author),
-    from: text(search.from),
-    to: text(search.to),
+    from: day(search.from),
+    to: day(search.to),
   }
 }
 
