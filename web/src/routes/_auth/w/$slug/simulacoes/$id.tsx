@@ -2,6 +2,7 @@ import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery 
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { CircleX, Info, TriangleAlert } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
+import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
 import { NativeSelect } from '@/components/NativeSelect'
 import { ParamsForm } from '@/components/ParamsForm'
@@ -43,10 +44,10 @@ function SimulationPage() {
   const { slug, id } = Route.useParams()
   const { data: me } = useSuspenseQuery(meQuery)
   if (roleIn(me, slug) === 'viewer') return <p>Sem permissão para editar simulações deste workspace.</p>
-  return <SimulationDetail slug={slug} id={id} />
+  return <SimulationDetail slug={slug} id={id} isAdmin={roleIn(me, slug) === 'admin'} />
 }
 
-function SimulationDetail({ slug, id }: { slug: string; id: string }) {
+function SimulationDetail({ slug, id, isAdmin }: { slug: string; id: string; isAdmin: boolean }) {
   const queryClient = useQueryClient()
   const query = simulationQuery(slug, id)
   const { data: sim, isError } = useQuery(query)
@@ -100,6 +101,8 @@ function SimulationDetail({ slug, id }: { slug: string; id: string }) {
           <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} onDirty={setParamsDirty} />
         )}
       </ValidationBlock>
+
+      {isAdmin && <DeleteSimulation slug={slug} sim={sim} />}
     </div>
   )
 }
