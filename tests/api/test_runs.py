@@ -1,7 +1,5 @@
 import io
 import json
-import logging
-import sys
 from datetime import timedelta
 
 import pytest
@@ -387,7 +385,7 @@ def test_engine_error_shows_ptbr_and_keeps_the_traceback_out_of_the_db(db, ready
     assert messages(db, run.id)[-1] == expected
     assert all("converge" not in m for m in messages(db, run.id))
     failure = next(r for r in caplog.records if r.exc_info)
-    assert "did not converge" in str(failure.exc_info[1]) and failure.run_id == run.id
+    assert "did not converge" in str(failure.exc_info[1])
 
 
 def test_an_unknown_engine_status_fails_the_run(db, ready, analyst, monkeypatch):
@@ -455,19 +453,6 @@ def test_worker_reads_the_inputs_by_sha256(db, ready, analyst, monkeypatch):
 
     assert seen["investment_file"].read_bytes() == INVESTMENT
     assert seen["generic_trends_file"] is None
-
-
-def test_json_formatter_writes_one_cloud_logging_line_with_the_traceback():
-    try:
-        raise RuntimeError("boom")
-    except RuntimeError:
-        record = logging.LogRecord("api.worker", logging.ERROR, __file__, 1, "worker.failed", None, sys.exc_info())
-    record.run_id, record.workspace_id = 7, 3
-
-    entry = json.loads(worker.JsonFormatter().format(record))
-
-    assert entry["severity"] == "ERROR" and (entry["run_id"], entry["workspace_id"]) == (7, 3)
-    assert entry["message"].startswith("worker.failed") and "RuntimeError: boom" in entry["message"]
 
 
 def events(text):

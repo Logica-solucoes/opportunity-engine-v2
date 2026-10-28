@@ -8,7 +8,7 @@ from pathlib import Path
 from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
-from api import engine_run, simulations, storage
+from api import engine_run, logs, simulations, storage
 from api.db import SessionLocal
 from api.models import Run, RunLog
 
@@ -16,14 +16,6 @@ log = logging.getLogger("api.worker")
 
 FINAL_STATUSES = ("succeeded", "inconclusive", "failed")
 ENGINE_ERROR = "O motor falhou. Detalhes técnicos ficam no log do servidor (execução {id})."
-
-
-class JsonFormatter(logging.Formatter):
-    # Cloud Logging reads one JSON object per stdout line; the traceback rides inside `message`
-    def format(self, record: logging.LogRecord) -> str:
-        entry = {"severity": record.levelname, "message": super().format(record)}
-        entry.update({k: getattr(record, k) for k in ("run_id", "workspace_id") if hasattr(record, k)})
-        return json.dumps(entry, ensure_ascii=False)
 
 
 def execute(db: Session, run_id: int) -> None:
@@ -36,10 +28,11 @@ def execute(db: Session, run_id: int) -> None:
     if run is None:
         log.info("worker.skipped run_id=%s", run_id)
         return
-    rid, wid, sid, config, files = run.id, run.workspace_id, run.simulation_id, run.config, run.inputs
+    rid, wid, sid, uid = run.id, run.workspace_id, run.simulation_id, run.created_by
+    config, files = run.config, run.inputs
     db.commit()
-    ids = {"run_id": rid, "workspace_id": wid}
-    log.info("worker.started run_id=%s", rid, extra=ids)
+    logs.tag(workspace_id=wid, user_id=uid)
+    log.info("worker.started run_id=%s", rid)
 
     def on_log(level: str, message: str) -> None:
         db.add(RunLog(run_id=rid, level=level, message=message))
@@ -68,7 +61,7 @@ def execute(db: Session, run_id: int) -> None:
             values["error"] = ENGINE_ERROR.format(id=rid)
             db.add(RunLog(run_id=rid, level="error", message=values["error"]))
     except Exception:  # any engine failure fails the run; the raw message may be English or carry data
-        log.exception("worker.engine_failed run_id=%s", rid, extra=ids)
+        log.exception("worker.engine_failed run_id=%s", rid)
         db.rollback()
         message = ENGINE_ERROR.format(id=rid)
         db.add(RunLog(run_id=rid, level="error", message=message))
@@ -79,21 +72,19 @@ def execute(db: Session, run_id: int) -> None:
         update(Run).where(Run.id == rid, Run.status == "running").values(**values, finished_at=func.now())
     ).rowcount
     db.commit()
-    log.info("worker.finished run_id=%s status=%s applied=%s", rid, values["status"], bool(applied), extra=ids)
+    log.info("worker.finished run_id=%s status=%s applied=%s", rid, values["status"], bool(applied))
 
 
 def main(argv: list[str] | None = None) -> None:
     args = sys.argv[1:] if argv is None else argv
     # the Cloud Run Job (B11) passes RUN_ID as an env override; locally the launcher passes it as an argument
     run_id = int(args[0] if args else os.environ["RUN_ID"])
-    with SessionLocal() as db:
+    with SessionLocal() as db, logs.scope(run_id=run_id):
         execute(db, run_id)
 
 
 if __name__ == "__main__":
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
-    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    logs.setup()
     # a crash before execute (database down, bad RUN_ID) still reaches Cloud Logging as one JSON line;
     # the run stays queued until the API fails it as stale
     try:
