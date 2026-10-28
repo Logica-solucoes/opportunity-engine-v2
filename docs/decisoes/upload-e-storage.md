@@ -42,7 +42,7 @@ A ordem é banco, depois storage. Apagar a linha leva `simulation_files`, `runs`
 
 Limites conhecidos: um upload que ainda está gravando no storage quando o apagar confirma recria a pasta `inputs/` com um arquivo órfão (o `save_file` grava antes de travar a linha), e um worker vivo de um run já marcado como morto recria a pasta do run com um `results.json` órfão. Os dois são raros (o Job do Cloud Run expira em 15 min e o run só é morto aos 20) e ficam para o B11, junto com o GCS. Duas operações simultâneas sobre uma simulação que acabou de ser apagada dão 500, não 404.
 
-## Telas (B2b)
+## Telas (B2b e B9b)
 
 - **Pré-preenchimento do mapping.** Um re-upload zera o `validation` mas mantém o `config.column_mapping`, que pode apontar para uma coluna que o arquivo novo não tem. A tela usa o salvo só se a coluna ainda existe e cai no `suggested` caso contrário (`initialColumn` em `web/src/lib/simulations.ts`). O backend não limpa o mapping: quem decide o que mostrar é a tela, e o `PUT …/mapping` recusa coluna inexistente de qualquer jeito.
 - **Cache sem refetch.** Upload, mapping e criação devolvem o `SimulationOut` inteiro; a tela grava a resposta com `setQueryData` e só invalida a lista.
@@ -50,3 +50,4 @@ Limites conhecidos: um upload que ainda está gravando no storage quando o apaga
 - **Arquivo checado antes do envio.** A tela recusa nome sem `.csv` ou acima de 30 MiB com a mesma mensagem da API, sem mandar o corpo. Acima de 32 MiB o 413 vem do próprio Cloud Run, em HTML, e sem essa checagem a tela mostraria "HTTP 413" ou "Falha de conexão". A API continua sendo quem decide.
 - **Refetch que falha não apaga a página.** Só uma simulação que nunca carregou vira "Simulação não encontrada."; um 5xx no refetch de foco mantém os dados e o mapeamento não salvo.
 - **Upload ao escolher o arquivo**, sem botão. A área de drag & drop é o `file-upload-04` do blocks.so sem a barra de progresso fake (o arquivo real é < 1 MB).
+- **Apagar pede o nome.** A seção "Apagar simulação" fica no fim da página e só aparece para admin. O diálogo só habilita o botão com o nome exato digitado, e o botão é um `Button` comum, não o `AlertDialogAction`, para o 409 (run em andamento) aparecer no próprio diálogo. Ao apagar, a tela tira a simulação da lista em cache, navega para a lista e só então descarta a query da simulação (senão ela seria buscada de novo e daria 404) e as queries de runs inativas (o Voltar não mostra um run apagado). O Cancelar fica desabilitado enquanto o apagar está em andamento.

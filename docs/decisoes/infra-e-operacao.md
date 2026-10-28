@@ -47,3 +47,5 @@ Uma linha JSON por evento no stdout (`severity`, `logger`, `message` e, quando e
 ## Uso derivado de `runs` (B9)
 
 A view `usage` agrega `runs` por workspace × usuário × mês, com status em colunas e o tempo de execução somado: sem tabela nova, sem job de consolidação, e um BI pode ler a view direto. O mês é o de São Paulo, não o de UTC (um run às 22h do dia 31 é daquele mês). O CSV sai com `;`, vírgula decimal e BOM, o que o Excel em pt-BR abre sem assistente. Nomes e e-mails no CSV que começam com `=`, `+`, `-`, `@`, tab ou CR saem com `'` na frente (`SECURITY.md`). A cópia no BigQuery do trilha-b ficou para o B11, quando houver projeto GCP; é o 6º da ordem de corte.
+
+A tela `/admin/uso` guarda o mês no search param (`month=YYYY-MM`, ou `todos`; sem o param, o mês atual do navegador). O tempo vem somado em segundos da API e a tela só formata ("1 h 05 min"). "Exportar CSV" é um link para a rota `.csv` com o mesmo filtro. O campo guarda o próprio rascunho e só navega com um mês completo ou vazio: Safari e Firefox de desktop mostram `type=month` como caixa de texto, e um valor pela metade não pode ir para a URL.

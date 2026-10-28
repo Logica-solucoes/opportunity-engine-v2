@@ -228,7 +228,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B9 · Uso, logs e retenção — semana 3
 
-- **Status:** 🟡 em andamento. B9a (backend) em 28/out/2026, verificado por `tests/api/test_logs.py` (linhas JSON com `user_id`/`workspace_id`/`run_id` na API e no worker, sem vazar entre requests), `tests/api/test_usage.py` (view, mês de São Paulo, CSV) e `tests/api/test_delete_simulation.py` (cascade, pasta no storage, 409 com run ativo, falha de storage) e `tests/api/test_rbac.py`. Falta o B9b (telas). Fora: cópia no BigQuery (B11) e retenção automática (prazo de LGPD em aberto). Desvios em `docs/decisoes/infra-e-operacao.md` e `docs/decisoes/upload-e-storage.md`.
+- **Status:** ✅ feito. B9a (backend) em 28/out/2026, verificado por `tests/api/test_logs.py` (linhas JSON com `user_id`/`workspace_id`/`run_id` na API e no worker, sem vazar entre requests), `tests/api/test_usage.py` (view, mês de São Paulo, CSV) e `tests/api/test_delete_simulation.py` (cascade, pasta no storage, 409 com run ativo, falha de storage) e `tests/api/test_rbac.py`. B9b (telas) em 28/out/2026, verificado por `web/e2e/admin.spec.ts` (uso com o run, CSV, todos os meses) e `web/e2e/simulations.spec.ts` (apagar com confirmação, analista sem o botão) e screenshots nos dois temas. Fora: cópia no BigQuery (B11) e retenção automática (prazo de LGPD em aberto). Desvios em `docs/decisoes/infra-e-operacao.md` e `docs/decisoes/upload-e-storage.md`.
 - **BRD:** Capabilities › Mathematical audit & usage tracking ("usage table"); Journey 3 passo 2; Improvement Requests › Usage tracking e Logs; Figure 2 › Governance.
 - **Depende de:** B4.
 - **Fazer:**
