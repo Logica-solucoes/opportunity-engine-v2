@@ -1,8 +1,11 @@
 import { queryOptions } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from './api'
+import type { Simulation } from './simulations'
 
 export type RunStatus = 'queued' | 'running' | 'succeeded' | 'inconclusive' | 'failed'
+
+export type RunInput = { filename: string; sha256: string } | null
 
 export type Run = {
   id: number
@@ -15,6 +18,12 @@ export type Run = {
   error: string | null
   summary: Record<string, unknown> | null
   engine_version: string | null
+  // snapshot of the simulation's config when the run was created, column_mapping included
+  config: Simulation['config']
+  // keyed like column_mapping: investment_file, performance_file, generic_trends_file
+  inputs: Record<string, RunInput>
+  published_at: string | null
+  published_by_name: string | null
 }
 
 export type LogLine = { id: number; ts: string; level: 'info' | 'warning' | 'error'; message: string }
@@ -28,6 +37,8 @@ export const STATUS_LABELS: Record<RunStatus, string> = {
 }
 
 export const isActive = (status: RunStatus) => status === 'queued' || status === 'running'
+
+export const isPublishable = (status: RunStatus) => status === 'succeeded' || status === 'inconclusive'
 
 const MAX_LINES = 300
 
@@ -45,6 +56,49 @@ export const simulationRunsQuery = (slug: string, simulationId: number) =>
     queryFn: () => api<Run[]>(`/w/${slug}/simulations/${simulationId}/runs`),
     refetchInterval: (q) => (q.state.data?.some((r) => isActive(r.status)) ? 3000 : false),
   })
+
+export const workspaceRunsQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ['runs', slug, 'workspace'],
+    queryFn: () => api<Run[]>(`/w/${slug}/runs`),
+    refetchInterval: (q) => (q.state.data?.some((r) => isActive(r.status)) ? 3000 : false),
+  })
+
+export type RunFilters = { q?: string; status?: RunStatus; author?: string; from?: string; to?: string }
+
+const text = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
+
+// unknown or empty values drop out, so a hand-edited URL never breaks the page
+export function parseRunFilters(search: Record<string, unknown>): RunFilters {
+  const status = text(search.status)
+  return {
+    q: text(search.q),
+    status: status && status in STATUS_LABELS ? (status as RunStatus) : undefined,
+    author: text(search.author),
+    from: text(search.from),
+    to: text(search.to),
+  }
+}
+
+// YYYY-MM-DD in the browser's timezone, the format <input type="date"> gives
+function localDay(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export function filterRuns(runs: Run[], f: RunFilters): Run[] {
+  const q = f.q?.trim().toLocaleLowerCase('pt-BR')
+  return runs.filter((r) => {
+    const day = localDay(r.created_at)
+    return (
+      (!q || r.simulation.name.toLocaleLowerCase('pt-BR').includes(q)) &&
+      (!f.status || r.status === f.status) &&
+      (!f.author || r.created_by_name === f.author) &&
+      (!f.from || day >= f.from) &&
+      (!f.to || day <= f.to)
+    )
+  })
+}
 
 export type LogState = 'open' | 'ended' | 'lost'
 

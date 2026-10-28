@@ -75,6 +75,14 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
 
 export const ENUM_LABELS: Record<string, string> = { REVENUE: 'Receita', CONVERSIONS: 'Conversões' }
 
+// read-only display of a saved value (run page); "—" for a field the run's config doesn't have
+export function displayValue(field: FormField, value: unknown): string {
+  if (value == null) return '—'
+  if (field.schema.type === 'boolean') return value ? 'Sim' : 'Não'
+  if (field.schema.enum) return ENUM_LABELS[String(value)] ?? String(value)
+  return typeof value === 'number' ? value.toLocaleString('pt-BR') : String(value)
+}
+
 export const configSchemaQuery = queryOptions({
   queryKey: ['engine', 'config-schema'],
   queryFn: () => api<ConfigSchema>('/engine/config-schema'),
@@ -112,7 +120,7 @@ export function visibleLayout(schema: ConfigSchema): FormGroup[] {
   })).filter((group) => group.fields.length > 0)
 }
 
-const getPath = (obj: unknown, path: string): unknown =>
+export const getPath = (obj: unknown, path: string): unknown =>
   path
     .split('.')
     .reduce<unknown>((node, key) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined), obj)
