@@ -66,7 +66,7 @@ Run de outro workspace, ou não publicado para o viewer, é 404 em todas, pelo `
 
 ### `/w/$slug/execucoes` (rota nova)
 
-- Tabela com Simulação (link), Status (o selo que a B4b já usa), Autor, Criada em, Versão do motor e Publicada (selo). A linha leva à página do run.
+- Tabela com Simulação (texto: o viewer não abre simulações, e a página do run linka a simulação para o analista), Status (o selo que a B4b já usa), Autor, Criada em, Versão do motor e Publicada (selo). A linha leva à página do run.
 - Filtros acima da tabela: busca pelo nome da simulação, status (select), autor (select com os autores da lista) e período (dois `<input type="date">` sobre `created_at`, no fuso do navegador). Todos ficam nos search params da rota (`validateSearch`), para o link manter os filtros e o voltar do navegador funcionar.
 - Lista vazia → "Nenhuma execução ainda."; filtros sem resultado → "Nenhuma execução com esses filtros." com o botão "Limpar filtros".
 - Os tipos e a query (`workspaceRunsQuery`) entram em `web/src/lib/runs.ts`, e os filtros em uma função pura no mesmo arquivo. É exibição, não conta do motor.
