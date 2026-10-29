@@ -49,6 +49,7 @@ def test_query_sends_typed_params_with_a_byte_cap(monkeypatch):
     [
         (exceptions.Forbidden("sem acesso"), bigquery.NoAccess),
         (exceptions.NotFound("sem tabela"), bigquery.NoAccess),
+        (exceptions.Forbidden("cota", errors=[{"reason": "quotaExceeded"}]), bigquery.Failed),
         (DefaultCredentialsError("sem adc"), bigquery.NoCredentials),
         (exceptions.BadRequest("bytes billed"), bigquery.Failed),
         (TimeoutError(), bigquery.Failed),

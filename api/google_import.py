@@ -53,16 +53,16 @@ class NotConfigured(Exception):
     pass
 
 
-def config_of(workspace: Workspace) -> GoogleConfig:
+def config_of(workspace: Workspace) -> GoogleConfig | None:
     raw = workspace.settings.get("google")
     if raw is None:
-        raise NotConfigured
+        return None
     try:
         # validated again: a value written straight to the db must not reach the SQL either
         return GoogleConfig.model_validate(raw)
     except ValidationError:
         log.error("google.bad_config workspace_id=%s", workspace.id)
-        raise NotConfigured
+        return None
 
 
 def configure(db: Session, workspace: Workspace, config: GoogleConfig | None, by: User) -> None:
@@ -175,14 +175,21 @@ def trends_mapping(simulation: Simulation) -> dict:
     trends = next((f for f in simulation.files if f.kind == "trends"), None)
     if trends is None:
         return {}
+    # a trends file never mapped gets the suggestion
     current = simulation.config.get("column_mapping", {}).get("generic_trends_file")
-    # ponytail: a trends file never mapped gets the suggestion; a bad one fails in save_mapping with its message
-    return {"generic_trends_file": current or simulations.suggest_mapping("trends", trends.columns)}
+    mapping = current or simulations.suggest_mapping("trends", trends.columns)
+    # checked before the queries: failing in save_mapping would leave the Google files saved behind a 422
+    if any(column not in trends.columns for column in mapping.values()):
+        raise simulations.InvalidInput("Mapeie as colunas do arquivo de trends antes de importar.")
+    return {"generic_trends_file": mapping}
 
 
 def run(db: Session, workspace: Workspace, simulation: Simulation, period: Period, by: User) -> None:
     config = config_of(workspace)
+    if config is None:
+        raise NotConfigured
     simulation_id = simulation.id
+    mapping = {**FIXED_MAPPING, **trends_mapping(simulation)}
     # hand the connection back to the pool: each query can take 60 s
     db.rollback()
     ads = fetch(config.ads.dataset, ads_sql(config.ads), {"start": period.start, "end": period.end})
@@ -202,7 +209,7 @@ def run(db: Session, workspace: Workspace, simulation: Simulation, period: Perio
     performance_name = f"ga4-{config.ga4.event}-{config.ga4.metric}_{span}.csv"
     simulations.save_file(db, simulation, "investment", io.BytesIO(investment), f"google-ads_{span}.csv", by)
     simulations.save_file(db, simulation, "performance", io.BytesIO(performance), performance_name, by)
-    simulations.save_mapping(db, simulation, {**FIXED_MAPPING, **trends_mapping(simulation)})
+    simulations.save_mapping(db, simulation, mapping)
     log.info(
         "simulation.google_imported simulation_id=%s start=%s end=%s channels=%s",
         simulation_id,

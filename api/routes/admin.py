@@ -29,7 +29,7 @@ class WorkspaceOut(BaseModel):
 
 
 def workspace_out(w: Workspace) -> WorkspaceOut:
-    return WorkspaceOut(id=w.id, name=w.name, slug=w.slug, created_at=w.created_at, google=w.settings.get("google"))
+    return WorkspaceOut(id=w.id, name=w.name, slug=w.slug, created_at=w.created_at, google=google_import.config_of(w))
 
 
 def find_workspace(db: Session, workspace_id: int) -> Workspace:

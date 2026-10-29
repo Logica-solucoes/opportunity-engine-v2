@@ -195,6 +195,22 @@ def test_import_replaces_uploads_and_keeps_the_trends_mapping(logged, ws, ana, m
     assert r.json()["files"]["trends"]["filename"] == "trends.csv"
 
 
+def test_import_with_an_unmappable_trends_file_queries_and_saves_nothing(
+    logged, ws, ana, make_simulation, fake_bigquery
+):
+    simulation = make_simulation(
+        ws, ana, files={"investment": INVESTMENT, "performance": PERFORMANCE, "trends": b"x,y\n1,2\n"}
+    )
+
+    r = logged.post(url(simulation), json=GOOGLE_PERIOD)
+
+    assert (r.status_code, r.json()["detail"]) == (422, "Mapeie as colunas do arquivo de trends antes de importar.")
+    assert fake_bigquery.calls == []
+    assert logged.get(f"/api/w/a/simulations/{simulation.id}").json()["files"]["investment"]["filename"] != (
+        "google-ads_2026-01-01_2026-01-03.csv"
+    )
+
+
 def test_import_without_spend_saves_nothing(logged, sim, fake_bigquery):
     fake_bigquery.answers["ads"] = []
 
@@ -243,6 +259,12 @@ def test_tampered_config_never_reaches_bigquery(logged, sim, ws, db, fake_bigque
 def test_import_rejects_bad_periods(logged, sim, fake_bigquery, period):
     assert logged.post(url(sim), json=period).status_code == 422
     assert fake_bigquery.calls == []
+
+
+def test_bad_period_422_carries_the_sentence_the_screen_shows(logged, sim, fake_bigquery):
+    error = logged.post(url(sim), json={"start": "2026-01-01", "end": "2999-01-01"}).json()["detail"][0]
+
+    assert (error["type"], error["msg"]) == ("value_error", "Value error, O fim não pode estar no futuro.")
 
 
 @pytest.mark.parametrize(

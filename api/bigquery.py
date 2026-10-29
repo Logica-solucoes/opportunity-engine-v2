@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 MAX_BYTES_BILLED = 20 * 1024**3
 TIMEOUT_S = 60
 TYPES = {date: "DATE", str: "STRING"}
+QUOTA_REASONS = {"quotaExceeded", "rateLimitExceeded"}
 
 
 class Failed(Exception):
@@ -35,6 +36,10 @@ def query(sql: str, params: dict[str, date | str]) -> list[dict]:
         rows = bq.Client().query(sql, job_config=config).result(timeout=TIMEOUT_S)
         return [dict(row.items()) for row in rows]
     except (exceptions.Forbidden, exceptions.NotFound) as e:
+        # BigQuery also answers 403 for quota and rate limits, which no dataset grant fixes
+        if any(err.get("reason") in QUOTA_REASONS for err in e.errors):
+            log.exception("bigquery.failed")
+            raise Failed from e
         log.exception("bigquery.no_access")
         raise NoAccess from e
     except DefaultCredentialsError as e:

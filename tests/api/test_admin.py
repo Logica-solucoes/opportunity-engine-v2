@@ -175,6 +175,18 @@ def test_google_connector_rejects_bad_config_and_unknown_workspace(client, make_
     assert client.delete("/api/admin/workspaces/999999/google").status_code == 404
 
 
+def test_tampered_google_config_reads_as_no_connector(client, db, make_user, make_workspace, login_as):
+    ws = make_workspace("a")
+    ws.settings = {"google": {**GOOGLE_CONFIG, "ga4": {**GOOGLE_CONFIG["ga4"], "dataset": "x.y` OR 1=1 --"}}}
+    db.flush()
+    login_as(client, make_user("root@x.com", platform=True))
+
+    r = client.get("/api/admin/workspaces")
+
+    assert r.status_code == 200 and r.json()[0]["google"] is None
+    assert client.get("/api/me").json()["workspaces"][0]["google"] is False
+
+
 def test_me_says_which_workspaces_have_google_without_the_datasets(client, db, make_user, make_workspace, login_as):
     ana = make_user("ana@x.com")
     with_google = make_workspace("a", [(ana, "analyst")])

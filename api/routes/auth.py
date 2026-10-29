@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api import accounts, auth
+from api import accounts, auth, google_import
 from api.db import get_db
 from api.models import Membership, Role, User, UserSession, Workspace
 from api.routes import Password
@@ -55,7 +55,8 @@ def me_out(db: Session, user: User) -> MeOut:
         is_platform_admin=user.is_platform_admin,
         must_change_password=user.must_change_password,
         workspaces=[
-            MyWorkspace(slug=w.slug, name=w.name, role=role, google="google" in w.settings) for w, role in rows
+            MyWorkspace(slug=w.slug, name=w.name, role=role, google=google_import.config_of(w) is not None)
+            for w, role in rows
         ],
     )
 
