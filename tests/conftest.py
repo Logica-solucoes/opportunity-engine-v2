@@ -6,6 +6,7 @@ os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "postgresql+psy
 import io
 from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from alembic import command
@@ -15,11 +16,12 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from api import bigquery, launcher, passwords, simulations, storage
 from api import db as api_db
-from api import launcher, passwords, simulations, storage
 from api.main import create_app
 from api.models import Membership, User, Workspace
 from api.routes import runs as runs_routes
+from tests.samples import ADS_ROWS, GA4_ROWS
 
 ROOT = Path(__file__).resolve().parents[1]
 PASSWORD = "senha-de-teste-123"
@@ -166,3 +168,16 @@ def make_simulation(db):
         return simulation
 
     return make
+
+
+@pytest.fixture
+def fake_bigquery(monkeypatch):
+    # answers by table: the GA4 query is the only one reading events_*
+    fake = SimpleNamespace(calls=[], answers={"ads": ADS_ROWS, "ga4": GA4_ROWS})
+
+    def query(sql, params):
+        fake.calls.append((sql, params))
+        return fake.answers["ga4" if "events_*" in sql else "ads"]
+
+    monkeypatch.setattr(bigquery, "query", query)
+    return fake

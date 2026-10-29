@@ -4,7 +4,7 @@ from sqlalchemy import func
 from api import runs, simulations
 from api.auth import RANK
 from api.engine_config import ParamsIn
-from tests.samples import GOOGLE_CONFIG, INVESTMENT, MAPPING, PERFORMANCE
+from tests.samples import GOOGLE_CONFIG, GOOGLE_PERIOD, INVESTMENT, MAPPING, PERFORMANCE
 
 PUBLIC, SESSION, PLATFORM = "public", "session", "platform"
 ACTORS = ["anon", "viewer", "analyst", "admin", "platform"]
@@ -32,6 +32,7 @@ ROUTES = {
     ("GET", "/api/w/{slug}/simulations/{simulation_id}/suggestions"): ("analyst", 200, None),
     ("POST", "/api/w/{slug}/simulations/{simulation_id}/suggestions/gemini"): ("analyst", 200, None),
     ("PUT", "/api/w/{slug}/simulations/{simulation_id}/params"): ("analyst", 200, lambda e: {}),
+    ("POST", "/api/w/{slug}/simulations/{simulation_id}/google-import"): ("analyst", 200, lambda e: GOOGLE_PERIOD),
     ("POST", "/api/w/{slug}/simulations/{simulation_id}/runs"): ("analyst", 201, lambda e: {"confirmed_warnings": []}),
     ("GET", "/api/w/{slug}/simulations/{simulation_id}/runs"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs"): ("viewer", 200, None),
@@ -71,12 +72,14 @@ def expected_status(minimum, ok, actor):
 
 
 @pytest.fixture
-def env(db, stream_db, make_user, make_workspace, make_simulation, password):
+def env(db, stream_db, make_user, make_workspace, make_simulation, password, fake_bigquery):
     users = {role: make_user(f"{role}@x.com") for role in ("viewer", "analyst", "admin")}
     users["platform"] = make_user("platform@x.com", platform=True)
     target = make_user("target@x.com")
     make_user("fora@x.com")
     ws = make_workspace("a", [(users[r], r) for r in ("viewer", "analyst", "admin")] + [(target, "viewer")])
+    ws.settings = {"google": GOOGLE_CONFIG}
+    db.flush()
     simulation = make_simulation(ws, users["analyst"], files={"investment": INVESTMENT, "performance": PERFORMANCE})
     simulations.save_mapping(db, simulation, MAPPING)
     simulations.save_params(db, simulation, ParamsIn().model_dump(mode="json"))

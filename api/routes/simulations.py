@@ -6,7 +6,7 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from api import runs, simulations
+from api import google_import, runs, simulations
 from api.auth import Ctx, require_role
 from api.db import get_db
 from api.engine_config import ParamsIn
@@ -192,6 +192,25 @@ def save_params(
     simulation = find_simulation(db, ctx, simulation_id)
     try:
         simulations.save_params(db, simulation, body.model_dump(mode="json"))
+    except simulations.InvalidInput as e:
+        raise HTTPException(422, str(e))
+    return simulation_out(simulation)
+
+
+@router.post("/{simulation_id}/google-import", response_model=SimulationOut)
+def import_from_google(
+    simulation_id: SimulationId,
+    body: google_import.Period,
+    ctx: Ctx = Depends(analyst),
+    db: Session = Depends(get_db),
+):
+    simulation = find_simulation(db, ctx, simulation_id)
+    try:
+        google_import.run(db, ctx.workspace, simulation, body, by=ctx.user)
+    except google_import.NotConfigured:
+        raise HTTPException(409, "Workspace sem conector Google configurado.")
+    except google_import.SourceError as e:
+        raise HTTPException(502, str(e))
     except simulations.InvalidInput as e:
         raise HTTPException(422, str(e))
     return simulation_out(simulation)

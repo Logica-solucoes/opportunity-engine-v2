@@ -9,8 +9,8 @@ from zoneinfo import ZoneInfo
 from pydantic import AfterValidator, BaseModel, Field, StringConstraints, ValidationError, model_validator
 from sqlalchemy.orm import Session
 
-from api import simulations
-from api.models import User, Workspace
+from api import bigquery, simulations
+from api.models import Simulation, User, Workspace
 
 log = logging.getLogger(__name__)
 
@@ -148,3 +148,65 @@ def performance_csv(rows: list[dict], period: Period, event: str) -> bytes:
     if not any(kpi.values()):
         raise simulations.InvalidInput(f"Nenhum evento '{event}' no GA4 neste período.")
     return to_csv(["data", "kpi"], [[day.isoformat(), str(round(kpi.get(day, 0), 2))] for day in period.days()])
+
+
+FIXED_MAPPING = {
+    "investment_file": {"date_col": "data", "channel_col": "canal", "investment_col": "investimento"},
+    "performance_file": {"date_col": "data", "kpi_col": "kpi"},
+}
+
+
+class SourceError(Exception):
+    pass
+
+
+def fetch(dataset: str, sql: str, params: dict) -> list[dict]:
+    try:
+        return bigquery.query(sql, params)
+    except bigquery.NoAccess:
+        raise SourceError(f"A service account não tem acesso ao dataset ou a tabela não existe: {dataset}.")
+    except bigquery.NoCredentials:
+        raise SourceError("Conector Google sem credenciais neste ambiente.")
+    except bigquery.Failed:
+        raise SourceError("Não foi possível consultar o BigQuery.")
+
+
+def trends_mapping(simulation: Simulation) -> dict:
+    trends = next((f for f in simulation.files if f.kind == "trends"), None)
+    if trends is None:
+        return {}
+    current = simulation.config.get("column_mapping", {}).get("generic_trends_file")
+    # ponytail: a trends file never mapped gets the suggestion; a bad one fails in save_mapping with its message
+    return {"generic_trends_file": current or simulations.suggest_mapping("trends", trends.columns)}
+
+
+def run(db: Session, workspace: Workspace, simulation: Simulation, period: Period, by: User) -> None:
+    config = config_of(workspace)
+    simulation_id = simulation.id
+    # hand the connection back to the pool: each query can take 60 s
+    db.rollback()
+    ads = fetch(config.ads.dataset, ads_sql(config.ads), {"start": period.start, "end": period.end})
+    ga4 = fetch(
+        config.ga4.dataset,
+        ga4_sql(config.ga4),
+        {
+            "start_suffix": period.start.strftime("%Y%m%d"),
+            "end_suffix": period.end.strftime("%Y%m%d"),
+            "event": config.ga4.event,
+        },
+    )
+    investment, channels = investment_csv(ads, period)
+    performance = performance_csv(ga4, period, config.ga4.event)
+
+    span = f"{period.start}_{period.end}"
+    performance_name = f"ga4-{config.ga4.event}-{config.ga4.metric}_{span}.csv"
+    simulations.save_file(db, simulation, "investment", io.BytesIO(investment), f"google-ads_{span}.csv", by)
+    simulations.save_file(db, simulation, "performance", io.BytesIO(performance), performance_name, by)
+    simulations.save_mapping(db, simulation, {**FIXED_MAPPING, **trends_mapping(simulation)})
+    log.info(
+        "simulation.google_imported simulation_id=%s start=%s end=%s channels=%s",
+        simulation_id,
+        period.start,
+        period.end,
+        ",".join(channels),
+    )
