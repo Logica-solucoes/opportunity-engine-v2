@@ -150,7 +150,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
       </form>
       {(save.isError && !errors) || remove.isError ? (
         <p role="alert" className="text-sm text-destructive">
-          {errorMessage(save.error ?? remove.error)}
+          {errorMessage(remove.isError ? remove.error : save.error)}
         </p>
       ) : null}
       <DialogFooter className="sm:justify-between">
