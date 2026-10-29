@@ -75,7 +75,7 @@ def ads_sql(config: AdsConfig) -> str:
         f"""SELECT CAST(s.segments_date AS DATE) AS date, c.campaign_advertising_channel_type AS channel_type,
        s.metrics_cost_micros AS cost_micros
 FROM `{config.dataset}.ads_CampaignBasicStats_{cid}` s
-JOIN `{config.dataset}.ads_Campaign_{cid}` c
+LEFT JOIN `{config.dataset}.ads_Campaign_{cid}` c
   ON c.campaign_id = s.campaign_id AND c._DATA_DATE = c._LATEST_DATE
 WHERE s._DATA_DATE BETWEEN @start AND @end"""
         for cid in config.customer_ids

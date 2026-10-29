@@ -76,7 +76,7 @@ Validação do body do import (422): `start <= end`, `end <= hoje` (São Paulo) 
 Uma função, no mesmo papel do `gemini.py` (os testes trocam por fake):
 
 ```python
-def query(sql: str, params: list[bigquery.ScalarQueryParameter | bigquery.ArrayQueryParameter]) -> list[dict]
+def query(sql: str, params: dict[str, date | str]) -> list[dict]
 ```
 
 - `bigquery.Client()` com ADC: `GOOGLE_APPLICATION_CREDENTIALS` no local, a SA anexada no Cloud Run. Projeto de cobrança: o do ADC, ou `GOOGLE_CLOUD_PROJECT` (variável padrão do cliente). Nenhuma env nova nossa; as duas entram comentadas no `.env.example`.
@@ -92,7 +92,7 @@ SELECT date, channel_type, SUM(cost_micros) / 1e6 AS spend FROM (
   SELECT CAST(s.segments_date AS DATE) AS date, c.campaign_advertising_channel_type AS channel_type,
          s.metrics_cost_micros AS cost_micros
   FROM `{dataset}.ads_CampaignBasicStats_{cid}` s
-  JOIN `{dataset}.ads_Campaign_{cid}` c
+  LEFT JOIN `{dataset}.ads_Campaign_{cid}` c
     ON c.campaign_id = s.campaign_id AND c._DATA_DATE = c._LATEST_DATE
   WHERE s._DATA_DATE BETWEEN @start AND @end
   -- UNION ALL do mesmo bloco para cada customer id
@@ -100,7 +100,7 @@ SELECT date, channel_type, SUM(cost_micros) / 1e6 AS spend FROM (
 GROUP BY 1, 2
 ```
 
-O `_DATA_DATE = _LATEST_DATE` pega o tipo atual da campanha, que é o snapshot mais recente da tabela de dimensão. Nomes conferidos em 29/out/2026 na documentação do DTS (`docs.cloud.google.com/bigquery/docs/google-ads-transfer` e `…/google-ads-transformation`, Google Ads API v25), incluindo o `_DATA_DATE = _LATEST_DATE` da query de exemplo oficial. A doc não diz o tipo de `segments_date` (só o formato `yyyy-MM-dd`), por isso a query usa `CAST(s.segments_date AS DATE)`, que serve para `DATE` e para `STRING`. O filtro em `s._DATA_DATE` poda as partições; o filtro de fora em `date` mantém fora uma linha de outro dia.
+O `_DATA_DATE = _LATEST_DATE` pega o tipo atual da campanha, que é o snapshot mais recente da tabela de dimensão. Nomes conferidos em 29/out/2026 na documentação do DTS (`docs.cloud.google.com/bigquery/docs/google-ads-transfer` e `…/google-ads-transformation`, Google Ads API v25), incluindo o `_DATA_DATE = _LATEST_DATE` da query de exemplo oficial. A doc não diz o tipo de `segments_date` (só o formato `yyyy-MM-dd`), por isso a query usa `CAST(s.segments_date AS DATE)`, que serve para `DATE` e para `STRING`. O filtro em `s._DATA_DATE` poda as partições; o filtro de fora em `date` mantém fora uma linha de outro dia. O `LEFT JOIN` mantém o spend de uma campanha ausente do último snapshot, que vira canal `UNKNOWN` em vez de sumir.
 
 Mapeamento fixo no código (`CHANNELS`): `SEARCH→SEARCH`, `PERFORMANCE_MAX→PMAX`, `VIDEO→YOUTUBE`, `DEMAND_GEN→DEMAND_GEN`. Qualquer outro tipo vira o próprio nome. O Python soma por `(data, canal)` entre as contas e entre os tipos que caem no mesmo canal.
 
