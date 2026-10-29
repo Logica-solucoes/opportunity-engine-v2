@@ -6,9 +6,11 @@ from datetime import date, datetime, timedelta
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints, ValidationError, model_validator
+from sqlalchemy.orm import Session
 
 from api import simulations
+from api.models import User, Workspace
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +47,32 @@ class Ga4Config(BaseModel):
 class GoogleConfig(BaseModel):
     ads: AdsConfig
     ga4: Ga4Config
+
+
+class NotConfigured(Exception):
+    pass
+
+
+def config_of(workspace: Workspace) -> GoogleConfig:
+    raw = workspace.settings.get("google")
+    if raw is None:
+        raise NotConfigured
+    try:
+        # validated again: a value written straight to the db must not reach the SQL either
+        return GoogleConfig.model_validate(raw)
+    except ValidationError:
+        log.error("google.bad_config workspace_id=%s", workspace.id)
+        raise NotConfigured
+
+
+def configure(db: Session, workspace: Workspace, config: GoogleConfig | None, by: User) -> None:
+    settings = {k: v for k, v in workspace.settings.items() if k != "google"}
+    if config is not None:
+        settings["google"] = config.model_dump()
+    # a new dict: SQLAlchemy doesn't see in-place changes to a JSONB column
+    workspace.settings = settings
+    db.commit()
+    log.info("google.%s workspace_id=%s by=%s", "configured" if config else "removed", workspace.id, by.id)
 
 
 def today() -> date:

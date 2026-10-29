@@ -4,7 +4,7 @@ from sqlalchemy import func
 from api import runs, simulations
 from api.auth import RANK
 from api.engine_config import ParamsIn
-from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
+from tests.samples import GOOGLE_CONFIG, INVESTMENT, MAPPING, PERFORMANCE
 
 PUBLIC, SESSION, PLATFORM = "public", "session", "platform"
 ACTORS = ["anon", "viewer", "analyst", "admin", "platform"]
@@ -43,6 +43,8 @@ ROUTES = {
     ("GET", "/api/engine/config-schema"): (SESSION, 200, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
+    ("PUT", "/api/admin/workspaces/{workspace_id}/google"): (PLATFORM, 200, lambda e: GOOGLE_CONFIG),
+    ("DELETE", "/api/admin/workspaces/{workspace_id}/google"): (PLATFORM, 204, None),
     ("GET", "/api/admin/users"): (PLATFORM, 200, None),
     ("POST", "/api/admin/users/{user_id}/reset-password"): (PLATFORM, 200, None),
     ("PATCH", "/api/admin/users/{user_id}"): (PLATFORM, 200, lambda e: {"active": False}),
@@ -81,7 +83,14 @@ def env(db, stream_db, make_user, make_workspace, make_simulation, password):
     run = runs.create(db, simulation, set(), by=users["analyst"])
     run.status, run.published_at = "succeeded", func.now()
     db.commit()
-    return {"users": users, "target": target, "password": password, "simulation": simulation, "run": run}
+    return {
+        "users": users,
+        "target": target,
+        "password": password,
+        "simulation": simulation,
+        "run": run,
+        "workspace": ws,
+    }
 
 
 @pytest.mark.parametrize("actor", ACTORS)
@@ -93,6 +102,7 @@ def test_role_matrix(route, actor, client, env, login_as):
     method, template = route
     path = template.format(
         slug="a",
+        workspace_id=env["workspace"].id,
         user_id=env["target"].id,
         simulation_id=env["simulation"].id,
         run_id=env["run"].id,

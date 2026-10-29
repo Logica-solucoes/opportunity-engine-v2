@@ -26,6 +26,7 @@ class MyWorkspace(BaseModel):
     slug: str
     name: str
     role: Role
+    google: bool
 
 
 class MeOut(BaseModel):
@@ -53,7 +54,9 @@ def me_out(db: Session, user: User) -> MeOut:
         name=user.name,
         is_platform_admin=user.is_platform_admin,
         must_change_password=user.must_change_password,
-        workspaces=[MyWorkspace(slug=w.slug, name=w.name, role=role) for w, role in rows],
+        workspaces=[
+            MyWorkspace(slug=w.slug, name=w.name, role=role, google="google" in w.settings) for w, role in rows
+        ],
     )
 
 

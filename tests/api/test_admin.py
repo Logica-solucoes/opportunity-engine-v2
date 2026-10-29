@@ -2,6 +2,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from api.models import Workspace
+from tests.samples import GOOGLE_CONFIG
 
 
 def test_create_and_list_workspaces(client, db, make_user, login_as):
@@ -31,8 +32,8 @@ def test_platform_admin_sees_all_workspaces_as_admin(client, make_user, make_wor
     login_as(client, make_user("root@x.com", platform=True))
 
     assert client.get("/api/me").json()["workspaces"] == [
-        {"slug": "a", "name": "A", "role": "admin"},
-        {"slug": "b", "name": "B", "role": "admin"},
+        {"slug": "a", "name": "A", "role": "admin", "google": False},
+        {"slug": "b", "name": "B", "role": "admin", "google": False},
     ]
 
 
@@ -142,3 +143,47 @@ def test_out_of_range_user_id_is_422_not_500(client, make_user, login_as):
     for user_id in (2**63, 0):
         assert client.post(f"/api/admin/users/{user_id}/reset-password").status_code == 422
         assert client.patch(f"/api/admin/users/{user_id}", json={"active": False}).status_code == 422
+
+
+def test_platform_admin_sets_and_removes_the_google_connector(client, db, make_user, make_workspace, login_as):
+    ws = make_workspace("a")
+    ws.settings = {"outra": 1}
+    db.flush()
+    login_as(client, make_user("root@x.com", platform=True))
+
+    r = client.put(f"/api/admin/workspaces/{ws.id}/google", json=GOOGLE_CONFIG)
+
+    assert r.status_code == 200 and r.json()["google"] == GOOGLE_CONFIG
+    assert client.get("/api/admin/workspaces").json()[0]["google"] == GOOGLE_CONFIG
+    db.refresh(ws)
+    assert ws.settings == {"outra": 1, "google": GOOGLE_CONFIG}
+
+    assert client.delete(f"/api/admin/workspaces/{ws.id}/google").status_code == 204
+    assert client.delete(f"/api/admin/workspaces/{ws.id}/google").status_code == 204
+    assert client.get("/api/admin/workspaces").json()[0]["google"] is None
+    db.refresh(ws)
+    assert ws.settings == {"outra": 1}
+
+
+def test_google_connector_rejects_bad_config_and_unknown_workspace(client, make_user, make_workspace, login_as):
+    ws = make_workspace("a")
+    login_as(client, make_user("root@x.com", platform=True))
+    bad = {**GOOGLE_CONFIG, "ads": {"dataset": "proj-teste.ds`; DROP", "customer_ids": ["1111111111"]}}
+
+    assert client.put(f"/api/admin/workspaces/{ws.id}/google", json=bad).status_code == 422
+    assert client.put("/api/admin/workspaces/999999/google", json=GOOGLE_CONFIG).status_code == 404
+    assert client.delete("/api/admin/workspaces/999999/google").status_code == 404
+
+
+def test_me_says_which_workspaces_have_google_without_the_datasets(client, db, make_user, make_workspace, login_as):
+    ana = make_user("ana@x.com")
+    with_google = make_workspace("a", [(ana, "analyst")])
+    with_google.settings = {"google": GOOGLE_CONFIG}
+    make_workspace("b", [(ana, "analyst")])
+    db.flush()
+    login_as(client, ana)
+
+    r = client.get("/api/me")
+
+    assert [(w["slug"], w["google"]) for w in r.json()["workspaces"]] == [("a", True), ("b", False)]
+    assert "proj-teste" not in r.text

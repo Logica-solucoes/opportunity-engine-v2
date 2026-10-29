@@ -56,8 +56,8 @@ def test_me_lists_memberships(client, make_user, make_workspace, login_as):
     login_as(client, user)
 
     assert client.get("/api/me").json()["workspaces"] == [
-        {"slug": "alfa", "name": "ALFA", "role": "analyst"},
-        {"slug": "beta", "name": "BETA", "role": "viewer"},
+        {"slug": "alfa", "name": "ALFA", "role": "analyst", "google": False},
+        {"slug": "beta", "name": "BETA", "role": "viewer", "google": False},
     ]
 
 

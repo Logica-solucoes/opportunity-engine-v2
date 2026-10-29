@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import Path
 from pydantic import StringConstraints
 
+WorkspaceId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 UserId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 SimulationId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 RunId = Annotated[int, Path(ge=1, le=2**63 - 1)]

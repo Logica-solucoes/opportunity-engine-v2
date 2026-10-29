@@ -6,11 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api import accounts, runs, usage
+from api import accounts, google_import, runs, usage
 from api.auth import require_platform_admin
 from api.db import get_db
 from api.models import User, Workspace
-from api.routes import Name, UserId
+from api.routes import Name, UserId, WorkspaceId
 
 router = APIRouter(prefix="/api/admin")
 
@@ -21,12 +21,22 @@ class WorkspaceIn(BaseModel):
 
 
 class WorkspaceOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     name: str
     slug: str
     created_at: datetime
+    google: google_import.GoogleConfig | None
+
+
+def workspace_out(w: Workspace) -> WorkspaceOut:
+    return WorkspaceOut(id=w.id, name=w.name, slug=w.slug, created_at=w.created_at, google=w.settings.get("google"))
+
+
+def find_workspace(db: Session, workspace_id: int) -> Workspace:
+    workspace = db.get(Workspace, workspace_id)
+    if workspace is None:
+        raise HTTPException(404)
+    return workspace
 
 
 class UserOut(BaseModel):
@@ -75,15 +85,34 @@ def find_user(db: Session, user_id: int) -> User:
 
 @router.get("/workspaces", response_model=list[WorkspaceOut])
 def list_workspaces(_: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
-    return db.scalars(select(Workspace).order_by(Workspace.name)).all()
+    return [workspace_out(w) for w in db.scalars(select(Workspace).order_by(Workspace.name))]
 
 
 @router.post("/workspaces", status_code=201, response_model=WorkspaceOut)
 def create_workspace(body: WorkspaceIn, _: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
     try:
-        return accounts.create_workspace(db, body.name, body.slug)
+        return workspace_out(accounts.create_workspace(db, body.name, body.slug))
     except accounts.Conflict:
         raise HTTPException(409, "Já existe um workspace com esse slug")
+
+
+@router.put("/workspaces/{workspace_id}/google", response_model=WorkspaceOut)
+def set_google(
+    workspace_id: WorkspaceId,
+    body: google_import.GoogleConfig,
+    admin: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    workspace = find_workspace(db, workspace_id)
+    google_import.configure(db, workspace, body, by=admin)
+    return workspace_out(workspace)
+
+
+@router.delete("/workspaces/{workspace_id}/google", status_code=204)
+def remove_google(
+    workspace_id: WorkspaceId, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)
+):
+    google_import.configure(db, find_workspace(db, workspace_id), None, by=admin)
 
 
 @router.get("/users", response_model=list[UserOut])
