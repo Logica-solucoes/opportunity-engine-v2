@@ -3,7 +3,7 @@ import { type FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api'
+import { ApiError, api } from '@/lib/api'
 import { errorMessage } from '@/lib/auth'
 import type { Simulation } from '@/lib/simulations'
 
@@ -12,6 +12,12 @@ const daysAgo = (n: number) => {
   const d = new Date()
   d.setDate(d.getDate() - n)
   return d.toLocaleDateString('sv-SE')
+}
+
+// the period rules answer a pydantic 422 whose msg is our pt-BR sentence behind "Value error, "
+const importError = (error: unknown) => {
+  const first = error instanceof ApiError && Array.isArray(error.body.detail) ? error.body.detail[0] : undefined
+  return first?.type === 'value_error' ? String(first.msg).replace(/^Value error, /, '') : errorMessage(error)
 }
 
 type Props = { slug: string; sim: Simulation; busy: boolean; onSaved: (sim: Simulation) => void }
@@ -68,7 +74,7 @@ export function GoogleImport({ slug, sim, busy, onSaved }: Props) {
       </div>
       {run.isError && (
         <p role="alert" className="text-sm text-destructive">
-          {errorMessage(run.error)}
+          {importError(run.error)}
         </p>
       )}
     </form>

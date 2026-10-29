@@ -58,14 +58,15 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
     mutationFn: () => api<void>(`/admin/workspaces/${workspace.id}/google`, { method: 'DELETE' }),
     onSuccess: done,
   })
-  const errors = fieldErrors(save.error)
-  const hint = (path: string) =>
-    errors && Object.keys(errors).some((k) => k.startsWith(path)) ? (
-      <p className="text-sm text-destructive">{HINTS[path]}</p>
-    ) : null
+  const errorPaths = Object.keys(fieldErrors(save.error) ?? {})
+  const hasHint = (path: string) => errorPaths.some((k) => k.startsWith(path))
+  const hint = (path: string) => (hasHint(path) ? <p className="text-sm text-destructive">{HINTS[path]}</p> : null)
+  // a 422 on a field without a hint (e.g. the metric) still needs the generic message
+  const hinted = Object.keys(HINTS).some(hasHint)
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    remove.reset()
     const form = new FormData(e.currentTarget)
     const text = (name: string) => String(form.get(name)).trim()
     save.mutate({
@@ -148,7 +149,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
           </div>
         </fieldset>
       </form>
-      {(save.isError && !errors) || remove.isError ? (
+      {(save.isError && !hinted) || remove.isError ? (
         <p role="alert" className="text-sm text-destructive">
           {errorMessage(remove.isError ? remove.error : save.error)}
         </p>
