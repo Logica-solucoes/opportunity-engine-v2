@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { LoadState } from '@/components/LoadState'
+import { type AdminWorkspace, GoogleConnectorDialog } from '@/components/GoogleConnectorDialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
-
-type Workspace = { id: number; name: string; slug: string; created_at: string }
 
 export const Route = createFileRoute('/_auth/admin/workspaces')({ component: Workspaces })
 
@@ -26,13 +26,14 @@ function Workspaces() {
   const queryClient = useQueryClient()
   const workspaces = useQuery({
     queryKey: ['admin', 'workspaces'],
-    queryFn: () => api<Workspace[]>('/admin/workspaces'),
+    queryFn: () => api<AdminWorkspace[]>('/admin/workspaces'),
   })
+  const [editing, setEditing] = useState<AdminWorkspace | null>(null)
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugTouched, setSlugTouched] = useState(false)
   const create = useMutation({
-    mutationFn: (body: { name: string; slug: string }) => api<Workspace>('/admin/workspaces', { method: 'POST', body }),
+    mutationFn: (body: { name: string; slug: string }) => api<AdminWorkspace>('/admin/workspaces', { method: 'POST', body }),
     onSuccess: () => {
       setName('')
       setSlug('')
@@ -93,6 +94,7 @@ function Workspaces() {
             <TableHead>Nome</TableHead>
             <TableHead>Slug</TableHead>
             <TableHead>Criado em</TableHead>
+            <TableHead>Conector Google</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -102,6 +104,14 @@ function Workspaces() {
               <TableCell>{w.name}</TableCell>
               <TableCell>{w.slug}</TableCell>
               <TableCell>{new Date(w.created_at).toLocaleDateString('pt-BR')}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  {w.google && <Badge variant="secondary">configurado</Badge>}
+                  <Button variant="outline" size="sm" onClick={() => setEditing(w)}>
+                    Conector Google
+                  </Button>
+                </div>
+              </TableCell>
               <TableCell className="text-right">
                 <Link to="/w/$slug/membros" params={{ slug: w.slug }} className="text-primary underline">
                   Membros
@@ -111,6 +121,7 @@ function Workspaces() {
           ))}
         </TableBody>
       </Table>
+      <GoogleConnectorDialog workspace={editing} onClose={() => setEditing(null)} />
     </div>
   )
 }

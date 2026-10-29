@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { createAdmin, createWorkspace, loggedInAdmin, runToCompletion } from './helpers'
+import { configureGoogle, createAdmin, createWorkspace, loggedInAdmin, runToCompletion } from './helpers'
 
 test('platform admin creates a workspace and sees it on the home page', async ({ page }) => {
   await loggedInAdmin(page)
@@ -55,4 +55,26 @@ test('platform admin sees a finished run in the usage and exports it', async ({ 
   await page.getByRole('button', { name: 'Todos os meses' }).click()
   await expect(page).toHaveURL(/month=todos/)
   await expect(page.getByRole('row').filter({ hasText: `Marca ${slug}` })).toBeVisible()
+})
+
+test('platform admin configures, edits and removes the google connector', async ({ page }) => {
+  await loggedInAdmin(page)
+  const slug = await createWorkspace(page)
+  await configureGoogle(page, slug)
+
+  await page.reload()
+  const row = page.getByRole('row').filter({ hasText: slug })
+  await expect(row.getByText('configurado')).toBeVisible()
+  await row.getByRole('button', { name: 'Conector Google' }).click()
+  await expect(page.getByLabel('Customer ids')).toHaveValue('1234567890, 2222222222')
+  await expect(page.getByLabel('Métrica')).toHaveValue('revenue')
+
+  await page.getByLabel('Customer ids').fill('1234567890, 1234567890')
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page.getByText('Cada customer id tem 10 dígitos, sem repetir.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Remover conector' }).click()
+  await page.getByRole('button', { name: 'Remover', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(row.getByText('configurado')).toHaveCount(0)
 })

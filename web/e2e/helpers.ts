@@ -102,3 +102,16 @@ export async function runToCompletion(page: Page, slug: string, name: string) {
   await expect(page.getByText('Concluída', { exact: true })).toBeVisible()
   return page.url()
 }
+
+export async function configureGoogle(page: Page, slug: string) {
+  await page.goto('/admin/workspaces')
+  await page.getByRole('row').filter({ hasText: slug }).getByRole('button', { name: 'Conector Google' }).click()
+  await page.getByLabel('Dataset do Google Ads').fill('proj-teste.google_ads')
+  await page.getByLabel('Customer ids').fill('123-456-7890, 2222222222')
+  await page.getByLabel('Dataset do GA4').fill('proj-teste.analytics_123')
+  await page.getByLabel('Evento do KPI').fill('purchase')
+  await page.getByLabel('Métrica').selectOption('revenue')
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('row').filter({ hasText: slug }).getByText('configurado')).toBeVisible()
+}

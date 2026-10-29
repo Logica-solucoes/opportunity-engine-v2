@@ -10,7 +10,8 @@ export type Me = {
   name: string
   is_platform_admin: boolean
   must_change_password: boolean
-  workspaces: { slug: string; name: string; role: Role }[]
+  // google: the workspace has the Google connector; its datasets never reach non-admins
+  workspaces: { slug: string; name: string; role: Role; google: boolean }[]
 }
 
 export const ROLE_LABELS: Record<Role, string> = { admin: 'Admin', analyst: 'Analista', viewer: 'Leitor' }
@@ -70,7 +71,8 @@ export function errorMessage(error: unknown): string {
   if (error.status === 413) return 'Arquivo maior que 30 MB.'
   // pydantic's 422 has a list in `detail`; ours (upload, mapping) is already a pt-BR sentence
   if (error.status === 422 && typeof error.body.detail !== 'string') return 'Dados inválidos.'
-  if (error.status >= 500) return 'Erro no servidor. Tente de novo.'
+  // a 5xx with our own sentence (the 502 of the Google connector) says what failed; a bare one doesn't
+  if (error.status >= 500 && typeof error.body.detail !== 'string') return 'Erro no servidor. Tente de novo.'
   // 409 and other domain errors already come in pt-BR
   return error.detail
 }
