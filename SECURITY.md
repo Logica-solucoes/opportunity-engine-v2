@@ -12,6 +12,7 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 - O workspace chega por uma dependência do FastAPI que valida a **membership** do usuário da sessão — nunca por body ou query param confiado cegamente.
 - Recurso de outro workspace responde **404, nunca 403**: 403 vira oráculo de existência.
 - Papéis: **viewer** (vê runs publicados, mexe em cenários, exporta) < **analyst** (upload, roda, publica/despublica) < **admin** (membros e thresholds) · **platform admin** (cria workspaces, vê o uso de todos). Todo endpoint tem teste papel × rota.
+- **Conector Google só pelo platform admin.** A service account do BigQuery é uma só e lê os datasets de todos os clientes; quem aponta o dataset de um workspace lê os dados de quem estiver lá. Por isso o admin do workspace não grava o `settings["google"]`, e o `/api/me` expõe só `google: bool`. Nome de dataset entra na SQL por interpolação (não pode ser parâmetro): o regex do `GoogleConfig` roda ao gravar e de novo antes de cada query.
 
 ## Auth
 

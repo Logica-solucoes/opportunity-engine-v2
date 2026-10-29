@@ -19,7 +19,7 @@ Models em `api/models.py` (`Base` em `api/db.py`).
 | Tabela | Colunas-chave | Migration |
 |---|---|---|
 | `users` | email único (minúsculo), nome, `password_hash` (scrypt), `must_change_password`, `is_platform_admin`, `active`, `failed_logins`, `locked_until` | `0001` |
-| `workspaces` | nome, slug único e imutável, `settings jsonb` (default `{}`) | `0001` |
+| `workspaces` | nome, slug único e imutável, `settings jsonb` (default `{}`; chave `google` = config do conector (B8, formato `GoogleConfig` de `api/google_import.py`, gravada só pelo platform admin)) | `0001` |
 | `memberships` | PK `(user_id, workspace_id)`, índice em `workspace_id`, `role` enum `membership_role` (admin\|analyst\|viewer) | `0001`, `0002` |
 | `sessions` | PK `token_hash` (sha256 do token), `user_id`, `created_at`, `last_seen_at` | `0001` |
 | `simulations` | `workspace_id` (index), `name`, `config jsonb` (rascunho do `EngineConfig`; o B2 grava `column_mapping`), `validation jsonb` (último `ValidationReport`: snapshot de propósito, revalidar relê o CSV inteiro; zerado a cada upload), `created_by`, `created_at`, `updated_at` | `0003` |
