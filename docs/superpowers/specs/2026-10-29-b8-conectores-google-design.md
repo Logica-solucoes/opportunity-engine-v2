@@ -169,7 +169,7 @@ Todo `SourceError` loga a exceção original com `log.exception`.
 ### `/admin/workspaces`: conector Google
 
 - Cada linha ganha a ação "Conector Google" (com o selo "configurado" quando existir), que abre um `Dialog`:
-  - Ads: dataset (`projeto.dataset`) e customer ids (um por linha; aceita `123-456-7890`, a tela tira os hífens);
+  - Ads: dataset (`projeto.dataset`) e customer ids (separados por vírgula; aceita `123-456-7890`, a tela tira os hífens);
   - GA4: dataset, evento e métrica (`Select`: "Contagem de eventos" / "Receita (purchase_revenue)").
 - Salvar faz o PUT, e os erros 422 aparecem por campo como no formulário de parâmetros. "Remover conector" (com confirmação) faz o DELETE.
 
@@ -186,7 +186,9 @@ Todo `SourceError` loga a exceção original com `log.exception`.
   - o platform admin configura o conector, recarrega e vê o selo;
   - o analista desse workspace vê "Importar do Google", e o de outro workspace não vê.
   
-  O import em si não roda no E2E (precisaria de BigQuery ou de um fake dentro do app). Fica coberto pelo pytest e pela verificação manual abaixo.
+  - o import roda de verdade até o cliente do BigQuery: o E2E aponta `GOOGLE_APPLICATION_CREDENTIALS` para um arquivo inexistente, e a tela mostra "Conector Google sem credenciais neste ambiente.". SQL, grade e mapeamento ficam no pytest e no teste contra o sandbox.
+
+  O `errorMessage` do front passa a mostrar a frase de um 5xx que traga `detail` em texto (o 502 do conector); o 5xx sem `detail` continua "Erro no servidor".
 - Manual com o sandbox: configurar um workspace apontando para o `b8_ads_seed` e para o dataset público do GA4, importar e conferir arquivos, mapeamento e report. Screenshots do diálogo do admin e do import nos dois temas.
 
 ## Aceite
