@@ -2,6 +2,7 @@ import { type Browser, expect, type Page, test } from '@playwright/test'
 import {
   addMember,
   createSimulation,
+  configureGoogle,
   createWorkspace,
   loggedInAdmin,
   newSession,
@@ -225,4 +226,25 @@ test('workspace admin deletes a simulation and its runs; analysts never see the 
   await expect(page.getByText('Execução não encontrada.')).toBeVisible()
   await analystPage.goto(simUrl)
   await expect(analystPage.getByText('Simulação não encontrada.')).toBeVisible()
+})
+
+test('analyst imports from google only where the workspace has the connector', async ({ page, browser }) => {
+  await loggedInAdmin(page)
+  const withGoogle = await createWorkspace(page)
+  const without = await createWorkspace(page)
+  await configureGoogle(page, withGoogle)
+  const analyst = await addMember(page, withGoogle, 'analyst')
+  const other = await addMember(page, without, 'analyst')
+
+  const analystPage = await newSession(browser, analyst)
+  await createSimulation(analystPage, withGoogle, 'Do Google')
+  await expect(analystPage.getByLabel('Início')).toHaveValue(/^\d{4}-\d{2}-\d{2}$/)
+  await analystPage.getByRole('button', { name: 'Importar do Google' }).click()
+  await expect(analystPage.getByText('Conector Google sem credenciais neste ambiente.')).toBeVisible()
+  await expect(analystPage.getByRole('button', { name: 'Importar do Google' })).toBeEnabled()
+
+  const otherPage = await newSession(browser, other)
+  await createSimulation(otherPage, without, 'Sem Google')
+  await expect(otherPage.getByLabel('Arquivo de investimento')).toBeAttached()
+  await expect(otherPage.getByRole('button', { name: 'Importar do Google' })).toHaveCount(0)
 })

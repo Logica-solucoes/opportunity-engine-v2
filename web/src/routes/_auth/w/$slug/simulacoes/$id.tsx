@@ -4,6 +4,7 @@ import { CircleX, Info, TriangleAlert } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
+import { GoogleImport } from '@/components/GoogleImport'
 import { NativeSelect } from '@/components/NativeSelect'
 import { ParamsForm } from '@/components/ParamsForm'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
@@ -15,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import { errorMessage, meQuery, roleIn } from '@/lib/auth'
+import { errorMessage, meQuery } from '@/lib/auth'
 import { paramsSaved } from '@/lib/params'
 import { type Run, isActive, simulationRunsQuery } from '@/lib/runs'
 import {
@@ -43,11 +44,24 @@ const LEVEL_ICONS: Record<Check['level'], typeof Info> = { error: CircleX, warni
 function SimulationPage() {
   const { slug, id } = Route.useParams()
   const { data: me } = useSuspenseQuery(meQuery)
-  if (roleIn(me, slug) === 'viewer') return <p>Sem permissão para editar simulações deste workspace.</p>
-  return <SimulationDetail slug={slug} id={id} isAdmin={roleIn(me, slug) === 'admin'} />
+  const workspace = me.workspaces.find((w) => w.slug === slug)
+  if (workspace?.role === 'viewer') return <p>Sem permissão para editar simulações deste workspace.</p>
+  return (
+    <SimulationDetail slug={slug} id={id} isAdmin={workspace?.role === 'admin'} google={Boolean(workspace?.google)} />
+  )
 }
 
-function SimulationDetail({ slug, id, isAdmin }: { slug: string; id: string; isAdmin: boolean }) {
+function SimulationDetail({
+  slug,
+  id,
+  isAdmin,
+  google,
+}: {
+  slug: string
+  id: string
+  isAdmin: boolean
+  google: boolean
+}) {
   const queryClient = useQueryClient()
   const query = simulationQuery(slug, id)
   const { data: sim, isError } = useQuery(query)
@@ -82,6 +96,7 @@ function SimulationDetail({ slug, id, isAdmin }: { slug: string; id: string; isA
             <FileCard key={spec.kind} slug={slug} sim={sim} spec={spec} busy={busy} onSaved={saved} />
           ))}
         </div>
+        {google && <GoogleImport slug={slug} sim={sim} busy={busy} onSaved={saved} />}
       </section>
 
       {sim.files.investment && sim.files.performance && (
