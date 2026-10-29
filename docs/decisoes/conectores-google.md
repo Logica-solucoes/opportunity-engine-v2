@@ -27,3 +27,10 @@ A plataforma lê com uma service account só (*BigQuery Data Viewer* em cada dat
 ## Teto de custo
 
 Cada query leva `maximum_bytes_billed` de 20 GB (`api/bigquery.py`). Um GA4 grande com 3 anos pode passar disso; o erro vira 502 "Não foi possível consultar o BigQuery." e o teto sobe com dado real na mão.
+
+## Telas
+
+- O import aparece na página da simulação só quando o `/api/me` diz `google: true` para o workspace. O analista nunca vê customer id; o dataset só aparece na mensagem do 502 de acesso negado, para ele dizer ao admin qual dataset falhou.
+- Erro do BigQuery chega como 502 com a frase pt-BR. O `errorMessage` do front mostra a frase de qualquer 5xx que a traga, e só o 5xx sem `detail` (um 500 do FastAPI, um 502 do proxy) vira "Erro no servidor".
+- O E2E aponta `GOOGLE_APPLICATION_CREDENTIALS` para um arquivo que não existe. O import roda de verdade até o cliente do BigQuery e volta "sem credenciais", e assim o teste cobre rota, botão e mensagem sem fake dentro da app. O resto (SQL, grade, mapeamento) está no pytest e no teste contra o sandbox.
+- A confirmação de "Remover conector" fica no rodapé do próprio diálogo: um `AlertDialog` dentro do `Dialog` brigaria pelo foco, e o conector se recria em segundos.
