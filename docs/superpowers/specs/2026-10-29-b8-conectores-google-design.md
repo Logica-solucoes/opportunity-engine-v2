@@ -85,19 +85,22 @@ def query(sql: str, params: list[bigquery.ScalarQueryParameter | bigquery.ArrayQ
 
 ### Queries
 
-**Ads**: para cada customer id, um bloco unido por `UNION ALL`. As tabelas são as views do DTS (`ads_CampaignBasicStats_<cid>` e `ads_Campaign_<cid>`):
+**Ads**: um bloco por customer id, unidos por `UNION ALL` e somados por fora. As tabelas são as views do DTS (`ads_CampaignBasicStats_<cid>` e `ads_Campaign_<cid>`):
 
 ```sql
-SELECT s.segments_date AS date, c.campaign_advertising_channel_type AS channel_type,
-       SUM(s.metrics_cost_micros) / 1e6 AS spend
-FROM `{dataset}.ads_CampaignBasicStats_{cid}` s
-JOIN `{dataset}.ads_Campaign_{cid}` c
-  ON c.campaign_id = s.campaign_id AND c._DATA_DATE = c._LATEST_DATE
-WHERE s.segments_date BETWEEN @start AND @end
+SELECT date, channel_type, SUM(cost_micros) / 1e6 AS spend FROM (
+  SELECT CAST(s.segments_date AS DATE) AS date, c.campaign_advertising_channel_type AS channel_type,
+         s.metrics_cost_micros AS cost_micros
+  FROM `{dataset}.ads_CampaignBasicStats_{cid}` s
+  JOIN `{dataset}.ads_Campaign_{cid}` c
+    ON c.campaign_id = s.campaign_id AND c._DATA_DATE = c._LATEST_DATE
+  WHERE s._DATA_DATE BETWEEN @start AND @end
+  -- UNION ALL do mesmo bloco para cada customer id
+) WHERE date BETWEEN @start AND @end
 GROUP BY 1, 2
 ```
 
-O `_DATA_DATE = _LATEST_DATE` pega o tipo atual da campanha, que é o snapshot mais recente da tabela de dimensão. O primeiro passo do plano B8a confere os nomes de tabela e coluna na documentação do DTS (Google Ads, schema da API) antes de escrever a query. Se algum nome divergir, vale a doc, e o spec é atualizado.
+O `_DATA_DATE = _LATEST_DATE` pega o tipo atual da campanha, que é o snapshot mais recente da tabela de dimensão. Nomes conferidos em 29/out/2026 na documentação do DTS (`docs.cloud.google.com/bigquery/docs/google-ads-transfer` e `…/google-ads-transformation`, Google Ads API v25), incluindo o `_DATA_DATE = _LATEST_DATE` da query de exemplo oficial. A doc não diz o tipo de `segments_date` (só o formato `yyyy-MM-dd`), por isso a query usa `CAST(s.segments_date AS DATE)`, que serve para `DATE` e para `STRING`. O filtro em `s._DATA_DATE` poda as partições; o filtro de fora em `date` mantém fora uma linha de outro dia.
 
 Mapeamento fixo no código (`CHANNELS`): `SEARCH→SEARCH`, `PERFORMANCE_MAX→PMAX`, `VIDEO→YOUTUBE`, `DEMAND_GEN→DEMAND_GEN`. Qualquer outro tipo vira o próprio nome. O Python soma por `(data, canal)` entre as contas e entre os tipos que caem no mesmo canal.
 
@@ -119,9 +122,9 @@ GROUP BY 1
 3. Escreve `data,canal,investimento` e `data,kpi` (datas ISO, ponto decimal, `csv` da stdlib) e chama o `save_file` existente para cada um. Os nomes de arquivo são `google-ads_<start>_<end>.csv` e `ga4-<event>-<metric>_<start>_<end>.csv`, e `uploaded_by` é quem importou.
 4. Chama o `save_mapping` existente com `investment_file = {date_col: "data", channel_col: "canal", investment_col: "investimento"}` e `performance_file = {date_col: "data", kpi_col: "kpi"}`, mais o `generic_trends_file` do mapping atual se houver arquivo de trends. Sai com o report de validação gravado.
 
-Antes das queries, o import lê o config, fecha a transação (`db.rollback()`, mesmo padrão do `gemini_params`) para não prender conexão durante até 2 × 60 s, e só então chama `save_file`/`save_mapping`, que travam a simulação como num upload. Uma simulação apagada no meio cai no 404 do `lock`, como já acontece no upload.
+Antes das queries, o import lê o config, fecha a transação (`db.rollback()`, mesmo padrão do `gemini_params`) para não prender conexão durante até 2 × 60 s, e só então chama `save_file`/`save_mapping`, que travam a simulação como num upload. Uma simulação apagada no meio tem o mesmo comportamento de um upload concorrente com o apagar.
 
-Log: `simulation.google_imported simulation_id=… start=… end=… channels=… rows=…`. Nunca loga customer id nem valores.
+Log: `simulation.google_imported simulation_id=… start=… end=… channels=…`. O log de sucesso não leva customer id nem valores.
 
 ### Erros
 
@@ -129,9 +132,10 @@ Log: `simulation.google_imported simulation_id=… start=… end=… channels=�
 |---|---|---|
 | Workspace sem `settings["google"]` | `NotConfigured` | 409 "Workspace sem conector Google configurado." |
 | Período inválido | pydantic | 422 |
-| Sem spend ou sem KPI no período | `InvalidInput` (existente) | 400 com a mensagem |
+| Sem spend ou sem KPI no período | `InvalidInput` (existente) | 422 com a mensagem (convenção do `InvalidInput`) |
 | `google.api_core.exceptions.Forbidden` / `NotFound` | `SourceError` | 502 "A service account não tem acesso ao dataset ou a tabela não existe: <projeto.dataset>." |
 | Teto de bytes, timeout, outro `GoogleAPIError` | `SourceError` | 502 "Não foi possível consultar o BigQuery." |
+| `settings["google"]` gravado direto no banco e fora do formato | `NotConfigured` (loga o erro) | 409, sem chegar ao BigQuery |
 | ADC ausente (`DefaultCredentialsError`) | `SourceError` | 502 "Conector Google sem credenciais neste ambiente." |
 
 Todo `SourceError` loga a exceção original com `log.exception`.
@@ -146,17 +150,17 @@ Todo `SourceError` loga a exceção original com `log.exception`.
   - `revenue` usa `SUM(ecommerce.purchase_revenue)`;
   - arquivos gravados com os nomes certos, mapeamento salvo e report de validação presente;
   - mapping de trends preservado;
-  - sem spend → 400; sem config → 409; período invertido, futuro e > 3 anos → 422;
+  - sem spend → 422; sem config → 409; período invertido, futuro e > 3 anos → 422;
   - `Forbidden` → 502 com o dataset na mensagem;
   - simulação de outro workspace → 404.
 - `test_admin.py`: PUT grava e aparece no GET; DELETE remove; dataset com `` ` ``, `;` ou espaço → 422; customer id com letra → 422; o `/api/me` mostra `google: true` e não os datasets.
 - `test_rbac.py`: as rotas novas na matriz (config só platform admin; import analyst+, viewer 403).
-- `test_bigquery_live.py`, marcado `@pytest.mark.bigquery` e pulado sem `BIGQUERY_TEST_PROJECT`:
+- `test_bigquery_live.py`, pulado (`skipif`) sem `BIGQUERY_TEST_PROJECT`:
   - roda a query do GA4 de verdade contra `bigquery-public-data.ga4_obfuscated_sample_ecommerce` (evento `purchase`, `count` e `revenue`, uma semana de nov/2020);
   - roda a query do Ads contra `<BIGQUERY_TEST_PROJECT>.b8_ads_seed`, semeado por `tests/bigquery/seed_ads.sql`: as duas views do DTS com 2 contas, 3 campanhas (SEARCH, PERFORMANCE_MAX, DISPLAY), uma campanha que mudou de tipo e 10 dias de dados;
   - confere somas e canais contra valores conhecidos.
 
-  Fora do CI; roda à mão com `mise run test -- -m bigquery` depois de `gcloud auth application-default login`.
+  O teste semeia o `b8_ads_seed` sozinho (CTAS, que o sandbox aceita). Fora do CI; roda à mão com `BIGQUERY_TEST_PROJECT=<projeto> uv run pytest tests/api/test_bigquery_live.py` depois de `gcloud auth application-default login`.
 
 ---
 
