@@ -60,8 +60,9 @@ def test_run_returns_the_contract_dict(ran):
     r = ran.result
     assert r["schema_version"] == 1 and r["status"] == "succeeded"
     assert isinstance(r["engine_version"], str) and r["engine_version"]
-    for section in ("validation", "sufficiency", "causal", "elasticity", "experiment_design", "reports"):
-        assert r[section] is None
+    for section in ("validation", "sufficiency", "experiment_design", "reports"):
+        assert r[section] is None  # owned by A2 and A5-A9
+    assert r["causal"]["status"] == "ok" and r["elasticity"]["status"] == "ok"
 
 
 def test_writes_only_inside_out_dir(ran):
@@ -145,6 +146,8 @@ def test_failed_when_mmm_fails_and_no_event_passes(monkeypatch, tmp_path):
     }
     run = _run_once(tmp_path, config, inputs)
     assert run.result["status"] == "failed"
+    assert run.result["elasticity"]["status"] == "failed" and run.result["elasticity"]["reasons"] == ["model_failed"]
+    assert run.result["causal"]["status"] == "inconclusive"
 
 
 def test_unknown_config_key_is_an_engine_error(tmp_path):

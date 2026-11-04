@@ -1,6 +1,8 @@
 """Builds, sanitizes and writes results.json from what `compute()` produced. No statistics happen here."""
 
+import json
 import math
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -269,3 +271,13 @@ def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
         elasticity=elasticity,
         baseline=_baseline(computed),
     )
+
+
+def dump_results(results: ResultsV1) -> dict:
+    """The JSON-safe dict: non-finite numbers become None, and the cleaned document is validated again."""
+    data = sanitize(results.model_dump(mode="json", by_alias=True))
+    return ResultsV1.model_validate(data).model_dump(mode="json", by_alias=True)
+
+
+def write_results(data: dict, path: Path) -> None:
+    path.write_text(json.dumps(data, ensure_ascii=False, allow_nan=False), encoding="utf-8")

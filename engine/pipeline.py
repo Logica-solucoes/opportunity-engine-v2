@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from engine import analysis, elasticity_analysis, outputs
+from engine import analysis, elasticity_analysis, outputs, results
 from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
@@ -251,17 +251,8 @@ def run(
             ) from e
         written = outputs.write_legacy_outputs(computed, out_dir)
         outputs.generate_reports(computed, written, llm)
-    failed = computed.mmm is None and not any(e.passed for e in computed.events)
-    if failed:
+    document = results.dump_results(results.build_results(computed, engine_version()))
+    results.write_results(document, out_dir / "results.json")
+    if document["status"] == "failed":
         log.error("A análise não produziu resultados: o modelo de elasticidade falhou e nenhum evento foi aprovado.")
-    return {
-        "schema_version": 1,
-        "engine_version": engine_version(),
-        "status": "failed" if failed else "succeeded",
-        "validation": None,
-        "sufficiency": None,
-        "causal": None,
-        "elasticity": None,
-        "experiment_design": None,
-        "reports": None,
-    }
+    return document
