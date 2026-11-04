@@ -55,3 +55,8 @@ def test_config_uses_the_dataset_columns():
     }
     assert cfg["column_mapping"]["performance_file"] == {"date_col": "date", "kpi_col": "Sessions"}
     assert cfg["investment_limit_factor"] == 1.5
+
+
+def test_n_days_parameter_shortens_the_history(tmp_path):
+    files = make_dataset(tmp_path, n_days=364)
+    assert pd.read_csv(files["performance_file"])["date"].nunique() == 364

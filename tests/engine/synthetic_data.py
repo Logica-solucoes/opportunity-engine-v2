@@ -30,14 +30,15 @@ def make_dataset(
     cadence_days: int = 1,
     with_trends: bool = True,
     flat_spend: bool = False,
+    n_days: int = DAYS,
 ) -> dict[str, Path | None]:
     rng = np.random.default_rng(seed)
     out_dir.mkdir(parents=True, exist_ok=True)
-    days = pd.date_range(START, periods=DAYS, freq="D")
+    days = pd.date_range(START, periods=n_days, freq="D")
 
     spend = {}
     for name, (level, _) in CHANNELS.items():
-        series = level * rng.lognormal(0.0, 0.03, DAYS)
+        series = level * rng.lognormal(0.0, 0.03, n_days)
         if not flat_spend and name in SPIKES:
             first, length, mult = SPIKES[name]
             series[first : first + length] *= mult
@@ -46,19 +47,21 @@ def make_dataset(
     weekday = days.dayofweek.to_numpy()
     kpi = 5000.0 * np.where(weekday >= 5, 0.85, 1.0)
     for name, (_, weight) in CHANNELS.items():
-        carried = np.zeros(DAYS)
-        for t in range(DAYS):
+        carried = np.zeros(n_days)
+        for t in range(n_days):
             carried[t] = spend[name][t] + (0.5 * carried[t - 1] if t else 0.0)
         kpi += weight * carried / (carried + 2.0 * CHANNELS[name][0])
-    kpi *= rng.lognormal(0.0, 0.03, DAYS)
-    trends = 50 + 10 * np.sin(np.arange(DAYS) / 30.0) + rng.normal(0, 2, DAYS)
+    kpi *= rng.lognormal(0.0, 0.03, n_days)
+    trends = 50 + 10 * np.sin(np.arange(n_days) / 30.0) + rng.normal(0, 2, n_days)
 
     frame = pd.DataFrame({"date": days, "Sessions": kpi, "Ad Opportunities": trends})
-    investment = pd.DataFrame({"dates": np.tile(days, len(CHANNELS)), "product_group": np.repeat(list(CHANNELS), DAYS)})
+    investment = pd.DataFrame(
+        {"dates": np.tile(days, len(CHANNELS)), "product_group": np.repeat(list(CHANNELS), n_days)}
+    )
     investment["total_revenue"] = np.concatenate([spend[name] for name in CHANNELS])
 
     if cadence_days == 7:
-        block = (np.arange(DAYS) // 7) * 7
+        block = (np.arange(n_days) // 7) * 7
         label = pd.Series(pd.Timestamp(START) + pd.to_timedelta(block, unit="D"), name="date")
         frame = frame.groupby(label.to_numpy()).agg({"Sessions": "sum", "Ad Opportunities": "mean"})
         frame = frame.rename_axis("date").reset_index()
