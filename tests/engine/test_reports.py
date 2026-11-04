@@ -5,21 +5,8 @@ import pytest
 
 from engine import reports
 from llm.base import LLMBadOutput, LLMUnavailable
-from tests.fakes.llm import FakeLLM
+from tests.fakes.llm import EVENT_NARRATIVE, GLOBAL_NARRATIVE, FakeLLM
 
-EVENT_NARRATIVE = {
-    "report_title": "T",
-    "executive_verdict": "V",
-    "detailed_analysis": "D",
-    "value_delivered": {"narrative": "N", "methodology_narrative": "M"},
-    "next_steps": [{"step": "S", "description": "D"}],
-}
-GLOBAL_NARRATIVE = {
-    "report_title": "T",
-    "executive_summary": "S",
-    "analysis_of_scenarios": {"introduction": "I", "scenario_table": []},
-    "strategic_recommendations": [{"recommendation": "R1"}, {"recommendation": "R2"}],
-}
 RESULTS = {
     "product_group": "YOUTUBE",
     "p_value": 0.01,

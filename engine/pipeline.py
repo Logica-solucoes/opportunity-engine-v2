@@ -1,15 +1,20 @@
 """The engine pipeline as stages that return data in memory. Writers and `run` are added on top of these."""
 
 import logging
+import warnings
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
 
-from engine import analysis, elasticity_analysis
+from engine import analysis, elasticity_analysis, outputs
 from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
+from engine.logmessages import forward_logs
+from engine.version import engine_version
+from llm import get_llm
 
 log = logging.getLogger(__name__)
 
@@ -199,3 +204,39 @@ def compute(inputs: dict[str, Path | None], config: EngineConfig, *, global_dir:
     events = analyze_events(prepared, candidates, cfg)
     elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
     return Computed(prepared=prepared, effective_config=cfg, events=events, **elasticity)
+
+
+def run(
+    inputs: dict[str, Path | None],
+    config: "dict | EngineConfig",
+    out_dir: Path,
+    on_log: Callable[[str, str], None],
+) -> dict:
+    """The contract entry point: compute, write the legacy outputs and the LLM reports under `out_dir`.
+
+    Never mutates `config`, never changes the working directory, never leaves warning filters changed.
+    """
+    engine_config = EngineConfig.from_input(config)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with forward_logs(on_log), warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        global_dir = out_dir / outputs.GLOBAL_DIR_NAME
+        global_dir.mkdir(parents=True, exist_ok=True)
+        computed = compute(inputs, engine_config, global_dir=global_dir)
+        written = outputs.write_legacy_outputs(computed, out_dir)
+        outputs.generate_reports(computed, written, get_llm())
+    failed = computed.mmm is None and not any(e.passed for e in computed.events)
+    if failed:
+        log.error("A análise não produziu resultados: o modelo de elasticidade falhou e nenhum evento foi aprovado.")
+    return {
+        "schema_version": 1,
+        "engine_version": engine_version(),
+        "status": "failed" if failed else "succeeded",
+        "validation": None,
+        "sufficiency": None,
+        "causal": None,
+        "elasticity": None,
+        "experiment_design": None,
+        "reports": None,
+    }
