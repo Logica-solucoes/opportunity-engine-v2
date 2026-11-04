@@ -1,0 +1,374 @@
+"""pt-BR translation of the engine's log lines and the bridge from `logging` to the contract's `on_log`.
+
+The rules are the prototype's `logger._RULES`; lines without a rule pass through, a rule mapped to None drops the line.
+"""
+
+import logging
+import re
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+
+
+def _banner(text) -> str:
+    return f"{'=' * 50}\n{text}\n{'=' * 50}"
+
+
+def _divider(text) -> str:
+    return f"{'-' * 50}\n{text}"
+
+
+# ponytail: table-driven translation. Add a (regex, template) row for new log lines;
+# template fields are filled from the regex capture groups, stripped.
+_RULES = [
+    (
+        r"Loading, Cleaning, and Preparing Data\.\.\.",
+        _banner("Carregando e preparando os dados enviados..."),
+    ),
+    (
+        r"WARNING: Configured date format '([^']+)'",
+        "   - AVISO: O formato de data configurado ({0}) falhou em algumas linhas. Ajustando automaticamente...",
+    ),
+    (
+        r"ERROR: Date parsing failed completely",
+        "   - ERRO: Falha total na leitura das datas.",
+    ),
+    (
+        r"WARNING: Generic trends file not found",
+        "   - AVISO: Arquivo de tendências genéricas não encontrado. Continuando sem dados de tendência.",
+    ),
+    (
+        r"INFO: No generic trends file path provided",
+        "   - INFO: Nenhum arquivo de tendências fornecido. Continuando sem dados de tendência.",
+    ),
+    (
+        r"Applying outlier treatment\.\.\.",
+        "   - Tratando valores atípicos nos dados (outliers)...",
+    ),
+    (
+        r"Treated outliers in KPI column: '([^']+)'",
+        "     - Valores atípicos tratados na coluna: '{0}'",
+    ),
+    (
+        r"KPI Data Date Range:\s*(.*?)\s*to\s*(.*)",
+        "   - Período dos dados de performance (KPI): {0} até {1}",
+    ),
+    (
+        r"Investment Data Date Range:\s*(.*?)\s*to\s*(.*)",
+        "   - Período dos dados de investimento: {0} até {1}",
+    ),
+    (
+        r"Data loaded and columns renamed successfully\.",
+        "   - Dados carregados e colunas organizadas com sucesso!",
+    ),
+    (
+        r"Checking for negative correlations and applying adstock",
+        "   - Analisando padrões de comportamento e influência de mídia...",
+    ),
+    (
+        r"Applying adstock to '([^']+)'",
+        "     - Aplicando efeito de memória (adstock) no canal '{0}'...",
+    ),
+    (
+        r"Data preparation complete\.",
+        "   - Preparação dos dados concluída com sucesso.",
+    ),
+    (r"Final Correlation Matrix", _banner("Tabela de Correlação entre Canais")),
+    (
+        r"Starting Comprehensive Event Detection & Grouping\.\.\.",
+        _banner("Iniciando busca por picos significativos de investimento..."),
+    ),
+    (
+        r"Analyzing\s*(\d+).*unique ad products",
+        "   - Analisando {0} canais de anúncio em busca de grandes alterações...",
+    ),
+    (
+        r"WARNING: threshold flagged (\d+) of (\d+) periods for '([^']+)' \(([^)]+)\)",
+        "   - AVISO: o limiar marcou {0} de {1} períodos do canal '{2}' como evento "
+        "({3}). Isso é oscilação normal de verba, não pico: aumente a 'Var. Mínima "
+        "de Aumento/Queda de Investimento' para obter uma lista de eventos com significado.",
+    ),
+    (
+        r"Detected events saved to:",
+        "   - Picos de investimento detectados salvos com sucesso.",
+    ),
+    (
+        r"Analyzing\s*(\d+).*candidates\.\.\.",
+        _banner("Avaliando {0} possíveis picos de investimento..."),
+    ),
+    (
+        r"▶ Analyzing Event \[(\d+/\d+)\]:\s*(.*?)\s*on\s*(.*)",
+        _divider("▶ [{0}] Analisando impacto do pico em '{1}' no dia {2}"),
+    ),
+    (
+        r"▶ Analyzing Event:\s*(.*?)\s*on\s*(.*)",
+        _divider("▶ Analisando impacto do pico em '{0}' no dia {1}"),
+    ),
+    (
+        r"FAILED: Causal impact analysis could not be completed\.",
+        "   - FALHOU: Não foi possível isolar o impacto causal deste evento.",
+    ),
+    (
+        r"PASSED: Event is statistically significant.*R²\s*>=\s*([\d.]+)",
+        "   - APROVADO: Pico de investimento gerou impacto real comprovado (R² >= {0}).",
+    ),
+    (
+        r"SKIPPED: Event did not meet validation criteria\.",
+        "   - DESCONSIDERADO: Evento não passou nos critérios de validação estatística.",
+    ),
+    (
+        r"Reason: p-value",
+        "     - Motivo: Sem confiança estatística suficiente para comprovar o impacto.",
+    ),
+    (
+        r"Reason: Investment change",
+        "     - Motivo: A variação de investimento e o resultado não são consistentes entre si.",
+    ),
+    (
+        r"Reason: Model R-squared.*below the\s*([\d.]+)",
+        "     - Motivo: A precisão do modelo estatístico ficou abaixo do limite mínimo ({0}).",
+    ),
+    (
+        r"Analysis complete: No valid, impactful events were found\.",
+        "\nAnálise concluída: Nenhum pico de investimento relevante passou na validação estatística.",
+    ),
+    (
+        r"Top\s*(\d+).*Events Selected\. Generating Reports\.\.\.",
+        _banner("Gerando relatórios para os {0} principais picos detectados..."),
+    ),
+    (
+        r"Generating Report for Event:\s*(.*?)\s*on\s*(.*)",
+        _divider("Criando relatório para '{0}' do dia {1}"),
+    ),
+    (
+        r"SUCCESS! Comprehensive data saved to:",
+        "   SUCESSO! Dados detalhados salvos com sucesso.",
+    ),
+    (
+        r"Generating Strategic Narrative with Gemini\.\.\.",
+        "   - Criando narrativa de negócios recomendada pela Inteligência Artificial Gemini...",
+    ),
+    (
+        r"SUCCESS! View the Gemini HTML report here:",
+        "   SUCESSO! Relatório de recomendações em HTML gerado com sucesso.",
+    ),
+    (
+        r"ERROR: Could not generate or parse the (?:full |global )?narrative from Gemini.*Details:\s*(.*)",
+        "   - ERRO: Falha ao obter narrativa da IA Gemini: {0}",
+    ),
+    (
+        r"Report generation failed for this event:\s*(.*)",
+        "   - ERRO: Falha na geração do relatório: {0}",
+    ),
+    (r"All tasks complete\.", _banner("Todas as tarefas concluídas com sucesso!")),
+    (
+        r"Analysis complete: No events met all criteria for reporting\.",
+        "\nAnálise concluída: Nenhum evento atendeu a todos os critérios para geração de relatórios.",
+    ),
+    (
+        r"Starting Global Elasticity Analysis\.\.\.",
+        _banner("Iniciando modelagem global de elasticidade e retorno (MMM)..."),
+    ),
+    (
+        r"Starting Two-Stage Elasticity Analysis Engine\.\.\.",
+        _divider("Modelando baseline organico e resposta de midia em duas etapas..."),
+    ),
+    (
+        r"Training Response Model for Projection on INCREMENTAL Data\.\.\.",
+        _divider("Treinando modelo de projecao sobre o resultado incremental..."),
+    ),
+    (
+        r"Finding the Investment Sweet Spot & Projecting Opportunity\.\.\.",
+        _divider("Procurando o ponto ideal de investimento e projetando a oportunidade..."),
+    ),
+    (
+        r"Starting Global Saturation Analysis\.\.\.",
+        _banner("Iniciando analise global de saturacao dos canais..."),
+    ),
+    (
+        r"Global Saturation Analysis Complete\.",
+        "   - Analise global de saturacao concluida.",
+    ),
+    (
+        r"Generating Global Strategic Narrative with Gemini\.\.\.",
+        "   - Gerando recomendações globais de verba com a IA Gemini...",
+    ),
+    (
+        r"SUCCESS! Global strategic analysis complete\.",
+        "   SUCESSO! Análise estratégica global concluída.",
+    ),
+    (
+        r"ERROR: Global MMM analysis failed\.",
+        "   - ERRO: A modelagem de elasticidade (MMM) global falhou.",
+    ),
+    (
+        r"ERROR: Input file not found\..*Details:\s*(.*)",
+        "ERRO: Arquivo de dados não encontrado. Verifique as configurações: {0}",
+    ),
+    (
+        r"ERROR: A data validation or processing error occurred\..*Details:\s*(.*)",
+        "ERRO: Ocorreu um erro no processamento dos dados: {0}",
+    ),
+    (
+        r"A critical, unexpected error occurred during the main process:\s*(.*)",
+        "ERRO CRÍTICO: Erro inesperado no processamento: {0}",
+    ),
+    (
+        r"ERROR: Configuration file not found at",
+        "ERRO: Arquivo de configuração não encontrado.",
+    ),
+    (
+        r"ERROR: Could not decode JSON from the configuration file",
+        "ERRO: Arquivo de configuração inválido ou corrompido.",
+    ),
+    (
+        r"Selected features for causal model:\s*(.*)",
+        "   - Variáveis adicionais selecionadas: {0}",
+    ),
+    (
+        r"Causal model R-squared \(in-sample\):\s*(.*)",
+        "   - Precisão do modelo causal (R²): {0}",
+    ),
+    (
+        r"Using pre-trained ad-stock alpha.*model:\s*(.*)",
+        "   - Utilizando taxa de retenção de mídia pré-treinada: {0}",
+    ),
+    (
+        r"Using pre-trained saturation params.*model:\s*(.*)",
+        "   - Utilizando saturação pré-treinada: {0}",
+    ),
+    (
+        r"Modeling baseline KPI using non-investment features\.\.\.",
+        "   - Calculando vendas de base (sem investimentos)...",
+    ),
+    (
+        r"Baseline subtracted\. Modeling response on incremental",
+        "   - Isolando vendas incrementais geradas pelos investimentos...",
+    ),
+    (
+        r"Best ad-stock alpha \(incremental data\):\s*(.*)",
+        "   - Efeito de retenção acumulado ideal (adstock): {0}",
+    ),
+    (
+        r"Best saturation params \(incremental data\):\s*(.*)",
+        "   - Parâmetros ideais de saturação de canais: {0}",
+    ),
+    (
+        r"Calculated channel investment proportions:\s*(.*)",
+        "   - Proporção de investimento calculada por canal: {0}",
+    ),
+    (
+        r"Incremental projection model training complete\.",
+        "   - Treinamento do modelo de projeção incremental concluído.",
+    ),
+    (
+        r"Analyzing historical data to find the optimal investment mix\.\.\.",
+        "   - Analisando histórico para encontrar a melhor combinação de verbas...",
+    ),
+    (
+        r"No historical investment data to analyze for optimal mix\.",
+        "   - Sem histórico de investimentos suficiente para calcular combinação ideal.",
+    ),
+    (
+        r"Could not identify top efficiency weeks\.",
+        "   - Não foi possível identificar as semanas de maior eficiência.",
+    ),
+    (
+        r"Found optimal historical mix from top\s*(.*)",
+        "   - Combinação ótima histórica encontrada a partir das melhores {0}",
+    ),
+    (
+        r"Individual simulation data exported for UI:",
+        "   - Dados de simulação exportados com sucesso.",
+    ),
+    (
+        r"Individual curve plot saved for\s+([^:]+):",
+        "   - Gráfico de saturação gerado para: {0}",
+    ),
+    (r"Chart saved to", "   - Gráfico consolidado gerado com sucesso."),
+    (
+        r"Successfully generated comparative MD file at:",
+        "   - Arquivo de comparação global em Markdown gerado com sucesso.",
+    ),
+    (r"^={10,}$", None),
+    (r"Generating Global Gemini Report\.\.\.", None),
+    (
+        r"Global narrative generated and parsed successfully\.",
+        "   - Recomendações geradas com sucesso pela IA.",
+    ),
+    (
+        r"Global Gemini HTML report saved successfully to:",
+        "   - Relatório estratégico global em HTML gerado com sucesso.",
+    ),
+    (r"Assembling Gemini HTML report to", None),
+    (r"Generating Markdown report to", None),
+    (r"Markdown report generated successfully\.", None),
+    (
+        r"Gemini HTML report saved successfully\.",
+        "   - Relatório de recomendações em HTML gerado com sucesso.",
+    ),
+    (r"^-{10,}$", None),
+    (
+        r"Running automated feature selection for causal model\.\.\.",
+        "   - Analisando variáveis de contexto para o modelo causal...",
+    ),
+    (r"No additional performance covariates found\. Proceeding without them\.", None),
+    (r"Warning\b", None),
+    (r"site-packages", None),
+    (r"^\s*warn\(", None),
+    (r"^\s*self\._init_dates", None),
+    (r"^\s*trend\s*=", None),
+    (r"^\s*var\s*[*]?=", None),
+    (r"^\s*return\s+get_prediction_index", None),
+]
+
+
+def translate_line(line: str) -> str | None:
+    if not line.strip():
+        return line
+    for pattern, template in _RULES:
+        m = re.search(pattern, line)
+        if m:
+            if template is None:
+                return None
+            return template.format(*(g.strip() for g in m.groups()))
+    return line
+
+
+_LEVELS = {logging.INFO: "info", logging.WARNING: "warning", logging.ERROR: "error", logging.CRITICAL: "error"}
+_FORWARDED = ("engine", "llm")
+
+
+class OnLogHandler(logging.Handler):
+    """Forwards INFO+ records, translated, as on_log(level, message)."""
+
+    def __init__(self, on_log: Callable[[str, str], None]):
+        super().__init__(level=logging.INFO)
+        self._on_log = on_log
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = translate_line(record.getMessage())
+            if message is None or not message.strip():
+                return
+            level = _LEVELS[max(lvl for lvl in _LEVELS if lvl <= record.levelno)]
+            self._on_log(level, message)
+        except Exception:
+            self.handleError(record)
+
+
+@contextmanager
+def forward_logs(on_log: Callable[[str, str], None]) -> Iterator[None]:
+    """For the duration of the block, the engine's and llm's INFO+ records reach `on_log`."""
+    handler = OnLogHandler(on_log)
+    loggers = [logging.getLogger(name) for name in _FORWARDED]
+    saved = [lg.level for lg in loggers]
+    for lg in loggers:
+        lg.addHandler(handler)
+        if lg.getEffectiveLevel() > logging.INFO:
+            lg.setLevel(logging.INFO)
+    try:
+        yield
+    finally:
+        for lg, level in zip(loggers, saved, strict=True):
+            lg.removeHandler(handler)
+            lg.setLevel(level)
