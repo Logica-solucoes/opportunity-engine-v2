@@ -14,40 +14,18 @@ import os
 import pandas as pd
 
 from engine.presentation import format_number
+from llm.base import LLMUnavailable
 
 log = logging.getLogger(__name__)
 
-# ponytail: sem isso o google-api-core faz retry com backoff exponencial em 503
-# ("model experiencing high demand") por até ~10 min POR chamada, sem imprimir
-# nada -- o painel de log da UI congela e parece travado. Com deadline total, a
-# falha cai no except abaixo e vira uma mensagem de erro visível. 60s (não 300s):
-# a 1ª chamada de cada run é quem paga esse teto integralmente antes do
-# is_gemini_outage_error() poder pular as demais -- ver local_main.py.
-# Subir se algum prompt legítimo (não-outage) estiver estourando esse teto.
-GEMINI_REQUEST_OPTIONS = {"timeout": 60}
-
-# ponytail: string match nas exceções em vez de importar os tipos do
-# google.api_core -- o SDK já stringifica esses erros com o código/nome
-# ("503 ... UNAVAILABLE", "504 Deadline Exceeded"), e o resto do módulo já
-# trata erro do Gemini como Exception genérica (ver RuntimeError acima).
-_OUTAGE_ERROR_MARKERS = (
-    "503",
-    "504",
-    "429",
-    "unavailable",
-    "deadline exceeded",
-    "resource exhausted",
-    "overloaded",
-)
+# Per-call deadline. Without one a provider can retry a 503 ("high demand") for minutes per call and the UI log looks
+# frozen; 60 s (not 300 s) because the first call of a run pays it in full before LLMUnavailable stops the others.
+REPORT_TIMEOUT_S = 60
 
 
-def is_gemini_outage_error(exc: Exception) -> bool:
-    """True se `exc` parece uma indisponibilidade transitória do Gemini (503/504/429),
-    não um problema de dado/validação. Usado pelo chamador (local_main.py) para parar
-    de gastar o orçamento de timeout por chamada em cada evento restante quando a API
-    já está claramente fora do ar neste run."""
-    text = str(exc).lower()
-    return any(marker in text for marker in _OUTAGE_ERROR_MARKERS)
+def _ask_json(llm, prompt):
+    text = llm.generate_text(prompt, timeout_s=REPORT_TIMEOUT_S)
+    return json.loads(text.strip().replace("```json\n", "").replace("\n```", ""))
 
 
 def _get_image_as_base64(path):
@@ -64,7 +42,7 @@ def _get_image_as_base64(path):
 
 
 def _generate_full_report_narrative(
-    gemini_client,
+    llm,
     results_data,
     config,
     market_analysis_df,
@@ -74,8 +52,8 @@ def _generate_full_report_narrative(
     """
     Generates the entire report narrative with a single, comprehensive prompt.
     """
-    if gemini_client is None:
-        raise ValueError("Gemini client is not authenticated (API key missing or invalid).")
+    if llm is None:
+        raise ValueError("No LLM configured (provider disabled or API key missing).")
 
     log.info("   - Generating full strategic narrative with Gemini...")
 
@@ -194,11 +172,11 @@ A matriz de correlação entre o investimento diário total e os KPIs de negóci
 </correlation_analysis>
 """
     try:
-        response = gemini_client.generate_content(prompt, request_options=GEMINI_REQUEST_OPTIONS)
-        cleaned_response_text = response.text.strip().replace("```json\n", "").replace("\n```", "")
-        narrative = json.loads(cleaned_response_text)
+        narrative = _ask_json(llm, prompt)
         log.info("   - Full narrative generated and parsed successfully.")
         return narrative
+    except LLMUnavailable:
+        raise
     except Exception as e:
         # Devolver o schema com placeholders fazia o HTML/JSON serem gravados e o
         # chamador anunciar "SUCESSO" com um relatório cujo texto é a descrição
@@ -282,7 +260,7 @@ def generate_markdown_report_from_narrative(narrative, results_data, config, out
 
 
 def generate_html_report(
-    gemini_client,
+    llm,
     results_data,
     config,
     image_paths,
@@ -302,7 +280,7 @@ def generate_html_report(
 
     # --- 2. AI Narrative Generation ---
     narrative = _generate_full_report_narrative(
-        gemini_client,
+        llm,
         results_data,
         config,
         market_analysis_df,
@@ -500,22 +478,18 @@ def generate_html_report(
         log.warning(f"   - WARNING: Could not write narrative JSON. Details: {e}")
 
 
-def generate_global_gemini_report(gemini_client, config, scenarios=None, total_investment=None, kpi_projections=None):
+def generate_global_report(
+    llm, config, scenarios=None, total_investment=None, kpi_projections=None, *, global_output_dir
+):
     """
     Generates a dedicated Gemini report for the global saturation analysis.
     """
-    if gemini_client is None:
-        raise ValueError("Gemini client is not authenticated (API key missing or invalid).")
+    if llm is None:
+        raise ValueError("No LLM configured (provider disabled or API key missing).")
 
     log.info("Generating Global Gemini Report...")
 
     advertiser_name = config.get("advertiser_name", "default_advertiser")
-    global_output_dir = os.path.join(
-        os.getcwd(),
-        config["output_directory"],
-        advertiser_name,
-        "global_saturation_analysis",
-    )
 
     # --- 1. Define paths and read artifacts ---
     markdown_path = os.path.join(global_output_dir, "SATURATION_CURVE.md")
@@ -592,16 +566,16 @@ def generate_global_gemini_report(gemini_client, config, scenarios=None, total_i
 
     # --- 4. Call Gemini API ---
     try:
-        response = gemini_client.generate_content(prompt, request_options=GEMINI_REQUEST_OPTIONS)
-        cleaned_response_text = response.text.strip().replace("```json\n", "").replace("\n```", "")
-        narrative = json.loads(cleaned_response_text)
+        narrative = _ask_json(llm, prompt)
         log.info("   - Global narrative generated and parsed successfully.")
 
-        # NEW: Save the JSON payload so the Streamlit UI can render the insights without re-running Gemini
+        # Save the JSON payload so the UI can render the insights without re-running the LLM
         json_output_path = os.path.join(global_output_dir, "global_narrative.json")
         with open(json_output_path, "w", encoding="utf-8") as f:
             json.dump(narrative, f, ensure_ascii=False, indent=4)
 
+    except LLMUnavailable:
+        raise
     except Exception as e:
         # `return` silencioso fazia o chamador imprimir "SUCESSO! Análise
         # estratégica global concluída" sem que global_report.html existisse.
