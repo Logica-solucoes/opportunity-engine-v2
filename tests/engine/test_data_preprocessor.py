@@ -1,4 +1,6 @@
+import copy
 import logging
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -13,13 +15,25 @@ from engine.data_preprocessor import (
     guess_investment_col,
     guess_kpi_col,
     guess_trends_col,
-    load_and_prepare_data,
     read_csv_robust,
     resolve_column,
     robust_date_parsing,
     robust_numeric_parsing,
     suggest_causal_config,
 )
+from engine.data_preprocessor import load_and_prepare_data as _prepare
+
+
+def load_and_prepare_data(config):
+    """Test helper: adapt the old config-with-file-paths style to the (config, paths) API."""
+    trends = config.get("generic_trends_file_path")
+    paths = {
+        "investment_file": Path(config["investment_file_path"]),
+        "performance_file": Path(config["performance_file_path"]),
+        "generic_trends_file": Path(trends) if trends else None,
+    }
+    prepared = _prepare(config, paths)
+    return prepared.kpi_df, prepared.investment_df, prepared.trends_df, prepared.correlation_matrix
 
 
 def test_column_name_hints_content():
@@ -906,7 +920,7 @@ def test_load_and_prepare_data_raises_on_divergent_cadences(tmp_path):
         load_and_prepare_data(config)
 
 
-def test_load_and_prepare_data_populates_config_period_days_for_weekly_data(tmp_path):
+def test_load_and_prepare_data_leaves_config_alone_for_weekly_data(tmp_path):
     dates = pd.date_range("2025-01-01", periods=8, freq="7D").strftime("%Y-%m-%d")
     investment_path = _write_csv(
         tmp_path / "investment.csv",
@@ -929,7 +943,7 @@ def test_load_and_prepare_data_populates_config_period_days_for_weekly_data(tmp_
 
     kpi_df, daily_investment_df, _, _ = load_and_prepare_data(config)
 
-    assert config["period_days"] == 7
+    assert "period_days" not in config  # the input config is never written to
     assert len(kpi_df) == 8
     assert len(daily_investment_df) == 8
 
@@ -1221,3 +1235,66 @@ def test_suggest_causal_config_investment_limit_factor_clamped_to_bounds():
         }
     )
     assert suggest_causal_config(extreme_df)["investment_limit_factor"] == 5.0
+
+
+# --- single read, no config mutation (PreparedData) ---
+
+
+def _daily_files(tmp_path, with_extra_column=False):
+    dates = pd.date_range("2025-01-01", periods=30, freq="D").strftime("%Y-%m-%d")
+    investment = _write_csv(
+        tmp_path / "investment.csv",
+        "dates,product_group,total_revenue\n" + "".join(f"{d},GOOGLE,{100 + i}\n" for i, d in enumerate(dates)),
+    )
+    extra = ",Clicks" if with_extra_column else ""
+    performance = _write_csv(
+        tmp_path / "performance.csv",
+        f"date,kpi{extra}\n"
+        + "".join(f"{d},{10 + i}{',5' if with_extra_column else ''}\n" for i, d in enumerate(dates)),
+    )
+    paths = {
+        "investment_file": Path(investment),
+        "performance_file": Path(performance),
+        "generic_trends_file": None,
+    }
+    config = {
+        "column_mapping": {
+            "investment_file": {"date_col": "dates", "channel_col": "product_group", "investment_col": "total_revenue"},
+            "performance_file": {"date_col": "date", "kpi_col": "kpi"},
+        },
+        "date_formats": {"investment_file": "%Y-%m-%d", "performance_file": "%Y-%m-%d"},
+        "treat_outliers": False,
+    }
+    return config, paths
+
+
+def test_prepared_data_reports_period_days_and_does_not_mutate_config(tmp_path):
+    config, paths = _daily_files(tmp_path)
+    before = copy.deepcopy(config)
+
+    prepared = _prepare(config, paths)
+
+    assert config == before
+    assert prepared.period_days == 1
+    assert list(prepared.kpi_df.columns) == ["Date", "kpi"]
+
+
+def test_performance_file_is_read_once_and_kept_for_covariates(tmp_path, monkeypatch):
+    import engine.data_preprocessor as module
+
+    config, paths = _daily_files(tmp_path, with_extra_column=True)
+    reads = []
+    real = module.read_csv_robust
+    monkeypatch.setattr(module, "read_csv_robust", lambda path, **kw: reads.append(Path(path)) or real(path, **kw))
+
+    prepared = _prepare(config, paths)
+
+    assert reads.count(paths["performance_file"]) == 1
+    assert {"Date", "Clicks", "kpi"} <= set(prepared.performance_df.columns)
+    assert len(prepared.performance_df) == 30
+
+
+def test_trends_absent_gives_an_empty_trends_frame(tmp_path):
+    config, paths = _daily_files(tmp_path)
+    prepared = _prepare(config, paths)
+    assert prepared.trends_df.empty and list(prepared.trends_df.columns) == ["Date", "Generic Searches"]

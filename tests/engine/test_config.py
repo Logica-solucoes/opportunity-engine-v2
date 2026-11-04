@@ -13,10 +13,6 @@ KEY_READ = re.compile(r"""\b(?:config|cfg)(?:\.get\(\s*|\[\s*)["'](\w+)["']""")
 RUNTIME_KEYS = {
     "period_days",  # detected from the data, never an input
     "average_ticket_value",  # old alias read as a fallback inside .get("average_ticket", ...); removed in phase 2
-    # still read by data_preprocessor until task 8 replaces them with the `inputs` paths; delete these three then
-    "investment_file_path",
-    "performance_file_path",
-    "generic_trends_file_path",
 }
 
 

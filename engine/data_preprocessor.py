@@ -4,6 +4,7 @@ This module handles all data loading, validation, cleaning, and pre-processing.
 
 import csv
 import logging
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -743,9 +744,20 @@ def guess_kpi_col(file_path, user_kpi):
         return user_kpi
 
 
-def load_and_prepare_data(config):
+@dataclass
+class PreparedData:
+    kpi_df: pd.DataFrame
+    investment_df: pd.DataFrame
+    trends_df: pd.DataFrame
+    performance_df: pd.DataFrame  # raw performance file (date column renamed to Date), kept for covariates
+    correlation_matrix: pd.DataFrame
+    period_days: int  # detected cadence; a result of the data, never written back into the config
+
+
+def load_and_prepare_data(config, paths):
     """
-    Loads and prepares the KPI, investment, and trends data based on the config.
+    Loads and prepares the KPI, investment, and trends data. `paths` maps investment_file, performance_file and
+    generic_trends_file (or None) to the files; `config` is only read.
     """
     log.info("Loading, Cleaning, and Preparing Data...")
 
@@ -758,12 +770,15 @@ def load_and_prepare_data(config):
         date_formats = config.get("date_formats", {})
 
         # --- Load Data ---
-        kpi_df = read_csv_robust(config["performance_file_path"])
-        daily_investment_df = read_csv_robust(config["investment_file_path"])
+        performance_path = paths["performance_file"]
+        investment_path = paths["investment_file"]
+        kpi_df = read_csv_robust(performance_path)
+        performance_raw = kpi_df.copy()
+        daily_investment_df = read_csv_robust(investment_path)
 
-        if config.get("generic_trends_file_path"):
+        if paths.get("generic_trends_file"):
             try:
-                trends_df = read_csv_robust(config["generic_trends_file_path"])
+                trends_df = read_csv_robust(paths["generic_trends_file"])
                 trends_date_col = resolve_column(
                     trends_df,
                     trends_map.get("date_col", "Start Date"),
@@ -818,6 +833,7 @@ def load_and_prepare_data(config):
             "kpi",
             "coluna de KPI do arquivo de performance",
         )
+        performance_df = performance_raw.rename(columns={kpi_date_col: "Date"})
         kpi_df.rename(columns={kpi_date_col: "Date", kpi_value_col: "kpi"}, inplace=True)
         kpi_df = drop_bi_export_footer_rows(kpi_df, "Date")
         kpi_raw_values = kpi_df["kpi"]
@@ -827,7 +843,7 @@ def load_and_prepare_data(config):
             bad_examples = kpi_raw_values[kpi_df["kpi"].isna()].unique()[:3].tolist()
             raise ValueError(
                 f"Coluna de KPI ('{kpi_value_col}') no arquivo de performance "
-                f"('{config['performance_file_path']}') não pôde ser convertida para número em "
+                f"('{performance_path}') não pôde ser convertida para número em "
                 f"mais de 50% das linhas ({kpi_nan_ratio:.0%} inválido). Isso geralmente indica "
                 f"que a coluna de KPI errada foi identificada. Exemplos de valores encontrados: "
                 f"{bad_examples}. Verifique 'performance_kpi_column' / "
@@ -864,7 +880,7 @@ def load_and_prepare_data(config):
             bad_examples = investment_raw_values[daily_investment_df["investment"].isna()].unique()[:3].tolist()
             raise ValueError(
                 f"Coluna de investimento ('{inv_value_col}') no arquivo de investimento "
-                f"('{config['investment_file_path']}') não pôde ser convertida para número em "
+                f"('{investment_path}') não pôde ser convertida para número em "
                 f"mais de 50% das linhas ({investment_nan_ratio:.0%} inválido). Isso geralmente "
                 f"indica que a coluna de investimento errada foi identificada. Exemplos de "
                 f"valores encontrados: {bad_examples}. Verifique "
@@ -881,13 +897,13 @@ def load_and_prepare_data(config):
         if kpi_df.empty:
             raise ValueError(
                 f"Nenhuma linha válida restou no arquivo de performance "
-                f"('{config['performance_file_path']}') após a limpeza. Verifique o formato de "
+                f"('{performance_path}') após a limpeza. Verifique o formato de "
                 f"data e do KPI no arquivo."
             )
         if daily_investment_df.empty:
             raise ValueError(
                 f"Nenhuma linha válida restou no arquivo de investimento "
-                f"('{config['investment_file_path']}') após a limpeza. Verifique o formato de "
+                f"('{investment_path}') após a limpeza. Verifique o formato de "
                 f"data, canal e investimento no arquivo."
             )
 
@@ -933,7 +949,6 @@ def load_and_prepare_data(config):
                 "entrada."
             )
 
-        config["period_days"] = inv_cadence
         cadence_label = {1: "diária", 7: "semanal", 30: "mensal"}.get(inv_cadence, "não-canônica")
         log.info(
             f"   - Cadência detectada: {cadence_label} ({inv_cadence} dia(s)), "
@@ -1005,7 +1020,14 @@ def load_and_prepare_data(config):
         log.info("Final Correlation Matrix (Post-Processing)")
         log.info("%s", correlation_matrix)
 
-        return kpi_df, daily_investment_df, trends_df, correlation_matrix
+        return PreparedData(
+            kpi_df=kpi_df,
+            investment_df=daily_investment_df,
+            trends_df=trends_df,
+            performance_df=performance_df,
+            correlation_matrix=correlation_matrix,
+            period_days=inv_cadence,
+        )
 
     except FileNotFoundError as e:
         raise FileNotFoundError(

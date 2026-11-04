@@ -21,8 +21,6 @@ import os
 import holidays
 import matplotlib.pyplot as plt
 
-from engine import data_preprocessor
-
 log = logging.getLogger(__name__)
 
 
@@ -272,7 +270,7 @@ def bootstrap_average_coefficients(X, y, n_bootstrap=200, seed=42):
     return coefs.mean(axis=0)
 
 
-def run_mmm_engine(config):
+def run_mmm_engine(config, prepared):
     """
     Runs the Two-Stage Elasticity Analysis (MMM) engine.
     Stage 1: Models the organic baseline using context and calendar features.
@@ -282,7 +280,9 @@ def run_mmm_engine(config):
 
     try:
         # Load and prepare data
-        kpi_df, daily_investment_df, trends_df, _ = data_preprocessor.load_and_prepare_data(config)
+        kpi_df = prepared.kpi_df.copy()
+        daily_investment_df = prepared.investment_df.copy()
+        trends_df = prepared.trends_df.copy()
 
         # Pivot investment data to have channels as columns
         investment_pivot_df = daily_investment_df.pivot_table(

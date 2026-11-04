@@ -320,3 +320,28 @@ class TestCreateCalendarFeaturesCadenceGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRunMmmEngineDoesNotLoadData:
+    def test_uses_the_prepared_data_and_reads_no_file(self, monkeypatch):
+        from engine import data_preprocessor
+        from engine.data_preprocessor import PreparedData
+        from engine.elasticity_analysis import run_mmm_engine
+
+        def boom(*args, **kwargs):
+            raise AssertionError("run_mmm_engine must not read files")
+
+        monkeypatch.setattr(data_preprocessor, "read_csv_robust", boom)
+        dates = pd.date_range("2025-01-01", periods=40, freq="D")
+        prepared = PreparedData(
+            kpi_df=pd.DataFrame({"Date": dates, "kpi": np.arange(40, dtype=float)}),
+            investment_df=pd.DataFrame({"Date": dates, "Product Group": "A", "investment": 0.0}),
+            trends_df=pd.DataFrame(
+                {"Date": pd.Series(dtype="datetime64[ns]"), "Generic Searches": pd.Series(dtype=float)}
+            ),
+            performance_df=pd.DataFrame({"Date": dates}),
+            correlation_matrix=pd.DataFrame(),
+            period_days=1,
+        )
+
+        assert run_mmm_engine({"period_days": 1}, prepared) is None  # no channel with spend: the path past the load
