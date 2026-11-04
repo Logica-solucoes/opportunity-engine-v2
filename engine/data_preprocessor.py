@@ -14,13 +14,17 @@ from engine.errors import EngineError
 log = logging.getLogger(__name__)
 
 
+def iqr_bounds(series):
+    """The 1.5 * IQR fences (lower, upper) that decide what counts as an outlier."""
+    Q1 = series.quantile(0.25)
+    Q3 = series.quantile(0.75)
+    IQR = Q3 - Q1
+    return Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
+
+
 def treat_outliers(df, column):
     """Identifies and caps outliers in a specified column using the 1.5 * IQR rule."""
-    Q1 = df[column].quantile(0.25)
-    Q3 = df[column].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
+    lower_bound, upper_bound = iqr_bounds(df[column])
     df[column] = np.where(df[column] > upper_bound, upper_bound, df[column])
     df[column] = np.where(df[column] < lower_bound, lower_bound, df[column])
     return df
@@ -762,7 +766,7 @@ def load_and_prepare_data(config, paths):
     generic_trends_file (or None) to the files; `config` is only read.
     """
     log.info("Loading, Cleaning, and Preparing Data...")
-    from engine.inputs import read_inputs  # inputs imports this module's helpers
+    from engine.inputs import cadence_check, read_inputs, sufficiency_check  # inputs imports this module's helpers
 
     try:
         user_kpi_col = config["performance_kpi_column"]
@@ -776,14 +780,9 @@ def load_and_prepare_data(config, paths):
         # --- Cadence Detection & Partial-Period Pruning ---
         inv_cadence = detect_cadence(daily_investment_df["Date"])
         kpi_cadence = detect_cadence(kpi_df["Date"])
-        if abs(inv_cadence - kpi_cadence) > 2:
-            raise ValueError(
-                f"Cadências divergentes entre o arquivo de investimento "
-                f"({inv_cadence} dia(s)) e o arquivo de performance ({kpi_cadence} dia(s)). "
-                f"Não é possível conciliar automaticamente séries com cadências diferentes -- "
-                f"verifique se ambos os arquivos reportam na mesma frequência "
-                f"(diária/semanal/mensal)."
-            )
+        mismatch = cadence_check(inv_cadence, kpi_cadence)
+        if mismatch:
+            raise EngineError(mismatch.message, mismatch.id)
 
         n_inv_before = daily_investment_df["Date"].nunique()
         n_kpi_before = kpi_df["Date"].nunique()
@@ -792,12 +791,9 @@ def load_and_prepare_data(config, paths):
         n_inv_after = daily_investment_df["Date"].nunique()
         n_kpi_after = kpi_df["Date"].nunique()
 
-        if daily_investment_df.empty or kpi_df.empty:
-            raise ValueError(
-                "Após descartar períodos parciais, não restaram linhas suficientes para "
-                "continuar a análise. Verifique a consistência das datas nos arquivos de "
-                "entrada."
-            )
+        insufficient = sufficiency_check(daily_investment_df, kpi_df)
+        if insufficient:
+            raise EngineError(insufficient.message, insufficient.id)
 
         cadence_label = {1: "diária", 7: "semanal", 30: "mensal"}.get(inv_cadence, "não-canônica")
         log.info(

@@ -293,3 +293,32 @@ def read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
         performance_df=performance_df,
         checks=checks,
     )
+
+
+def cadence_check(inv_cadence: int, kpi_cadence: int) -> Check | None:
+    if abs(inv_cadence - kpi_cadence) <= 2:
+        return None
+    return Check(
+        id="cadence_mismatch",
+        level="error",
+        message=(
+            f"Cadências divergentes entre o arquivo de investimento ({inv_cadence} dia(s)) e o arquivo de "
+            f"performance ({kpi_cadence} dia(s)). Não é possível conciliar séries com cadências diferentes: "
+            "verifique se os dois arquivos reportam na mesma frequência (diária, semanal ou mensal)."
+        ),
+        details={"investment_days": inv_cadence, "performance_days": kpi_cadence},
+    )
+
+
+def sufficiency_check(investment_df: pd.DataFrame, kpi_df: pd.DataFrame) -> Check | None:
+    """What is left after the partial periods are dropped must not be empty."""
+    if not investment_df.empty and not kpi_df.empty:
+        return None
+    return Check(
+        id="insufficient_after_partial",
+        level="error",
+        message=(
+            "Após descartar os períodos parciais, não restaram linhas suficientes para continuar a análise. "
+            "Verifique a consistência das datas nos arquivos de entrada."
+        ),
+    )
