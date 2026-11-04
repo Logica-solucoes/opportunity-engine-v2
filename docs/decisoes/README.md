@@ -11,6 +11,8 @@ Divisão de trabalho: o `CLAUDE.md` e os arquivos da raiz (`CODE-STYLE.md`, `DAT
 | [upload-e-storage.md](upload-e-storage.md) | Simulação como rascunho, mapeamento antes do validate, limite de 30 MB, storage local por conteúdo, leitura do CSV, validate falso até o A2 |
 | [parametros-e-gemini.md](parametros-e-gemini.md) | `EngineConfig` provisório, rotas de sugestão, sugestão dos dados, o que o Gemini vê, validação das respostas |
 | [runs-e-jobs.md](runs-e-jobs.md) | `engine.run` falso, launcher local, gate no servidor, um run ativo, run morto sem heartbeat, log por linha, erro do motor, SSE |
+| [engine.md](engine.md) | Pacote `engine/`, pipeline em estágios, `EngineConfig` e a divergência com a API, `EngineError`, `on_log`, paridade, passos do swap |
+| [llm.md](llm.md) | Módulo `llm/` plugável (só Gemini): interface, erros, seleção por ambiente, como adicionar um provedor |
 | [conectores-google.md](conectores-google.md) | Fallback DTS/GA4, sandbox sem acesso real, import pelo caminho do upload, grade com zeros, canais, service account única, teto de custo |
 
 Ao concluir uma tarefa que muda alguma dessas decisões, atualize o arquivo da área no mesmo commit.

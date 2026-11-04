@@ -4,7 +4,7 @@ Simples, legível, fácil de depurar. Código só para o que é preciso agora, e
 
 ## Ferramentas
 
-| | Backend (`api/`, `engine/`) | Frontend (`web/`) |
+| | Backend (`api/`, `engine/`, `llm/`) | Frontend (`web/`) |
 |---|---|---|
 | Runtime e deps | Python 3.13 com `uv` (`pyproject.toml` + `uv.lock` na raiz) | `bun` |
 | Format / lint | `ruff format` (linha 120) e `ruff check` (regras padrão menos B008, que é o `Depends()` do FastAPI), ambos no CI | `bun run lint` (oxlint) |
@@ -47,7 +47,7 @@ O CI (`.github/workflows/ci.yml`) roda `ruff format --check`, `ruff check` e `uv
 
 ## Regras do motor (`engine/`, Trilha A)
 
-Herdadas do protótipo; valem quando o `engine/` entrar (o A0 move os módulos de `scripts/` do repo antigo).
+Herdadas do protótipo; valem no `engine/` (o A0 trouxe os módulos de `scripts/` do repo antigo, hoje congelado como referência de paridade). Chamadas a LLM passam sempre por `llm/` (`get_llm()`), nunca pelo SDK de um provedor.
 
 - **Nunca hardcode nome de coluna.** Resolva por `column_mapping`: `investment_file` (`date_col`, `channel_col`, `investment_col`), `performance_file` (`date_col`, `kpi_col`), `generic_trends_file` (`date_col`, `trends_col`). Datas viram uma coluna `Date` no pré-processamento.
 - Respeite `optimization_target`: `"REVENUE"` (exige `average_ticket`) ou `"CONVERSIONS"`.

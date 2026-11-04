@@ -33,6 +33,10 @@ run = "uv run alembic -c api/alembic.ini upgrade head"
 description = "Create or promote a platform admin: mise run create-admin <email> <name>"
 run = "uv run python -m api.cli create-admin"
 
+[tasks.parity]
+description = "Engine parity against the frozen prototype's snapshot (~95 s)"
+run = "uv run pytest tests/engine/test_parity.py -q"
+
 [tasks.e2e]
 description = "Playwright E2E against the built SPA (needs docker compose up)"
 dir = "web"

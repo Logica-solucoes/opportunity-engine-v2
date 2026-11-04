@@ -10,6 +10,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 ## A0 · Pacote `engine` e pipeline único — semana 1
 
+- **Status:** ✅ feito em 04/nov/2026 (branch `feat/a0-engine-package`). Verificado: `compute()` idêntico ao protótipo congelado a `rtol=1e-9` no dataset sintético (`tests/engine/test_parity.py`, antes e depois da centralização dos defaults); `tests/engine` + `tests/llm` verdes; `ruff format/check` limpos; `grep -rn "os.getcwd\|sys.exit\|os._exit\|sys.path" engine/ llm/` vazio; `python -m engine` termina sozinho (sem `os._exit`). **Fora do A0:** o aceite "Streamlit continua rodando" (o repo antigo foi congelado como referência), o swap da API (Dev B, `docs/decisoes/engine.md`), a paridade no servidor de produção e o `exemplo_csv/` (ausente no disco; o snapshot usa um dataset sintético). Acrescentou o módulo plugável `llm/` (só Gemini). Spec: `docs/superpowers/specs/2026-11-04-a0-pacote-engine-design.md`; decisões: `docs/decisoes/engine.md` e `llm.md`.
 - **BRD:** Improvement Requests › Execution ("Cloud execution as jobs, no local code"); Capabilities › Processing engine.
 - **Depende de:** nada. **Bloqueia:** tudo (B4 chama `engine.run`).
 - **Hoje:**
