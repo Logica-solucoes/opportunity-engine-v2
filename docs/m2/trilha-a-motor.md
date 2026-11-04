@@ -60,8 +60,9 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 ## A2 · Validação de upload e deduplicação — semana 2
 
 - **BRD:** Technical Details §4 (deduplicação); Capabilities › Data upload & validation; Improvement Requests › Data quality.
+- **Status:** ✅ feito em 04/nov/2026 (branch `feat/a0-engine-package`). `engine.validate` (`engine/validation.py`, `engine/inputs.py`; spec `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`) com 14 checks; `run` valida antes e grava o relatório em `results.json`. Verificado: um teste por check; `validate` < 10 s em 730 × 15; `validate` e `load_and_prepare_data` concordam no primeiro erro; paridade sintética e da Gol (`parity-real`) intactas. **Nos dados reais (`exemplo_csv/`):** a Gol **como enviada é rejeitada** (`duplicate_date_channel`: GOOGLE aparece 5 vezes por dia, 1580 linhas; o protótipo tirava a média sem avisar); Tcross (Leads por canal) falha com `kpi_not_single_source`; PMAX semanal (um canal só) passa; VW (faturamento total) passa com `missing_dates` e `outliers`. Colinearidade segue vazia (A3). Falta: dados reais das Core, nomes DV360/CM360 e templates oficiais (Data Analytics), e o swap da API (Dev B).
 - **Depende de:** A0. **Bloqueia:** B2.
-- **Hoje:**
+- **Hoje (antes do A2):**
   - Já existe em `data_preprocessor.py`: encoding/delimitador, rodapé de BI (`:82`), datas e números BR/US (`:128`, `:560`), >50% NaN (`:863,902`), cadência divergente (`:960`), períodos parciais (`:971`), outliers IQR (`:14`, só aplica, não reporta).
   - Faltam ou estão errados:
     - duplicatas de (data, canal) no **investimento** viram média silenciosa no `pivot_table`;

@@ -77,12 +77,25 @@ Spec: `docs/superpowers/specs/2026-11-04-a1-results-json-design.md`. `engine/res
 - **Fixtures** (`tests/fixtures/results/`): Gol **anonimizada** (canais `CANAL_NN`, investimento e KPI multiplicados por fatores privados em `.private/factors.json`, git-ignorado; **datas reais**, risco aceito: o formato da série ainda é reconhecível por quem conhece a Gol). Teste de CI garante só nomes anônimos e nenhum caminho; teste local confirma que nenhum nome ou valor original aparece. Regenerar exige `exemplo_csv/` e o mesmo arquivo de fatores (`generate_fixtures.py`, ~6 min).
 - **Para o Dev B:** `api/worker.py` hoje faz `json.dumps(results)` e grava; como `run` já devolve o dict seguro, os dois arquivos saem iguais. No swap, o worker pode só enviar o `results.json` que o `run` gravou.
 
+## `validate` (A2, 04/nov/2026)
+
+Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine.validate(inputs, config) -> ValidationReport` é síncrono, não roda modelo e **nunca levanta por problema de dado**: o problema vira um check (só uma configuração inválida levanta `EngineError`). `engine/inputs.py` (`read_inputs`) lê e normaliza os três CSV e é usado por `validate` **e** por `load_and_prepare_data`; por isso o que o `validate` aprova o `run` lê igual.
+
+- **Catálogo (ids estáveis):** erros `file_unreadable`, `column_missing`, `date_unparseable`, `value_not_numeric`, `no_valid_rows`, `duplicate_date_channel`, `kpi_duplicate_dates`, `kpi_not_single_source`, `cadence_mismatch`, `insufficient_after_partial`; avisos `missing_dates`, `dv360_cm360_overlap`; infos `outliers`, `partial_period_dropped`. `details` leva os dados estruturados (datas até 50, contagens, canais) para a tela.
+- **Fim da correção silenciosa.** Duplicata de (data, canal) no investimento (era média) e data repetida no KPI (era soma) são **erro**. `run()` valida primeiro e para no primeiro erro com `EngineError.check_id`; avisos e infos vão para o `results.json` (`validation`) e para o log.
+- **`kpi_not_single_source`:** o KPI repete data **e** uma coluna de texto do arquivo de performance muda entre linhas da mesma data (canal, plataforma). Colunas de texto que na verdade são números em formato local (`1.234,56`) não contam. Data repetida sem tal coluna é `kpi_duplicate_dates`.
+- **`dv360_cm360_overlap`:** por série, nunca por nome: correlação diária > 0.95 e razão de soma entre 0.9 e 1.1; canal constante ou de soma zero é ignorado.
+- **`missing_dates`** olha lacunas por série (intervalo / cadência arredondado), tolerando o ±1 dia de re-ancoramento semanal que `detect_cadence` já aceita.
+- **Achado nos dados reais:** `exemplo_csv/Gol/investment.csv` tem GOOGLE 5 vezes por dia (valores diferentes, provavelmente subcampanhas) e o protótipo tirava a **média**. Agora a Gol como enviada é rejeitada. Se o certo é **somar** e não tirar a média (a média subestima o investimento do canal), isso é decisão de negócio com a Data Analytics; hoje o analista precisa consolidar o arquivo. `parity-real` compara protótipo e motor numa cópia da Gol com a média aplicada **no teste** (`tests/engine/real_data.py`); sobre o arquivo original os dois já não concordam (o adstock do protótipo rodava nas linhas repetidas antes do `pivot_table`).
+- **Para o Dev B (swap):** `api/validation.py` vira `from engine import validate`; o `config` pode ir como veio (dict ou `EngineConfig`). A tela do B2 deve tratar os novos ids (`details` por id) e o nível `info`. Ausência de `generic_trends_file` é `None`.
+- **Fora do A2:** colinearidade (`collinearity` sai vazia, A3), templates CSV oficiais e nomes DV360/CM360 (Data Analytics).
+
 ## Passos do swap (Dev B)
 
 1. `pyproject.toml` já tem as dependências; o `Dockerfile` precisa de `COPY engine/ ./engine/` e `COPY llm/ ./llm/` (medir o tamanho da imagem antes/depois).
 2. `api/engine_run.py` vira `from engine import run`; `api/engine_config.py` passa a derivar do `EngineConfig` (formulário e `/api/engine/config-schema` vêm de `EngineConfig.model_json_schema()`; decidir o layout dos campos novos e o que fica "avançado").
 3. **Configs já salvas** têm as chaves provisórias (`require_significance`, `require_good_fit`): o `EngineConfig` as recusa com `EngineError`. Migrar `simulations.config` e decidir o que fazer com `runs.config` antigos ("Rodar de novo" já filtra pelo schema).
-4. `block_reason` (gate do Rodar) e `runBlockReason` da tela não mudam. O `validate` continua o falso até o A2.
+4. `block_reason` (gate do Rodar) e `runBlockReason` da tela não mudam. O `validate` falso vira `from engine import validate` (A2 pronto, ver a seção `validate`).
 5. Testes: `tests/conftest.py` (`fast_engine`) e `tests/api/test_runs.py` usam `FAKE_ENGINE_*`; trocar por um motor falso injetado, ou manter o falso atrás de uma variável de ambiente nos testes.
 6. `run` roda um run inteiro dentro do processo do worker: nenhum subprocess, nenhuma thread gRPC pendurada (o adaptador do Gemini usa `google-genai`).
 
