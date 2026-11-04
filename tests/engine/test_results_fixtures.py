@@ -102,3 +102,10 @@ def test_fixtures_hide_the_original_data(name):
     tokens = set(re.findall(r"(?<![\d.])\d{4,}(?![\d.])", text))
     originals = {str(v) for v in source["investment"] if v >= 1000}
     assert not tokens & originals, "an original investment value appears verbatim"
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_fixtures_carry_the_validation_report(name):
+    report = ResultsV1.model_validate(_load(name)).validation
+    assert report is not None and report.ok
+    assert report.channels and report.date_range

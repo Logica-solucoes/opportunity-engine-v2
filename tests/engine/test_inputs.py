@@ -125,3 +125,12 @@ def test_load_and_prepare_data_raises_with_check_id(tmp_path):
         with pytest.raises(EngineError) as exc:
             load_and_prepare_data(_config(), paths)
         assert exc.value.check_id == check_id
+
+
+def test_a_missing_path_is_file_unreadable(tmp_path):
+    investment, kpi = clean_rows()
+    paths = write_inputs(tmp_path, investment, kpi)
+    paths["investment_file"] = None
+    with pytest.raises(EngineError) as exc:
+        read_inputs(_config(), paths)
+    assert exc.value.check_id == "file_unreadable"

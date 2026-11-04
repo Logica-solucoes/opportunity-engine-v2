@@ -7,8 +7,9 @@ from threadpoolctl import threadpool_limits
 import engine
 from engine import pipeline
 from engine.config import EngineConfig
+from engine.errors import EngineError
 from engine.results_schema import ResultsV1
-from tests.engine.synthetic_data import dataset_config, make_dataset
+from tests.engine.synthetic_data import CHANNELS, dataset_config, make_dataset
 
 SHORT = 364
 
@@ -55,7 +56,8 @@ def test_results_json_has_no_non_finite_numbers(ran):
 def test_run_result_validates_against_the_schema(ran):
     results = ResultsV1.model_validate(ran["returned"])
     assert results.status == "succeeded" and results.causal.status == "ok" and results.elasticity.status == "ok"
-    assert results.validation is results.sufficiency is results.experiment_design is results.reports is None
+    assert results.sufficiency is results.experiment_design is results.reports is None
+    assert results.validation is not None
 
 
 def test_running_twice_gives_identical_files(ran):
@@ -86,3 +88,34 @@ def test_status_inconclusive_when_no_event_is_eligible(monkeypatch, tmp_path):
     assert result["causal"]["status"] == "inconclusive" and result["causal"]["reasons"] == ["no_eligible_events"]
     assert result["elasticity"]["status"] == "ok"
     assert (tmp_path / "out" / "results.json").exists() and os.path.getsize(tmp_path / "out" / "results.json") > 0
+
+
+def test_run_results_contain_the_validation_report(ran):
+    report = ran["returned"]["validation"]
+    assert report["ok"] is True and report["period_days"] == 1
+    assert report["channels"] == sorted(CHANNELS)
+    assert not [c for c in report["checks"] if c["level"] in ("error", "warning")]
+
+
+def test_run_aborts_on_a_validation_error_with_its_check_id(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = make_dataset(tmp_path / "data", n_days=60)
+    lines = inputs["investment_file"].read_text().splitlines()
+    inputs["investment_file"].write_text("\n".join(lines + [lines[1]]) + "\n")
+    out_dir = tmp_path / "out"
+    with pytest.raises(EngineError) as exc:
+        engine.run(inputs, dataset_config(), out_dir, lambda level, message: None)
+    assert exc.value.check_id == "duplicate_date_channel"
+    assert not (out_dir / "results.json").exists()
+
+
+def test_run_keeps_warnings_in_the_results(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = make_dataset(tmp_path / "data", n_days=120)
+    lines = inputs["performance_file"].read_text().splitlines()
+    inputs["performance_file"].write_text("\n".join(lines[:20] + lines[23:]) + "\n")
+    with threadpool_limits(limits=1):
+        data = engine.run(inputs, dataset_config(), tmp_path / "out", lambda level, message: None)
+    check = next(c for c in data["validation"]["checks"] if c["id"] == "missing_dates")
+    assert check["level"] == "warning" and check["details"]["count"] == 3
+    assert data["validation"]["ok"] is True

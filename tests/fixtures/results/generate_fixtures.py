@@ -32,8 +32,12 @@ def failed_document() -> dict:
     """A run where nothing worked: no events and no model."""
     with tempfile.TemporaryDirectory() as tmp:
         config = EngineConfig.from_input(dataset_config())
-        prepared = load_inputs(make_dataset(Path(tmp), n_days=120), config)
-    computed = Computed(prepared=prepared, effective_config=config.to_legacy_dict(), events=[], mmm=None)
+        files = make_dataset(Path(tmp), n_days=120)
+        prepared = load_inputs(files, config)
+        report = engine.validate(files, config)
+    computed = Computed(
+        prepared=prepared, effective_config=config.to_legacy_dict(), events=[], mmm=None, validation=report
+    )
     return results.dump_results(results.build_results(computed, "fixture"))
 
 

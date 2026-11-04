@@ -60,8 +60,9 @@ def test_run_returns_the_contract_dict(ran):
     r = ran.result
     assert r["schema_version"] == 1 and r["status"] == "succeeded"
     assert isinstance(r["engine_version"], str) and r["engine_version"]
-    for section in ("validation", "sufficiency", "experiment_design", "reports"):
-        assert r[section] is None  # owned by A2 and A5-A9
+    for section in ("sufficiency", "experiment_design", "reports"):
+        assert r[section] is None  # owned by A5-A9
+    assert r["validation"]["ok"] is True
     assert r["causal"]["status"] == "ok" and r["elasticity"]["status"] == "ok"
 
 
@@ -174,7 +175,7 @@ def test_unexpected_analysis_error_becomes_an_engine_error_without_the_details(m
 
     monkeypatch.setattr(pipeline, "compute", explode)
     with pytest.raises(EngineError) as raised:
-        engine.run({}, dataset_config(), tmp_path / "out", lambda level, message: None)
+        engine.run(make_dataset(tmp_path / "data", n_days=60), dataset_config(), tmp_path / "out", lambda *a: None)
     assert "Erro inesperado" in str(raised.value)
     assert "/srv/data" not in str(raised.value) and "event channels" not in str(raised.value)
     assert isinstance(raised.value.__cause__, ValueError)  # the detail stays in the chain for the server log

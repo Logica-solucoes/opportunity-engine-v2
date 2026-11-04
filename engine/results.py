@@ -285,6 +285,7 @@ def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
         causal=causal,
         elasticity=elasticity,
         baseline=_baseline(computed),
+        validation=computed.validation,
     )
 
 

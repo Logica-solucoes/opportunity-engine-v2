@@ -14,6 +14,8 @@ from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
 from engine.logmessages import forward_logs
+from engine.results_schema import ValidationReport
+from engine.validation import validate
 from engine.version import engine_version
 from llm import get_llm
 
@@ -52,6 +54,7 @@ class Computed:
     current_split: dict = field(default_factory=dict)
     candidates: pd.DataFrame = field(default_factory=pd.DataFrame)  # every detected event, `eligible` or not
     individual_curves_df: pd.DataFrame | None = None  # per-channel curves (Channel, Channel_Spend, ...)
+    validation: ValidationReport | None = None  # what validate reported for these inputs (set by run)
 
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
@@ -207,14 +210,27 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
     return result
 
 
-def compute(inputs: dict[str, Path | None], config: EngineConfig, *, global_dir: Path | None = None) -> Computed:
+def compute(
+    inputs: dict[str, Path | None],
+    config: EngineConfig,
+    *,
+    global_dir: Path | None = None,
+    validation: ValidationReport | None = None,
+) -> Computed:
     """Everything the engine calculates, in memory. Writes files only inside `global_dir` (the curve exports)."""
     prepared = load_inputs(inputs, config)
     cfg = {**config.to_legacy_dict(), "period_days": prepared.period_days}
     candidates = detect_events(prepared, cfg)
     events = analyze_events(prepared, candidates, cfg)
     elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
-    return Computed(prepared=prepared, effective_config=cfg, events=events, candidates=candidates, **elasticity)
+    return Computed(
+        prepared=prepared,
+        effective_config=cfg,
+        events=events,
+        candidates=candidates,
+        validation=validation,
+        **elasticity,
+    )
 
 
 def run(
@@ -240,8 +256,14 @@ def run(
         warnings.simplefilter("ignore")
         global_dir = out_dir / outputs.GLOBAL_DIR_NAME
         global_dir.mkdir(parents=True, exist_ok=True)
+        report = validate(inputs, engine_config)
+        for check in report.checks:
+            log.log(logging.WARNING if check.level != "info" else logging.INFO, "   - %s", check.message)
+        failure = next((c for c in report.checks if c.level == "error"), None)
+        if failure:
+            raise EngineError(failure.message, failure.id)
         try:
-            computed = compute(inputs, engine_config, global_dir=global_dir)
+            computed = compute(inputs, engine_config, global_dir=global_dir, validation=report)
         except EngineError:
             raise
         except Exception as e:  # the detail (English, maybe with paths) stays in the chain and the server log

@@ -46,7 +46,7 @@ def _empty_trends() -> pd.DataFrame:
 def _read(paths: dict, key: str) -> pd.DataFrame:
     try:
         return read_csv_robust(paths[key])
-    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as e:
+    except (KeyError, TypeError, OSError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as e:
         raise EngineError(
             f"O arquivo {_FILE_LABEL[key]} não foi encontrado ou não pôde ser lido. Envie o arquivo novamente.",
             "file_unreadable",
