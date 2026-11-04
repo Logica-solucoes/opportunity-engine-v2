@@ -59,3 +59,69 @@ def test_mostly_non_numeric_kpi_is_value_not_numeric(tmp_path):
 def test_engine_error_keeps_check_id():
     assert EngineError("m", "c").check_id == "c"
     assert EngineError("m").check_id is None
+
+
+def _ids(raw):
+    return [c.id for c in raw.checks]
+
+
+def test_duplicate_date_channel_flags_error(tmp_path):
+    investment, kpi = clean_rows()
+    investment.append(investment[0])
+    raw = read_inputs(_config(), write_inputs(tmp_path, investment, kpi))
+    [check] = raw.checks
+    assert check.id == "duplicate_date_channel" and check.level == "error"
+    assert check.details["count"] == 1
+    assert check.details["examples"] == [{"date": investment[0][0], "channel": "SEARCH"}]
+
+
+def test_kpi_duplicate_dates_without_channel_column(tmp_path):
+    investment, kpi = clean_rows()
+    kpi.append(kpi[0])
+    raw = read_inputs(_config(), write_inputs(tmp_path, investment, kpi))
+    assert _ids(raw) == ["kpi_duplicate_dates"]
+    assert raw.checks[0].details["count"] == 1
+
+
+def test_kpi_not_single_source_with_channel_column(tmp_path):
+    investment, kpi = clean_rows()
+    kpi = [(d, v, "A") for d, v in kpi] + [(d, v, "B") for d, v in kpi]
+    paths = write_inputs(tmp_path, investment, kpi, kpi_header=("date", "Sessions", "Canal"))
+    raw = read_inputs(_config(), paths)
+    assert _ids(raw) == ["kpi_not_single_source"]  # and not also kpi_duplicate_dates
+    assert raw.checks[0].details["columns"] == ["Canal"]
+
+
+def test_single_kpi_with_numeric_extra_column_is_ok(tmp_path):
+    investment, kpi = clean_rows()
+    kpi = [(d, v, v // 2) for d, v in kpi]
+    paths = write_inputs(tmp_path, investment, kpi, kpi_header=("date", "Sessions", "Clicks"))
+    assert read_inputs(_config(), paths).checks == []
+
+
+def test_semicolon_decimal_comma_performance_is_ok(tmp_path):
+    investment, kpi = clean_rows()
+    kpi = [(d, f"{v},50") for d, v in kpi]
+    paths = write_inputs(tmp_path, investment, kpi, sep=";")
+    assert read_inputs(_config(), paths).checks == []
+
+
+def test_load_and_prepare_data_raises_with_check_id(tmp_path):
+    from engine.data_preprocessor import load_and_prepare_data
+
+    investment, kpi = clean_rows()
+    cases = {
+        "duplicate_date_channel": (investment + [investment[0]], kpi, ("date", "Sessions"), kpi),
+        "kpi_duplicate_dates": (investment, kpi + [kpi[0]], ("date", "Sessions"), None),
+        "kpi_not_single_source": (
+            investment,
+            [(d, v, "A") for d, v in kpi] + [(d, v, "B") for d, v in kpi],
+            ("date", "Sessions", "Canal"),
+            None,
+        ),
+    }
+    for check_id, (inv, perf, header, _) in cases.items():
+        paths = write_inputs(tmp_path / check_id, inv, perf, kpi_header=header)
+        with pytest.raises(EngineError) as exc:
+            load_and_prepare_data(_config(), paths)
+        assert exc.value.check_id == check_id

@@ -80,6 +80,81 @@ def _not_numeric(label: str, column: str, ratio: float, examples: list, hint: st
     )
 
 
+def _iso(dates) -> list[str]:
+    return [d.strftime("%Y-%m-%d") for d in dates]
+
+
+def _varying_text_columns(performance_df: pd.DataFrame, kpi_df: pd.DataFrame, repeated, skip: set[str]) -> list[str]:
+    """Text columns of the performance file whose value differs between rows sharing a date (a source or channel)."""
+    rows = performance_df.loc[kpi_df.index[repeated]].assign(_date=kpi_df.loc[kpi_df.index[repeated], "Date"])
+    found = []
+    for column in performance_df.columns:
+        if column in skip or column == "_date":
+            continue
+        values = rows[column]
+        if pd.api.types.is_numeric_dtype(values):
+            continue
+        if robust_numeric_parsing(values, column_name=str(column)).notna().mean() >= 0.9:
+            continue  # numbers written in a local format, not a label
+        if (rows.assign(_v=values).groupby("_date")["_v"].nunique() > 1).any():
+            found.append(str(column))
+    return found
+
+
+def _duplicate_checks(
+    investment_df: pd.DataFrame, kpi_df: pd.DataFrame, performance_df: pd.DataFrame, kpi_value_col: str
+) -> list[Check]:
+    checks = []
+    twice = investment_df.duplicated(["Date", "Product Group"], keep="first")
+    if twice.any():
+        sample = investment_df[twice].head(5)
+        checks.append(
+            Check(
+                id="duplicate_date_channel",
+                level="error",
+                message=(
+                    f"Há {int(twice.sum())} linha(s) repetida(s) para a mesma data e o mesmo canal no arquivo de "
+                    "investimento. Remova ou consolide as duplicatas e envie o arquivo novamente."
+                ),
+                details={
+                    "count": int(twice.sum()),
+                    "examples": [
+                        {"date": d.strftime("%Y-%m-%d"), "channel": c}
+                        for d, c in zip(sample["Date"], sample["Product Group"])
+                    ],
+                },
+            )
+        )
+    repeated = kpi_df["Date"].duplicated(keep=False).to_numpy()
+    if repeated.any():
+        dates = _iso(sorted(kpi_df.loc[kpi_df["Date"].duplicated(keep="first"), "Date"].unique())[:10])
+        count = int(kpi_df["Date"].duplicated().sum())
+        columns = _varying_text_columns(performance_df, kpi_df, repeated, {"Date", kpi_value_col})
+        if columns:
+            checks.append(
+                Check(
+                    id="kpi_not_single_source",
+                    level="error",
+                    message=(
+                        f"O arquivo de performance tem mais de uma linha por data, separadas por "
+                        f"{', '.join(repr(c) for c in columns)}. Conversões reportadas por plataforma ou canal não "
+                        "formam uma fonte única. Envie o total por data."
+                    ),
+                    details={"columns": columns, "dates": dates[:5]},
+                )
+            )
+        else:
+            checks.append(
+                Check(
+                    id="kpi_duplicate_dates",
+                    level="error",
+                    message=(f"O arquivo de performance tem {count} data(s) repetida(s). Envie uma linha por data."),
+                    details={"count": count, "dates": dates},
+                )
+            )
+    return checks
+
+
 def read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
     """`config` is the legacy dict (`column_mapping`, `date_formats`, `performance_kpi_column`); it is only read."""
     mapping = config["column_mapping"]
@@ -183,6 +258,8 @@ def read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
     kpi_df["Date"] = _dates(kpi_df["Date"], date_formats.get("performance_file"))
     kpi_df = kpi_df.dropna(subset=["Date", "kpi"])
     investment_df = investment_df.dropna(subset=["Date", "investment", "Product Group"])
+
+    checks.extend(_duplicate_checks(investment_df, kpi_df, performance_df, kpi_value_col))
 
     if kpi_df.empty:
         checks.append(

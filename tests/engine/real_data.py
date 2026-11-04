@@ -5,6 +5,8 @@ The legacy numbers come from `mise run parity-real` into tests/fixtures/parity/r
 
 from pathlib import Path
 
+import pandas as pd
+
 from engine.config import EngineConfig
 from tests.fixtures.parity.generate_legacy_snapshot import jsonable
 
@@ -26,12 +28,34 @@ GOL_CONFIG = {
 }
 
 
-def gol_files() -> dict[str, Path]:
+GOL_CONSOLIDATED = REPO_ROOT / "tests" / "fixtures" / "parity" / "real" / "gol_investment_mean.csv"
+
+
+def gol_original_files() -> dict[str, Path]:
     return {
         "investment_file": GOL_DIR / "investment.csv",
         "performance_file": GOL_DIR / "performance.csv",
         "generic_trends_file": GOL_DIR / "trends.csv",
     }
+
+
+def gol_files() -> dict[str, Path]:
+    """The Gol files as the engine accepts them.
+
+    The client's investment file repeats (date, channel): GOOGLE appears five times a day. The prototype averaged those
+    silently; the engine now rejects them (check `duplicate_date_channel`). To keep comparing the numbers against the
+    prototype, the engine side reads a copy with the same mean applied here, in the test, never in the engine.
+    """
+    files = gol_original_files()
+    source = files["investment_file"]
+    if source.exists() and (not GOL_CONSOLIDATED.exists() or GOL_CONSOLIDATED.stat().st_mtime < source.stat().st_mtime):
+        frame = pd.read_csv(source, encoding="utf-8-sig")
+        frame["channel"] = frame["channel"].str.strip().str.upper()
+        merged = frame.groupby(["channel", "date"], sort=False, as_index=False)["investment"].mean()
+        GOL_CONSOLIDATED.parent.mkdir(parents=True, exist_ok=True)
+        merged.to_csv(GOL_CONSOLIDATED, index=False)
+    files["investment_file"] = GOL_CONSOLIDATED
+    return files
 
 
 def gol_spec() -> dict:

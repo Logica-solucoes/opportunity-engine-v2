@@ -1073,12 +1073,8 @@ def test_load_and_prepare_data_unexpected_error_preserves_original_cause(tmp_pat
 # --- Performance-file duplicate-date aggregation (channel breakdown) ---
 
 
-def test_load_and_prepare_data_dedups_duplicate_performance_dates_with_warning(tmp_path, caplog):
-    """Simulates a per-channel breakdown in the performance file (two rows
-    for the same date). Must print an AVISO and sum the KPI values per date
-    explicitly, instead of leaving the later merge with investment_pivot to
-    silently fan out rows.
-    """
+def test_load_and_prepare_data_rejects_duplicate_performance_dates(tmp_path):
+    """Two rows for the same date used to be summed with a warning; that hid a double count, so it is an error."""
     investment_path = _write_csv(
         tmp_path / "investment.csv",
         "dates,product_group,total_revenue\n2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
@@ -1098,13 +1094,10 @@ def test_load_and_prepare_data_dedups_duplicate_performance_dates_with_warning(t
         "treat_outliers": False,
     }
 
-    kpi_df, daily_investment_df, _, _ = load_and_prepare_data(config)
+    with pytest.raises(EngineError) as exc_info:
+        load_and_prepare_data(config)
 
-    assert "AVISO" in caplog.text
-    assert len(kpi_df) == 3
-    row = kpi_df[kpi_df["Date"] == pd.Timestamp("2025-01-01")]
-    assert row["kpi"].iloc[0] == 15.0
-    assert len(daily_investment_df) == 3
+    assert exc_info.value.check_id == "kpi_duplicate_dates"
 
 
 def test_load_and_prepare_data_no_duplicate_dates_is_noop(tmp_path, caplog):

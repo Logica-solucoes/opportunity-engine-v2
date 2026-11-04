@@ -773,22 +773,6 @@ def load_and_prepare_data(config, paths):
         kpi_df, daily_investment_df, trends_df = raw.kpi_df, raw.investment_df, raw.trends_df
         performance_df = raw.performance_df
 
-        # --- Aggregate Performance File Rows With Duplicate Dates ---
-        # If the performance file has more than one row per date (most likely
-        # a per-channel breakdown -- the file has no dedicated channel_col
-        # mapping the way the investment file does, so we can't isolate the
-        # exact column, but we can still detect the duplication and act on
-        # it), summing explicitly here avoids the later merge(s) with
-        # investment_pivot/trends_df on "Date" silently fanning out rows.
-        if kpi_df["Date"].duplicated().any():
-            n_dupe_rows = int(kpi_df["Date"].duplicated().sum())
-            log.warning(
-                f"   - AVISO: {n_dupe_rows} linha(s) com data duplicada encontrada(s) no arquivo "
-                f"de performance (provável detalhamento por canal). Somando os valores de KPI "
-                f"por data antes de prosseguir."
-            )
-            kpi_df = kpi_df.groupby("Date", as_index=False)["kpi"].sum()
-
         # --- Cadence Detection & Partial-Period Pruning ---
         inv_cadence = detect_cadence(daily_investment_df["Date"])
         kpi_cadence = detect_cadence(kpi_df["Date"])
