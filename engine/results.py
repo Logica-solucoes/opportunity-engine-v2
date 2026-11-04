@@ -148,20 +148,35 @@ SCENARIO_SOURCES = {
 MIX_VARIANTS = {"historical": "Historical", "optimized": "Optimized", "strategic": "Strategic"}
 
 
+def _icpa(point: dict) -> float | None:
+    """The engine fills iCPA with 0 where it is undefined (nothing invested, or no KPI gained): that is null here."""
+    if not point.get("Incremental_Investment") or not point.get("Incremental_KPI", 1):
+        return None
+    return _num(point.get("iCPA"))
+
+
+def _revenue_mode(cfg: dict) -> bool:
+    return bool(cfg.get("kpi_is_monetary")) or cfg.get("optimization_target") == "REVENUE"
+
+
 def _response_rows(computed: "Computed") -> list[ResponseRow]:
     frame = computed.response_curve_df
     if frame is None or frame.empty:
         return []
     spend_cols = computed.mmm["spend_cols"]
+    revenue_mode = _revenue_mode(computed.effective_config)  # outside it revenue and ROAS are 0 by construction
     rows = []
     for record in frame.to_dict("records"):
         rows.append(
             ResponseRow(
                 investment=_num(record.get("Daily_Investment")),
                 kpi=_num(record.get("Projected_Total_KPIs")),
-                revenue=_num(record.get("Projected_Revenue")),
-                icpa=_num(record.get("iCPA")),
-                iroas=_num(record.get("Incremental_ROI")),  # incremental revenue / incremental investment
+                revenue=_num(record.get("Projected_Revenue")) if revenue_mode else None,
+                icpa=_icpa(record),
+                # incremental revenue / incremental investment; the engine writes 0 for 0/0
+                iroas=_num(record.get("Incremental_ROI"))
+                if revenue_mode and record.get("Incremental_Investment")
+                else None,
                 incremental_investment=_num(record.get("Incremental_Investment")),
                 incremental_kpi=_num(record.get("Incremental_KPI")),
                 mix={
@@ -184,7 +199,7 @@ def _scenarios(computed: "Computed") -> list[Scenario]:
                 name=name,
                 investment=_num(point.get("Daily_Investment")),
                 kpi=_num(point.get("Projected_Total_KPIs")),
-                icpa=_num(point.get("iCPA")),
+                icpa=_icpa(point),
                 incremental_investment=_num(point.get("Incremental_Investment")),
                 incremental_kpi=_num(point.get("Incremental_KPI")),
             )

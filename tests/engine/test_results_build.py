@@ -286,3 +286,63 @@ def test_other_shapes_build_a_valid_document(tmp_path, dataset):
     ResultsV1.model_validate(_dump(built))
     json.dumps(_dump(built), allow_nan=False)
     assert built.baseline.monthly
+
+
+# --- final review: zero sentinels in the curve and the scenarios ---
+
+
+def _curve_with(computed, rows, **config):
+    frame = computed.response_curve_df.iloc[: len(rows)].copy()
+    for column in ("Incremental_Investment", "Incremental_KPI", "Incremental_ROI", "iCPA", "Projected_Revenue"):
+        frame[column] = [row[column] for row in rows]
+    cfg = {**computed.effective_config, **config}
+    return dataclasses.replace(computed, response_curve_df=frame, effective_config=cfg)
+
+
+def test_revenue_and_iroas_are_null_outside_revenue_mode(synthetic_computed):
+    assert synthetic_computed.effective_config["optimization_target"] == "CONVERSIONS"
+    rows = results.build_results(synthetic_computed, "v").elasticity.response_curve
+    assert all(r.iroas is None and r.revenue is None for r in rows)
+
+
+def test_iroas_needs_incremental_investment_in_revenue_mode(synthetic_computed):
+    base = {"Incremental_Investment": 0.0, "Incremental_KPI": 0.0, "Incremental_ROI": 0.0, "iCPA": 0.0}
+    rows = [
+        {**base, "Projected_Revenue": 100.0},
+        {
+            **base,
+            "Incremental_Investment": 5.0,
+            "Incremental_KPI": 2.0,
+            "Incremental_ROI": 2.0,
+            "iCPA": 2.5,
+            "Projected_Revenue": 110.0,
+        },
+    ]
+    curve = _curve_with(synthetic_computed, rows, optimization_target="REVENUE")
+    first, second = results.build_results(curve, "v").elasticity.response_curve
+    assert first.iroas is None and first.revenue == 100.0  # 0/0 was filled with 0
+    assert second.iroas == 2.0 and second.revenue == 110.0
+
+
+def test_icpa_is_null_when_it_is_undefined(synthetic_computed):
+    base = {"Incremental_ROI": 0.0, "Projected_Revenue": 0.0}
+    rows = [
+        {**base, "Incremental_Investment": 0.0, "Incremental_KPI": 0.0, "iCPA": 0.0},
+        {**base, "Incremental_Investment": 10.0, "Incremental_KPI": 5.0, "iCPA": 2.0},
+        {**base, "Incremental_Investment": 10.0, "Incremental_KPI": 0.0, "iCPA": float("nan")},
+    ]
+    icpa = [r.icpa for r in results.build_results(_curve_with(synthetic_computed, rows), "v").elasticity.response_curve]
+    assert icpa == [None, 2.0, None]
+
+
+def test_scenario_icpa_is_null_without_incremental_investment(synthetic_computed):
+    point = {
+        "Daily_Investment": 10.0,
+        "Projected_Total_KPIs": 5.0,
+        "Incremental_Investment": 0,
+        "Incremental_KPI": 0,
+        "iCPA": 0,
+    }
+    built = results.build_results(dataclasses.replace(synthetic_computed, strategic_reallocation_point=point), "v")
+    scenario = next(s for s in built.elasticity.scenarios if s.name == "strategic_reallocation")
+    assert scenario.icpa is None and scenario.incremental_investment == 0.0
