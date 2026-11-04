@@ -1,28 +1,22 @@
-# -*- coding: utf-8 -*-
-import sys
-import os
 import unittest
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
-
-
 from sklearn.linear_model import Ridge
 
 from engine.elasticity_analysis import (
+    bootstrap_average_coefficients,
     cap_channel_mix_share,
     cap_channel_share_per_channel,
+    create_calendar_features,
     optimize_with_restarts,
     predict_clipped_kpi,
-    bootstrap_average_coefficients,
     walk_forward_cv_score,
-    create_calendar_features,
 )
 
 
 class TestCapChannelMixShare(unittest.TestCase):
-
     def test_caps_dominant_channel_and_redistributes_by_historical_mix(self):
         mix = {"SKYSCANNER": 1.0, "GOOGLE": 0.0, "BING": 0.0}
         historical_mix = {"SKYSCANNER": 0.34, "GOOGLE": 0.5, "BING": 0.16}
@@ -57,9 +51,7 @@ class TestCapChannelMixShare(unittest.TestCase):
 
     def test_falls_back_to_even_split_when_no_signal_at_all(self):
         mix = {"A": 1.0, "B": 0.0, "C": 0.0}
-        capped = cap_channel_mix_share(
-            mix, historical_mix={"A": 0, "B": 0, "C": 0}, max_share=0.5
-        )
+        capped = cap_channel_mix_share(mix, historical_mix={"A": 0, "B": 0, "C": 0}, max_share=0.5)
         self.assertAlmostEqual(capped["A"], 0.5)
         self.assertAlmostEqual(capped["B"], 0.25)
         self.assertAlmostEqual(capped["C"], 0.25)
@@ -71,7 +63,6 @@ class TestCapChannelMixShare(unittest.TestCase):
 
 
 class TestCapChannelSharePerChannel(unittest.TestCase):
-
     def test_caps_each_channel_at_its_own_ceiling(self):
         # BING has a much tighter ceiling than FACEBOOK -- e.g. it's derived
         # from a much smaller historical spend range for that channel.
@@ -95,16 +86,12 @@ class TestCapChannelSharePerChannel(unittest.TestCase):
         capped = cap_channel_share_per_channel(mix, per_channel_max_share, historical_mix)
 
         for channel, share in capped.items():
-            self.assertLessEqual(
-                share, per_channel_max_share[channel] + 1e-9, f"{channel} exceeded its cap"
-            )
+            self.assertLessEqual(share, per_channel_max_share[channel] + 1e-9, f"{channel} exceeded its cap")
         self.assertAlmostEqual(sum(capped.values()), 1.0)
 
     def test_leaves_mix_untouched_when_no_channel_exceeds_its_cap(self):
         mix = {"A": 0.4, "B": 0.35, "C": 0.25}
-        capped = cap_channel_share_per_channel(
-            mix, {"A": 0.5, "B": 0.5, "C": 0.5}, historical_mix={}
-        )
+        capped = cap_channel_share_per_channel(mix, {"A": 0.5, "B": 0.5, "C": 0.5}, historical_mix={})
         self.assertEqual(capped, mix)
 
 
@@ -117,14 +104,11 @@ def two_basin_objective(params, _):
 
 
 class TestOptimizeWithRestarts(unittest.TestCase):
-
     def test_finds_better_minimum_than_a_single_bad_start(self):
         bounds = [(0.0, 10.0)]
         bad_start = [1.0]
 
-        single_start_result = minimize(
-            two_basin_objective, bad_start, args=(None,), bounds=bounds, method="L-BFGS-B"
-        )
+        single_start_result = minimize(two_basin_objective, bad_start, args=(None,), bounds=bounds, method="L-BFGS-B")
         multi_start_result = optimize_with_restarts(
             two_basin_objective, bad_start, bounds, args=(None,), n_restarts=5, seed=42
         )
@@ -134,17 +118,12 @@ class TestOptimizeWithRestarts(unittest.TestCase):
 
     def test_reproducible_with_a_fixed_seed(self):
         bounds = [(0.0, 10.0)]
-        result_a = optimize_with_restarts(
-            two_basin_objective, [1.0], bounds, args=(None,), n_restarts=5, seed=42
-        )
-        result_b = optimize_with_restarts(
-            two_basin_objective, [1.0], bounds, args=(None,), n_restarts=5, seed=42
-        )
+        result_a = optimize_with_restarts(two_basin_objective, [1.0], bounds, args=(None,), n_restarts=5, seed=42)
+        result_b = optimize_with_restarts(two_basin_objective, [1.0], bounds, args=(None,), n_restarts=5, seed=42)
         self.assertEqual(result_a.fun, result_b.fun)
 
 
 class TestBootstrapAverageCoefficients(unittest.TestCase):
-
     def test_recovers_a_zeroed_channels_true_contribution(self):
         # Two highly correlated columns (corr ~0.99) that BOTH truly drive y
         # (70/30 split). A single positive-constrained Ridge fit on the full
@@ -189,7 +168,6 @@ class FakeModel:
 
 
 class TestPredictClippedKpi(unittest.TestCase):
-
     def test_clips_extrapolated_feature_instead_of_going_negative(self):
         # Simulated spend of 0 is below the historical minimum (100), which would
         # scale to -1.0 without clipping -> KPI 10 below baseline. Clipped to 0,
@@ -221,6 +199,7 @@ class TestReallocationSuppression(unittest.TestCase):
     def _make_results(self, cv_r2):
         from sklearn.linear_model import Ridge
         from sklearn.preprocessing import MinMaxScaler
+
         from engine.elasticity_analysis import geometric_adstock, hill_transform
 
         rng = np.random.default_rng(0)
@@ -239,9 +218,7 @@ class TestReallocationSuppression(unittest.TestCase):
         # lists at simulate time, so a name-carrying scaler just spams warnings.
         scaler = MinMaxScaler().fit(tdf.values)
         y = df["kpi"] - df["kpi_organic_baseline"]
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(
-            scaler.transform(tdf.values), y
-        )
+        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(scaler.transform(tdf.values), y)
         return {
             "dataframe": df,
             "spend_cols": ["A", "B"],
@@ -259,11 +236,7 @@ class TestReallocationSuppression(unittest.TestCase):
         cfg = {"reallocation_min_cv_r2": 0.1, "max_channel_mix_share": 0.9}
         out = generate_aggregated_response_curve(self._make_results(cv_r2), cfg)
         df = out[0]
-        return (
-            (df["Projected_Total_KPIs"] - df["Projected_Total_KPIs_Historical"])
-            .abs()
-            .max()
-        )
+        return (df["Projected_Total_KPIs"] - df["Projected_Total_KPIs_Historical"]).abs().max()
 
     def test_low_cv_r2_suppresses_reallocation(self):
         self.assertLess(self._max_realloc_gap(cv_r2=0.0), 1e-6)
@@ -273,7 +246,6 @@ class TestReallocationSuppression(unittest.TestCase):
 
 
 class TestWalkForwardCvScore(unittest.TestCase):
-
     def test_high_cv_r2_when_feature_truly_drives_lift(self):
         # A feature that linearly drives the lift should generalize out-of-sample.
         rng = np.random.default_rng(0)
@@ -337,8 +309,7 @@ class TestCreateCalendarFeaturesCadenceGate(unittest.TestCase):
         base_features = [
             col
             for col in df.columns
-            if col.startswith("month_")
-            or col in ["is_weekend", "is_payday_period", "is_holiday"] + context_cols
+            if col.startswith("month_") or col in ["is_weekend", "is_payday_period", "is_holiday"] + context_cols
         ]
 
         # Should not raise, and should still pick up the always-present

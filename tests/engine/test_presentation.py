@@ -1,22 +1,21 @@
 import matplotlib
 
 matplotlib.use("Agg")
-import unittest
-from unittest.mock import patch, MagicMock
 import os
-import sys
 import tempfile
+import unittest
+from unittest.mock import patch
+
 import pandas as pd
 
-
 from engine.presentation import (
-    save_accuracy_plot,
-    save_line_chart_plot,
-    save_investment_bar_plot,
-    save_sessions_bar_plot,
-    save_causal_chart_data,
     create_comparative_saturation_md,
     create_presentation_dataframe,
+    save_accuracy_plot,
+    save_causal_chart_data,
+    save_investment_bar_plot,
+    save_line_chart_plot,
+    save_sessions_bar_plot,
 )
 
 
@@ -32,8 +31,7 @@ class TestPresentationDataframeWindow(unittest.TestCase):
                 "absolute_lift": 100.0,
                 "p_value": 0.05,
             },
-            {"p_value_threshold": 0.1, "conversion_rate_from_kpi_to_bo": 0.01,
-             "average_ticket": 100.0},
+            {"p_value_threshold": 0.1, "conversion_rate_from_kpi_to_bo": 0.01, "average_ticket": 100.0},
         )
         values = dict(zip(df["Metrica"], df["Valor"]))
         self.assertEqual(values["causal_periodo_inicio"], "2026-02-16")
@@ -58,9 +56,7 @@ class TestPresentationChartsTranslation(unittest.TestCase):
             patch("matplotlib.axes.Axes.set_title") as mock_set_title,
             patch("matplotlib.axes.Axes.text") as mock_text,
         ):
-            save_accuracy_plot(
-                results_data, accuracy_df, "dummy_path.png", kpi_name="Vendas"
-            )
+            save_accuracy_plot(results_data, accuracy_df, "dummy_path.png", kpi_name="Vendas")
 
             # Verify plot calls have Portuguese labels
             first_call_kwargs = mock_plot.call_args_list[0][1]
@@ -124,9 +120,7 @@ class TestPresentationChartsTranslation(unittest.TestCase):
     @patch("matplotlib.pyplot.savefig")
     @patch("matplotlib.pyplot.close")
     def test_save_investment_bar_plot_translation(self, mock_close, mock_savefig):
-        inv_bar_df = pd.DataFrame(
-            {"Investment": [1000, 2000]}, index=["Pre-Event", "Event"]
-        )
+        inv_bar_df = pd.DataFrame({"Investment": [1000, 2000]}, index=["Pre-Event", "Event"])
         inv_bar_df.index.name = "Period"
 
         original_rename = pd.DataFrame.rename
@@ -146,25 +140,20 @@ class TestPresentationChartsTranslation(unittest.TestCase):
             # Check rename was called with correct mapping
             self.assertTrue(
                 any(
-                    kwargs.get("index")
-                    == {"Pre-Event": "Pré-Evento", "Event": "Evento"}
+                    kwargs.get("index") == {"Pre-Event": "Pré-Evento", "Event": "Evento"}
                     for args, kwargs in rename_calls
                 )
             )
 
             # Title
-            mock_set_title.assert_called_once_with(
-                "Investimento: Pré-Evento vs. Evento", fontsize=16
-            )
+            mock_set_title.assert_called_once_with("Investimento: Pré-Evento vs. Evento", fontsize=16)
             # Ylabel
             mock_set_ylabel.assert_called_once_with("Investimento Total", fontsize=12)
 
     @patch("matplotlib.pyplot.savefig")
     @patch("matplotlib.pyplot.close")
     def test_save_sessions_bar_plot_translation(self, mock_close, mock_savefig):
-        sessions_bar_df = pd.DataFrame(
-            {"kpi": [100, 150]}, index=["Forecasted", "Actual"]
-        )
+        sessions_bar_df = pd.DataFrame({"kpi": [100, 150]}, index=["Forecasted", "Actual"])
         sessions_bar_df.index.name = "Category"
 
         original_rename = pd.DataFrame.rename
@@ -179,23 +168,18 @@ class TestPresentationChartsTranslation(unittest.TestCase):
             patch("matplotlib.axes.Axes.set_title") as mock_set_title,
             patch("matplotlib.axes.Axes.set_ylabel") as mock_set_ylabel,
         ):
-            save_sessions_bar_plot(
-                sessions_bar_df, "dummy_path.png", kpi_name="Cliques"
-            )
+            save_sessions_bar_plot(sessions_bar_df, "dummy_path.png", kpi_name="Cliques")
 
             # Check rename was called with correct mapping
             self.assertTrue(
                 any(
-                    kwargs.get("index")
-                    == {"Forecasted": "Cliques Previsto", "Actual": "Cliques Real"}
+                    kwargs.get("index") == {"Forecasted": "Cliques Previsto", "Actual": "Cliques Real"}
                     for args, kwargs in rename_calls
                 )
             )
 
             # Title
-            mock_set_title.assert_called_once_with(
-                "Cliques Real vs. Previsto", fontsize=16
-            )
+            mock_set_title.assert_called_once_with("Cliques Real vs. Previsto", fontsize=16)
             # Ylabel
             mock_set_ylabel.assert_called_once_with("Total de Cliques", fontsize=12)
 
@@ -223,9 +207,7 @@ class TestSaveCausalChartData(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            save_causal_chart_data(
-                tmp_dir, line_df, inv_bar_df, sessions_bar_df, accuracy_df, mae=12.34
-            )
+            save_causal_chart_data(tmp_dir, line_df, inv_bar_df, sessions_bar_df, accuracy_df, mae=12.34)
 
             line_out = pd.read_csv(os.path.join(tmp_dir, "line_chart_data.csv"))
             self.assertEqual(list(line_out["Actual_KPI"]), [10, 20, 15])
@@ -260,8 +242,11 @@ class TestComparativeSaturationMdMonthlyFactor(unittest.TestCase):
         if period_days is not None:
             kwargs["period_days"] = period_days
         create_comparative_saturation_md(
-            scenarios=[], output_filename=tmp_path, kpi_projections=kpi_projections,
-            kpi_name="Leads", **kwargs,
+            scenarios=[],
+            output_filename=tmp_path,
+            kpi_projections=kpi_projections,
+            kpi_name="Leads",
+            **kwargs,
         )
         with open(tmp_path, "r", encoding="utf-8") as f:
             return f.read()

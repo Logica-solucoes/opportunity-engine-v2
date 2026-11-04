@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module handles the generation of all presentation-ready outputs,
 including charts, markdown files, and data for HTML reports.
@@ -6,14 +5,12 @@ including charts, markdown files, and data for HTML reports.
 
 import logging
 import os
-import pandas as pd
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-import numpy as np
+import pandas as pd
 
 log = logging.getLogger(__name__)
-
-from engine import analysis
 
 
 def create_presentation_dataframe(causal_results, config):
@@ -97,7 +94,7 @@ def save_accuracy_plot(results_data, accuracy_df, output_path, kpi_name="kpi"):
     )
 
     ax.set_title(
-        f"Acurácia do Modelo: Real vs. Previsto (Período Pré-Evento)",
+        "Acurácia do Modelo: Real vs. Previsto (Período Pré-Evento)",
         fontsize=18,
         pad=20,
     )
@@ -184,9 +181,7 @@ def save_investment_bar_plot(inv_bar_df, output_path):
     ax.set_ylabel("Investimento Total", fontsize=12)
     ax.tick_params(axis="x", rotation=0)
     # Use a generic formatter for the y-axis
-    ax.yaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda x, p: format(int(x), ","))
-    )
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: format(int(x), ",")))
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close(fig)
@@ -209,18 +204,13 @@ def save_sessions_bar_plot(sessions_bar_df, output_path, kpi_name="kpi"):
         sessions_bar_df.index = [f"{kpi_name} Previsto", f"{kpi_name} Real"]
 
     # Ensure colors map to the correct semantic meaning regardless of order
-    colors = [
-        "red" if "Previsto" in str(x) or "Forecasted" in str(x) else "black"
-        for x in sessions_bar_df.index
-    ]
+    colors = ["red" if "Previsto" in str(x) or "Forecasted" in str(x) else "black" for x in sessions_bar_df.index]
 
     sessions_bar_df.plot(kind="bar", ax=ax, color=colors, legend=None)
     ax.set_title(f"{kpi_name} Real vs. Previsto", fontsize=16)
     ax.set_ylabel(f"Total de {kpi_name}", fontsize=12)
     ax.tick_params(axis="x", rotation=0)
-    ax.yaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda x, p: format(int(x), ","))
-    )
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: format(int(x), ",")))
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close(fig)
@@ -254,9 +244,7 @@ def save_opportunity_curve_plot(
     """
     # 1. Safety Check
     if response_curve_df is None or response_curve_df.empty:
-        log.warning(
-            f"   - WARNING: Response curve data is empty. Skipping plot generation for {filename}."
-        )
+        log.warning(f"   - WARNING: Response curve data is empty. Skipping plot generation for {filename}.")
         return
 
     # 2. Data Preparation
@@ -361,9 +349,7 @@ def save_opportunity_curve_plot(
             va="top",  # va='top' for below-point placement
             fontsize=11,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=color, alpha=0.9),
-            arrowprops=dict(
-                arrowstyle="->", connectionstyle="arc3,rad=0.1", color=color
-            ),
+            arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0.1", color=color),
         )
 
     # 4. Plotting Strategic Scenarios
@@ -375,27 +361,17 @@ def save_opportunity_curve_plot(
         (0, 60)
         if max_efficiency_point
         and baseline_point
-        and abs(
-            max_efficiency_point.get("Daily_Investment", 0)
-            - baseline_point.get("Daily_Investment", 0)
-        )
-        < 1e-3
+        and abs(max_efficiency_point.get("Daily_Investment", 0) - baseline_point.get("Daily_Investment", 0)) < 1e-3
         else (0, -60)
     )
 
-    plot_scenario(
-        max_efficiency_point, "salmon", "Máxima Eficiência", xytext=max_eff_offset
-    )
+    plot_scenario(max_efficiency_point, "salmon", "Máxima Eficiência", xytext=max_eff_offset)
 
     if strategic_limit_point:
-        plot_scenario(
-            strategic_limit_point, "royalblue", "Limite Estratégico", xytext=(0, -60)
-        )
+        plot_scenario(strategic_limit_point, "royalblue", "Limite Estratégico", xytext=(0, -60))
 
     if diminishing_return_point:
-        plot_scenario(
-            diminishing_return_point, "orange", "Retorno Decrescente", xytext=(0, -50)
-        )
+        plot_scenario(diminishing_return_point, "orange", "Retorno Decrescente", xytext=(0, -50))
 
     if strategic_reallocation_point:
         plot_scenario(
@@ -415,18 +391,12 @@ def save_opportunity_curve_plot(
     ax.set_ylabel(f"{kpi_name} Projetado (Mensal)", fontsize=16, labelpad=15)
 
     # Set formatters for axes (with full integer for y-axis)
-    ax.xaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda x, p: currency_fmt(x).replace("R$", "R$ "))
-    )
-    ax.yaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda y, p: f"{y:,.0f}")
-    )  # .0f for full integer
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, p: currency_fmt(x).replace("R$", "R$ ")))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda y, p: f"{y:,.0f}"))  # .0f for full integer
 
     # --- Extend the x-axis ---
     if strategic_limit_point and "Daily_Investment" in strategic_limit_point:
-        max_investment_on_plot = (
-            strategic_limit_point["Daily_Investment"] * monthly_factor
-        )
+        max_investment_on_plot = strategic_limit_point["Daily_Investment"] * monthly_factor
         ax.set_xlim(right=max_investment_on_plot * 1.5)
     # --- End New ---
 
@@ -439,9 +409,7 @@ def save_opportunity_curve_plot(
     log.info(f"   - Chart saved to {filename}")
 
 
-def create_comparative_saturation_md(
-    scenarios, output_filename, kpi_projections=None, kpi_name="KPIs", period_days=1
-):
+def create_comparative_saturation_md(scenarios, output_filename, kpi_projections=None, kpi_name="KPIs", period_days=1):
     """
     Generates a markdown file with a separate table for each budget scenario,
     each with the three splits.
@@ -518,9 +486,7 @@ def create_comparative_saturation_md(
         separator = "|:---|:---|:---|:---|\n"
 
         body = ""
-        all_channels = sorted(
-            list(set(ch for split in scen["splits"].values() for ch in split.keys()))
-        )
+        all_channels = sorted(list(set(ch for split in scen["splits"].values() for ch in split.keys())))
 
         for channel in all_channels:
             row = f"| **{channel}** |"
@@ -532,12 +498,8 @@ def create_comparative_saturation_md(
                 split = scen["splits"][split_name]
                 investment = split.get(channel, 0)
                 total_investment = sum(split.values())
-                percentage = (
-                    (investment / total_investment * 100) if total_investment > 0 else 0
-                )
-                row += (
-                    f" {format_number(investment, currency=True)} ({percentage:.2f}%) |"
-                )
+                percentage = (investment / total_investment * 100) if total_investment > 0 else 0
+                row += f" {format_number(investment, currency=True)} ({percentage:.2f}%) |"
             body += row + "\n"
 
         total_row = "| **Total** |"
@@ -547,9 +509,7 @@ def create_comparative_saturation_md(
             "Modelo de Elasticidade",
         ]:
             split = scen["splits"][split_name]
-            total_row += (
-                f" **{format_number(sum(split.values()), currency=True)} (100.00%)** |"
-            )
+            total_row += f" **{format_number(sum(split.values()), currency=True)} (100.00%)** |"
         body += total_row + "\n"
 
         # --- NEW: Append KPIs and CPA rows ---
@@ -558,7 +518,7 @@ def create_comparative_saturation_md(
 
         if projected_kpis:
             kpi_row = f"| **Projeção de {kpi_name}** |"
-            cpa_row = f"| **CPA** |"
+            cpa_row = "| **CPA** |"
 
             for split_name in [
                 "Média Histórica",
@@ -601,9 +561,7 @@ Para cada nível de orçamento projetado nas tabelas anteriores, a análise apre
     log.info(f"   - Successfully generated comparative MD file at: {output_filename}")
 
 
-def save_investment_distribution_donuts(
-    donut_scenarios, output_path, total_investment=None
-):
+def save_investment_distribution_donuts(donut_scenarios, output_path, total_investment=None):
     """
     Generates and saves a figure with multiple donut charts visualizing the investment mix for different scenarios.
     Includes absolute values if total_investment is provided.
@@ -619,13 +577,7 @@ def save_investment_distribution_donuts(
             axs = [axs]
 
         all_labels = sorted(
-            list(
-                set(
-                    label
-                    for scenario in donut_scenarios
-                    for label in scenario.get("data", {}).keys()
-                )
-            )
+            list(set(label for scenario in donut_scenarios for label in scenario.get("data", {}).keys()))
         )
         colors = plt.cm.get_cmap("tab20", len(all_labels))
         color_map = {label: colors(i) for i, label in enumerate(all_labels)}
@@ -665,9 +617,7 @@ def save_investment_distribution_donuts(
             pie_colors = [color_map[label] for label in labels]
 
             # Use the custom autopct function
-            autopct_func = (
-                make_autopct(sizes, total_investment) if total_investment else "%1.1f%%"
-            )
+            autopct_func = make_autopct(sizes, total_investment) if total_investment else "%1.1f%%"
 
             wedges, texts, autotexts = ax.pie(
                 sizes,
@@ -682,9 +632,7 @@ def save_investment_distribution_donuts(
             plt.setp(autotexts, size=12, weight="bold")
             ax.set_title(title, fontsize=18, pad=20, weight="bold")
 
-        handles = [
-            plt.Rectangle((0, 0), 1, 1, color=color_map[label]) for label in all_labels
-        ]
+        handles = [plt.Rectangle((0, 0), 1, 1, color=color_map[label]) for label in all_labels]
         fig.legend(
             handles,
             all_labels,
@@ -694,9 +642,7 @@ def save_investment_distribution_donuts(
             ncol=len(all_labels) // 2,
         )
 
-        fig.suptitle(
-            "Distribuição de Investimento por Cenário", fontsize=24, weight="bold"
-        )
+        fig.suptitle("Distribuição de Investimento por Cenário", fontsize=24, weight="bold")
         fig.tight_layout(rect=[0, 0.1, 1, 0.95])
 
         plt.savefig(output_path, bbox_inches="tight", dpi=150)
@@ -704,6 +650,4 @@ def save_investment_distribution_donuts(
         log.info(f"   - Donut charts saved to {output_path}")
 
     except Exception as e:
-        log.error(
-            f"   - ERROR: Could not generate donut charts. Details: {e}", exc_info=True
-        )
+        log.error(f"   - ERROR: Could not generate donut charts. Details: {e}", exc_info=True)

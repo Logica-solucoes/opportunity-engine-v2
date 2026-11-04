@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module generates recommendation outputs, including budget scenarios
 and strategic markdown files.
@@ -6,9 +5,8 @@ and strategic markdown files.
 
 import logging
 import os
+
 from engine.presentation import format_number
-import pandas as pd
-from engine import presentation
 
 log = logging.getLogger(__name__)
 
@@ -35,21 +33,15 @@ def generate_basic_recommendations_file(results_data, config, output_dir):
         if optimization_target == "REVENUE":
             gain_metric = "em receita incremental"
             formatted_gain = format_number(causal_incremental_revenue, currency=True)
-            roas = (
-                causal_incremental_revenue / investment_change
-                if investment_change > 0
-                else 0
-            )
+            roas = causal_incremental_revenue / investment_change if investment_change > 0 else 0
             efficiency_text = f"O ROAS (Retorno sobre Investimento em Publicidade) real foi de **{roas:.2f}x**."
         else:
             gain_metric = "em conversões incrementais"
             formatted_gain = format_number(causal_incremental_orders)
-            cpa = (
-                investment_change / causal_incremental_orders
-                if causal_incremental_orders > 0
-                else 0
+            cpa = investment_change / causal_incremental_orders if causal_incremental_orders > 0 else 0
+            efficiency_text = (
+                f"O custo por aquisição incremental (iCPA) foi de **{format_number(cpa, currency=True)}**."
             )
-            efficiency_text = f"O custo por aquisição incremental (iCPA) foi de **{format_number(cpa, currency=True)}**."
 
         recommendation_text = (
             f"A análise de Impacto Causal indica que a mudança de investimento "
@@ -70,9 +62,7 @@ def generate_basic_recommendations_file(results_data, config, output_dir):
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(content)
 
-        log.info(
-            f"   - Successfully generated basic recommendations file at: {output_path}"
-        )
+        log.info(f"   - Successfully generated basic recommendations file at: {output_path}")
 
     except Exception as e:
         log.error(

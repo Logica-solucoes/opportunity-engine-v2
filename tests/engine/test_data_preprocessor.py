@@ -1,29 +1,23 @@
-# -*- coding: utf-8 -*-
-import sys
-import os
-
 import logging
 
-import numpy as np
 import pandas as pd
 import pytest
 
-
 from engine.data_preprocessor import (
     COLUMN_NAME_HINTS,
+    detect_cadence,
+    drop_bi_export_footer_rows,
+    drop_partial_periods,
+    guess_channel_col,
+    guess_date_col,
+    guess_investment_col,
+    guess_kpi_col,
+    guess_trends_col,
+    load_and_prepare_data,
+    read_csv_robust,
     resolve_column,
     robust_date_parsing,
     robust_numeric_parsing,
-    read_csv_robust,
-    load_and_prepare_data,
-    guess_date_col,
-    guess_channel_col,
-    guess_investment_col,
-    guess_trends_col,
-    guess_kpi_col,
-    detect_cadence,
-    drop_partial_periods,
-    drop_bi_export_footer_rows,
     suggest_causal_config,
 )
 
@@ -244,9 +238,7 @@ def test_robust_date_parsing_strips_midnight_time_suffix():
     component and pandas requires an exact format match, so every candidate
     used to fail on 100% of rows -- this was the VW dataset crash.
     """
-    s = pd.Series(
-        ["2025-01-01 00:00:00", "2025-01-02 00:00:00", "2025-01-03 00:00:00"]
-    )
+    s = pd.Series(["2025-01-01 00:00:00", "2025-01-02 00:00:00", "2025-01-03 00:00:00"])
     result = robust_date_parsing(s)
     assert result.tolist() == [
         pd.Timestamp("2025-01-01"),
@@ -322,9 +314,7 @@ def test_drop_bi_export_footer_rows_does_not_touch_mid_file_garbage():
     file is real corruption and must still surface as a parsing error
     downstream, not be silently swallowed here.
     """
-    df = pd.DataFrame(
-        {"Date": ["2025-01-01", "Total", "2025-01-03"]}
-    )
+    df = pd.DataFrame({"Date": ["2025-01-01", "Total", "2025-01-03"]})
     result = drop_bi_export_footer_rows(df, "Date")
     assert result["Date"].tolist() == ["2025-01-01", "Total", "2025-01-03"]
 
@@ -344,9 +334,7 @@ def test_load_and_prepare_data_survives_looker_studio_footer_rows(tmp_path):
         "Filtros aplicados:\nData é igual a ou está depois de 01/01/2025 e "
         "está antes de 01/01/2026\nNOM_FUNNEL_STAGE é CONVERSION"
     )
-    inv_footer = pd.DataFrame(
-        {"dates": ["Total", footer_note], "product_group": ["", ""], "total_revenue": ["", ""]}
-    )
+    inv_footer = pd.DataFrame({"dates": ["Total", footer_note], "product_group": ["", ""], "total_revenue": ["", ""]})
     perf_footer = pd.DataFrame({"date": ["Total", footer_note], "kpi": ["", ""]})
 
     inv_path = _write_csv(
@@ -420,9 +408,7 @@ def test_read_csv_robust_default_comma(tmp_path):
 
 def test_read_csv_robust_semicolon_delimiter(tmp_path):
     path = tmp_path / "semicolon.csv"
-    path.write_text(
-        "dates;product_group;total_revenue\n2025-01-01;GOOGLE;1.234,56\n", encoding="utf-8"
-    )
+    path.write_text("dates;product_group;total_revenue\n2025-01-01;GOOGLE;1.234,56\n", encoding="utf-8")
     df = read_csv_robust(str(path))
     assert df.columns.tolist() == ["dates", "product_group", "total_revenue"]
     assert df.iloc[0]["total_revenue"] == "1.234,56"
@@ -484,13 +470,9 @@ def test_load_and_prepare_data_handles_br_locale_semicolon_investment_file(tmp_p
 def test_load_and_prepare_data_normalizes_channel_case(tmp_path):
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,Google Ads,100\n"
-        "2025-01-02,GOOGLE ADS,200\n",
+        "dates,product_group,total_revenue\n2025-01-01,Google Ads,100\n2025-01-02,GOOGLE ADS,200\n",
     )
-    performance_path = _write_csv(
-        tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n2025-01-02,20\n"
-    )
+    performance_path = _write_csv(tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n2025-01-02,20\n")
     config = {
         "investment_file_path": investment_path,
         "performance_file_path": performance_path,
@@ -518,9 +500,7 @@ def test_load_and_prepare_data_raises_clear_error_on_empty_result(tmp_path):
         tmp_path / "investment.csv",
         "dates,product_group,total_revenue\nnot-a-date,GOOGLE,100\n",
     )
-    performance_path = _write_csv(
-        tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n"
-    )
+    performance_path = _write_csv(tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n")
     config = {
         "investment_file_path": investment_path,
         "performance_file_path": performance_path,
@@ -544,9 +524,7 @@ def test_load_and_prepare_data_raises_clear_error_on_empty_kpi_result(tmp_path):
         tmp_path / "investment.csv",
         "dates,product_group,total_revenue\n2025-01-01,GOOGLE,100\n",
     )
-    performance_path = _write_csv(
-        tmp_path / "performance.csv", "date,kpi\nnot-a-date,10\n"
-    )
+    performance_path = _write_csv(tmp_path / "performance.csv", "date,kpi\nnot-a-date,10\n")
     config = {
         "investment_file_path": investment_path,
         "performance_file_path": performance_path,
@@ -570,9 +548,7 @@ def test_load_and_prepare_data_resolves_mismatched_column_name(tmp_path):
         tmp_path / "investment.csv",
         "dates,product_group,Valor\n2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n",
     )
-    performance_path = _write_csv(
-        tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n2025-01-02,20\n"
-    )
+    performance_path = _write_csv(tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n2025-01-02,20\n")
     config = {
         "investment_file_path": investment_path,
         "performance_file_path": performance_path,
@@ -597,13 +573,9 @@ def test_load_and_prepare_data_uppercases_other_channel(tmp_path):
     """
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,other,100\n"
-        "2025-01-02,Other,200\n",
+        "dates,product_group,total_revenue\n2025-01-01,other,100\n2025-01-02,Other,200\n",
     )
-    performance_path = _write_csv(
-        tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n2025-01-02,20\n"
-    )
+    performance_path = _write_csv(tmp_path / "performance.csv", "date,kpi\n2025-01-01,10\n2025-01-02,20\n")
     config = {
         "investment_file_path": investment_path,
         "performance_file_path": performance_path,
@@ -635,9 +607,7 @@ def test_guess_kpi_col_handles_tab_delimited_file(tmp_path):
 
 
 def test_guess_investment_col_handles_semicolon_delimited_file(tmp_path):
-    path = _write_csv(
-        tmp_path / "investment.csv", "Data;Canal;Valor\n2025-01-01;Google;100\n"
-    )
+    path = _write_csv(tmp_path / "investment.csv", "Data;Canal;Valor\n2025-01-01;Google;100\n")
 
     assert guess_date_col(path) == "Data"
     assert guess_channel_col(path) == "Canal"
@@ -645,18 +615,14 @@ def test_guess_investment_col_handles_semicolon_delimited_file(tmp_path):
 
 
 def test_guess_trends_col_handles_semicolon_delimited_file(tmp_path):
-    path = _write_csv(
-        tmp_path / "trends.csv", "Day;Ad Opportunities\n2025-01-01;5\n"
-    )
+    path = _write_csv(tmp_path / "trends.csv", "Day;Ad Opportunities\n2025-01-01;5\n")
 
     assert guess_date_col(path) == "Day"
     assert guess_trends_col(path) == "Ad Opportunities"
 
 
 def test_guess_kpi_col_prefers_exact_user_configured_name(tmp_path):
-    path = _write_csv(
-        tmp_path / "performance.csv", "date,Sessions,Conversions\n2025-01-01,10,2\n"
-    )
+    path = _write_csv(tmp_path / "performance.csv", "date,Sessions,Conversions\n2025-01-01,10,2\n")
 
     assert guess_kpi_col(path, "Conversions") == "Conversions"
 
@@ -771,10 +737,7 @@ def test_guess_kpi_col_numeric_fallback_prefers_cleanest_candidate(tmp_path):
     """
     path = _write_csv(
         tmp_path / "performance.csv",
-        "Data;Canal;ColA;ColB\n"
-        "01/01/2025;Pmax;abc;100\n"
-        "05/01/2025;Pmax;200;200\n"
-        "12/01/2025;Pmax;300;300\n",
+        "Data;Canal;ColA;ColB\n01/01/2025;Pmax;abc;100\n05/01/2025;Pmax;200;200\n12/01/2025;Pmax;300;300\n",
     )
     assert guess_kpi_col(path, "Conversions") == "ColB"
 
@@ -782,10 +745,7 @@ def test_guess_kpi_col_numeric_fallback_prefers_cleanest_candidate(tmp_path):
 def test_guess_investment_col_numeric_fallback_prefers_cleanest_candidate(tmp_path):
     path = _write_csv(
         tmp_path / "investment.csv",
-        "Data;ColA;ColB;Canal\n"
-        "01/01/2025;abc;100;Pmax\n"
-        "05/01/2025;200;200;Pmax\n"
-        "12/01/2025;300;300;Pmax\n",
+        "Data;ColA;ColB;Canal\n01/01/2025;abc;100;Pmax\n05/01/2025;200;200;Pmax\n12/01/2025;300;300;Pmax\n",
     )
     assert guess_investment_col(path) == "ColB"
 
@@ -872,9 +832,7 @@ def test_drop_partial_periods_catches_stub_at_start_of_series():
     is only 4 days before the next date, 2025-01-05) -- the very first row
     has no 'previous' neighbor, so the check falls back to the single
     distance it does have (to the next date)."""
-    dates = pd.to_datetime(
-        ["2025-01-01", "2025-01-05", "2025-01-12", "2025-01-19"]
-    )
+    dates = pd.to_datetime(["2025-01-01", "2025-01-05", "2025-01-12", "2025-01-19"])
     df = pd.DataFrame({"Date": dates})
 
     result = drop_partial_periods(df, "Date", cadence=7)
@@ -927,10 +885,7 @@ def test_load_and_prepare_data_raises_on_divergent_cadences(tmp_path):
     must raise instead of silently trying to reconcile them."""
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        + "".join(
-            f"2025-01-{d:02d},GOOGLE,{100 + d}\n" for d in range(1, 15)
-        ),
+        "dates,product_group,total_revenue\n" + "".join(f"2025-01-{d:02d},GOOGLE,{100 + d}\n" for d in range(1, 15)),
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
@@ -955,8 +910,7 @@ def test_load_and_prepare_data_populates_config_period_days_for_weekly_data(tmp_
     dates = pd.date_range("2025-01-01", periods=8, freq="7D").strftime("%Y-%m-%d")
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        + "".join(f"{d},GOOGLE,{100 + i}\n" for i, d in enumerate(dates)),
+        "dates,product_group,total_revenue\n" + "".join(f"{d},GOOGLE,{100 + i}\n" for i, d in enumerate(dates)),
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
@@ -990,8 +944,7 @@ def test_load_and_prepare_data_kpi_over_50pct_nan_raises_specific_error(tmp_path
     """
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
+        "dates,product_group,total_revenue\n2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
@@ -1021,8 +974,7 @@ def test_load_and_prepare_data_kpi_over_50pct_nan_raises_specific_error(tmp_path
 def test_load_and_prepare_data_investment_over_50pct_nan_raises_specific_error(tmp_path):
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,GOOGLE,abc\n2025-01-02,GOOGLE,xyz\n2025-01-03,GOOGLE,300\n",
+        "dates,product_group,total_revenue\n2025-01-01,GOOGLE,abc\n2025-01-02,GOOGLE,xyz\n2025-01-03,GOOGLE,300\n",
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
@@ -1075,8 +1027,7 @@ def test_load_and_prepare_data_unexpected_error_preserves_original_cause(tmp_pat
     """
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,GOOGLE,abc\n2025-01-02,GOOGLE,xyz\n2025-01-03,GOOGLE,qux\n",
+        "dates,product_group,total_revenue\n2025-01-01,GOOGLE,abc\n2025-01-02,GOOGLE,xyz\n2025-01-03,GOOGLE,qux\n",
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
@@ -1111,15 +1062,11 @@ def test_load_and_prepare_data_dedups_duplicate_performance_dates_with_warning(t
     """
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
+        "dates,product_group,total_revenue\n2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
-        "date,kpi\n"
-        "2025-01-01,10\n2025-01-01,5\n"
-        "2025-01-02,20\n"
-        "2025-01-03,30\n",
+        "date,kpi\n2025-01-01,10\n2025-01-01,5\n2025-01-02,20\n2025-01-03,30\n",
     )
     config = {
         "investment_file_path": investment_path,
@@ -1144,8 +1091,7 @@ def test_load_and_prepare_data_dedups_duplicate_performance_dates_with_warning(t
 def test_load_and_prepare_data_no_duplicate_dates_is_noop(tmp_path, caplog):
     investment_path = _write_csv(
         tmp_path / "investment.csv",
-        "dates,product_group,total_revenue\n"
-        "2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
+        "dates,product_group,total_revenue\n2025-01-01,GOOGLE,100\n2025-01-02,GOOGLE,200\n2025-01-03,GOOGLE,300\n",
     )
     performance_path = _write_csv(
         tmp_path / "performance.csv",
@@ -1180,9 +1126,7 @@ def _flat_then_spike_channel(product_group, spike_value, n_baseline=5):
     that isolates a single, hand-computable data point per channel."""
     dates = pd.date_range("2025-01-01", periods=n_baseline + 1, freq="7D")
     investment = [100.0] * n_baseline + [float(spike_value)]
-    return pd.DataFrame(
-        {"Date": dates, "Product Group": product_group, "investment": investment}
-    )
+    return pd.DataFrame({"Date": dates, "Product Group": product_group, "investment": investment})
 
 
 def test_suggest_causal_config_min_pre_period_days_matches_8x_cadence():
@@ -1194,9 +1138,7 @@ def test_suggest_causal_config_min_pre_period_days_matches_8x_cadence():
 def test_suggest_causal_config_min_pre_period_days_capped_at_365():
     # 6 dates 60 days apart -> median 60 -> non-canonical cadence, raw 60.
     dates = pd.date_range("2025-01-01", periods=6, freq="60D")
-    df = pd.DataFrame(
-        {"Date": dates, "Product Group": "A", "investment": [100.0] * 6}
-    )
+    df = pd.DataFrame({"Date": dates, "Product Group": "A", "investment": [100.0] * 6})
     result = suggest_causal_config(df)
     assert result["min_pre_period_days"] == 365  # 8 * 60 = 480, capped
 
@@ -1236,12 +1178,8 @@ def test_suggest_causal_config_falls_back_to_defaults_when_insufficient_data():
     dates = pd.date_range("2025-01-01", periods=2, freq="7D")
     df = pd.concat(
         [
-            pd.DataFrame(
-                {"Date": dates, "Product Group": "A", "investment": [100.0, 150.0]}
-            ),
-            pd.DataFrame(
-                {"Date": dates, "Product Group": "B", "investment": [100.0, 60.0]}
-            ),
+            pd.DataFrame({"Date": dates, "Product Group": "A", "investment": [100.0, 150.0]}),
+            pd.DataFrame({"Date": dates, "Product Group": "B", "investment": [100.0, 60.0]}),
         ],
         ignore_index=True,
     )
@@ -1267,9 +1205,7 @@ def test_suggest_causal_config_investment_limit_factor_matches_max_over_mean():
 
 def test_suggest_causal_config_investment_limit_factor_clamped_to_bounds():
     flat_dates = pd.date_range("2025-01-01", periods=5, freq="1D")
-    flat_df = pd.DataFrame(
-        {"Date": flat_dates, "Product Group": "A", "investment": [100.0] * 5}
-    )
+    flat_df = pd.DataFrame({"Date": flat_dates, "Product Group": "A", "investment": [100.0] * 5})
     assert suggest_causal_config(flat_df)["investment_limit_factor"] == 1.5
 
     # max/mean is mathematically bounded above by n (the point count) as the

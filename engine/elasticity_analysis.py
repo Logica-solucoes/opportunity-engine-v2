@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module contains the functions for running a Elasticity Analysis (Elasticity)
 to determine the optimal budget allocation based on historical data.
@@ -6,19 +5,21 @@ to determine the optimal budget allocation based on historical data.
 
 import json
 import logging
-import pandas as pd
-import numpy as np
-from sklearn.linear_model import Ridge
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import r2_score
-from sklearn.preprocessing import MinMaxScaler
-from scipy.optimize import minimize
+
 import matplotlib
+import numpy as np
+import pandas as pd
+from scipy.optimize import minimize
+from sklearn.linear_model import Ridge
+from sklearn.metrics import r2_score
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.preprocessing import MinMaxScaler
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import os
+
 import holidays
+import matplotlib.pyplot as plt
 
 from engine import data_preprocessor
 
@@ -67,9 +68,7 @@ def create_calendar_features(df, country_code="BR", period_days=1):
         # Holiday feature
         try:
             country_holidays = holidays.CountryHoliday(country_code)
-            df_featured["is_holiday"] = df_featured.index.map(
-                lambda date: date in country_holidays
-            ).astype(int)
+            df_featured["is_holiday"] = df_featured.index.map(lambda date: date in country_holidays).astype(int)
         except Exception:
             df_featured["is_holiday"] = 0
 
@@ -193,9 +192,7 @@ def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=3):
     fold_mses, oof_true, oof_pred = [], [], []
     for train_idx, test_idx in tscv.split(X):
         scaler = MinMaxScaler().fit(X[train_idx])
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(
-            scaler.transform(X[train_idx]), y[train_idx]
-        )
+        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(scaler.transform(X[train_idx]), y[train_idx])
         pred = model.predict(scaler.transform(X[test_idx]))
         fold_mses.append(float(np.mean((y[test_idx] - pred) ** 2)))
         oof_true.extend(y[test_idx].tolist())
@@ -232,9 +229,7 @@ def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5
     collinear channel spend (see docs/superpowers/specs/2026-07-06-dashboard-inconsistencies-fix-design.md).
     """
     rng = np.random.default_rng(seed)
-    candidate_starts = [initial_params] + [
-        [rng.uniform(low, high) for low, high in bounds] for _ in range(n_restarts)
-    ]
+    candidate_starts = [initial_params] + [[rng.uniform(low, high) for low, high in bounds] for _ in range(n_restarts)]
 
     best_result = None
     for candidate in candidate_starts:
@@ -272,9 +267,7 @@ def bootstrap_average_coefficients(X, y, n_bootstrap=200, seed=42):
     coefs = np.zeros((n_bootstrap, X.shape[1]))
     for b in range(n_bootstrap):
         idx = rng.integers(0, n_rows, n_rows)
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(
-            X[idx], y_arr[idx]
-        )
+        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y_arr[idx])
         coefs[b] = model.coef_
     return coefs.mean(axis=0)
 
@@ -289,9 +282,7 @@ def run_mmm_engine(config):
 
     try:
         # Load and prepare data
-        kpi_df, daily_investment_df, trends_df, _ = (
-            data_preprocessor.load_and_prepare_data(config)
-        )
+        kpi_df, daily_investment_df, trends_df, _ = data_preprocessor.load_and_prepare_data(config)
 
         # Pivot investment data to have channels as columns
         investment_pivot_df = daily_investment_df.pivot_table(
@@ -310,9 +301,7 @@ def run_mmm_engine(config):
         # Create calendar features
         country_code = config.get("country_code", "BR")
         period_days = config.get("period_days", 1)
-        df = create_calendar_features(
-            df, country_code=country_code, period_days=period_days
-        )
+        df = create_calendar_features(df, country_code=country_code, period_days=period_days)
 
         # Fill any remaining NaNs
         df = df.fillna(0)
@@ -331,8 +320,7 @@ def run_mmm_engine(config):
     base_features = [
         col
         for col in df.columns
-        if col.startswith("month_")
-        or col in ["is_weekend", "is_payday_period", "is_holiday"] + context_cols
+        if col.startswith("month_") or col in ["is_weekend", "is_payday_period", "is_holiday"] + context_cols
     ]
 
     # Filter out channels with zero investment
@@ -389,15 +377,12 @@ def run_mmm_engine(config):
         # whole data -- "saturation" stops being modeled at all. Capping s near
         # the historical max keeps the inflection inside the range the curve is
         # actually calibrated against.
-        + [(df[col].mean() * 0.01, max(df[col].max() * 3, df[col].mean() * 2))
-           for col in active_spend_cols]
+        + [(df[col].mean() * 0.01, max(df[col].max() * 3, df[col].mean() * 2)) for col in active_spend_cols]
     )
 
     # Initial guesses
     initial_params = (
-        [0.5] * len(active_spend_cols)
-        + [1.0] * len(active_spend_cols)
-        + [df[col].mean() for col in active_spend_cols]
+        [0.5] * len(active_spend_cols) + [1.0] * len(active_spend_cols) + [df[col].mean() for col in active_spend_cols]
     )
 
     # Run optimization from multiple starting points to avoid a bad local minimum.
@@ -413,9 +398,7 @@ def run_mmm_engine(config):
     )
 
     if not result.success:
-        log.warning(
-            f"   - WARNING: Optimization did not converge fully. Details: {result.message}"
-        )
+        log.warning(f"   - WARNING: Optimization did not converge fully. Details: {result.message}")
 
     optimal_params = result.x
     num_active_channels = len(active_spend_cols)
@@ -432,9 +415,7 @@ def run_mmm_engine(config):
 
     mkt_scaler = MinMaxScaler()
     X_mkt_scaled = mkt_scaler.fit_transform(transformed_mkt)
-    mkt_model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(
-        X_mkt_scaled, y_lift
-    )
+    mkt_model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X_mkt_scaled, y_lift)
     mkt_model.coef_ = bootstrap_average_coefficients(X_mkt_scaled, y_lift)
 
     y_mkt_pred = mkt_model.predict(X_mkt_scaled)
@@ -454,10 +435,7 @@ def run_mmm_engine(config):
         )
 
     # Calculate contribution breakdown
-    contributions = {
-        col: (mkt_model.coef_[i] * X_mkt_scaled[:, i]).sum()
-        for i, col in enumerate(active_spend_cols)
-    }
+    contributions = {col: (mkt_model.coef_[i] * X_mkt_scaled[:, i]).sum() for i, col in enumerate(active_spend_cols)}
     for col in inactive_spend_cols:
         contributions[col] = 0.0
 
@@ -483,26 +461,19 @@ def run_mmm_engine(config):
             )
 
     if total_marketing_contribution > 0:
-        contribution_pct = {
-            k: (v / total_marketing_contribution) * 100
-            for k, v in contributions.items()
-        }
+        contribution_pct = {k: (v / total_marketing_contribution) * 100 for k, v in contributions.items()}
     else:
-        contribution_pct = {k: 0.0 for k in contributions.keys()}
+        contribution_pct = {k: 0.0 for k in contributions}
 
     log.info("   --- Historical Contribution Split (Elasticity) ---")
-    for channel, pct in sorted(
-        contribution_pct.items(), key=lambda item: item[1], reverse=True
-    ):
+    for channel, pct in sorted(contribution_pct.items(), key=lambda item: item[1], reverse=True):
         log.info(f"     - {channel}: {pct:.2f}%")
 
     log.info(
         f"   - Total Marketing Contribution: {total_marketing_contribution:,.2f} ({(total_marketing_contribution / y_total.sum()) * 100:.2f}% of Total)"
     )
 
-    marketing_contribution_of_kpi_pct = (
-        (total_marketing_contribution / y_total.sum()) * 100 if y_total.sum() else 0.0
-    )
+    marketing_contribution_of_kpi_pct = (total_marketing_contribution / y_total.sum()) * 100 if y_total.sum() else 0.0
 
     return {
         "contribution_pct": contribution_pct,
@@ -575,11 +546,7 @@ def cap_channel_share_per_channel(mix, per_channel_max_share, historical_mix):
     capped = dict(mix)
     fixed = set()
     for _ in range(len(capped)):
-        over = {
-            k
-            for k, v in capped.items()
-            if k not in fixed and v > per_channel_max_share.get(k, 1.0)
-        }
+        over = {k for k, v in capped.items() if k not in fixed and v > per_channel_max_share.get(k, 1.0)}
         if not over:
             break
 
@@ -605,9 +572,7 @@ def cap_channel_share_per_channel(mix, per_channel_max_share, historical_mix):
     return capped
 
 
-def generate_aggregated_response_curve(
-    elasticity_results, config, optimized_mix=None, output_dir=None
-):
+def generate_aggregated_response_curve(elasticity_results, config, optimized_mix=None, output_dir=None):
     """
     Generates an aggregated response curve (Total Investment vs. Total KPI)
     based on the Two-Stage Elasticity model, scaling budget using the optimized mixes.
@@ -625,9 +590,7 @@ def generate_aggregated_response_curve(
     per_channel_limit_factor = config.get("per_channel_investment_limit_factor", 3.0)
 
     historical_mix = {
-        col: avg_daily_spend[col] / total_avg_daily_spend
-        if total_avg_daily_spend > 0
-        else 0
+        col: avg_daily_spend[col] / total_avg_daily_spend if total_avg_daily_spend > 0 else 0
         for col in active_spend_cols
     }
     max_channel_mix_share = config.get("max_channel_mix_share", 0.4)
@@ -642,9 +605,7 @@ def generate_aggregated_response_curve(
     # untrusted, the strategic mix collapses to the historical mix, so the curve
     # reflects only the effect of the total spend level, not a low-confidence
     # channel reshuffle. cv_r_squared falls back to r_squared for older callers.
-    cv_r2 = elasticity_results.get(
-        "cv_r_squared", elasticity_results.get("r_squared", 0.0)
-    )
+    cv_r2 = elasticity_results.get("cv_r_squared", elasticity_results.get("r_squared", 0.0))
     # Bar is a *meaningful* out-of-sample fit, not merely > 0. Near-zero CV R^2
     # wobbles in the 0-0.05 range run to run (params sit on their bounds -- the
     # channels aren't identified), and a ">0" test would flip the recommendation
@@ -682,11 +643,7 @@ def generate_aggregated_response_curve(
         for i, col in enumerate(active_spend_cols):
             simulated_daily_spend = _capped_channel_spend(total_spend * mix.get(col, 0), col)
             simulated_adstocked = simulated_daily_spend * adstock_multipliers[col]
-            mkt_features.append(
-                hill_transform(
-                    simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]
-                )
-            )
+            mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
         return predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
 
     def optimize_spend_mix_for_budget(total_budget, previous_optimal_mix=None):
@@ -700,33 +657,22 @@ def generate_aggregated_response_curve(
         def objective(spend_array):
             mkt_features = []
             for i, col in enumerate(active_spend_cols):
-                simulated_adstocked = (
-                    _capped_channel_spend(spend_array[i], col) * adstock_multipliers[col]
-                )
-                mkt_features.append(
-                    hill_transform(
-                        simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]
-                    )
-                )
+                simulated_adstocked = _capped_channel_spend(spend_array[i], col) * adstock_multipliers[col]
+                mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
             return -predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
-            
+
         if previous_optimal_mix is None:
             init_guess = np.array([total_budget * historical_mix.get(col, 0) for col in active_spend_cols])
         else:
             init_guess = np.array([total_budget * previous_optimal_mix.get(col, 0) for col in active_spend_cols])
-            
+
         bounds = [(0, total_budget) for _ in active_spend_cols]
-        constraints = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_budget}]
-        
+        constraints = [{"type": "eq", "fun": lambda x: np.sum(x) - total_budget}]
+
         result = minimize(
-            objective,
-            init_guess,
-            bounds=bounds,
-            constraints=constraints,
-            method="SLSQP",
-            options={'disp': False}
+            objective, init_guess, bounds=bounds, constraints=constraints, method="SLSQP", options={"disp": False}
         )
-        
+
         optimal_spends = result.x if result.success else init_guess
         optimal_spends = np.maximum(0, optimal_spends)
         if np.sum(optimal_spends) > 0:
@@ -749,8 +695,7 @@ def generate_aggregated_response_curve(
         per_channel_max_share = {
             col: min(
                 max_channel_mix_share,
-                (historical_max_daily_spend.get(col, 0) * per_channel_limit_factor)
-                / total_budget,
+                (historical_max_daily_spend.get(col, 0) * per_channel_limit_factor) / total_budget,
             )
             for col in active_spend_cols
         }
@@ -776,41 +721,39 @@ def generate_aggregated_response_curve(
     # Generate curve using the Dynamic Strategic Mix (Elasticity optimal path)
     simulation_results = []
     last_optimal_mix = reallocated_optimal_mix
-    
+
     for m in multipliers:
         current_total_daily_spend = total_avg_daily_spend * m
-        
+
         if current_total_daily_spend == 0:
             current_optimal_mix = {col: 0.0 for col in active_spend_cols}
         else:
-            current_optimal_mix = optimize_spend_mix_for_budget(current_total_daily_spend, previous_optimal_mix=last_optimal_mix)
+            current_optimal_mix = optimize_spend_mix_for_budget(
+                current_total_daily_spend, previous_optimal_mix=last_optimal_mix
+            )
             last_optimal_mix = current_optimal_mix
-            
+
         total_kpi_daily = simulate_kpi(current_total_daily_spend, current_optimal_mix)
         historical_kpi_daily = simulate_kpi(current_total_daily_spend, historical_mix)
         optimized_kpi_daily = simulate_kpi(current_total_daily_spend, optimized_mix)
-        
+
         res_dict = {
             "Daily_Investment": current_total_daily_spend,
             "Projected_Total_KPIs": total_kpi_daily,
             "Projected_Total_KPIs_Historical": historical_kpi_daily,
             "Projected_Total_KPIs_Optimized": optimized_kpi_daily,
         }
-        
+
         for ch in active_spend_cols:
             res_dict[f"Spend_{ch}_Historical"] = current_total_daily_spend * historical_mix.get(ch, 0)
             res_dict[f"Spend_{ch}_Optimized"] = current_total_daily_spend * optimized_mix.get(ch, 0)
             res_dict[f"Spend_{ch}_Strategic"] = current_total_daily_spend * current_optimal_mix.get(ch, 0)
-            
+
         simulation_results.append(res_dict)
 
     res_df = pd.DataFrame(simulation_results)
-    res_df["Incremental_KPI"] = (res_df["Projected_Total_KPIs"] - baseline_kpi).clip(
-        lower=0
-    )
-    res_df["Incremental_Investment"] = (
-        res_df["Daily_Investment"] - total_avg_daily_spend
-    ).clip(lower=0)
+    res_df["Incremental_KPI"] = (res_df["Projected_Total_KPIs"] - baseline_kpi).clip(lower=0)
+    res_df["Incremental_Investment"] = (res_df["Daily_Investment"] - total_avg_daily_spend).clip(lower=0)
 
     optimization_target = config.get("optimization_target", "REVENUE").upper()
     financial_targets = config.get("financial_targets", {})
@@ -830,26 +773,17 @@ def generate_aggregated_response_curve(
             "RECEITA para remover a contradicao."
         )
     baseline_revenue = baseline_kpi * conversion_rate * avg_ticket
-    res_df["Projected_Revenue"] = (
-        res_df["Projected_Total_KPIs"] * conversion_rate * avg_ticket
-    )
+    res_df["Projected_Revenue"] = res_df["Projected_Total_KPIs"] * conversion_rate * avg_ticket
     res_df["Incremental_Revenue"] = res_df["Projected_Revenue"] - baseline_revenue
-    res_df["Incremental_ROI"] = (
-        res_df["Incremental_Revenue"] / res_df["Incremental_Investment"]
-    ).fillna(0)
+    res_df["Incremental_ROI"] = (res_df["Incremental_Revenue"] / res_df["Incremental_Investment"]).fillna(0)
 
-    res_df["iCPA"] = (
-        res_df["Incremental_Investment"] / res_df["Incremental_KPI"]
-    ).fillna(0)
+    res_df["iCPA"] = (res_df["Incremental_Investment"] / res_df["Incremental_KPI"]).fillna(0)
     res_df["iCPA"] = res_df["iCPA"].replace([np.inf, -np.inf], np.nan)
 
     # Max Efficiency Point
     curve_segment = res_df[res_df["Daily_Investment"] >= total_avg_daily_spend].copy()
     if len(curve_segment) > 5:
-        if (
-            revenue_mode
-            and "Incremental_ROI" in curve_segment.columns
-        ):
+        if revenue_mode and "Incremental_ROI" in curve_segment.columns:
             max_efficiency_idx = curve_segment["Incremental_ROI"].idxmax()
         else:
             x = curve_segment["Daily_Investment"].values
@@ -882,16 +816,12 @@ def generate_aggregated_response_curve(
         },
     }
     if revenue_mode:
-        max_efficiency_point["Projected_Revenue"] = (
-            opt_kpi * conversion_rate * avg_ticket
-        )
+        max_efficiency_point["Projected_Revenue"] = opt_kpi * conversion_rate * avg_ticket
         max_efficiency_point["Incremental_Revenue"] = max(
             0, max_efficiency_point["Projected_Revenue"] - baseline_revenue
         )
         max_efficiency_point["Incremental_ROI"] = (
-            max_efficiency_point["Incremental_Revenue"] / inc_opt_inv
-            if inc_opt_inv > 0
-            else 0
+            max_efficiency_point["Incremental_Revenue"] / inc_opt_inv if inc_opt_inv > 0 else 0
         )
 
     strategic_reallocation_point = {
@@ -908,16 +838,12 @@ def generate_aggregated_response_curve(
         },
     }
     if revenue_mode:
-        strategic_reallocation_point["Projected_Revenue"] = (
-            reallocated_kpi * conversion_rate * avg_ticket
-        )
+        strategic_reallocation_point["Projected_Revenue"] = reallocated_kpi * conversion_rate * avg_ticket
         strategic_reallocation_point["Incremental_Revenue"] = max(
             0, strategic_reallocation_point["Projected_Revenue"] - baseline_revenue
         )
         inc_rev = strategic_reallocation_point["Incremental_Revenue"]
-        strategic_reallocation_point["Incremental_ROI"] = (
-            float("inf") if inc_rev > 0 else 0
-        )
+        strategic_reallocation_point["Incremental_ROI"] = float("inf") if inc_rev > 0 else 0
 
     # --- UNIVERSAL FINANCIAL FILTER LOGIC START ---
     strategic_limit_point = None
@@ -925,44 +851,31 @@ def generate_aggregated_response_curve(
     max_cpa = financial_targets.get("target_cpa", float("inf"))
     max_icpa = financial_targets.get("target_icpa", float("inf"))
     min_roas = financial_targets.get("target_roas", 0)
-    min_iroas = financial_targets.get(
-        "target_iroas", config.get("minimum_acceptable_iroi", 0)
-    )
+    min_iroas = financial_targets.get("target_iroas", config.get("minimum_acceptable_iroi", 0))
 
     valid_points_df = res_df[res_df["Daily_Investment"] > total_avg_daily_spend].copy()
 
     if not kpi_is_monetary and (
-        optimization_target == "CONVERSIONS"
-        or max_cpa != float("inf")
-        or max_icpa != float("inf")
+        optimization_target == "CONVERSIONS" or max_cpa != float("inf") or max_icpa != float("inf")
     ):
         if "CPA" not in valid_points_df.columns:
             valid_points_df["CPA"] = (
-                valid_points_df["Daily_Investment"]
-                / valid_points_df["Projected_Total_KPIs"]
+                valid_points_df["Daily_Investment"] / valid_points_df["Projected_Total_KPIs"]
             ).fillna(0)
         if max_cpa != float("inf"):
             valid_points_df = valid_points_df[valid_points_df["CPA"] <= max_cpa]
         if max_icpa != float("inf"):
-            valid_points_df = valid_points_df[
-                (valid_points_df["iCPA"] > 0) & (valid_points_df["iCPA"] <= max_icpa)
-            ]
+            valid_points_df = valid_points_df[(valid_points_df["iCPA"] > 0) & (valid_points_df["iCPA"] <= max_icpa)]
 
     if revenue_mode or min_roas > 0 or min_iroas > 0:
-        if (
-            "ROAS" not in valid_points_df.columns
-            and "Projected_Revenue" in valid_points_df.columns
-        ):
+        if "ROAS" not in valid_points_df.columns and "Projected_Revenue" in valid_points_df.columns:
             valid_points_df["ROAS"] = (
-                valid_points_df["Projected_Revenue"]
-                / valid_points_df["Daily_Investment"]
+                valid_points_df["Projected_Revenue"] / valid_points_df["Daily_Investment"]
             ).fillna(0)
         if min_roas > 0 and "ROAS" in valid_points_df.columns:
             valid_points_df = valid_points_df[valid_points_df["ROAS"] >= min_roas]
         if min_iroas > 0 and "Incremental_ROI" in valid_points_df.columns:
-            valid_points_df = valid_points_df[
-                valid_points_df["Incremental_ROI"] >= min_iroas
-            ]
+            valid_points_df = valid_points_df[valid_points_df["Incremental_ROI"] >= min_iroas]
 
     if not valid_points_df.empty:
         strategic_limit_idx = valid_points_df["Daily_Investment"].idxmax()
@@ -1020,9 +933,7 @@ def generate_aggregated_response_curve(
     )
 
 
-def generate_individual_response_curves(
-    elasticity_results, config, output_dir=None, strategic_limit_point=None
-):
+def generate_individual_response_curves(elasticity_results, config, output_dir=None, strategic_limit_point=None):
     """
     Generates individual response curves for each channel (Spend vs. KPI)
     holding other channels at their historical average.
@@ -1054,9 +965,7 @@ def generate_individual_response_curves(
         max_spend = target_avg_spend * limit_factor
         rec_spend = None
         if strategic_limit_point:
-            rec_spend = strategic_limit_point.get(
-                f"Spend_{target_channel}_Strategic", None
-            )
+            rec_spend = strategic_limit_point.get(f"Spend_{target_channel}_Strategic", None)
             if rec_spend is not None:
                 max_spend = max(max_spend, rec_spend * 1.2)  # Give some padding
 
@@ -1083,15 +992,9 @@ def generate_individual_response_curves(
                     simulated_daily_spend = avg_daily_spend[col]
 
                 simulated_adstocked = simulated_daily_spend * adstock_multipliers[col]
-                mkt_features.append(
-                    hill_transform(
-                        simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]
-                    )
-                )
+                mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
 
-            predicted_kpi = predict_clipped_kpi(
-                organic_baseline_mean, mkt_model, mkt_scaler, mkt_features
-            )
+            predicted_kpi = predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
             individual_curves.append(
                 {
                     "Channel": target_channel,
@@ -1131,9 +1034,7 @@ def generate_individual_response_curves(
 
             # Flag Recommended Point (Strategic Limit)
             if strategic_limit_point:
-                rec_spend = strategic_limit_point.get(
-                    f"Spend_{channel}_Strategic", None
-                )
+                rec_spend = strategic_limit_point.get(f"Spend_{channel}_Strategic", None)
                 if rec_spend is not None:
                     plt.axvline(
                         x=rec_spend,
@@ -1149,12 +1050,8 @@ def generate_individual_response_curves(
             plt.grid(True)
 
             # Sanitize channel name for filename
-            safe_channel_name = "".join(
-                [c if c.isalnum() or c in ["-", "_"] else "_" for c in channel]
-            )
-            plot_out_path = os.path.join(
-                output_dir, f"individual_response_curve_{safe_channel_name}.png"
-            )
+            safe_channel_name = "".join([c if c.isalnum() or c in ["-", "_"] else "_" for c in channel])
+            plot_out_path = os.path.join(output_dir, f"individual_response_curve_{safe_channel_name}.png")
             plt.savefig(plot_out_path)
             plt.close()
             log.info(f"   - Individual curve plot saved for {channel}: {plot_out_path}")

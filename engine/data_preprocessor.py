@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 This module handles all data loading, validation, cleaning, and pre-processing.
 """
 
 import csv
 import logging
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -70,9 +70,7 @@ def _strip_trailing_time(series):
         return series
     mask = series.notna()
     stripped = series.copy()
-    stripped[mask] = (
-        stripped[mask].astype(str).str.replace(_TRAILING_TIME_RE, "", regex=True)
-    )
+    stripped[mask] = stripped[mask].astype(str).str.replace(_TRAILING_TIME_RE, "", regex=True)
     return stripped
 
 
@@ -266,41 +264,27 @@ def suggest_causal_config(daily_investment_df):
             bucket_key = product_df["Date"]
         else:
             bucket_key = product_df["Date"].dt.to_period("W-MON").dt.start_time
-        period_investment = (
-            product_df.assign(_bucket=bucket_key)
-            .groupby("_bucket")["investment"]
-            .sum()
-            .reset_index()
-        )
+        period_investment = product_df.assign(_bucket=bucket_key).groupby("_bucket")["investment"].sum().reset_index()
         if len(period_investment) < 3:
             continue
 
         period_investment["historical_avg"] = (
-            period_investment["investment"]
-            .rolling(window=12, min_periods=1)
-            .mean()
-            .shift(1)
+            period_investment["investment"].rolling(window=12, min_periods=1).mean().shift(1)
         )
         period_investment = period_investment.dropna(subset=["historical_avg"])
         period_investment = period_investment[period_investment["historical_avg"] > 0]
         if period_investment.empty:
             continue
 
-        pct_change = (
-            period_investment["investment"] / period_investment["historical_avg"] - 1
-        ) * 100
+        pct_change = (period_investment["investment"] / period_investment["historical_avg"] - 1) * 100
         all_pct_changes.extend(pct_change.tolist())
 
     if all_pct_changes:
         pct_series = pd.Series(all_pct_changes)
         increases = pct_series[pct_series > 0]
         decreases = pct_series[pct_series < 0].abs()
-        increase_threshold_percent = (
-            int(round(np.percentile(increases, 90))) if len(increases) else 40
-        )
-        decrease_threshold_percent = (
-            int(round(np.percentile(decreases, 90))) if len(decreases) else 30
-        )
+        increase_threshold_percent = int(round(np.percentile(increases, 90))) if len(increases) else 40
+        decrease_threshold_percent = int(round(np.percentile(decreases, 90))) if len(decreases) else 30
         increase_threshold_percent = max(1, min(100, increase_threshold_percent))
         decrease_threshold_percent = max(1, min(100, decrease_threshold_percent))
     else:
@@ -329,9 +313,7 @@ def parse_investment_columns(df, date_col, channel_col, investment_col, date_for
     parsing numérico) -- o caller decide o que fazer com uma taxa alta de NaN (erro forte no
     pipeline principal, só um aviso na sugestão).
     """
-    df = df.rename(
-        columns={date_col: "Date", channel_col: "Product Group", investment_col: "investment"}
-    )
+    df = df.rename(columns={date_col: "Date", channel_col: "Product Group", investment_col: "investment"})
     df = drop_bi_export_footer_rows(df, "Date")
     df["Product Group"] = df["Product Group"].str.strip().str.upper()
     investment_raw_values = df["investment"]
@@ -339,9 +321,7 @@ def parse_investment_columns(df, date_col, channel_col, investment_col, date_for
     # is a whole number (e.g. a channel with no decimal spend). The adstock step
     # below writes float values back into this column via .loc, and pandas
     # raises TypeError instead of upcasting an int64 column in that path.
-    df["investment"] = robust_numeric_parsing(
-        df["investment"], column_name="investment"
-    ).astype(float)
+    df["investment"] = robust_numeric_parsing(df["investment"], column_name="investment").astype(float)
     df["Date"] = robust_date_parsing(df["Date"], date_format=date_format)
     return df, investment_raw_values
 
@@ -398,16 +378,11 @@ def drop_partial_periods(df, date_col, cadence):
             stub_dates.append(date)
 
     if not stub_dates:
-        log.debug(
-            f"   - Nenhum período parcial encontrado (cadência={cadence} dia(s), "
-            f"limiar={threshold:.1f} dia(s))."
-        )
+        log.debug(f"   - Nenhum período parcial encontrado (cadência={cadence} dia(s), limiar={threshold:.1f} dia(s)).")
         return df.reset_index(drop=True)
 
     mask = dates.isin(stub_dates)
-    dropped_str = ", ".join(
-        pd.Timestamp(d).strftime("%d/%m/%Y") for d in sorted(stub_dates)
-    )
+    dropped_str = ", ".join(pd.Timestamp(d).strftime("%d/%m/%Y") for d in sorted(stub_dates))
     log.info(
         f"   - Períodos parciais descartados: {int(mask.sum())} linha(s) em "
         f"{len(stub_dates)} data(s) (distância < {threshold:.1f} dia(s)): {dropped_str}"
@@ -619,9 +594,7 @@ def read_csv_robust(path, **kwargs):
         with open(path, "r", encoding="latin-1") as f:
             sample = f.read(8192)
         encoding = "latin-1"
-        log.warning(
-            f"   - AVISO: Encoding não-UTF-8 detectado em '{path}'. Usando 'latin-1'."
-        )
+        log.warning(f"   - AVISO: Encoding não-UTF-8 detectado em '{path}'. Usando 'latin-1'.")
 
     try:
         delimiter = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
@@ -629,9 +602,7 @@ def read_csv_robust(path, **kwargs):
         delimiter = ","
 
     if delimiter != ",":
-        log.warning(
-            f"   - AVISO: Delimitador '{delimiter}' detectado em '{path}' (não é vírgula)."
-        )
+        log.warning(f"   - AVISO: Delimitador '{delimiter}' detectado em '{path}' (não é vírgula).")
 
     df = pd.read_csv(path, encoding=encoding, sep=delimiter, **kwargs)
     df.columns = df.columns.str.strip()
@@ -790,7 +761,7 @@ def load_and_prepare_data(config):
         kpi_df = read_csv_robust(config["performance_file_path"])
         daily_investment_df = read_csv_robust(config["investment_file_path"])
 
-        if "generic_trends_file_path" in config and config["generic_trends_file_path"]:
+        if config.get("generic_trends_file_path"):
             try:
                 trends_df = read_csv_robust(config["generic_trends_file_path"])
                 trends_date_col = resolve_column(
@@ -818,15 +789,9 @@ def load_and_prepare_data(config):
                     date_format=date_formats.get("generic_trends_file"),
                 )
                 trends_df.dropna(subset=["Date"], inplace=True)
-                trends_df = (
-                    trends_df[["Date", "Generic Searches"]]
-                    .sort_values(by="Date")
-                    .reset_index(drop=True)
-                )
+                trends_df = trends_df[["Date", "Generic Searches"]].sort_values(by="Date").reset_index(drop=True)
             except FileNotFoundError:
-                log.warning(
-                    "   - WARNING: Generic trends file not found. Continuing without trends data."
-                )
+                log.warning("   - WARNING: Generic trends file not found. Continuing without trends data.")
                 trends_df = pd.DataFrame(
                     {
                         "Date": pd.Series(dtype="datetime64[ns]"),
@@ -834,9 +799,7 @@ def load_and_prepare_data(config):
                     }
                 )
         else:
-            log.info(
-                "   - INFO: No generic trends file path provided. Continuing without trends data."
-            )
+            log.info("   - INFO: No generic trends file path provided. Continuing without trends data.")
             trends_df = pd.DataFrame(
                 {
                     "Date": pd.Series(dtype="datetime64[ns]"),
@@ -896,15 +859,9 @@ def load_and_prepare_data(config):
             inv_value_col,
             date_format=date_formats.get("investment_file"),
         )
-        investment_nan_ratio = (
-            daily_investment_df["investment"].isna().mean() if len(daily_investment_df) else 0
-        )
+        investment_nan_ratio = daily_investment_df["investment"].isna().mean() if len(daily_investment_df) else 0
         if investment_nan_ratio > 0.5:
-            bad_examples = (
-                investment_raw_values[daily_investment_df["investment"].isna()]
-                .unique()[:3]
-                .tolist()
-            )
+            bad_examples = investment_raw_values[daily_investment_df["investment"].isna()].unique()[:3].tolist()
             raise ValueError(
                 f"Coluna de investimento ('{inv_value_col}') no arquivo de investimento "
                 f"('{config['investment_file_path']}') não pôde ser convertida para número em "
@@ -915,15 +872,11 @@ def load_and_prepare_data(config):
             )
 
         # --- Date Formatting ---
-        kpi_df["Date"] = robust_date_parsing(
-            kpi_df["Date"], date_format=date_formats.get("performance_file")
-        )
+        kpi_df["Date"] = robust_date_parsing(kpi_df["Date"], date_format=date_formats.get("performance_file"))
 
         # --- Data Cleaning & Validation ---
         kpi_df.dropna(subset=["Date", "kpi"], inplace=True)
-        daily_investment_df.dropna(
-            subset=["Date", "investment", "Product Group"], inplace=True
-        )
+        daily_investment_df.dropna(subset=["Date", "investment", "Product Group"], inplace=True)
 
         if kpi_df.empty:
             raise ValueError(
@@ -981,9 +934,7 @@ def load_and_prepare_data(config):
             )
 
         config["period_days"] = inv_cadence
-        cadence_label = {1: "diária", 7: "semanal", 30: "mensal"}.get(
-            inv_cadence, "não-canônica"
-        )
+        cadence_label = {1: "diária", 7: "semanal", 30: "mensal"}.get(inv_cadence, "não-canônica")
         log.info(
             f"   - Cadência detectada: {cadence_label} ({inv_cadence} dia(s)), "
             f"{n_inv_after} período(s) de investimento "
@@ -1000,9 +951,7 @@ def load_and_prepare_data(config):
                 # Treat specific columns listed in config
                 for col in outlier_config:
                     # Map 'Sessions' or user column to 'kpi' if that's what was intended
-                    target_col = (
-                        "kpi" if col == user_kpi_col or col == "Sessions" else col
-                    )
+                    target_col = "kpi" if col == user_kpi_col or col == "Sessions" else col
                     if target_col in kpi_df.columns:
                         kpi_df = treat_outliers(kpi_df, target_col)
                         log.info(f"     - Treated outliers in KPI column: '{col}'")
@@ -1011,18 +960,14 @@ def load_and_prepare_data(config):
                 kpi_df = treat_outliers(kpi_df, "kpi")
                 log.info("     - Treated outliers in KPI column: 'kpi'")
 
-        log.info(
-            f"   - KPI Data Date Range: {kpi_df['Date'].min()} to {kpi_df['Date'].max()}"
-        )
+        log.info(f"   - KPI Data Date Range: {kpi_df['Date'].min()} to {kpi_df['Date'].max()}")
         log.info(
             f"   - Investment Data Date Range: {daily_investment_df['Date'].min()} to {daily_investment_df['Date'].max()}"
         )
 
         kpi_df = kpi_df[["Date", "kpi"]].sort_values(by="Date").reset_index(drop=True)
         daily_investment_df = (
-            daily_investment_df[["Date", "Product Group", "investment"]]
-            .sort_values(by="Date")
-            .reset_index(drop=True)
+            daily_investment_df[["Date", "Product Group", "investment"]].sort_values(by="Date").reset_index(drop=True)
         )
 
         log.info("   - Data loaded and columns renamed successfully.")
@@ -1030,9 +975,7 @@ def load_and_prepare_data(config):
         kpi_col = "kpi"
 
         # --- Adstock Transformation ---
-        log.info(
-            "   - Checking for negative correlations and applying adstock where needed..."
-        )
+        log.info("   - Checking for negative correlations and applying adstock where needed...")
         investment_pivot = daily_investment_df.pivot_table(
             index="Date", columns="Product Group", values="investment"
         ).fillna(0)
@@ -1042,18 +985,10 @@ def load_and_prepare_data(config):
 
         for column in investment_pivot.columns:
             if column in correlation_matrix and correlation_matrix[column][kpi_col] < 0:
-                log.info(
-                    f"     - Applying adstock to '{column}' due to negative correlation."
-                )
-                best_alpha, _ = find_best_alpha(
-                    merged_for_corr[column], merged_for_corr[kpi_col]
-                )
-                daily_investment_df.loc[
-                    daily_investment_df["Product Group"] == column, "investment"
-                ] = geometric_decay(
-                    daily_investment_df.loc[
-                        daily_investment_df["Product Group"] == column, "investment"
-                    ],
+                log.info(f"     - Applying adstock to '{column}' due to negative correlation.")
+                best_alpha, _ = find_best_alpha(merged_for_corr[column], merged_for_corr[kpi_col])
+                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = geometric_decay(
+                    daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"],
                     best_alpha,
                 )
 

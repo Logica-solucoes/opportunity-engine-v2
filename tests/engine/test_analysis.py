@@ -1,20 +1,15 @@
-# -*- coding: utf-8 -*-
-import sys
-import os
-
 import numpy as np
 import pandas as pd
 import pytest
 
-
 from engine.analysis import (
-    run_opportunity_projection,
-    run_causal_impact_analysis,
+    _select_variance_threshold_features,
+    _train_response_model,
     create_calendar_features,
     find_events,
     periods_to_days,
-    _train_response_model,
-    _select_variance_threshold_features,
+    run_causal_impact_analysis,
+    run_opportunity_projection,
 )
 
 
@@ -78,9 +73,7 @@ def test_conversions_mode_with_target_roas_does_not_crash_and_trains_model():
         strategic_limit_point,
         model_params,
         channel_proportions,
-    ) = run_opportunity_projection(
-        kpi_df, daily_investment_df, market_trends_df, "TestChannel", config
-    )
+    ) = run_opportunity_projection(kpi_df, daily_investment_df, market_trends_df, "TestChannel", config)
 
     assert not response_curve_df.empty
     assert isinstance(model_params, dict)
@@ -98,9 +91,7 @@ def test_create_calendar_features_daily_generates_full_feature_set():
 
     out = create_calendar_features(df, period_days=1)
 
-    for col in ["dayofweek", "is_weekend", "is_payday_period", "is_holiday", "month"] + [
-        f"day_{i}" for i in range(7)
-    ]:
+    for col in ["dayofweek", "is_weekend", "is_payday_period", "is_holiday", "month"] + [f"day_{i}" for i in range(7)]:
         assert col in out.columns, f"expected '{col}' for daily data (period_days=1)"
 
 
@@ -111,13 +102,10 @@ def test_create_calendar_features_weekly_generates_only_month():
     out = create_calendar_features(df, period_days=7)
 
     assert "month" in out.columns
-    degenerate_cols = ["dayofweek", "is_weekend", "is_payday_period", "is_holiday"] + [
-        f"day_{i}" for i in range(7)
-    ]
+    degenerate_cols = ["dayofweek", "is_weekend", "is_payday_period", "is_holiday"] + [f"day_{i}" for i in range(7)]
     for col in degenerate_cols:
         assert col not in out.columns, (
-            f"'{col}' would be constant/degenerate on weekly-cadence data "
-            "and should be skipped"
+            f"'{col}' would be constant/degenerate on weekly-cadence data and should be skipped"
         )
 
 
@@ -203,9 +191,7 @@ def test_find_events_weekly_data_avoids_rebucketing_merge_artifact():
     dates = pd.to_datetime(dates)
 
     investment = np.full(len(dates), 1000.0)
-    df = pd.DataFrame(
-        {"Date": dates, "Product Group": "TestChannel", "investment": investment}
-    )
+    df = pd.DataFrame({"Date": dates, "Product Group": "TestChannel", "investment": investment})
 
     old_events, _, _ = find_events(df.copy(), "TestCo", 1.5, 0.5, 14)
     assert not old_events.empty, (
@@ -228,9 +214,7 @@ def test_find_events_weekly_data_still_detects_a_real_spike():
     investment = np.full(20, 1000.0)
     investment[10] = 3000.0  # unambiguous +200% spike on a single native week
 
-    df = pd.DataFrame(
-        {"Date": dates, "Product Group": "TestChannel", "investment": investment}
-    )
+    df = pd.DataFrame({"Date": dates, "Product Group": "TestChannel", "investment": investment})
 
     event_map_df, _, _ = find_events(df, "TestCo", 1.5, 0.5, 14, period_days=7)
 
@@ -248,16 +232,13 @@ def test_find_events_weekly_data_reports_a_date_that_exists_in_the_input():
     investment = np.full(20, 1000.0)
     investment[10] = 3000.0
 
-    df = pd.DataFrame(
-        {"Date": dates, "Product Group": "TestChannel", "investment": investment}
-    )
+    df = pd.DataFrame({"Date": dates, "Product Group": "TestChannel", "investment": investment})
 
     event_map_df, _, _ = find_events(df, "TestCo", 1.5, 0.5, 14, period_days=7)
 
     reported = pd.to_datetime(event_map_df["date"])
     assert reported.isin(dates).all(), (
-        f"eventos rotulados com datas fora da base: "
-        f"{[d.strftime('%Y-%m-%d') for d in reported if d not in dates]}"
+        f"eventos rotulados com datas fora da base: {[d.strftime('%Y-%m-%d') for d in reported if d not in dates]}"
     )
 
 
@@ -293,9 +274,7 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
     generic_searches = 50 + rng.normal(0, 5, n_days)  # non-constant, so it can
     # survive the pre-period VarianceThreshold feature selection below.
 
-    daily_investment_df = pd.DataFrame(
-        {"Date": dates, "Product Group": "TestChannel", "investment": investment}
-    )
+    daily_investment_df = pd.DataFrame({"Date": dates, "Product Group": "TestChannel", "investment": investment})
     kpi_df = pd.DataFrame({"Date": dates, "kpi": kpi})
     market_trends_df = pd.DataFrame({"Date": dates, "Generic Searches": generic_searches})
 
@@ -307,15 +286,11 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
         .merge(market_trends_df, on="Date")
         .set_index("Date")
     )
-    agg = (
-        merged.resample("3D")
-        .agg({"investment": "sum", "kpi": "sum", "Generic Searches": "mean"})
-        .reset_index()
-    )
+    agg = merged.resample("3D").agg({"investment": "sum", "kpi": "sum", "Generic Searches": "mean"}).reset_index()
 
-    agg_investment_df = agg[["Date", "investment"]].assign(
-        **{"Product Group": "TestChannel"}
-    )[["Date", "Product Group", "investment"]]
+    agg_investment_df = agg[["Date", "investment"]].assign(**{"Product Group": "TestChannel"})[
+        ["Date", "Product Group", "investment"]
+    ]
     agg_kpi_df = agg[["Date", "kpi"]]
     agg_market_trends_df = agg[["Date", "Generic Searches"]]
 
@@ -355,8 +330,7 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
         {"period_days": period_days, "country_code": "BR", "min_pre_period_days": 14},
     )
     assert results_dict is not None, (
-        "run_causal_impact_analysis returned None -- check stdout above for "
-        "the swallowed exception"
+        "run_causal_impact_analysis returned None -- check stdout above for the swallowed exception"
     )
 
     # Ground truth for the historical weekly-average baseline: mirrors the
@@ -365,19 +339,13 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
     event_investment_agg = agg_investment_df.copy()
     event_investment_agg["Date"] = pd.to_datetime(event_investment_agg["Date"])
     pre_period_end = pd.to_datetime(pre_period[1])
-    historical = event_investment_agg[
-        event_investment_agg["Date"] <= pre_period_end
-    ].copy()
+    historical = event_investment_agg[event_investment_agg["Date"] <= pre_period_end].copy()
     historical["weeks"] = historical["Date"].dt.to_period("W").dt.start_time
     weekly = historical.groupby("weeks")["investment"].sum().reset_index()
-    weekly["historical_avg"] = (
-        weekly["investment"].rolling(window=12, min_periods=1).mean().shift(1)
-    )
+    weekly["historical_avg"] = weekly["investment"].rolling(window=12, min_periods=1).mean().shift(1)
     historical_avg = weekly["historical_avg"].iloc[-1]
 
-    post_period_days_span = (
-        pd.to_datetime(post_period[1]) - pd.to_datetime(post_period[0])
-    ).days + 1  # 21 days
+    post_period_days_span = (pd.to_datetime(post_period[1]) - pd.to_datetime(post_period[0])).days + 1  # 21 days
     correct_periods_in_post = post_period_days_span / 7  # 3 weeks-equivalent
     buggy_periods_in_post = (
         post_period_days_span / period_days / 7
@@ -408,12 +376,8 @@ def test_select_variance_threshold_features_returns_empty_when_all_constant():
     happens while computing the candidate list, not after. This must degrade
     to an empty list instead of raising, so the existing fallback can kick in.
     """
-    pre_data = pd.DataFrame(
-        {"const_a": [5.0] * 10, "const_b": [0.0] * 10, "const_c": [1.0] * 10}
-    )
-    result = _select_variance_threshold_features(
-        pre_data, ["const_a", "const_b", "const_c"]
-    )
+    pre_data = pd.DataFrame({"const_a": [5.0] * 10, "const_b": [0.0] * 10, "const_c": [1.0] * 10})
+    result = _select_variance_threshold_features(pre_data, ["const_a", "const_b", "const_c"])
     assert result == []
 
 
