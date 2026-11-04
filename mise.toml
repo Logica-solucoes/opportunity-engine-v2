@@ -37,6 +37,20 @@ run = "uv run python -m api.cli create-admin"
 description = "Engine parity against the frozen prototype's snapshot (~95 s)"
 run = "uv run pytest tests/engine/test_parity.py -q"
 
+[tasks.parity-real]
+description = "Real-data parity (Gol): runs the frozen prototype on exemplo_csv/, then the engine test (~4 min). LEGACY_REPO defaults to ../opportunity-engine"
+env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1" }
+run = """
+set -e
+LEGACY="${LEGACY_REPO:-$(realpath ../opportunity-engine)}"
+HERE="$PWD"
+SPEC="$(mktemp --suffix=.json)"
+uv run python -m tests.fixtures.parity.make_real_spec "$SPEC"
+(cd "$LEGACY" && env -u VIRTUAL_ENV uv run python "$HERE/tests/fixtures/parity/generate_legacy_snapshot.py" --legacy-repo . --dataset-json "$SPEC" --out "$HERE/tests/fixtures/parity/real/gol.json")
+rm -f "$SPEC"
+uv run pytest tests/engine/test_parity_real.py -q
+"""
+
 [tasks.e2e]
 description = "Playwright E2E against the built SPA (needs docker compose up)"
 dir = "web"

@@ -14,3 +14,7 @@ web/dist/
 inputs/
 outputs/
 /data/
+
+# Dados reais de clientes (confidencial, não versionar)
+exemplo_csv/
+tests/fixtures/parity/real/

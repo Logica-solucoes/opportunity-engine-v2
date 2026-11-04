@@ -44,6 +44,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--legacy-repo", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument(
+        "--dataset-json",
+        type=Path,
+        help='use real files instead of the synthetic dataset: {"legacy": <config dict>, "files": {<name>: <path>}}',
+    )
     args = parser.parse_args()
 
     sys.path.insert(0, str(args.legacy_repo.resolve() / "scripts"))
@@ -60,10 +65,20 @@ def main() -> None:
 
     from tests.engine.synthetic_data import dataset_config, make_dataset
 
+    if args.dataset_json:
+        spec = json.loads(args.dataset_json.read_text(encoding="utf-8"))
+
+        def make_files(_tmp: Path) -> dict:
+            return {key: Path(value) for key, value in spec["files"].items()}
+
+        base_config = spec["legacy"]
+    else:
+        make_files, base_config = make_dataset, dataset_config()
+
     with tempfile.TemporaryDirectory() as tmp:
-        files = make_dataset(Path(tmp))
+        files = make_files(Path(tmp))
         config = {
-            **dataset_config(),
+            **base_config,
             "investment_file_path": str(files["investment_file"]),
             "performance_file_path": str(files["performance_file"]),
             "generic_trends_file_path": str(files["generic_trends_file"]),

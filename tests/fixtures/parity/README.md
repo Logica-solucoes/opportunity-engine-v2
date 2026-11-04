@@ -18,3 +18,10 @@ Notes
 - `require_model_fit` is off in the synthetic config: the local-level model's in-sample R2 is negative on this data,
   and with the gate on no event would pass (4 of 6 events pass with it off).
 - Other CPUs may pick different BLAS kernels. Run the parity test once on the server and record any tolerance change.
+
+## Real data (Gol)
+
+`mise run parity-real` runs the frozen prototype on `exemplo_csv/Gol` (via `--dataset-json`, single-threaded BLAS) into
+`real/gol.json`, then `tests/engine/test_parity_real.py` checks the engine against it. Both the data and `real/` are
+confidential and git-ignored; the test skips where they are missing. The test pins BLAS to one thread: with all threads
+the response curve drifts up to ~7e-4 (relative) on this data.
