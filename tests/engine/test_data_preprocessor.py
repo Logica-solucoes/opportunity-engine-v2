@@ -1043,10 +1043,7 @@ def test_load_and_prepare_data_file_not_found_preserves_original_cause(tmp_path)
 
 
 def test_load_and_prepare_data_unexpected_error_preserves_original_cause(tmp_path):
-    """Uses the same >50%-NaN scenario as above, but asserts specifically on
-    exception chaining: the wrapper Exception's __cause__ must be the
-    original ValueError, not swallowed.
-    """
+    """The >50%-NaN scenario now surfaces as a check: the error carries its id instead of a chained ValueError."""
     investment_path = _write_csv(
         tmp_path / "investment.csv",
         "dates,product_group,total_revenue\n2025-01-01,GOOGLE,abc\n2025-01-02,GOOGLE,xyz\n2025-01-03,GOOGLE,qux\n",
@@ -1069,8 +1066,8 @@ def test_load_and_prepare_data_unexpected_error_preserves_original_cause(tmp_pat
     with pytest.raises(Exception) as exc_info:
         load_and_prepare_data(config)
 
-    assert exc_info.value.__cause__ is not None
-    assert isinstance(exc_info.value.__cause__, ValueError)
+    assert isinstance(exc_info.value, EngineError)
+    assert exc_info.value.check_id == "value_not_numeric"
 
 
 # --- Performance-file duplicate-date aggregation (channel breakdown) ---
@@ -1288,7 +1285,7 @@ def test_prepared_data_reports_period_days_and_does_not_mutate_config(tmp_path):
 
 
 def test_performance_file_is_read_once_and_kept_for_covariates(tmp_path, monkeypatch):
-    import engine.data_preprocessor as module
+    import engine.inputs as module  # read_inputs owns the reads now
 
     config, paths = _daily_files(tmp_path, with_extra_column=True)
     reads = []

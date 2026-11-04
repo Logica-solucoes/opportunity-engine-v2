@@ -762,152 +762,16 @@ def load_and_prepare_data(config, paths):
     generic_trends_file (or None) to the files; `config` is only read.
     """
     log.info("Loading, Cleaning, and Preparing Data...")
+    from engine.inputs import read_inputs  # inputs imports this module's helpers
 
     try:
-        # --- Get Column Mappings from Config ---
-        mapping = config["column_mapping"]
-        inv_map = mapping.get("investment_file", {})
-        perf_map = mapping.get("performance_file", {})
-        trends_map = mapping.get("generic_trends_file", {})
-        date_formats = config["date_formats"]
-
-        # --- Load Data ---
-        performance_path = paths["performance_file"]
-        investment_path = paths["investment_file"]
-        kpi_df = read_csv_robust(performance_path)
-        performance_raw = kpi_df.copy()
-        daily_investment_df = read_csv_robust(investment_path)
-
-        if paths.get("generic_trends_file"):
-            try:
-                trends_df = read_csv_robust(paths["generic_trends_file"])
-                trends_date_col = resolve_column(
-                    trends_df,
-                    trends_map.get("date_col", "Start Date"),
-                    "date",
-                    "coluna de data do arquivo de tendências",
-                )
-                trends_value_col = resolve_column(
-                    trends_df,
-                    trends_map.get("trends_col", "Ad Opportunities"),
-                    "trends",
-                    "coluna de valor do arquivo de tendências",
-                )
-                trends_df.rename(
-                    columns={trends_date_col: "Date", trends_value_col: "Generic Searches"},
-                    inplace=True,
-                )
-                trends_df = drop_bi_export_footer_rows(trends_df, "Date")
-                trends_df["Generic Searches"] = robust_numeric_parsing(
-                    trends_df["Generic Searches"], column_name="Generic Searches"
-                )
-                trends_df["Date"] = robust_date_parsing(
-                    trends_df["Date"],
-                    date_format=date_formats.get("generic_trends_file"),
-                )
-                trends_df.dropna(subset=["Date"], inplace=True)
-                trends_df = trends_df[["Date", "Generic Searches"]].sort_values(by="Date").reset_index(drop=True)
-            except FileNotFoundError:
-                log.warning("   - WARNING: Generic trends file not found. Continuing without trends data.")
-                trends_df = pd.DataFrame(
-                    {
-                        "Date": pd.Series(dtype="datetime64[ns]"),
-                        "Generic Searches": pd.Series(dtype="float64"),
-                    }
-                )
-        else:
-            log.info("   - INFO: No generic trends file path provided. Continuing without trends data.")
-            trends_df = pd.DataFrame(
-                {
-                    "Date": pd.Series(dtype="datetime64[ns]"),
-                    "Generic Searches": pd.Series(dtype="float64"),
-                }
-            )
-
-        # --- Dynamically Rename Columns ---
         user_kpi_col = config["performance_kpi_column"]
-        kpi_date_col = resolve_column(
-            kpi_df, perf_map.get("date_col", "date"), "date", "coluna de data do arquivo de performance"
-        )
-        kpi_value_col = resolve_column(
-            kpi_df,
-            perf_map.get("kpi_col", user_kpi_col),
-            "kpi",
-            "coluna de KPI do arquivo de performance",
-        )
-        performance_df = performance_raw.rename(columns={kpi_date_col: "Date"})
-        kpi_df.rename(columns={kpi_date_col: "Date", kpi_value_col: "kpi"}, inplace=True)
-        kpi_df = drop_bi_export_footer_rows(kpi_df, "Date")
-        kpi_raw_values = kpi_df["kpi"]
-        kpi_df["kpi"] = robust_numeric_parsing(kpi_df["kpi"], column_name="kpi")
-        kpi_nan_ratio = kpi_df["kpi"].isna().mean() if len(kpi_df) else 0
-        if kpi_nan_ratio > 0.5:
-            bad_examples = kpi_raw_values[kpi_df["kpi"].isna()].unique()[:3].tolist()
-            raise ValueError(
-                f"Coluna de KPI ('{kpi_value_col}') no arquivo de performance "
-                f"não pôde ser convertida para número em "
-                f"mais de 50% das linhas ({kpi_nan_ratio:.0%} inválido). Isso geralmente indica "
-                f"que a coluna de KPI errada foi identificada. Exemplos de valores encontrados: "
-                f"{bad_examples}. Verifique 'performance_kpi_column' / "
-                f"'column_mapping.performance_file.kpi_col' no config."
-            )
-
-        inv_date_col = resolve_column(
-            daily_investment_df,
-            inv_map.get("date_col", "dates"),
-            "date",
-            "coluna de data do arquivo de investimento",
-        )
-        inv_channel_col = resolve_column(
-            daily_investment_df,
-            inv_map.get("channel_col", "product_group"),
-            "channel",
-            "coluna de canal do arquivo de investimento",
-        )
-        inv_value_col = resolve_column(
-            daily_investment_df,
-            inv_map.get("investment_col", "total_revenue"),
-            "investment",
-            "coluna de investimento do arquivo de investimento",
-        )
-        daily_investment_df, investment_raw_values = parse_investment_columns(
-            daily_investment_df,
-            inv_date_col,
-            inv_channel_col,
-            inv_value_col,
-            date_format=date_formats.get("investment_file"),
-        )
-        investment_nan_ratio = daily_investment_df["investment"].isna().mean() if len(daily_investment_df) else 0
-        if investment_nan_ratio > 0.5:
-            bad_examples = investment_raw_values[daily_investment_df["investment"].isna()].unique()[:3].tolist()
-            raise ValueError(
-                f"Coluna de investimento ('{inv_value_col}') no arquivo de investimento "
-                f"não pôde ser convertida para número em "
-                f"mais de 50% das linhas ({investment_nan_ratio:.0%} inválido). Isso geralmente "
-                f"indica que a coluna de investimento errada foi identificada. Exemplos de "
-                f"valores encontrados: {bad_examples}. Verifique "
-                f"'column_mapping.investment_file.investment_col' no config."
-            )
-
-        # --- Date Formatting ---
-        kpi_df["Date"] = robust_date_parsing(kpi_df["Date"], date_format=date_formats.get("performance_file"))
-
-        # --- Data Cleaning & Validation ---
-        kpi_df.dropna(subset=["Date", "kpi"], inplace=True)
-        daily_investment_df.dropna(subset=["Date", "investment", "Product Group"], inplace=True)
-
-        if kpi_df.empty:
-            raise ValueError(
-                "Nenhuma linha válida restou no arquivo de performance "
-                "após a limpeza. Verifique o formato de "
-                "data e do KPI no arquivo."
-            )
-        if daily_investment_df.empty:
-            raise ValueError(
-                "Nenhuma linha válida restou no arquivo de investimento "
-                "após a limpeza. Verifique o formato de "
-                "data, canal e investimento no arquivo."
-            )
+        raw = read_inputs(config, paths)
+        for check in raw.checks:
+            if check.level == "error":
+                raise EngineError(check.message, check.id)
+        kpi_df, daily_investment_df, trends_df = raw.kpi_df, raw.investment_df, raw.trends_df
+        performance_df = raw.performance_df
 
         # --- Aggregate Performance File Rows With Duplicate Dates ---
         # If the performance file has more than one row per date (most likely
@@ -1033,8 +897,6 @@ def load_and_prepare_data(config, paths):
 
     except EngineError:
         raise
-    except FileNotFoundError as e:
-        raise EngineError("Um dos arquivos enviados não foi encontrado. Envie os arquivos novamente.") from e
     except ValueError as e:  # the messages above are written for the screen
         raise EngineError(str(e)) from e
     except Exception as e:
