@@ -39,6 +39,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 ## A1 · `results.json` v1 + fixtures — semana 1
 
+- **Status:** ✅ feito em 04/nov/2026 (branch `feat/a0-engine-package`). `engine.run` devolve e grava `results.json` v1 (`engine/results_schema.py`, `engine/results.py`; spec `docs/superpowers/specs/2026-11-04-a1-results-json-design.md`). Verificado: nenhum `NaN`/`Infinity` (parse com `parse_constant` que falha); números do arquivo batem com `compute()` a `rtol=1e-9`; paridade sintética e com a Gol intactas; fixtures da **Gol anonimizada** (`succeeded`, `inconclusive`, `failed`) em `tests/fixtures/results/`. Seções de A2 e A5–A9 existem no schema e saem `null`. **Muda o A0 em um caso:** MMM ok sem evento aprovado agora é `inconclusive`. O worker ainda grava o próprio `results.json` até o swap (Dev B).
 - **BRD:** Capabilities › Simulation history ("every run saved with inputs, parameters, version and outputs").
 - **Depende de:** A0. **Bloqueia:** B5, B6, B7.
 - **Hoje:**

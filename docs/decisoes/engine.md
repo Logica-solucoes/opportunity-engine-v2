@@ -65,6 +65,18 @@ Run completo (`python -m engine`) no dataset sintético de 2 anos diários × 5 
 
 Os modelos são pequenos: o BLAS multithread só gera disputa de threads. **Recomendação para o ambiente do worker: fixar essas três variáveis em 1** (e então o tamanho do servidor importa pouco: um run usa ~1 núcleo). O `response_curve_data.csv` saiu idêntico byte a byte nas duas medições. Não fixei isso no código do motor (`threadpoolctl`) porque muda o comportamento do processo; é decisão de implantação (Dev B), mas agora também é questão de reprodutibilidade (acima). O limite do run (`STALE_AFTER`, 20 min em `api/runs.py`) é do Dev B; com 1 núcleo, o dataset sintético leva bem menos que isso.
 
+## `results.json` v1 (A1, 04/nov/2026)
+
+Spec: `docs/superpowers/specs/2026-11-04-a1-results-json-design.md`. `engine/results_schema.py` define o contrato inteiro (pydantic, `extra=forbid`, `schema_version=1`); `engine/results.py` monta o documento a partir do `Computed` **sem calcular nada** e `run()` o grava em `out_dir/results.json` e o devolve.
+
+- **Todo o §3 está tipado, mas só `causal`, `elasticity` e `baseline` são preenchidos.** `validation`, `sufficiency`, `experiment_design` e `reports` (A2, A5–A9), e dentro das seções `placebo`, `identifiable`, `coef_ci`, `lo/hi` das curvas, `extrapolated`, `cpa/roas/ramp` dos cenários, saem `null`. Quando o item dono chegar, só preenche. Campo opcional novo não muda `schema_version`; remover ou renomear muda. **Por quê:** o front gera tipos de uma fonte só e nenhum item futuro redefine o contrato.
+- **Status.** Cada seção tem `status` (`ok|inconclusive|failed`) e `reasons`. O run é `succeeded` se `causal` e `elasticity` estão `ok`, `failed` se nenhuma está, `inconclusive` nos demais. **Muda o A0 num caso:** MMM ok sem nenhum evento aprovado era `succeeded`. Evento é `published` só se passou nos gates **e** está entre os `max_events_to_analyze`; o resto é `rejected`, com `not_selected` para quem passou e ficou de fora. O front só lê `status` e `reasons`.
+- **Sem sentinelas.** `NaN`/`inf` viram `null` em qualquer profundidade (`sanitize`), o documento é validado de novo e gravado com `allow_nan=False`. `cpa_incremental` com lift zero (era `0`) vira `null`.
+- **Curva e cenários.** `mix` da curva tem três variantes (`historical`, `optimized`, `strategic`) porque a curva agregada calcula as três. `scenarios` empacota os seis pontos notáveis; o A8 os refina. `iroas` é `Incremental_ROI` (receita incremental / investimento incremental).
+- **PNG/HTML do matplotlib continuam sendo gerados** até o B5 estar em paridade.
+- **Fixtures** (`tests/fixtures/results/`): Gol **anonimizada** (canais `CANAL_NN`, investimento e KPI multiplicados por fatores privados em `.private/factors.json`, git-ignorado; **datas reais**, risco aceito: o formato da série ainda é reconhecível por quem conhece a Gol). Teste de CI garante só nomes anônimos e nenhum caminho; teste local confirma que nenhum nome ou valor original aparece. Regenerar exige `exemplo_csv/` e o mesmo arquivo de fatores (`generate_fixtures.py`, ~6 min).
+- **Para o Dev B:** `api/worker.py` hoje faz `json.dumps(results)` e grava; como `run` já devolve o dict seguro, os dois arquivos saem iguais. No swap, o worker pode só enviar o `results.json` que o `run` gravou.
+
 ## Passos do swap (Dev B)
 
 1. `pyproject.toml` já tem as dependências; o `Dockerfile` precisa de `COPY engine/ ./engine/` e `COPY llm/ ./llm/` (medir o tamanho da imagem antes/depois).

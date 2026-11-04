@@ -121,3 +121,9 @@ Unitários do schema (`extra=forbid`, rejeita não finito); `sanitize` em profun
 ## Deixado ao construtor
 
 Nomes internos das funções auxiliares, organização dos modelos em submódulos, a conversão exata de cada coluna (`Date` → `date`), e o limite de casas decimais (nenhum arredondamento: o JSON carrega o float como está).
+
+## Desvios na implementação
+
+- `generate_individual_response_curves` já devolvia o DataFrame (a spec supunha que só exportava): nenhuma mudança nessa função; `run_elasticity` passou a chamá-la sempre, também sem `global_dir`, para as curvas existirem em memória.
+- O teste de idempotência roda `run` duas vezes no mesmo `out_dir` (em vez de três execuções separadas).
+- Geração dos fixtures levou ~6,5 min (a spec estimava 2–4).
