@@ -59,3 +59,35 @@ def test_stages_do_not_mutate_the_config(tmp_path):
     before = (cfg.model_dump(), dict(legacy))
     pipeline.detect_events(prepared, legacy)
     assert (cfg.model_dump(), legacy) == before
+
+
+def test_detect_events_keeps_the_investment_change(tmp_path):
+    _, prepared, legacy = _prepared(tmp_path)
+    candidates = pipeline.detect_events(prepared, legacy)
+    assert "investment_change_pct" in candidates.columns
+    assert candidates["investment_change_pct"].dtype.kind == "f"
+    assert (candidates["investment_change_pct"].abs() > 0).all()
+    _, flat, flat_legacy = _prepared(tmp_path / "flat", flat_spend=True)
+    assert "investment_change_pct" in pipeline.detect_events(flat, flat_legacy).columns
+
+
+def test_compute_keeps_the_candidates(synthetic_computed, synthetic_prepared):
+    candidates = synthetic_computed.candidates
+    assert len(candidates) >= len(synthetic_computed.events) > 0
+    assert "eligible" in candidates.columns
+
+
+def test_compute_keeps_the_individual_curves(synthetic_computed):
+    curves = synthetic_computed.individual_curves_df
+    spend_cols = synthetic_computed.mmm["spend_cols"]
+    assert set(curves["Channel"]) == set(spend_cols)
+    assert (curves.groupby("Channel").size() == 100).all()
+
+
+def test_individual_curves_function_returns_the_frame(synthetic_computed):
+    from engine import elasticity_analysis
+
+    frame = elasticity_analysis.generate_individual_response_curves(
+        synthetic_computed.mmm, synthetic_computed.effective_config, output_dir=None
+    )
+    assert list(frame.columns) == ["Channel", "Channel_Spend", "Projected_Total_KPIs", "Historical_Avg", "Recommended"]

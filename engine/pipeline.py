@@ -50,6 +50,8 @@ class Computed:
     strategic_reallocation_point: dict | None = None
     optimized_mix: dict = field(default_factory=dict)
     current_split: dict = field(default_factory=dict)
+    candidates: pd.DataFrame = field(default_factory=pd.DataFrame)  # every detected event, `eligible` or not
+    individual_curves_df: pd.DataFrame | None = None  # per-channel curves (Channel, Channel_Spend, ...)
 
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
@@ -59,7 +61,15 @@ def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> Prepare
 
 def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
     """Candidate events (one row each), with `eligible` False for those before min_intervention_date."""
-    columns = ["event_id", "start_date", "intervention_date", "end_date", "product_group", "eligible"]
+    columns = [
+        "event_id",
+        "start_date",
+        "intervention_date",
+        "end_date",
+        "product_group",
+        "eligible",
+        "investment_change_pct",
+    ]
     period_days = cfg["period_days"]
     event_map, _, _ = analysis.find_events(
         prepared.investment_df,
@@ -94,6 +104,7 @@ def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
                 "end_date": (day + timedelta(days=span)).strftime("%Y-%m-%d"),
                 "product_group": row["ad_product"],
                 "eligible": earliest is None or day >= earliest,
+                "investment_change_pct": float(row["percentage_change"]),
             }
         )
     return pd.DataFrame(rows, columns=columns)
@@ -190,10 +201,9 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
     ) = elasticity_analysis.generate_aggregated_response_curve(
         mmm, cfg, optimized_mix=result["optimized_mix"], output_dir=global_dir
     )
-    if global_dir is not None:
-        elasticity_analysis.generate_individual_response_curves(
-            mmm, cfg, output_dir=global_dir, strategic_limit_point=result["strategic_limit_point"]
-        )
+    result["individual_curves_df"] = elasticity_analysis.generate_individual_response_curves(
+        mmm, cfg, output_dir=global_dir, strategic_limit_point=result["strategic_limit_point"]
+    )
     return result
 
 
@@ -204,7 +214,7 @@ def compute(inputs: dict[str, Path | None], config: EngineConfig, *, global_dir:
     candidates = detect_events(prepared, cfg)
     events = analyze_events(prepared, candidates, cfg)
     elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
-    return Computed(prepared=prepared, effective_config=cfg, events=events, **elasticity)
+    return Computed(prepared=prepared, effective_config=cfg, events=events, candidates=candidates, **elasticity)
 
 
 def run(
