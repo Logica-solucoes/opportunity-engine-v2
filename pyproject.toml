@@ -13,6 +13,13 @@ dependencies = [
     "python-multipart>=0.0.32",
     "google-genai>=2.33.0",
     "google-cloud-bigquery>=3.47.0",
+    "numpy==2.5.0",
+    "pandas==3.0.3",
+    "scipy==1.18.0",
+    "statsmodels==0.14.6",
+    "scikit-learn==1.9.0",
+    "holidays==0.99",
+    "matplotlib==3.11.0",
 ]
 
 [dependency-groups]
