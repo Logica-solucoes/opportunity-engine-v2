@@ -1306,3 +1306,13 @@ def test_trends_absent_gives_an_empty_trends_frame(tmp_path):
     config, paths = _daily_files(tmp_path)
     prepared = _prepare(config, paths)
     assert prepared.trends_df.empty and list(prepared.trends_df.columns) == ["Date", "Generic Searches"]
+
+
+def test_csv_detection_warnings_do_not_carry_the_file_path(tmp_path, caplog):
+    path = tmp_path / "semicolon_latin1.csv"
+    path.write_bytes("data;canal;valor\n2025-01-01;Pesquisa é;10\n".encode("latin-1"))
+    with caplog.at_level(logging.WARNING, logger="engine.data_preprocessor"):
+        read_csv_robust(str(path))
+    warned = " ".join(record.getMessage() for record in caplog.records)
+    assert "latin-1" in warned and "Delimitador" in warned  # both warnings fired
+    assert str(tmp_path) not in warned

@@ -334,6 +334,14 @@ def translate_line(line: str) -> str | None:
     return line
 
 
+# Absolute paths name server storage (…/inputs/<sha>.csv); the user's run log gets only the file name.
+_ABSOLUTE_PATH = re.compile(r"""(?<![\w/.:])/(?:[^/\s'"]+/)+([^/\s'"]+)""")
+
+
+def _without_paths(message: str) -> str:
+    return _ABSOLUTE_PATH.sub(r"\1", message)
+
+
 _LEVELS = {logging.INFO: "info", logging.WARNING: "warning", logging.ERROR: "error", logging.CRITICAL: "error"}
 _FORWARDED = ("engine", "llm")
 
@@ -351,7 +359,7 @@ class OnLogHandler(logging.Handler):
             if message is None or not message.strip():
                 return
             level = _LEVELS[max(lvl for lvl in _LEVELS if lvl <= record.levelno)]
-            self._on_log(level, message)
+            self._on_log(level, _without_paths(message))
         except Exception:
             self.handleError(record)
 

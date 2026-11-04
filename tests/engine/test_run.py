@@ -150,3 +150,28 @@ def test_failed_when_mmm_fails_and_no_event_passes(monkeypatch, tmp_path):
 def test_unknown_config_key_is_an_engine_error(tmp_path):
     with pytest.raises(EngineError, match="require_significance"):
         engine.run({}, {"require_significance": True}, tmp_path / "out", lambda level, message: None)
+
+
+def test_unknown_llm_provider_fails_fast_before_any_computation(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "gemin")  # a typo in the deployment env
+
+    def must_not_run(*args, **kwargs):
+        raise AssertionError("the analysis must not start with a broken LLM setup")
+
+    monkeypatch.setattr(pipeline, "compute", must_not_run)
+    with pytest.raises(EngineError, match="LLM_PROVIDER"):
+        engine.run({}, dataset_config(), tmp_path / "out", lambda level, message: None)
+
+
+def test_unexpected_analysis_error_becomes_an_engine_error_without_the_details(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+
+    def explode(*args, **kwargs):
+        raise ValueError("None of the event channels were found in /srv/data/ws/1/sim/2/inputs/abc.csv")
+
+    monkeypatch.setattr(pipeline, "compute", explode)
+    with pytest.raises(EngineError) as raised:
+        engine.run({}, dataset_config(), tmp_path / "out", lambda level, message: None)
+    assert "Erro inesperado" in str(raised.value)
+    assert "/srv/data" not in str(raised.value) and "event channels" not in str(raised.value)
+    assert isinstance(raised.value.__cause__, ValueError)  # the detail stays in the chain for the server log

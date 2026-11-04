@@ -34,10 +34,10 @@ def _get_image_as_base64(path):
         with open(path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
     except FileNotFoundError:
-        log.warning(f"   - WARNING: Image file not found at {path}. It will be omitted from the HTML report.")
+        log.warning("   - WARNING: Image file not found. It will be omitted from the HTML report.")
         return None
     except Exception as e:
-        log.warning(f"   - WARNING: Could not read image file at {path}. Error: {e}")
+        log.warning(f"   - WARNING: Could not read an image file. Error: {e}")
         return None
 
 

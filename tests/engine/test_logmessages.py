@@ -99,3 +99,14 @@ def test_nothing_is_written_to_stdout(capfd, received):
         logging.getLogger("engine.sample").info("Uma etapa")
     out, _ = capfd.readouterr()
     assert out == ""
+
+
+def test_absolute_paths_are_reduced_to_the_file_name(received):
+    log = logging.getLogger("engine.sample")
+    with forward_logs(lambda level, message: received.append((level, message))):
+        log.warning("Image file not found at /srv/data/ws/1/sim/2/inputs/abc.csv. It will be omitted.")
+        log.info("Saved to '/tmp/run/out/report.html' and /tmp/x.png")
+    assert received == [
+        ("warning", "Image file not found at abc.csv. It will be omitted."),
+        ("info", "Saved to 'report.html' and x.png"),
+    ]

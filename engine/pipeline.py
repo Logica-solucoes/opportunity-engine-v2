@@ -12,6 +12,7 @@ import pandas as pd
 from engine import analysis, elasticity_analysis, outputs
 from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
+from engine.errors import EngineError
 from engine.logmessages import forward_logs
 from engine.version import engine_version
 from llm import get_llm
@@ -217,15 +218,29 @@ def run(
     Never mutates `config`, never changes the working directory, never leaves warning filters changed.
     """
     engine_config = EngineConfig.from_input(config)
+    try:
+        llm = get_llm()  # resolved before the analysis: a broken deployment setting must not waste a full run
+    except ValueError as e:
+        raise EngineError(
+            "Provedor de IA desconhecido na variável LLM_PROVIDER. Corrija a configuração do servidor."
+        ) from e
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     with forward_logs(on_log), warnings.catch_warnings():
         warnings.simplefilter("ignore")
         global_dir = out_dir / outputs.GLOBAL_DIR_NAME
         global_dir.mkdir(parents=True, exist_ok=True)
-        computed = compute(inputs, engine_config, global_dir=global_dir)
+        try:
+            computed = compute(inputs, engine_config, global_dir=global_dir)
+        except EngineError:
+            raise
+        except Exception as e:  # the detail (English, maybe with paths) stays in the chain and the server log
+            log.exception("Erro inesperado durante a análise")
+            raise EngineError(
+                "Erro inesperado durante a análise. Os detalhes técnicos ficam no log do servidor."
+            ) from e
         written = outputs.write_legacy_outputs(computed, out_dir)
-        outputs.generate_reports(computed, written, get_llm())
+        outputs.generate_reports(computed, written, llm)
     failed = computed.mmm is None and not any(e.passed for e in computed.events)
     if failed:
         log.error("A análise não produziu resultados: o modelo de elasticidade falhou e nenhum evento foi aprovado.")

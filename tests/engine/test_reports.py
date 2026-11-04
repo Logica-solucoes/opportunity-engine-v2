@@ -1,4 +1,5 @@
 import json
+import logging
 
 import pandas as pd
 import pytest
@@ -110,3 +111,9 @@ def test_global_other_error_raises_runtime_error_and_writes_nothing(tmp_path):
 def test_global_report_without_llm_raises_value_error(tmp_path):
     with pytest.raises(ValueError):
         _global(None, tmp_path)
+
+
+def test_missing_image_warning_does_not_carry_the_path(tmp_path, caplog):
+    with caplog.at_level(logging.WARNING, logger="engine.reports"):
+        assert reports._get_image_as_base64(str(tmp_path / "gone.png")) is None
+    assert str(tmp_path) not in " ".join(r.getMessage() for r in caplog.records)

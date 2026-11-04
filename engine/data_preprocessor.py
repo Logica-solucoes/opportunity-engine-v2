@@ -597,7 +597,7 @@ def read_csv_robust(path, **kwargs):
         with open(path, "r", encoding="latin-1") as f:
             sample = f.read(8192)
         encoding = "latin-1"
-        log.warning(f"   - AVISO: Encoding não-UTF-8 detectado em '{path}'. Usando 'latin-1'.")
+        log.warning("   - AVISO: Encoding não-UTF-8 detectado no arquivo. Usando 'latin-1'.")
 
     try:
         delimiter = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
@@ -605,7 +605,7 @@ def read_csv_robust(path, **kwargs):
         delimiter = ","
 
     if delimiter != ",":
-        log.warning(f"   - AVISO: Delimitador '{delimiter}' detectado em '{path}' (não é vírgula).")
+        log.warning(f"   - AVISO: Delimitador '{delimiter}' detectado no arquivo (não é vírgula).")
 
     df = pd.read_csv(path, encoding=encoding, sep=delimiter, **kwargs)
     df.columns = df.columns.str.strip()
