@@ -7,7 +7,7 @@ from llm.gemini import GeminiLLM
 
 PROVIDERS: dict[str, type] = {"gemini": GeminiLLM}
 
-__all__ = ["LLM", "LLMBadOutput", "LLMError", "LLMRefused", "LLMUnavailable", "PROVIDERS", "get_llm"]
+__all__ = ["LLM", "PROVIDERS", "LLMBadOutput", "LLMError", "LLMRefused", "LLMUnavailable", "get_llm"]
 
 
 def get_llm(provider: str | None = None, model: str | None = None) -> LLM | None:
