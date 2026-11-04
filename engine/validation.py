@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 MAX_LISTED_DATES = 50
 OVERLAP_CORRELATION = 0.95
-OVERLAP_RATIO = (0.9, 1.1)
+OVERLAP_RATIO_MIN = 0.9  # the smaller total over the larger: 0.9-1.1 either way round
 CADENCE_LABEL = {1: "diária", 7: "semanal", 30: "mensal"}
 
 
@@ -101,12 +101,12 @@ def check_channel_overlap(investment_df: pd.DataFrame) -> list[Check]:
     wide = wide.loc[:, wide.std() > 0]
     checks = []
     for a, b in itertools.combinations(wide.columns, 2):
-        total_b = wide[b].sum()
-        if total_b == 0:
+        total_a, total_b = wide[a].sum(), wide[b].sum()
+        if min(total_a, total_b) <= 0:
             continue
         correlation = float(np.corrcoef(wide[a], wide[b])[0, 1])
-        ratio = float(wide[a].sum() / total_b)
-        if correlation > OVERLAP_CORRELATION and OVERLAP_RATIO[0] <= ratio <= OVERLAP_RATIO[1]:
+        ratio = float(min(total_a, total_b) / max(total_a, total_b))  # symmetric: the order of the names is irrelevant
+        if correlation > OVERLAP_CORRELATION and ratio >= OVERLAP_RATIO_MIN:
             checks.append(
                 Check(
                     id="dv360_cm360_overlap",

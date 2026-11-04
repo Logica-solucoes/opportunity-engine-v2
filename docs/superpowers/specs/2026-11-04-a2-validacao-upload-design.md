@@ -59,6 +59,7 @@ Ids e níveis abaixo; os dois primeiros blocos vêm do item, o resto são os err
 | `column_missing` | error | coluna do `column_mapping` não existe e não há dica que a resolva |
 | `date_unparseable` | error | nenhum formato cobre 100% das datas, ou formato ambíguo (dd/mm × mm/dd) |
 | `value_not_numeric` | error | mais de 50% da coluna de investimento ou KPI não vira número |
+| `column_unusable` | error | o parser quebrou com o formato da coluna (canal numérico, cabeçalhos que colidem); adicionado na revisão final |
 | `no_valid_rows` | error | nada sobra após a limpeza em investimento ou performance |
 | `duplicate_date_channel` | error | mais de uma linha para o mesmo (data, canal) no investimento |
 | `kpi_duplicate_dates` | error | mais de uma linha por data no KPI |

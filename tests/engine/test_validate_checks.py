@@ -138,3 +138,32 @@ def test_validate_under_10s_730_days_15_channels(tmp_path):
     report = validate(paths, _config())
     assert time.perf_counter() - start < 10
     assert report.ok
+
+
+def test_validate_reports_columns_it_cannot_interpret_instead_of_raising(tmp_path):
+    investment, kpi = clean_rows()
+    numeric_codes = [(d, 1 if c == "SEARCH" else 2, v) for d, c, v in investment]
+    report = validate(write_inputs(tmp_path / "a", numeric_codes, kpi), _config())
+    assert not report.ok and [c.id for c in report.checks] == ["column_unusable"]
+    twin_headers = write_inputs(tmp_path / "b", investment, kpi, kpi_header=("date", "Sessions", "Sessions "))
+    assert not validate(twin_headers, _config()).ok
+
+
+def test_run_turns_columns_it_cannot_interpret_into_an_engine_error(monkeypatch, tmp_path):
+    import engine
+
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    investment, kpi = clean_rows()
+    numeric_codes = [(d, 1 if c == "SEARCH" else 2, v) for d, c, v in investment]
+    paths = write_inputs(tmp_path / "in", numeric_codes, kpi)
+    with pytest.raises(EngineError) as exc:
+        engine.run(paths, _config(), tmp_path / "out", lambda level, message: None)
+    assert exc.value.check_id == "column_unusable"
+
+
+def test_channel_overlap_does_not_depend_on_channel_order(tmp_path):
+    for first, second in (("A", "B"), ("B", "A")):
+        investment, kpi = _two_channels(lambda x, rng: x * 1.105)
+        investment = [(d, first if c == "A" else second, v) for d, c, v in investment]
+        report = validate(write_inputs(tmp_path / first, investment, kpi), _config())
+        assert "dv360_cm360_overlap" in _by_id(report), (first, second)

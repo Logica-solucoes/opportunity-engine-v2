@@ -256,13 +256,13 @@ def run(
         warnings.simplefilter("ignore")
         global_dir = out_dir / outputs.GLOBAL_DIR_NAME
         global_dir.mkdir(parents=True, exist_ok=True)
-        report = validate(inputs, engine_config)
-        for check in report.checks:
-            log.log(logging.WARNING if check.level != "info" else logging.INFO, "   - %s", check.message)
-        failure = next((c for c in report.checks if c.level == "error"), None)
-        if failure:
-            raise EngineError(failure.message, failure.id)
         try:
+            report = validate(inputs, engine_config)
+            for check in report.checks:
+                log.log(logging.WARNING if check.level != "info" else logging.INFO, "   - %s", check.message)
+            failure = next((c for c in report.checks if c.level == "error"), None)
+            if failure:
+                raise EngineError(failure.message, failure.id)
             computed = compute(inputs, engine_config, global_dir=global_dir, validation=report)
         except EngineError:
             raise

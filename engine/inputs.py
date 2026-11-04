@@ -155,7 +155,7 @@ def _duplicate_checks(
     return checks
 
 
-def read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
+def _read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
     """`config` is the legacy dict (`column_mapping`, `date_formats`, `performance_kpi_column`); it is only read."""
     mapping = config["column_mapping"]
     inv_map = mapping.get("investment_file", {})
@@ -322,3 +322,17 @@ def sufficiency_check(investment_df: pd.DataFrame, kpi_df: pd.DataFrame) -> Chec
             "Verifique a consistência das datas nos arquivos de entrada."
         ),
     )
+
+
+def read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
+    """Reads the three files. Whatever the data does to the parsers, the caller gets an EngineError with a check id."""
+    try:
+        return _read_inputs(config, paths)
+    except EngineError:
+        raise
+    except Exception as e:  # odd shapes (numeric channel codes, headers that collide after trimming)
+        raise EngineError(
+            "Não foi possível interpretar as colunas escolhidas nos arquivos. Confira o mapeamento: o canal deve ser "
+            "um texto, e os nomes de coluna não podem se repetir.",
+            "column_unusable",
+        ) from e
