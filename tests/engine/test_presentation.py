@@ -1,0 +1,291 @@
+import matplotlib
+
+matplotlib.use("Agg")
+import unittest
+from unittest.mock import patch, MagicMock
+import os
+import sys
+import tempfile
+import pandas as pd
+
+
+from engine.presentation import (
+    save_accuracy_plot,
+    save_line_chart_plot,
+    save_investment_bar_plot,
+    save_sessions_bar_plot,
+    save_causal_chart_data,
+    create_comparative_saturation_md,
+    create_presentation_dataframe,
+)
+
+
+class TestPresentationDataframeWindow(unittest.TestCase):
+    """A janela do CSV tem que vir do próprio evento analisado -- já foi gravada
+    a janela de outro evento por reaproveitamento de variável no chamador."""
+
+    def test_window_comes_from_causal_results(self):
+        df = create_presentation_dataframe(
+            {
+                "start_date": "2026-02-16",
+                "end_date": "2026-03-16",
+                "absolute_lift": 100.0,
+                "p_value": 0.05,
+            },
+            {"p_value_threshold": 0.1, "conversion_rate_from_kpi_to_bo": 0.01,
+             "average_ticket": 100.0},
+        )
+        values = dict(zip(df["Metrica"], df["Valor"]))
+        self.assertEqual(values["causal_periodo_inicio"], "2026-02-16")
+        self.assertEqual(values["causal_periodo_fim"], "2026-03-16")
+
+
+class TestPresentationChartsTranslation(unittest.TestCase):
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.close")
+    def test_save_accuracy_plot_translation(self, mock_close, mock_savefig):
+        results_data = {"mae": 12.34}
+        accuracy_df = pd.DataFrame(
+            {
+                "Date": pd.date_range(start="2026-01-01", periods=5),
+                "kpi": [10, 20, 15, 30, 25],
+                "Predicted": [12, 18, 14, 28, 27],
+            }
+        )
+
+        with (
+            patch("matplotlib.axes.Axes.plot") as mock_plot,
+            patch("matplotlib.axes.Axes.set_title") as mock_set_title,
+            patch("matplotlib.axes.Axes.text") as mock_text,
+        ):
+            save_accuracy_plot(
+                results_data, accuracy_df, "dummy_path.png", kpi_name="Vendas"
+            )
+
+            # Verify plot calls have Portuguese labels
+            first_call_kwargs = mock_plot.call_args_list[0][1]
+            second_call_kwargs = mock_plot.call_args_list[1][1]
+
+            self.assertEqual(first_call_kwargs["label"], "Vendas Real")
+            self.assertEqual(second_call_kwargs["label"], "Vendas Previsto (In-Sample)")
+
+            # Verify title is translated
+            mock_set_title.assert_called_once()
+            title_str = mock_set_title.call_args[0][0]
+            self.assertIn("Acurácia do Modelo", title_str)
+            self.assertIn("Real vs. Previsto", title_str)
+
+            # Verify MAE text
+            text_str = mock_text.call_args[0][2]
+            self.assertIn("MAE (últimos 90 dias)", text_str)
+
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.close")
+    def test_save_line_chart_plot_translation(self, mock_close, mock_savefig):
+        line_df = pd.DataFrame(
+            {
+                "Date": pd.date_range(start="2026-01-01", periods=5),
+                "Actual_KPI": [10, 20, 15, 30, 25],
+                "Forecasted_KPI": [12, 18, 14, 28, 27],
+                "Investment": [100, 200, 150, 300, 250],
+            }
+        )
+
+        with (
+            patch("matplotlib.axes.Axes.plot") as mock_plot,
+            patch("matplotlib.axes.Axes.set_title") as mock_set_title,
+            patch("matplotlib.axes.Axes.set_xlabel") as mock_set_xlabel,
+            patch("matplotlib.axes.Axes.set_ylabel") as mock_set_ylabel,
+            patch("matplotlib.axes.Axes.bar") as mock_bar,
+        ):
+            save_line_chart_plot(line_df, "dummy_path.png", kpi_name="Vendas")
+
+            # Verify labels
+            first_plot_kwargs = mock_plot.call_args_list[0][1]
+            second_plot_kwargs = mock_plot.call_args_list[1][1]
+            self.assertEqual(first_plot_kwargs["label"], "Vendas Real")
+            self.assertEqual(second_plot_kwargs["label"], "Vendas Previsto")
+
+            # Xlabel should be Data
+            mock_set_xlabel.assert_any_call("Data", fontsize=14)
+
+            # Ylabel on primary axis is kpi_name ("Vendas")
+            mock_set_ylabel.assert_any_call("Vendas", fontsize=14)
+
+            # Bar chart label should be Investimento
+            bar_kwargs = mock_bar.call_args[1]
+            self.assertEqual(bar_kwargs["label"], "Investimento")
+
+            # Title should be translated
+            mock_set_title.assert_called_once()
+            title_str = mock_set_title.call_args[0][0]
+            self.assertEqual(title_str, "Análise de Impacto Causal: Real vs. Previsto")
+
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.close")
+    def test_save_investment_bar_plot_translation(self, mock_close, mock_savefig):
+        inv_bar_df = pd.DataFrame(
+            {"Investment": [1000, 2000]}, index=["Pre-Event", "Event"]
+        )
+        inv_bar_df.index.name = "Period"
+
+        original_rename = pd.DataFrame.rename
+        rename_calls = []
+
+        def spy_rename(df_self, *args, **kwargs):
+            rename_calls.append((args, kwargs))
+            return original_rename(df_self, *args, **kwargs)
+
+        with (
+            patch.object(pd.DataFrame, "rename", autospec=True, side_effect=spy_rename),
+            patch("matplotlib.axes.Axes.set_title") as mock_set_title,
+            patch("matplotlib.axes.Axes.set_ylabel") as mock_set_ylabel,
+        ):
+            save_investment_bar_plot(inv_bar_df, "dummy_path.png")
+
+            # Check rename was called with correct mapping
+            self.assertTrue(
+                any(
+                    kwargs.get("index")
+                    == {"Pre-Event": "Pré-Evento", "Event": "Evento"}
+                    for args, kwargs in rename_calls
+                )
+            )
+
+            # Title
+            mock_set_title.assert_called_once_with(
+                "Investimento: Pré-Evento vs. Evento", fontsize=16
+            )
+            # Ylabel
+            mock_set_ylabel.assert_called_once_with("Investimento Total", fontsize=12)
+
+    @patch("matplotlib.pyplot.savefig")
+    @patch("matplotlib.pyplot.close")
+    def test_save_sessions_bar_plot_translation(self, mock_close, mock_savefig):
+        sessions_bar_df = pd.DataFrame(
+            {"kpi": [100, 150]}, index=["Forecasted", "Actual"]
+        )
+        sessions_bar_df.index.name = "Category"
+
+        original_rename = pd.DataFrame.rename
+        rename_calls = []
+
+        def spy_rename(df_self, *args, **kwargs):
+            rename_calls.append((args, kwargs))
+            return original_rename(df_self, *args, **kwargs)
+
+        with (
+            patch.object(pd.DataFrame, "rename", autospec=True, side_effect=spy_rename),
+            patch("matplotlib.axes.Axes.set_title") as mock_set_title,
+            patch("matplotlib.axes.Axes.set_ylabel") as mock_set_ylabel,
+        ):
+            save_sessions_bar_plot(
+                sessions_bar_df, "dummy_path.png", kpi_name="Cliques"
+            )
+
+            # Check rename was called with correct mapping
+            self.assertTrue(
+                any(
+                    kwargs.get("index")
+                    == {"Forecasted": "Cliques Previsto", "Actual": "Cliques Real"}
+                    for args, kwargs in rename_calls
+                )
+            )
+
+            # Title
+            mock_set_title.assert_called_once_with(
+                "Cliques Real vs. Previsto", fontsize=16
+            )
+            # Ylabel
+            mock_set_ylabel.assert_called_once_with("Total de Cliques", fontsize=12)
+
+
+class TestSaveCausalChartData(unittest.TestCase):
+    def test_persists_all_four_dataframes_with_mae_column(self):
+        line_df = pd.DataFrame(
+            {
+                "Date": pd.date_range(start="2026-01-01", periods=3),
+                "Actual_KPI": [10, 20, 15],
+                "Forecasted_KPI": [12, 18, 14],
+                "Investment": [100, 200, 150],
+            }
+        )
+        inv_bar_df = pd.DataFrame({"Investment": [1000, 2000]}, index=["Pre-Event", "Event"])
+        inv_bar_df.index.name = "Period"
+        sessions_bar_df = pd.DataFrame({"kpi": [50, 60]}, index=["Forecasted", "Actual"])
+        sessions_bar_df.index.name = "Category"
+        accuracy_df = pd.DataFrame(
+            {
+                "Date": pd.date_range(start="2026-01-01", periods=3),
+                "kpi": [10, 20, 15],
+                "Predicted": [12, 18, 14],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_causal_chart_data(
+                tmp_dir, line_df, inv_bar_df, sessions_bar_df, accuracy_df, mae=12.34
+            )
+
+            line_out = pd.read_csv(os.path.join(tmp_dir, "line_chart_data.csv"))
+            self.assertEqual(list(line_out["Actual_KPI"]), [10, 20, 15])
+            self.assertEqual(list(line_out["Investment"]), [100, 200, 150])
+
+            inv_out = pd.read_csv(os.path.join(tmp_dir, "investment_data.csv"), index_col=0)
+            self.assertEqual(list(inv_out.index), ["Pre-Event", "Event"])
+            self.assertEqual(list(inv_out["Investment"]), [1000, 2000])
+
+            sessions_out = pd.read_csv(os.path.join(tmp_dir, "sessions_data.csv"), index_col=0)
+            self.assertEqual(list(sessions_out.index), ["Forecasted", "Actual"])
+            self.assertEqual(list(sessions_out["kpi"]), [50, 60])
+
+            accuracy_out = pd.read_csv(os.path.join(tmp_dir, "accuracy_data.csv"))
+            self.assertEqual(list(accuracy_out["Predicted"]), [12, 18, 14])
+            self.assertEqual(list(accuracy_out["mae"]), [12.34, 12.34, 12.34])
+
+
+class TestComparativeSaturationMdMonthlyFactor(unittest.TestCase):
+    """Fase 3: the summary table's kpi_projections extrapolation must scale
+    by 30/period_days, not a flat 30, so weekly/monthly cadence data isn't
+    overstated by ~30/period_days x."""
+
+    def _run(self, period_days, tmp_path):
+        kpi_projections = {
+            "current": {"Daily_Investment": 1000.0, "Projected_Total_KPIs": 500.0, "Incremental_KPI": 0},
+            "optimized": {"Daily_Investment": 1200.0, "Projected_Total_KPIs": 550.0, "Incremental_KPI": 50.0},
+            "strategic": {"Daily_Investment": 1500.0, "Projected_Total_KPIs": 600.0, "Incremental_KPI": 100.0},
+            "reallocation": {"Daily_Investment": 1000.0, "Projected_Total_KPIs": 520.0, "Incremental_KPI": 20.0},
+        }
+        kwargs = {}
+        if period_days is not None:
+            kwargs["period_days"] = period_days
+        create_comparative_saturation_md(
+            scenarios=[], output_filename=tmp_path, kpi_projections=kpi_projections,
+            kpi_name="Leads", **kwargs,
+        )
+        with open(tmp_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def test_weekly_cadence_scales_by_30_over_7(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_path = os.path.join(tmp_dir, "out.md")
+            content = self._run(7, out_path)
+        # Daily_Investment=1000 * (30/7) ~= 4285.71 -> "R$ 4.3k", not "R$ 30.0k"
+        self.assertIn("R$ 4.3k", content)
+        self.assertNotIn("R$ 30.0k", content)
+
+    def test_daily_cadence_matches_old_flat_30_behavior(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_path = os.path.join(tmp_dir, "out.md")
+            content = self._run(1, out_path)
+        self.assertIn("R$ 30.0k", content)
+
+    def test_default_period_days_preserves_flat_30_for_backward_compat(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_path = os.path.join(tmp_dir, "out.md")
+            content = self._run(None, out_path)
+        self.assertIn("R$ 30.0k", content)
+
+
+if __name__ == "__main__":
+    unittest.main()
