@@ -7,15 +7,26 @@ import pandas as pd
 
 from engine.results_schema import (
     AccuracyPoint,
+    Baseline,
     Causal,
     CausalEvent,
+    ChannelFit,
+    CurvePoint,
+    Elasticity,
+    ElasticityMetrics,
     EventDetected,
     EventSeries,
     Fit,
+    Group,
+    Hill,
     InvestmentPoint,
     KpiPoint,
     Lift,
     LinePoint,
+    MonthlyBaseline,
+    ResponseRow,
+    ResultsV1,
+    Scenario,
 )
 
 if TYPE_CHECKING:
@@ -119,3 +130,142 @@ def _causal(computed: "Computed") -> Causal:
     else:
         status, reasons = "inconclusive", ["no_event_passed_gates"]
     return Causal(status=status, reasons=reasons, events_detected=detected, events=events)
+
+
+# --- elasticity ---
+
+# scenario name -> attribute of Computed holding that notable point
+SCENARIO_SOURCES = {
+    "current": "baseline_point",
+    "max_efficiency": "max_efficiency_point",
+    "strategic_limit": "strategic_limit_point",
+    "diminishing_return": "diminishing_return_point",
+    "saturation": "saturation_point",
+    "strategic_reallocation": "strategic_reallocation_point",
+}
+MIX_VARIANTS = {"historical": "Historical", "optimized": "Optimized", "strategic": "Strategic"}
+
+
+def _response_rows(computed: "Computed") -> list[ResponseRow]:
+    frame = computed.response_curve_df
+    if frame is None or frame.empty:
+        return []
+    spend_cols = computed.mmm["spend_cols"]
+    rows = []
+    for record in frame.to_dict("records"):
+        rows.append(
+            ResponseRow(
+                investment=_num(record.get("Daily_Investment")),
+                kpi=_num(record.get("Projected_Total_KPIs")),
+                revenue=_num(record.get("Projected_Revenue")),
+                icpa=_num(record.get("iCPA")),
+                iroas=_num(record.get("Incremental_ROI")),  # incremental revenue / incremental investment
+                incremental_investment=_num(record.get("Incremental_Investment")),
+                incremental_kpi=_num(record.get("Incremental_KPI")),
+                mix={
+                    variant: {ch: _num(record.get(f"Spend_{ch}_{suffix}")) for ch in spend_cols}
+                    for variant, suffix in MIX_VARIANTS.items()
+                },
+            )
+        )
+    return rows
+
+
+def _scenarios(computed: "Computed") -> list[Scenario]:
+    scenarios = []
+    for name, attribute in SCENARIO_SOURCES.items():
+        point = getattr(computed, attribute)
+        if not point:
+            continue
+        scenarios.append(
+            Scenario(
+                name=name,
+                investment=_num(point.get("Daily_Investment")),
+                kpi=_num(point.get("Projected_Total_KPIs")),
+                icpa=_num(point.get("iCPA")),
+                incremental_investment=_num(point.get("Incremental_Investment")),
+                incremental_kpi=_num(point.get("Incremental_KPI")),
+            )
+        )
+    return scenarios
+
+
+def _channel_fits(computed: "Computed") -> list[ChannelFit]:
+    mmm = computed.mmm
+    params, frame = mmm["optimal_params"], mmm["dataframe"]
+    curves = computed.individual_curves_df
+    fits = []
+    for i, name in enumerate(mmm["spend_cols"]):
+        curve = []
+        if curves is not None and not curves.empty:
+            own = curves[curves["Channel"] == name]
+            curve = [CurvePoint(x=_num(r.Channel_Spend), y=_num(r.Projected_Total_KPIs)) for r in own.itertuples()]
+        fits.append(
+            ChannelFit(
+                name=name,
+                contribution_pct=_num(mmm["contribution_pct"].get(name)),
+                hill=Hill(K=_num(params["ks"][i]), n=_num(params["ss"][i])),
+                adstock=_num(params["alphas"][i]),
+                observed_spend_range=(_num(frame[name].min()), _num(frame[name].max())),
+                curve=curve,
+            )
+        )
+    return fits
+
+
+def _elasticity(computed: "Computed") -> Elasticity:
+    mmm = computed.mmm
+    if not mmm:
+        return Elasticity(status="failed", reasons=["model_failed"])
+    groups = [
+        Group(name=" + ".join(members), members=list(members))
+        for members in computed.effective_config.get("channel_groups") or []
+    ]
+    return Elasticity(
+        status="ok",
+        metrics=ElasticityMetrics(
+            cv_r2=_num(mmm["cv_r_squared"]),
+            r2=_num(mmm["r_squared"]),
+            media_contribution_pct=_num(mmm["marketing_contribution_of_kpi_pct"]),
+        ),
+        channels=_channel_fits(computed),
+        groups=groups,
+        response_curve=_response_rows(computed),
+        scenarios=_scenarios(computed),
+    )
+
+
+def _baseline(computed: "Computed") -> Baseline:
+    prepared = computed.prepared
+    kpi = prepared.kpi_df.assign(month=prepared.kpi_df["Date"].dt.strftime("%Y-%m")).groupby("month")["kpi"].sum()
+    inv = prepared.investment_df.assign(month=prepared.investment_df["Date"].dt.strftime("%Y-%m"))
+    by_channel = inv.groupby(["month", "Product Group"])["investment"].sum()
+    monthly = []
+    for month in sorted(set(kpi.index) | set(inv["month"])):
+        channels = {str(ch): _num(v) for (m, ch), v in by_channel.items() if m == month}
+        monthly.append(
+            MonthlyBaseline(
+                month=month,
+                kpi=_num(kpi.get(month, 0.0)),
+                investment=_num(sum(v for v in channels.values() if v is not None)),
+                by_channel=channels,
+            )
+        )
+    return Baseline(monthly=monthly)
+
+
+def run_status(causal: Causal, elasticity: Elasticity | None) -> str:
+    """succeeded when both analyses produced something, failed when neither did, inconclusive otherwise."""
+    ok = [causal.status == "ok", elasticity is not None and elasticity.status == "ok"]
+    return "succeeded" if all(ok) else "inconclusive" if any(ok) else "failed"
+
+
+def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
+    causal, elasticity = _causal(computed), _elasticity(computed)
+    return ResultsV1(
+        engine_version=engine_version,
+        status=run_status(causal, elasticity),
+        causal=causal,
+        elasticity=elasticity,
+        baseline=_baseline(computed),
+    )

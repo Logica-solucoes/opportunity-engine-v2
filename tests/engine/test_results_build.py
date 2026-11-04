@@ -164,3 +164,125 @@ def test_causal_status_reasons(synthetic_computed):
     assert (none_passed.status, none_passed.reasons) == ("inconclusive", ["no_event_passed_gates"])
     ok = results._causal(with_events(synthetic_computed, [outcome()]))
     assert (ok.status, ok.reasons) == ("ok", [])
+
+
+# --- elasticity, baseline and status ---
+
+import json
+
+import numpy as np
+import pytest
+from threadpoolctl import threadpool_limits
+
+from engine.config import EngineConfig
+from engine.pipeline import compute
+from engine.results_schema import Causal, Elasticity, ResultsV1
+from tests.engine.synthetic_data import dataset_config, make_dataset
+
+
+def _dump(model) -> dict:
+    return results.sanitize(model.model_dump(mode="json", by_alias=True))
+
+
+def test_elasticity_metrics_and_channels(synthetic_computed):
+    elasticity = results.build_results(synthetic_computed, "v").elasticity
+    mmm = synthetic_computed.mmm
+    assert elasticity.status == "ok" and elasticity.reasons == []
+    assert elasticity.metrics.cv_r2 == mmm["cv_r_squared"] and elasticity.metrics.r2 == mmm["r_squared"]
+    assert elasticity.metrics.media_contribution_pct == mmm["marketing_contribution_of_kpi_pct"]
+    assert [c.name for c in elasticity.channels] == list(mmm["spend_cols"])
+    for i, channel in enumerate(elasticity.channels):
+        assert channel.hill.K == mmm["optimal_params"]["ks"][i] and channel.hill.n == mmm["optimal_params"]["ss"][i]
+        assert channel.adstock == mmm["optimal_params"]["alphas"][i]
+        assert channel.observed_spend_range[0] <= channel.observed_spend_range[1]
+        assert len(channel.curve) == 100 and channel.identifiable is None and channel.coef_ci is None
+
+
+def test_response_curve_rows_map_the_columns(synthetic_computed):
+    curve = results.build_results(synthetic_computed, "v").elasticity.response_curve
+    frame = synthetic_computed.response_curve_df
+    assert len(curve) == len(frame)
+    first = curve[0]
+    assert first.investment == frame["Daily_Investment"].iloc[0] and first.kpi == frame["Projected_Total_KPIs"].iloc[0]
+    assert set(first.mix) == {"historical", "optimized", "strategic"}
+    assert set(first.mix["historical"]) == set(synthetic_computed.mmm["spend_cols"])
+    assert first.kpi_lo is None and first.extrapolated is None
+
+
+def test_non_finite_curve_values_are_null_after_the_dump(synthetic_computed):
+    frame = synthetic_computed.response_curve_df.copy()
+    frame.loc[frame.index[0], "Incremental_ROI"] = np.inf
+    frame.loc[frame.index[1], "iCPA"] = np.nan
+    built = results.build_results(dataclasses.replace(synthetic_computed, response_curve_df=frame), "v")
+    rows = _dump(built)["elasticity"]["response_curve"]
+    assert rows[0]["iroas"] is None and rows[1]["icpa"] is None
+    json.dumps(_dump(built), allow_nan=False)
+
+
+def test_scenarios_use_the_known_names_and_skip_missing_points(synthetic_computed):
+    scenarios = results.build_results(synthetic_computed, "v").elasticity.scenarios
+    names = [s.name for s in scenarios]
+    assert names == [n for n in names if n in results.SCENARIO_SOURCES]
+    assert "current" in names
+    without = dataclasses.replace(synthetic_computed, saturation_point=None, diminishing_return_point=None)
+    assert {"saturation", "diminishing_return"}.isdisjoint(
+        s.name for s in results.build_results(without, "v").elasticity.scenarios
+    )
+    current = next(s for s in scenarios if s.name == "current")
+    assert current.investment == synthetic_computed.baseline_point["Daily_Investment"]
+    assert current.cpa is None and current.roas is None and current.ramp is None
+
+
+def test_groups_come_from_the_config(synthetic_computed):
+    cfg = {**synthetic_computed.effective_config, "channel_groups": [["PMAX", "SEARCH"]]}
+    built = results.build_results(dataclasses.replace(synthetic_computed, effective_config=cfg), "v")
+    assert [(g.name, g.members) for g in built.elasticity.groups] == [("PMAX + SEARCH", ["PMAX", "SEARCH"])]
+
+
+def test_baseline_monthly_sums_match_the_prepared_data(synthetic_computed):
+    baseline = results.build_results(synthetic_computed, "v").baseline
+    prepared = synthetic_computed.prepared
+    assert sum(m.kpi for m in baseline.monthly) == pytest.approx(prepared.kpi_df["kpi"].sum())
+    assert sum(m.investment for m in baseline.monthly) == pytest.approx(prepared.investment_df["investment"].sum())
+    for month in baseline.monthly:
+        assert sum(month.by_channel.values()) == pytest.approx(month.investment)
+    assert baseline.monthly[0].month == prepared.kpi_df["Date"].min().strftime("%Y-%m")
+
+
+def test_run_status_matrix():
+    def causal(status):
+        return Causal(status=status)
+
+    def elasticity(status):
+        return Elasticity(status=status)
+
+    assert results.run_status(causal("ok"), elasticity("ok")) == "succeeded"
+    assert results.run_status(causal("inconclusive"), elasticity("ok")) == "inconclusive"
+    assert results.run_status(causal("ok"), elasticity("failed")) == "inconclusive"
+    assert results.run_status(causal("inconclusive"), elasticity("failed")) == "failed"
+
+
+def test_failed_model_yields_a_failed_elasticity_section(synthetic_computed):
+    broken = dataclasses.replace(synthetic_computed, mmm=None, response_curve_df=None, individual_curves_df=None)
+    built = results.build_results(broken, "v")
+    assert built.elasticity.status == "failed" and built.elasticity.reasons == ["model_failed"]
+    assert built.elasticity.metrics is None and built.elasticity.channels == []
+
+
+def test_build_results_validates_and_leaves_the_future_sections_null(synthetic_computed):
+    built = results.build_results(synthetic_computed, "abc123")
+    assert built.engine_version == "abc123" and built.schema_version == 1
+    assert built.validation is built.sufficiency is built.experiment_design is built.reports is None
+    ResultsV1.model_validate(_dump(built))
+    json.dumps(_dump(built), allow_nan=False)
+
+
+@pytest.mark.parametrize("dataset", [{"cadence_days": 7}, {"with_trends": False}], ids=["weekly", "no-trends"])
+def test_other_shapes_build_a_valid_document(tmp_path, dataset):
+    files = make_dataset(tmp_path, n_days=364 if "cadence_days" not in dataset else 728, **dataset)
+    with threadpool_limits(limits=1):
+        computed = compute(files, EngineConfig.from_input(dataset_config()))
+    built = results.build_results(computed, "v")
+    ResultsV1.model_validate(_dump(built))
+    json.dumps(_dump(built), allow_nan=False)
+    assert built.baseline.monthly
