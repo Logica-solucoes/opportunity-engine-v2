@@ -9,6 +9,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from engine.errors import EngineError
+
 log = logging.getLogger(__name__)
 
 
@@ -763,11 +765,11 @@ def load_and_prepare_data(config, paths):
 
     try:
         # --- Get Column Mappings from Config ---
-        mapping = config.get("column_mapping", {})
+        mapping = config["column_mapping"]
         inv_map = mapping.get("investment_file", {})
         perf_map = mapping.get("performance_file", {})
         trends_map = mapping.get("generic_trends_file", {})
-        date_formats = config.get("date_formats", {})
+        date_formats = config["date_formats"]
 
         # --- Load Data ---
         performance_path = paths["performance_file"]
@@ -823,7 +825,7 @@ def load_and_prepare_data(config, paths):
             )
 
         # --- Dynamically Rename Columns ---
-        user_kpi_col = config.get("performance_kpi_column", "Sessions")
+        user_kpi_col = config["performance_kpi_column"]
         kpi_date_col = resolve_column(
             kpi_df, perf_map.get("date_col", "date"), "date", "coluna de data do arquivo de performance"
         )
@@ -843,7 +845,7 @@ def load_and_prepare_data(config, paths):
             bad_examples = kpi_raw_values[kpi_df["kpi"].isna()].unique()[:3].tolist()
             raise ValueError(
                 f"Coluna de KPI ('{kpi_value_col}') no arquivo de performance "
-                f"('{performance_path}') não pôde ser convertida para número em "
+                f"não pôde ser convertida para número em "
                 f"mais de 50% das linhas ({kpi_nan_ratio:.0%} inválido). Isso geralmente indica "
                 f"que a coluna de KPI errada foi identificada. Exemplos de valores encontrados: "
                 f"{bad_examples}. Verifique 'performance_kpi_column' / "
@@ -880,7 +882,7 @@ def load_and_prepare_data(config, paths):
             bad_examples = investment_raw_values[daily_investment_df["investment"].isna()].unique()[:3].tolist()
             raise ValueError(
                 f"Coluna de investimento ('{inv_value_col}') no arquivo de investimento "
-                f"('{investment_path}') não pôde ser convertida para número em "
+                f"não pôde ser convertida para número em "
                 f"mais de 50% das linhas ({investment_nan_ratio:.0%} inválido). Isso geralmente "
                 f"indica que a coluna de investimento errada foi identificada. Exemplos de "
                 f"valores encontrados: {bad_examples}. Verifique "
@@ -896,15 +898,15 @@ def load_and_prepare_data(config, paths):
 
         if kpi_df.empty:
             raise ValueError(
-                f"Nenhuma linha válida restou no arquivo de performance "
-                f"('{performance_path}') após a limpeza. Verifique o formato de "
-                f"data e do KPI no arquivo."
+                "Nenhuma linha válida restou no arquivo de performance "
+                "após a limpeza. Verifique o formato de "
+                "data e do KPI no arquivo."
             )
         if daily_investment_df.empty:
             raise ValueError(
-                f"Nenhuma linha válida restou no arquivo de investimento "
-                f"('{investment_path}') após a limpeza. Verifique o formato de "
-                f"data, canal e investimento no arquivo."
+                "Nenhuma linha válida restou no arquivo de investimento "
+                "após a limpeza. Verifique o formato de "
+                "data, canal e investimento no arquivo."
             )
 
         # --- Aggregate Performance File Rows With Duplicate Dates ---
@@ -959,7 +961,7 @@ def load_and_prepare_data(config, paths):
         )
 
         # --- Conditional Outlier Treatment ---
-        outlier_config = config.get("treat_outliers", False)
+        outlier_config = config["treat_outliers"]
         if outlier_config:
             log.info("   - Applying outlier treatment...")
             if isinstance(outlier_config, list):
@@ -1029,9 +1031,11 @@ def load_and_prepare_data(config, paths):
             period_days=inv_cadence,
         )
 
+    except EngineError:
+        raise
     except FileNotFoundError as e:
-        raise FileNotFoundError(
-            f"An input file was not found. Please check your config file paths. Details: {e}"
-        ) from e
+        raise EngineError("Um dos arquivos enviados não foi encontrado. Envie os arquivos novamente.") from e
+    except ValueError as e:  # the messages above are written for the screen
+        raise EngineError(str(e)) from e
     except Exception as e:
-        raise Exception(f"An unexpected error occurred during data preparation: {e}") from e
+        raise EngineError("Erro inesperado ao preparar os dados. Verifique o formato dos arquivos enviados.") from e

@@ -58,8 +58,8 @@ def _generate_full_report_narrative(
     log.info("   - Generating full strategic narrative with Gemini...")
 
     # --- 1. Prepare all data for the prompt ---
-    avg_ticket = config.get("average_ticket", config.get("average_ticket_value", 0))
-    business_impact_sales = results_data.get("absolute_lift", 0) * config.get("conversion_rate_from_kpi_to_bo", 0)
+    avg_ticket = config["average_ticket"]
+    business_impact_sales = results_data.get("absolute_lift", 0) * config["conversion_rate_from_kpi_to_bo"]
 
     # --- Efficiency & Causal Calculations ---
     inv_post = results_data.get("total_investment_post_period", 0)
@@ -99,7 +99,7 @@ def _generate_full_report_narrative(
     # Consolidate data into a dictionary for easy serialization
     prompt_data = {
         "client_name": config["advertiser_name"],
-        "client_industry": config.get("client_industry", "their industry"),
+        "client_industry": config["client_industry"],
         "business_goal": config["client_business_goal"],
         "kpi_name": config["primary_business_metric_name"],
         "causal_impact_results": {
@@ -201,8 +201,8 @@ def generate_markdown_report_from_narrative(narrative, results_data, config, out
     baseline_inv_post = inv_post / (1 + (inv_change_pct / 100)) if inv_change_pct != -100 else 0
     incremental_investment = inv_post - baseline_inv_post
 
-    avg_ticket = config.get("average_ticket", config.get("average_ticket_value", 0))
-    business_impact_sales = results_data.get("absolute_lift", 0) * config.get("conversion_rate_from_kpi_to_bo", 0)
+    avg_ticket = config["average_ticket"]
+    business_impact_sales = results_data.get("absolute_lift", 0) * config["conversion_rate_from_kpi_to_bo"]
 
     metrics_md = ""
     if avg_ticket > 0:
@@ -289,8 +289,8 @@ def generate_html_report(
     )
 
     # --- 3. Data Calculation for Tables ---
-    avg_ticket = config.get("average_ticket", config.get("average_ticket_value", 0))
-    business_impact_sales = results_data.get("absolute_lift", 0) * config.get("conversion_rate_from_kpi_to_bo", 0)
+    avg_ticket = config["average_ticket"]
+    business_impact_sales = results_data.get("absolute_lift", 0) * config["conversion_rate_from_kpi_to_bo"]
     business_impact_revenue = business_impact_sales * avg_ticket
 
     inv_post = results_data.get("total_investment_post_period", 0)
@@ -438,8 +438,8 @@ def generate_html_report(
         p_value=results_data.get("p_value", 0),
         mape=results_data.get("mape", 0),
         avg_ticket_formatted=format_number(avg_ticket, currency=True),
-        conversion_rate=config.get("conversion_rate_from_kpi_to_bo", 0),
-        p_value_threshold=config.get("p_value_threshold", 0.05),
+        conversion_rate=config["conversion_rate_from_kpi_to_bo"],
+        p_value_threshold=config["p_value_threshold"],
     )
 
     try:
@@ -468,8 +468,8 @@ def generate_html_report(
             "mape": results_data.get("mape", 0),
             "mae": results_data.get("mae", 0),
             "avg_ticket": avg_ticket,
-            "conversion_rate": config.get("conversion_rate_from_kpi_to_bo", 0),
-            "p_value_threshold": config.get("p_value_threshold", 0.05),
+            "conversion_rate": config["conversion_rate_from_kpi_to_bo"],
+            "p_value_threshold": config["p_value_threshold"],
         }
         with open(json_output_path, "w", encoding="utf-8") as f:
             json.dump(extended_narrative, f, ensure_ascii=False, indent=4)
@@ -489,7 +489,7 @@ def generate_global_report(
 
     log.info("Generating Global Gemini Report...")
 
-    advertiser_name = config.get("advertiser_name", "default_advertiser")
+    advertiser_name = config["advertiser_name"]
 
     # --- 1. Define paths and read artifacts ---
     markdown_path = os.path.join(global_output_dir, "SATURATION_CURVE.md")
@@ -640,14 +640,14 @@ def generate_global_report(
             kpi_cpa_rows = ""
 
             if projected_kpis:
-                avg_ticket = config.get("average_ticket", config.get("average_ticket_value", 0))
-                conv_rate = config.get("conversion_rate_from_kpi_to_bo", 0)
+                avg_ticket = config["average_ticket"]
+                conv_rate = config["conversion_rate_from_kpi_to_bo"]
 
                 if avg_ticket > 0:
                     kpi_row = "<tr><td><strong>Projeção de Receita</strong></td>"
                     cpa_row = "<tr><td><strong>ROAS</strong></td>"
                 else:
-                    kpi_label = config.get("primary_business_metric_name", "KPIs")
+                    kpi_label = config["primary_business_metric_name"]
                     kpi_row = f"<tr><td><strong>Projeção de {kpi_label}</strong></td>"
                     cpa_row = "<tr><td><strong>CPA</strong></td>"
 
@@ -705,8 +705,8 @@ def generate_global_report(
     # --- New: Build Summary Table ---
     summary_table_html = ""
     if kpi_projections:
-        avg_ticket = config.get("average_ticket", config.get("average_ticket_value", 0))
-        conv_rate = config.get("conversion_rate_from_kpi_to_bo", 0)
+        avg_ticket = config["average_ticket"]
+        conv_rate = config["conversion_rate_from_kpi_to_bo"]
 
         summary_table_html += '<div class="section">'
         summary_table_html += "<h2>Resumo dos Cenários Projetados</h2>"
@@ -722,7 +722,7 @@ def generate_global_report(
         if avg_ticket > 0:
             header = "<thead><tr><th>Cenário</th><th>Investimento Mensal</th><th>Receita Projetada</th><th>Investimento Incremental</th><th>Receita Incremental</th><th>ROI Incremental</th></tr></thead><tbody>"
         else:
-            kpi_label = config.get("primary_business_metric_name", "KPIs")
+            kpi_label = config["primary_business_metric_name"]
             header = f"<thead><tr><th>Cenário</th><th>Investimento Mensal</th><th>Projeção de {kpi_label}</th><th>Investimento Incremental</th><th>{kpi_label} Incrementais</th><th>Custo por {kpi_label} Incremental</th></tr></thead><tbody>"
 
         summary_table_html += header

@@ -20,8 +20,8 @@ def create_presentation_dataframe(causal_results, config):
     medido). Receber post_period por fora era o que permitia gravar a janela do
     evento errado quando o chamador reaproveitava uma variável de outro loop.
     """
-    conversion_rate = config.get("conversion_rate_from_kpi_to_bo", 0)
-    avg_ticket = config.get("average_ticket", 0)
+    conversion_rate = config["conversion_rate_from_kpi_to_bo"]
+    avg_ticket = config["average_ticket"]
     causal_incremental_kpi = causal_results.get("absolute_lift", 0)
     causal_incremental_orders = causal_incremental_kpi * conversion_rate
     data = {

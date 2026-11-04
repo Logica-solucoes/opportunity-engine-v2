@@ -36,7 +36,7 @@ class Written:
 
 
 def _kpi_name(cfg: dict) -> str:
-    return cfg.get("performance_kpi_column", "Sessions")
+    return cfg["performance_kpi_column"]
 
 
 def _write_event(computed: "Computed", outcome, out_dir: Path, written: Written) -> None:
@@ -150,7 +150,7 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
         written.scenarios,
         str(global_dir / "SATURATION_CURVE.md"),
         kpi_projections=written.kpi_projections,
-        kpi_name=cfg.get("primary_business_metric_name", "KPIs"),
+        kpi_name=cfg["primary_business_metric_name"],
         period_days=cfg.get("period_days", 1),
     )
 

@@ -18,9 +18,9 @@ def generate_basic_recommendations_file(results_data, config, output_dir):
     Generates a basic recommendations markdown file when elasticity is not available.
     """
     try:
-        avg_ticket = config.get("average_ticket", 0)
-        conversion_rate = config.get("conversion_rate_from_kpi_to_bo", 1)
-        optimization_target = config.get("optimization_target", "REVENUE").upper()
+        avg_ticket = config["average_ticket"]
+        conversion_rate = config["conversion_rate_from_kpi_to_bo"]
+        optimization_target = config["optimization_target"].upper()
 
         causal_incremental_kpi = results_data.get("absolute_lift", 0)
         causal_incremental_orders = causal_incremental_kpi * conversion_rate

@@ -299,7 +299,7 @@ def run_mmm_engine(config, prepared):
             context_cols = [col for col in trends_df.columns if col != "Date"]
 
         # Create calendar features
-        country_code = config.get("country_code", "BR")
+        country_code = config["country_code"]
         period_days = config.get("period_days", 1)
         df = create_calendar_features(df, country_code=country_code, period_days=period_days)
 
@@ -449,7 +449,7 @@ def run_mmm_engine(config, prepared):
     # to the user. We now let the honest (possibly small) number flow through and
     # just warn, so the downstream ROAS/mix numbers reflect what was actually
     # measured instead of a floor invented by the tool.
-    min_marketing_pct = config.get("min_marketing_contribution", 0.05)
+    min_marketing_pct = config["min_marketing_contribution"]
     if y_total.sum() > 0:
         measured_pct = total_marketing_contribution / y_total.sum()
         if measured_pct < min_marketing_pct:
@@ -587,13 +587,13 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     avg_daily_spend = {col: df[col].mean() for col in active_spend_cols}
     total_avg_daily_spend = sum(avg_daily_spend.values())
     historical_max_daily_spend = {col: df[col].max() for col in active_spend_cols}
-    per_channel_limit_factor = config.get("per_channel_investment_limit_factor", 3.0)
+    per_channel_limit_factor = config["per_channel_investment_limit_factor"]
 
     historical_mix = {
         col: avg_daily_spend[col] / total_avg_daily_spend if total_avg_daily_spend > 0 else 0
         for col in active_spend_cols
     }
-    max_channel_mix_share = config.get("max_channel_mix_share", 0.4)
+    max_channel_mix_share = config["max_channel_mix_share"]
     if not optimized_mix:
         optimized_mix = historical_mix
 
@@ -611,10 +611,10 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     # channels aren't identified), and a ">0" test would flip the recommendation
     # on and off on noise. Require the model to explain a real share of held-out
     # variance before trusting it to move budget between channels.
-    min_cv_r2 = config.get("reallocation_min_cv_r2", 0.1)
+    min_cv_r2 = config["reallocation_min_cv_r2"]
     trust_reallocation = cv_r2 >= min_cv_r2
 
-    limit_factor = config.get("investment_limit_factor", 3.0)
+    limit_factor = config["investment_limit_factor"]
     multipliers = np.linspace(0, limit_factor, 100)
 
     # Calculate steady-state adstock multipliers
@@ -755,14 +755,14 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     res_df["Incremental_KPI"] = (res_df["Projected_Total_KPIs"] - baseline_kpi).clip(lower=0)
     res_df["Incremental_Investment"] = (res_df["Daily_Investment"] - total_avg_daily_spend).clip(lower=0)
 
-    optimization_target = config.get("optimization_target", "REVENUE").upper()
-    financial_targets = config.get("financial_targets", {})
+    optimization_target = config["optimization_target"].upper()
+    financial_targets = config["financial_targets"]
 
-    kpi_is_monetary = config.get("kpi_is_monetary", False)
+    kpi_is_monetary = config["kpi_is_monetary"]
     # ponytail: when the KPI is already money, revenue = kpi (multiplier=1), no
     # count-to-revenue conversion applies, regardless of optimization_target.
-    conversion_rate = 1.0 if kpi_is_monetary else config.get("conversion_rate_from_kpi_to_bo", 0)
-    avg_ticket = 1.0 if kpi_is_monetary else config.get("average_ticket", 0)
+    conversion_rate = 1.0 if kpi_is_monetary else config["conversion_rate_from_kpi_to_bo"]
+    avg_ticket = 1.0 if kpi_is_monetary else config["average_ticket"]
     revenue_mode = kpi_is_monetary or optimization_target == "REVENUE"
     if kpi_is_monetary and optimization_target == "CONVERSIONS":
         log.warning(
@@ -851,7 +851,7 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     max_cpa = financial_targets.get("target_cpa", float("inf"))
     max_icpa = financial_targets.get("target_icpa", float("inf"))
     min_roas = financial_targets.get("target_roas", 0)
-    min_iroas = financial_targets.get("target_iroas", config.get("minimum_acceptable_iroi", 0))
+    min_iroas = financial_targets.get("target_iroas", config["minimum_acceptable_iroi"])
 
     valid_points_df = res_df[res_df["Daily_Investment"] > total_avg_daily_spend].copy()
 
@@ -883,7 +883,7 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     # --- UNIVERSAL FINANCIAL FILTER LOGIC END ---
 
     if strategic_limit_point is None:
-        limit_factor = config.get("investment_limit_factor", 1.5)
+        limit_factor = config["investment_limit_factor"]
         strategic_limit_idx = (np.abs(multipliers - limit_factor)).argmin()
         strategic_limit_point = res_df.iloc[strategic_limit_idx].to_dict()
 
@@ -947,7 +947,7 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
 
     avg_daily_spend = {col: df[col].mean() for col in active_spend_cols}
     historical_max_daily_spend = {col: df[col].max() for col in active_spend_cols}
-    per_channel_limit_factor = config.get("per_channel_investment_limit_factor", 3.0)
+    per_channel_limit_factor = config["per_channel_investment_limit_factor"]
 
     # Calculate steady-state adstock multipliers
     adstock_multipliers = {}
@@ -956,7 +956,7 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
         adstocked = geometric_adstock(dummy_spend, opt_params["alphas"][i])
         adstock_multipliers[col] = adstocked[-1]
 
-    limit_factor = config.get("investment_limit_factor", 3.0)
+    limit_factor = config["investment_limit_factor"]
 
     individual_curves = []
 

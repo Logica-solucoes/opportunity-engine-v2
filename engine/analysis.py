@@ -319,7 +319,7 @@ def run_causal_impact_analysis(
         model_data.sort_index(inplace=True)
         model_data.fillna(0, inplace=True)
 
-        country_code = config.get("country_code", "BR")
+        country_code = config["country_code"]
         period_days = config.get("period_days", 1)
         model_data = create_calendar_features(model_data, country_code=country_code, period_days=period_days)
 
@@ -355,9 +355,9 @@ def run_causal_impact_analysis(
         pre_data_for_model = model_data.loc[pre_period[0] : pre_period[1]].copy()
         post_data = model_data.loc[post_period[0] : post_period[1]].copy()
 
-        min_pre_period_days = config.get(
-            "min_pre_period_days", 14
-        )  # Require at least configurable days of pre-period data (default 14)
+        min_pre_period_days = config[
+            "min_pre_period_days"
+        ]  # Require at least configurable days of pre-period data (default 14)
         # Convert the day-based config into a period-aware row-count floor: with
         # weekly/monthly data, 14 "days" is only 2/0.5 rows -- min_pre_period_days
         # compared directly against a row count conflates "days" with "rows",
@@ -589,7 +589,7 @@ def _train_response_model(model_data, product_group, config):
 
     # --- 1. Model and Subtract Baseline KPI ---
     log.info("   - Modeling baseline KPI using non-investment features...")
-    country_code = config.get("country_code", "BR")
+    country_code = config["country_code"]
     period_days = config.get("period_days", 1)
     model_data_featured = create_calendar_features(
         model_data.copy(), country_code=country_code, period_days=period_days
@@ -724,7 +724,7 @@ def run_opportunity_projection(kpi_df, daily_investment_df, market_trends_df, pr
     Trains a new response model on all data and then finds the optimal investment sweet spot.
     """
     log.info("Finding the Investment Sweet Spot & Projecting Opportunity...")
-    optimization_target = config.get("optimization_target", "REVENUE").upper()
+    optimization_target = config["optimization_target"].upper()
 
     try:
         investment_pivot_df = (
@@ -747,7 +747,7 @@ def run_opportunity_projection(kpi_df, daily_investment_df, market_trends_df, pr
             channel_proportions,
         ) = _train_response_model(model_data, product_group, config)
 
-        investment_limit_factor = config.get("investment_limit_factor", 2.0)
+        investment_limit_factor = config["investment_limit_factor"]
         max_hist_inv = daily_investment_df["investment"].max()
         investment_scenarios = np.linspace(1, max_hist_inv * investment_limit_factor, 200)
 
@@ -767,11 +767,11 @@ def run_opportunity_projection(kpi_df, daily_investment_df, market_trends_df, pr
         # Clip Projected_Total_KPIs to prevent negative values
         response_curve_df["Projected_Total_KPIs"] = response_curve_df["Projected_Total_KPIs"].clip(lower=0)
 
-        kpi_is_monetary = config.get("kpi_is_monetary", False)
+        kpi_is_monetary = config["kpi_is_monetary"]
         # ponytail: when the KPI is already money, revenue = kpi (multiplier=1), no
         # count-to-revenue conversion applies, regardless of optimization_target.
-        conversion_rate = 1.0 if kpi_is_monetary else config.get("conversion_rate_from_kpi_to_bo", 0)
-        avg_ticket = 1.0 if kpi_is_monetary else config.get("average_ticket", 0)
+        conversion_rate = 1.0 if kpi_is_monetary else config["conversion_rate_from_kpi_to_bo"]
+        avg_ticket = 1.0 if kpi_is_monetary else config["average_ticket"]
         revenue_mode = kpi_is_monetary or optimization_target == "REVENUE"
         if kpi_is_monetary and optimization_target == "CONVERSIONS":
             log.warning(
@@ -852,13 +852,13 @@ def run_opportunity_projection(kpi_df, daily_investment_df, market_trends_df, pr
 
         # --- UNIVERSAL FINANCIAL FILTER LOGIC START ---
         strategic_limit_point = None
-        financial_targets = config.get("financial_targets", {})
+        financial_targets = config["financial_targets"]
 
         # Determine applicable filters
         max_cpa = financial_targets.get("target_cpa", float("inf"))
         max_icpa = financial_targets.get("target_icpa", float("inf"))
         min_roas = financial_targets.get("target_roas", 0)
-        min_iroas = financial_targets.get("target_iroas", config.get("minimum_acceptable_iroi", 0))
+        min_iroas = financial_targets.get("target_iroas", config["minimum_acceptable_iroi"])
 
         # Start with all points higher than baseline
         valid_points_df = response_curve_df[response_curve_df["Daily_Investment"] > baseline_investment].copy()
@@ -958,7 +958,7 @@ def run_opportunity_projection(kpi_df, daily_investment_df, market_trends_df, pr
         log.error(f"An error occurred in the sweet spot calculation: {e}", exc_info=True)
         log.error(
             f"   - Config causadora da falha: optimization_target={optimization_target!r}, "
-            f"financial_targets={config.get('financial_targets', {})}"
+            f"financial_targets={config['financial_targets']}"
         )
         return pd.DataFrame(), pd.DataFrame(), {}, {}, {}, {}, {}, {}, {}
 

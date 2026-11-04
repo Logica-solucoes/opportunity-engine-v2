@@ -11,6 +11,7 @@ from engine.analysis import (
     run_causal_impact_analysis,
     run_opportunity_projection,
 )
+from tests.engine.helpers import full_config
 
 
 def _make_synthetic_data(n_days=150, seed=0):
@@ -53,15 +54,17 @@ def test_conversions_mode_with_target_roas_does_not_crash_and_trains_model():
     """
     kpi_df, daily_investment_df, market_trends_df = _make_synthetic_data()
 
-    config = {
-        "optimization_target": "CONVERSIONS",
-        "kpi_is_monetary": False,
-        "financial_targets": {"target_roas": 4.0, "target_iroas": 0},
-        "average_ticket": 0,
-        "conversion_rate_from_kpi_to_bo": 0,
-        "investment_limit_factor": 2.0,
-        "country_code": "BR",
-    }
+    config = full_config(
+        {
+            "optimization_target": "CONVERSIONS",
+            "kpi_is_monetary": False,
+            "financial_targets": {"target_roas": 4.0, "target_iroas": 0},
+            "average_ticket": 0,
+            "conversion_rate_from_kpi_to_bo": 0,
+            "investment_limit_factor": 2.0,
+            "country_code": "BR",
+        }
+    )
 
     (
         response_curve_df,
@@ -294,15 +297,17 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
     agg_kpi_df = agg[["Date", "kpi"]]
     agg_market_trends_df = agg[["Date", "Generic Searches"]]
 
-    config = {
-        "optimization_target": "CONVERSIONS",
-        "kpi_is_monetary": False,
-        "financial_targets": {"target_roas": 0, "target_iroas": 0},
-        "average_ticket": 0,
-        "conversion_rate_from_kpi_to_bo": 0,
-        "investment_limit_factor": 2.0,
-        "country_code": "BR",
-    }
+    config = full_config(
+        {
+            "optimization_target": "CONVERSIONS",
+            "kpi_is_monetary": False,
+            "financial_targets": {"target_roas": 0, "target_iroas": 0},
+            "average_ticket": 0,
+            "conversion_rate_from_kpi_to_bo": 0,
+            "investment_limit_factor": 2.0,
+            "country_code": "BR",
+        }
+    )
     # Train on the SAME aggregated (3-day) cadence used below -- in the real
     # pipeline, projection and causal-impact analysis both operate on
     # whatever cadence detect_cadence found, so alpha/k/s must be fit at

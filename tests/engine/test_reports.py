@@ -5,6 +5,7 @@ import pytest
 
 from engine import reports
 from llm.base import LLMBadOutput, LLMUnavailable
+from tests.engine.helpers import full_config
 from tests.fakes.llm import EVENT_NARRATIVE, GLOBAL_NARRATIVE, FakeLLM
 
 RESULTS = {
@@ -34,12 +35,14 @@ PROJECTIONS = {
 
 
 def _event(llm):
-    return reports._generate_full_report_narrative(llm, RESULTS, EVENT_CONFIG, pd.DataFrame())
+    return reports._generate_full_report_narrative(llm, RESULTS, full_config(EVENT_CONFIG), pd.DataFrame())
 
 
 def _global(llm, tmp_path, **config_extra):
     (tmp_path / "SATURATION_CURVE.md").write_text("# dummy\n", encoding="utf-8")
-    config = {"average_ticket": 0, "conversion_rate_from_kpi_to_bo": 0, "primary_business_metric_name": "Leads"}
+    config = full_config(
+        {"average_ticket": 0, "conversion_rate_from_kpi_to_bo": 0, "primary_business_metric_name": "Leads"}
+    )
     config.update(config_extra)
     reports.generate_global_report(
         llm, config, scenarios=[], total_investment=1000.0, kpi_projections=PROJECTIONS, global_output_dir=tmp_path

@@ -21,7 +21,13 @@ from engine.data_preprocessor import (
     robust_numeric_parsing,
     suggest_causal_config,
 )
-from engine.data_preprocessor import load_and_prepare_data as _prepare
+from engine.data_preprocessor import load_and_prepare_data as _prepare_raw
+from engine.errors import EngineError
+from tests.engine.helpers import full_config
+
+
+def _prepare(config, paths):
+    return _prepare_raw(full_config(config), paths)
 
 
 def load_and_prepare_data(config):
@@ -980,7 +986,8 @@ def test_load_and_prepare_data_kpi_over_50pct_nan_raises_specific_error(tmp_path
 
     message = str(exc_info.value)
     assert "kpi" in message
-    assert performance_path in message
+    assert "arquivo de performance" in message
+    assert performance_path not in message  # no server paths on the screen
     assert "abc" in message and "xyz" in message
     assert "Nenhuma linha válida restou" not in message
 
@@ -1010,7 +1017,8 @@ def test_load_and_prepare_data_investment_over_50pct_nan_raises_specific_error(t
 
     message = str(exc_info.value)
     assert "total_revenue" in message
-    assert investment_path in message
+    assert "arquivo de investimento" in message
+    assert investment_path not in message
     assert "abc" in message and "xyz" in message
     assert "Nenhuma linha válida restou" not in message
 
@@ -1027,11 +1035,11 @@ def test_load_and_prepare_data_file_not_found_preserves_original_cause(tmp_path)
         "treat_outliers": False,
     }
 
-    with pytest.raises(FileNotFoundError) as exc_info:
+    with pytest.raises(EngineError) as exc_info:
         load_and_prepare_data(config)
 
-    assert exc_info.value.__cause__ is not None
     assert isinstance(exc_info.value.__cause__, FileNotFoundError)
+    assert str(tmp_path) not in str(exc_info.value)
 
 
 def test_load_and_prepare_data_unexpected_error_preserves_original_cause(tmp_path):

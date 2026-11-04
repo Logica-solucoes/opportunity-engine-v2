@@ -14,6 +14,7 @@ from engine.elasticity_analysis import (
     predict_clipped_kpi,
     walk_forward_cv_score,
 )
+from tests.engine.helpers import full_config
 
 
 class TestCapChannelMixShare(unittest.TestCase):
@@ -233,7 +234,7 @@ class TestReallocationSuppression(unittest.TestCase):
     def _max_realloc_gap(self, cv_r2):
         from engine.elasticity_analysis import generate_aggregated_response_curve
 
-        cfg = {"reallocation_min_cv_r2": 0.1, "max_channel_mix_share": 0.9}
+        cfg = full_config({"reallocation_min_cv_r2": 0.1, "max_channel_mix_share": 0.9, "investment_limit_factor": 3.0})
         out = generate_aggregated_response_curve(self._make_results(cv_r2), cfg)
         df = out[0]
         return (df["Projected_Total_KPIs"] - df["Projected_Total_KPIs_Historical"]).abs().max()
