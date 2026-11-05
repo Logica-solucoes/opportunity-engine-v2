@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -189,6 +190,18 @@ def gemini_suggestions(simulation_id: SimulationId, ctx: Ctx = Depends(analyst),
 def save_params(
     simulation_id: SimulationId, body: ParamsIn, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)
 ):
+    # the engine's EngineConfig checks this too, but as a model error the form couldn't pin to a field
+    if body.optimization_target == "REVENUE" and not body.average_ticket:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "revenue_needs_ticket",
+                    "loc": ("body", "average_ticket"),
+                    "msg": "Obrigatório para otimizar por receita.",
+                    "input": None,
+                }
+            ]
+        )
     simulation = find_simulation(db, ctx, simulation_id)
     try:
         simulations.save_params(db, simulation, body.model_dump(mode="json"))

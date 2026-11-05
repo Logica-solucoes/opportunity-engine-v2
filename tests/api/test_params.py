@@ -321,6 +321,21 @@ def test_invalid_params_are_422_with_the_field(logged, mapped, body, loc, kind):
     assert [(e["loc"], e["type"]) for e in r.json()["detail"]] == [(loc, kind)]
 
 
+def test_revenue_without_a_ticket_is_422_on_the_ticket(logged, mapped):
+    r = logged.put(f"/api/w/a/simulations/{mapped.id}/params", json={"optimization_target": "REVENUE"})
+
+    assert r.status_code == 422
+    assert [(e["loc"], e["type"]) for e in r.json()["detail"]] == [(["body", "average_ticket"], "revenue_needs_ticket")]
+
+
+def test_revenue_with_a_ticket_saves(logged, mapped):
+    r = logged.put(
+        f"/api/w/a/simulations/{mapped.id}/params", json={"optimization_target": "REVENUE", "average_ticket": 80}
+    )
+
+    assert r.status_code == 200
+
+
 def test_params_need_a_confirmed_mapping(logged, analyst, ws, make_simulation):
     bare = make_simulation(ws, analyst, files={"investment": INVESTMENT, "performance": PERFORMANCE})
 

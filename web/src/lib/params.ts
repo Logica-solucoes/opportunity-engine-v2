@@ -205,6 +205,7 @@ const ERROR_MESSAGES: Record<string, (ctx: Record<string, unknown>) => string> =
   float_parsing: () => 'Informe um número.',
   float_type: () => 'Informe um número.',
   literal_error: () => 'Escolha uma das opções.',
+  revenue_needs_ticket: () => 'Obrigatório para otimizar por receita.',
 }
 
 // pydantic's 422 lists one error per field at loc ["body", ...path]; our own 422 (no mapping) is a string
