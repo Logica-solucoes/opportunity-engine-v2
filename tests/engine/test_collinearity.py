@@ -6,7 +6,7 @@ from threadpoolctl import threadpool_limits
 import engine
 from engine.config import EngineConfig
 from engine.errors import EngineError
-from engine.validation import MIN_COLLINEARITY_PERIODS, channel_vif, collinearity, validate
+from engine.validation import MIN_COLLINEARITY_PERIODS, channel_vif, collinearity, spend_matrix, validate
 from tests.engine.csv_factory import days, write_inputs
 from tests.engine.synthetic_data import dataset_config, make_dataset
 
@@ -76,7 +76,7 @@ def test_suggested_groups_are_the_connected_components():
         }
     )
 
-    assert collinearity(frame, EngineConfig()).suggested_groups == [["A", "B", "C"]]
+    assert collinearity(spend_matrix(frame), EngineConfig()).suggested_groups == [["A", "B", "C"]]
 
 
 def test_a_short_series_is_not_assessed(tmp_path):
@@ -148,3 +148,29 @@ def test_run_with_a_group_reports_only_the_group(tmp_path, no_llm):
     names = {c["name"] for c in elasticity["channels"]}
     assert "SEARCH + PMAX" in names and not {"SEARCH", "PMAX"} & names
     assert elasticity["groups"] == [{"name": "SEARCH + PMAX", "members": ["SEARCH", "PMAX"]}]
+
+
+def _weekly_with_partial_tail(tmp_path, weeks):
+    rng = np.random.default_rng(4)
+    dates = days(weeks * 7)[::7]
+    a, b = rng.normal(100, 5, weeks), rng.normal(100, 5, weeks)
+    investment = [(d, "A", x) for d, x in zip(dates, a)] + [(d, "B", x) for d, x in zip(dates, b)]
+    partial = days(weeks * 7)[-4]
+    investment += [(partial, "A", 1), (partial, "B", 1)]
+    kpi = [(d, 1000 + i) for i, d in enumerate(dates)]
+    return write_inputs(tmp_path, investment, kpi)
+
+
+def test_a_partial_period_does_not_make_two_channels_collinear(tmp_path):
+    report = validate(_weekly_with_partial_tail(tmp_path, 33), dataset_config())
+
+    assert "partial_period_dropped" in {c.id for c in report.checks}
+    assert report.ok, [c.id for c in report.checks if c.level == "error"]
+    assert report.collinearity.pairs == []
+
+
+def test_a_partial_period_does_not_count_toward_the_minimum(tmp_path):
+    report = validate(_weekly_with_partial_tail(tmp_path, MIN_COLLINEARITY_PERIODS - 1), dataset_config())
+
+    check = next(c for c in report.checks if c.id == "collinearity_not_assessed")
+    assert check.details == {"periods": MIN_COLLINEARITY_PERIODS - 1}

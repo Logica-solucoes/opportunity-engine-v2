@@ -98,6 +98,8 @@ def check_outliers(kpi_df: pd.DataFrame) -> list[Check]:
 
 def spend_matrix(investment_df: pd.DataFrame) -> pd.DataFrame:
     """Date × channel spend, without constant channels (no correlation or VIF for them)."""
+    if investment_df.empty:
+        return pd.DataFrame()
     wide = investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
     return wide.loc[:, wide.std() > 0]
 
@@ -121,9 +123,8 @@ def _connected(pairs: list[dict]) -> list[list[str]]:
     return sorted(sorted(g) for g in groups)
 
 
-def collinearity(investment_df: pd.DataFrame, config: EngineConfig) -> Collinearity:
+def collinearity(wide: pd.DataFrame, config: EngineConfig) -> Collinearity:
     """Pairs over the |r| gate, every channel's VIF and the groups the pairs suggest; empty on a short series."""
-    wide = spend_matrix(investment_df)
     if wide.shape[1] < 2 or len(wide) < MIN_COLLINEARITY_PERIODS:
         return Collinearity()
     limit = config.gate_threshold("collinearity_r")
@@ -136,8 +137,8 @@ def collinearity(investment_df: pd.DataFrame, config: EngineConfig) -> Collinear
     return Collinearity(pairs=pairs, vif=channel_vif(wide), suggested_groups=_connected(pairs))
 
 
-def check_short_series(investment_df: pd.DataFrame) -> list[Check]:
-    periods = int(investment_df["Date"].nunique())
+def check_short_series(wide: pd.DataFrame) -> list[Check]:
+    periods = len(wide)
     if periods >= MIN_COLLINEARITY_PERIODS:
         return []
     return [
@@ -153,11 +154,8 @@ def check_short_series(investment_df: pd.DataFrame) -> list[Check]:
     ]
 
 
-def check_channel_overlap(investment_df: pd.DataFrame) -> list[Check]:
+def check_channel_overlap(wide: pd.DataFrame) -> list[Check]:
     """Two channels that move together and add up to the same total are probably one source reported twice."""
-    if investment_df.empty:
-        return []
-    wide = spend_matrix(investment_df)
     checks = []
     for a, b in itertools.combinations(wide.columns, 2):
         total_a, total_b = wide[a].sum(), wide[b].sum()
@@ -214,10 +212,11 @@ def check_groups(found: Collinearity, channels: set[str], config: EngineConfig) 
     return checks
 
 
-def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None]:
+def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None, pd.DataFrame]:
+    """The checks on the series, the cadence and the investment without its partial periods."""
     inv, kpi = raw.investment_df, raw.kpi_df
     if inv.empty or kpi.empty:
-        return [], None
+        return [], None, inv
     inv_cadence, kpi_cadence = detect_cadence(inv["Date"]), detect_cadence(kpi["Date"])
     mismatch = cadence_check(inv_cadence, kpi_cadence)
     checks = [mismatch] if mismatch else []
@@ -225,8 +224,7 @@ def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None]:
     checks += partial
     checks += check_missing_dates(inv, kpi, inv_cadence)
     checks += check_outliers(kept_kpi)
-    checks += check_channel_overlap(kept_inv)
-    return checks, inv_cadence
+    return checks, inv_cadence, kept_inv
 
 
 def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> ValidationReport:
@@ -241,13 +239,15 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
             checks=[Check(id=e.check_id or "file_unreadable", level="error", message=str(e))],
             collinearity=Collinearity(),
         )
-    series, period_days = _series_checks(raw)
+    series, period_days, kept_inv = _series_checks(raw)
     checks = [*raw.checks, *series]
     investment = raw.investment_df
     found = Collinearity()
     if not investment.empty:
-        found = collinearity(investment, engine_config)
-        checks += check_short_series(investment)
+        wide = spend_matrix(kept_inv)
+        checks += check_channel_overlap(wide)
+        found = collinearity(wide, engine_config)
+        checks += check_short_series(wide)
         checks += check_groups(found, set(investment["Product Group"]), engine_config)
     return ValidationReport(
         ok=not any(c.level == "error" for c in checks),
