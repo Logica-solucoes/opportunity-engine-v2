@@ -202,3 +202,28 @@ def test_non_numeric_control_is_value_not_numeric(tmp_path):
     config["controls"] = ["Selic"]
     check = {c.id: c for c in read_inputs(config, paths).checks}["value_not_numeric"]
     assert "Selic" in check.message
+
+
+@pytest.mark.parametrize(
+    "name", ["is_weekend", "is_holiday", "is_payday_period", "month", "dayofweek", "day_3", "B_transformed"]
+)
+def test_control_named_like_a_feature_the_engine_builds_clashes(tmp_path, name):
+    paths, config = _with_trends(tmp_path, [name], [name])
+    check = {c.id: c for c in read_inputs(config, paths).checks}["control_name_clash"]
+    assert check.details["controls"] == [name]
+
+
+def test_control_that_does_not_cover_the_performance_dates_is_incomplete(tmp_path):
+    investment, kpi = clean_rows()
+    trends = [(d, 50 + i) for i, (d, _) in enumerate(kpi)]
+    paths = write_inputs(tmp_path, investment, kpi, trends=trends, trends_columns={"Selic": [1.0] * 6 + [""] * 4})
+    config = _config(generic_trends_file={"date_col": "Day", "trends_col": "Ad Opportunities"})
+    config["controls"] = ["Selic"]
+    check = {c.id: c for c in read_inputs(config, paths).checks}["control_incomplete"]
+    assert check.level == "error" and check.details["controls"] == {"Selic": 4}
+    assert "Selic" in check.message
+
+
+def test_control_covering_every_performance_date_is_complete(tmp_path):
+    paths, config = _with_trends(tmp_path, ["Selic"], ["Selic"])
+    assert "control_incomplete" not in {c.id for c in read_inputs(config, paths).checks}

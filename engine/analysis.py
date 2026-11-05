@@ -40,6 +40,14 @@ def geometric_decay(series, alpha):
     return lfilter([1], [1, -alpha], series)
 
 
+CALENDAR_COLUMNS = [
+    *(f"day_{i}" for i in range(7)),
+    "is_weekend",
+    "is_payday_period",
+    "is_holiday",
+]  # exact names, no substring match
+
+
 def create_calendar_features(df, country_code="BR", period_days=1):
     """Creates time-series features from a datetime index.
 
@@ -341,7 +349,8 @@ def run_causal_impact_analysis(
             return None, None, None, None, None
 
         event_channels_list = [ch.strip() for ch in product_group.split(",")]
-        candidates = (["Generic Searches"] if "Generic Searches" in model_data.columns else []) + control_columns
+        has_trends = not market_trends_df.empty and "Generic Searches" in model_data.columns
+        candidates = (["Generic Searches"] if has_trends else []) + control_columns
         accepted_controls, rejected_controls = screen_controls(
             pre_data_for_model, candidates, event_channels_list, control_threshold(config)
         )
@@ -352,11 +361,7 @@ def run_causal_impact_analysis(
         potential_exog_vars = (
             list(transformed_features.keys())
             + accepted_controls
-            + [
-                col
-                for col in model_data.columns
-                if "day_" in col or col in ["is_weekend", "is_payday_period", "is_holiday"]
-            ]
+            + [col for col in model_data.columns if col in CALENDAR_COLUMNS]  # model_data's own order, as before
         )
 
         varianced_features = _select_variance_threshold_features(pre_data_for_model, potential_exog_vars)

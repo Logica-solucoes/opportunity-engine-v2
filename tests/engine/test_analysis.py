@@ -535,3 +535,49 @@ def test_short_pre_period_does_not_break_the_lasso():
     s = _causal_setup()
     results = _causal(s, "A", pre=("2024-06-01", "2024-06-14"), post=("2024-06-15", "2024-06-25"))
     assert "absolute_lift" in results
+
+
+# --- A4 review fixes ----------------------------------------------------------------------------------------
+
+
+def test_a_rejected_control_never_reaches_the_model_through_a_calendar_looking_name(monkeypatch):
+    import statsmodels.api as sm
+
+    seen = []
+    original = sm.tsa.UnobservedComponents
+
+    def spy(endog, *args, **kwargs):
+        seen.append(list(kwargs["exog"].columns))
+        return original(endog, *args, **kwargs)
+
+    monkeypatch.setattr(sm.tsa, "UnobservedComponents", spy)
+    s = _causal_setup()
+    noise = np.random.default_rng(5).normal(0, 1, 210)
+    controls = pd.DataFrame({"Date": s["dates"], "holiday_spend_like": s["a"] + noise})
+    results = _causal(s, "A", controls)
+    assert [c["name"] for c in results["controls_rejected"]] == ["holiday_spend_like"]
+    assert seen and all("holiday_spend_like" not in columns for columns in seen)
+
+
+def test_no_trends_file_means_no_generic_searches_control():
+    s = _causal_setup()
+    empty = s["trends"].iloc[0:0]
+    results = _causal(s, "A", trends=empty)
+    assert results["controls_used"] == [] and results["controls_rejected"] == []
+
+
+def test_calendar_columns_keep_the_order_of_the_model_data(monkeypatch):
+    """The Lasso is order-sensitive: the exact-name list must not reorder what the substring rule used to pick."""
+    import statsmodels.api as sm
+
+    seen = []
+    original = sm.tsa.UnobservedComponents
+
+    def spy(endog, *args, **kwargs):
+        seen.append(list(kwargs["exog"].columns))
+        return original(endog, *args, **kwargs)
+
+    monkeypatch.setattr(sm.tsa, "UnobservedComponents", spy)
+    _causal(_causal_setup(), "A")
+    calendar = [c for c in seen[0] if c.startswith(("day_", "is_"))]
+    assert calendar == sorted(calendar, key=lambda c: (not c.startswith("is_"), c))  # is_* first, then day_0..day_6

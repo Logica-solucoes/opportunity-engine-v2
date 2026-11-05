@@ -40,7 +40,8 @@ class RawInputs:
     controls_df: pd.DataFrame = field(default_factory=lambda: pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]")}))
 
 
-RESERVED_COLUMNS = {"date", "kpi", "generic searches"}
+CALENDAR_NAMES = {"month", "dayofweek", "is_weekend", "is_payday_period", "is_holiday", *(f"day_{i}" for i in range(7))}
+RESERVED_COLUMNS = {"date", "kpi", "generic searches"} | CALENDAR_NAMES  # names the engine itself creates
 
 
 def _read_controls(
@@ -53,7 +54,9 @@ def _read_controls(
     available = {} if trends_df is None else {str(c).strip().lower(): c for c in trends_df.columns}
     primary = None if primary_header is None else primary_header.strip().lower()
     wanted = [n for n in dict.fromkeys(requested) if n.strip().lower() != primary]
-    clashing = [n for n in wanted if n.strip().lower() in RESERVED_COLUMNS]
+    clashing = [
+        n for n in wanted if n.strip().lower() in RESERVED_COLUMNS or n.strip().lower().endswith("_transformed")
+    ]
     missing = [n for n in wanted if n not in clashing and n.strip().lower() not in available]
     if clashing:
         checks.append(_control_check("control_name_clash", clashing))
@@ -80,6 +83,34 @@ def _read_controls(
             )
         frame[str(header)] = values
     return frame.sort_values(by="Date").reset_index(drop=True)
+
+
+def _incomplete_controls(controls_df: pd.DataFrame, kpi_df: pd.DataFrame) -> list[Check]:
+    """A control must have a value on every performance date: a gap would be zero-filled and move the lift."""
+    names = [c for c in controls_df.columns if c != "Date"]
+    if not names or kpi_df.empty:
+        return []
+    dates = pd.Index(kpi_df["Date"].unique())
+    gaps = {}
+    for name in names:
+        covered = pd.Index(controls_df.loc[controls_df[name].notna(), "Date"].unique())
+        missing = len(dates.difference(covered))
+        if missing:
+            gaps[name] = missing
+    if not gaps:
+        return []
+    listed = ", ".join(f"{name} ({count} data(s))" for name, count in gaps.items())
+    return [
+        Check(
+            id="control_incomplete",
+            level="error",
+            message=(
+                "Os controles precisam ter valor em todas as datas do arquivo de performance; faltam: " + listed + ". "
+                "Preencha as datas no arquivo de tendências ou retire o controle."
+            ),
+            details={"controls": gaps},
+        )
+    ]
 
 
 def _control_check(check_id: str, names: list[str]) -> Check:
@@ -348,6 +379,8 @@ def _read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
                 details={"file": "investment_file"},
             )
         )
+
+    control_checks.extend(_incomplete_controls(controls_df, kpi_df))
 
     channel_names = {str(c).strip().lower() for c in investment_df["Product Group"].unique()}
     channel_clash = [c for c in controls_df.columns if c != "Date" and c.strip().lower() in channel_names]
