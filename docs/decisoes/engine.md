@@ -82,14 +82,26 @@ Spec: `docs/superpowers/specs/2026-11-04-a1-results-json-design.md`. `engine/res
 
 Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine.validate(inputs, config) -> ValidationReport` é síncrono, não roda modelo e **nunca levanta por problema de dado**: o problema vira um check (só uma configuração inválida levanta `EngineError`). `engine/inputs.py` (`read_inputs`) lê e normaliza os três CSV e é usado por `validate` **e** por `load_and_prepare_data`; por isso o que o `validate` aprova o `run` lê igual.
 
-- **Catálogo (ids estáveis):** erros `file_unreadable`, `column_missing`, `column_unusable` (o parser quebrou com o formato da coluna, ex. canal numérico ou cabeçalhos repetidos), `date_unparseable`, `value_not_numeric`, `no_valid_rows`, `duplicate_date_channel`, `kpi_duplicate_dates`, `kpi_not_single_source`, `cadence_mismatch`, `insufficient_after_partial`; avisos `missing_dates`, `dv360_cm360_overlap`; infos `outliers`, `partial_period_dropped`. `details` leva os dados estruturados (datas até 50, contagens, canais) para a tela.
+- **Catálogo (ids estáveis):** erros `file_unreadable`, `column_missing`, `column_unusable` (o parser quebrou com o formato da coluna, ex. canal numérico ou cabeçalhos repetidos), `date_unparseable`, `value_not_numeric`, `no_valid_rows`, `duplicate_date_channel`, `kpi_duplicate_dates`, `kpi_not_single_source`, `cadence_mismatch`, `insufficient_after_partial`, `collinearity_unresolved` e `channel_group_unknown` (A3); avisos `missing_dates`, `dv360_cm360_overlap`; infos `outliers`, `partial_period_dropped`, `collinearity_not_assessed` (A3). `details` leva os dados estruturados (datas até 50, contagens, canais) para a tela.
 - **Fim da correção silenciosa.** Duplicata de (data, canal) no investimento (era média) e data repetida no KPI (era soma) são **erro**. `run()` valida primeiro e para no primeiro erro com `EngineError.check_id`; avisos e infos vão para o `results.json` (`validation`) e para o log.
 - **`kpi_not_single_source`:** o KPI repete data **e** uma coluna de texto do arquivo de performance muda entre linhas da mesma data (canal, plataforma). Colunas de texto que na verdade são números em formato local (`1.234,56`) não contam. Data repetida sem tal coluna é `kpi_duplicate_dates`.
 - **`dv360_cm360_overlap`:** por série, nunca por nome: correlação diária > 0.95 e razão de soma (menor/maior, simétrica) ≥ 0.9, isto é, entre 0.9 e ~1.11 para qualquer ordem dos nomes; canal constante ou de soma zero é ignorado.
 - **`missing_dates`** olha lacunas por série (intervalo / cadência arredondado), tolerando o ±1 dia de re-ancoramento semanal que `detect_cadence` já aceita.
 - **Achado nos dados reais:** `exemplo_csv/Gol/investment.csv` tem GOOGLE 5 vezes por dia (valores diferentes, provavelmente subcampanhas) e o protótipo tirava a **média**. Agora a Gol como enviada é rejeitada. Se o certo é **somar** e não tirar a média (a média subestima o investimento do canal), isso é decisão de negócio com a Data Analytics; hoje o analista precisa consolidar o arquivo. `parity-real` compara protótipo e motor numa cópia da Gol com a média aplicada **no teste** (`tests/engine/real_data.py`); sobre o arquivo original os dois já não concordam (o adstock do protótipo rodava nas linhas repetidas antes do `pivot_table`).
 - **Para o Dev B (swap):** `api/validation.py` vira `from engine import validate`; o `config` pode ir como veio (dict ou `EngineConfig`). A tela do B2 deve tratar os novos ids (`details` por id) e o nível `info`. Ausência de `generic_trends_file` é `None`.
-- **Fora do A2:** colinearidade (`collinearity` sai vazia, A3), templates CSV oficiais e nomes DV360/CM360 (Data Analytics).
+- **Fora do A2:** templates CSV oficiais e nomes DV360/CM360 (Data Analytics).
+
+## Colinearidade (A3, 05/nov/2026)
+
+Roda dentro do `validate`, sobre o **spend cru**: o `validate` não aplica `channel_groups`. Matriz data × canal (canal constante sai), Pearson par a par; par com |r| > `gate_thresholds.collinearity_r` (default 0.85, `GATE_DEFAULTS` em `engine/config.py`) entra em `collinearity.pairs` (`a`, `b`, `r`).
+
+- **VIF só reporta.** Por canal (`variance_inflation_factor` do statsmodels), `None` quando infinito ou > 1e6. O limite `collinearity_vif` vem com o A5, quando o VIF passa a decidir algo.
+- **`suggested_groups`** são os componentes conexos dos pares sinalizados.
+- **Gate:** `collinearity_unresolved` (erro, `details` com `pairs` e `suggested_groups`) se algum par não estiver inteiro dentro de um grupo de `channel_groups`. Passa com todos os pares cobertos por grupos ou com `block_per_channel=true`; o efeito deste último no resultado é do A5. `channel_group_unknown` (erro) se um grupo cita canal que não está no arquivo de investimento.
+- **`channel_groups`** (lista de listas de canal; nomes com strip/upper, cada grupo com 2+ canais distintos, nenhum canal em dois grupos) soma o spend por data logo após `read_inputs`, antes dos períodos parciais e do adstock de correlação negativa. O canal do grupo se chama `"A + B"`, na ordem do config.
+- **Abaixo de 30 períodos não avalia** (`collinearity_not_assessed`, info; `collinearity` vazia): com poucas datas a correlação é ±1 por construção. O histórico mínimo é do A6 e a calibração do A10.
+- **Consequência:** a API não manda `channel_groups` nem `block_per_channel` (não estão em `ParamsIn`), então dataset colinear com 30+ períodos não roda pela plataforma até a tela do B2 existir.
+- **Verificado:** `tests/engine/test_collinearity.py`; paridade sintética intacta (|r| máximo do sintético: 0.066).
 
 ## Passos do swap (Dev B)
 
