@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 from sqlalchemy import func, update
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from api import engine_run, logs, simulations, storage
 from api.db import SessionLocal
 from api.models import Run, RunLog
+from api.runs import STALE_AFTER
 
 log = logging.getLogger("api.worker")
 
@@ -75,9 +77,17 @@ def execute(db: Session, run_id: int) -> None:
     log.info("worker.finished run_id=%s status=%s applied=%s", rid, values["status"], bool(applied))
 
 
+def watchdog(seconds: float, exit=os._exit) -> threading.Timer:
+    """Kill the worker past the deadline; the API already fails the run as stale by then."""
+    timer = threading.Timer(seconds, lambda: (log.error("worker.timeout after %ss", seconds), exit(1)))
+    timer.daemon = True
+    timer.start()
+    return timer
+
+
 def main(argv: list[str] | None = None) -> None:
     args = sys.argv[1:] if argv is None else argv
-    # the Cloud Run Job (B11) passes RUN_ID as an env override; locally the launcher passes it as an argument
+    # the launcher passes the id as an argument; RUN_ID is left from the Cloud Run Job design
     run_id = int(args[0] if args else os.environ["RUN_ID"])
     with SessionLocal() as db, logs.scope(run_id=run_id):
         execute(db, run_id)
@@ -85,7 +95,9 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     logs.setup()
-    # a crash before execute (database down, bad RUN_ID) still reaches Cloud Logging as one JSON line;
+    # no Cloud Run Job timeout on our own server: a hung engine would burn CPU forever
+    watchdog(STALE_AFTER.total_seconds())
+    # a crash before execute (database down, bad RUN_ID) still reaches the log as one JSON line;
     # the run stays queued until the API fails it as stale
     try:
         main()

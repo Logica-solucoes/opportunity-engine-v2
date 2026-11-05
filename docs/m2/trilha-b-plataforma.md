@@ -262,9 +262,8 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
     - volume de `STORAGE_DIR`;
     - `.env` do servidor (DB, Gemini, chave de sessão), fora do git, leitura só do dono;
     - restart automático dos containers.
-  - **Proxy reverso com TLS e limite de corpo de 32 MiB** (sem ele, um POST anônimo enche o disco; `docs/decisoes/upload-e-storage.md`).
-  - **Timeout do worker**: matar o subprocess que passar do `STALE_AFTER` (o Cloud Run Job fazia isso aos 15 min).
-  - `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` no ambiente do worker (`docs/decisoes/engine.md`).
+  - **Proxy reverso com TLS e limite de corpo de 32 MiB** (a app já recusa `Content-Length` acima disso, mas corpo *chunked* passa; `docs/decisoes/upload-e-storage.md`).
+  - ~~Timeout do worker~~ e ~~BLAS em 1 thread no worker~~: feitos em 05/nov/2026 (`worker.watchdog`, `api/launcher.py`).
   - Backup do Postgres e do `STORAGE_DIR`, com restauração testada uma vez.
   - Ambientes staging e prod. Migrações Alembic rodam antes de subir a API.
   - Teste de carga: 10 runs simultâneos e 30 usuários navegando, e anotar os tempos.

@@ -20,7 +20,7 @@ O `POST …/runs` refaz a conta do `runBlockReason` da tela, com as mesmas frase
 
 ## Run morto sem heartbeat
 
-O trilha-b pedia heartbeat. O desenho era um Cloud Run Job com timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. Sem o Job, nada mata o processo: falta um timeout no subprocess (B11). A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e no stream a cada 15 s sem linha nova (junto com o ping, não a cada volta). O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Hoje nada mata um worker pendurado, nem no servidor; ele só deixa de importar depois dos 20 min.
+O trilha-b pedia heartbeat. O desenho era um Cloud Run Job com timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. Sem o Job, quem mata o processo é o watchdog do worker (`worker.watchdog`, desde 05/nov/2026), no mesmo `STALE_AFTER`. A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e no stream a cada 15 s sem linha nova (junto com o ping, não a cada volta). O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Um worker pendurado se encerra sozinho aos 20 min pelo watchdog.
 
 ## Uma linha de log por insert
 

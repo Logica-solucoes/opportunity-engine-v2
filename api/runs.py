@@ -11,7 +11,7 @@ from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, User
 
 log = logging.getLogger(__name__)
 
-# the Cloud Run Job times out at 15 min: a run still active after 20 is dead
+# the worker's watchdog kills it at 20 min (api/worker.py): a run still active after that is dead
 STALE_AFTER = timedelta(minutes=20)
 ACTIVE = ACTIVE_RUN_STATUSES
 PUBLISHABLE = ("succeeded", "inconclusive")
@@ -92,7 +92,7 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
 
     try:
         launcher.launch(run.id)
-    except Exception:  # Popen's OSError locally, the Cloud Run client's own errors in the B11
+    except Exception:  # Popen's OSError
         log.exception("run.launch_failed run_id=%s", run.id)
         run.status, run.error, run.finished_at = "failed", LAUNCH_ERROR, func.now()
         db.commit()

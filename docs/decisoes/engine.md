@@ -64,7 +64,7 @@ Run completo (`python -m engine`) no dataset sintético de 2 anos diários × 5 
 | padrão (todos os núcleos) | ~99 s | ~10 min |
 | `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` | **~40 s** | ~40 s |
 
-Os modelos são pequenos: o BLAS multithread só gera disputa de threads. **Recomendação para o ambiente do worker: fixar essas três variáveis em 1** (e então o tamanho do servidor importa pouco: um run usa ~1 núcleo). O `response_curve_data.csv` saiu idêntico byte a byte nas duas medições. Não fixei isso no código do motor (`threadpoolctl`) porque muda o comportamento do processo; é decisão de implantação (Dev B), mas agora também é questão de reprodutibilidade (acima). O limite do run (`STALE_AFTER`, 20 min em `api/runs.py`) é do Dev B; com 1 núcleo, o dataset sintético leva bem menos que isso.
+Os modelos são pequenos: o BLAS multithread só gera disputa de threads. **O ambiente do worker fixa essas três variáveis em 1** (`api/launcher.py`, desde 05/nov/2026) (e então o tamanho do servidor importa pouco: um run usa ~1 núcleo). O `response_curve_data.csv` saiu idêntico byte a byte nas duas medições. Não fixei isso no código do motor (`threadpoolctl`) porque muda o comportamento do processo; é decisão de implantação (Dev B), mas agora também é questão de reprodutibilidade (acima). O limite do run (`STALE_AFTER`, 20 min em `api/runs.py`) é do Dev B; com 1 núcleo, o dataset sintético leva bem menos que isso.
 
 ## `results.json` v1 (A1, 04/nov/2026)
 
@@ -101,7 +101,7 @@ Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine
 6. `run` roda um run inteiro dentro do processo do worker: nenhum subprocess, nenhuma thread gRPC pendurada (o adaptador do Gemini usa `google-genai`).
 7. **`EngineError` no worker.** `api/worker.py` captura `Exception` e grava uma mensagem genérica. Com o A2, o `run` para no primeiro check de erro com `EngineError` (mensagem pt-BR, `check_id`); sem um `except EngineError as e: message = str(e)`, essa mensagem nunca chega à tela do run.
 8. **Custo de import.** `from engine import validate` executa o `engine/__init__`, que carrega `pipeline`, statsmodels, sklearn e matplotlib: ~2,2 s e bem mais memória no processo da API (no boot e a cada reload da API). Medir no swap; se pesar, tornar os exports do `__init__` preguiçosos.
-9. **Relatórios do LLM.** O `run` chama o Gemini por evento e mais uma vez no global (até 60 s cada) para gerar os HTML legados, mas `reports` sai `null` no `results.json` (A9) e o worker apaga o diretório. Até o A9, rode o worker com `LLM_PROVIDER=none`: o custo, a latência e o envio de agregados do cliente não servem para nada.
+9. **Relatórios do LLM.** O `run` chama o Gemini por evento e mais uma vez no global (até 60 s cada) para gerar os HTML legados, mas `reports` sai `null` no `results.json` (A9) e o worker apaga o diretório. Até o A9, o `api/launcher.py` sobe o worker com `LLM_PROVIDER=none` (feito em 05/nov/2026): o custo, a latência e o envio de agregados do cliente não serviam para nada. Tirar isso do launcher quando o A9 preencher `reports`.
 10. O `run` já grava o `results.json` no `out_dir`; o worker pode enviar esse arquivo em vez de regravar o dict.
 
 ## Limitações conhecidas
