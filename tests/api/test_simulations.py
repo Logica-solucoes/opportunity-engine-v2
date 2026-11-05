@@ -202,7 +202,14 @@ def test_mapping_runs_the_validation(logged, analyst, ws, make_simulation):
         "period_days": 1,
         "date_range": ["2024-01-01", "2024-01-02"],
         "channels": ["SEARCH", "YOUTUBE"],
-        "checks": [],
+        "checks": [
+            {
+                "id": "collinearity_not_assessed",
+                "level": "info",
+                "message": "A colinearidade entre canais não foi avaliada: o histórico tem 2 período(s), e o mínimo é 30.",
+                "details": {"periods": 2},
+            }
+        ],
         "collinearity": {"pairs": [], "vif": {}, "suggested_groups": []},
     }
 
@@ -226,7 +233,7 @@ def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulat
     validation = put_mapping(logged, simulation.id, MAPPING).json()["validation"]
 
     assert validation["ok"] is False
-    assert validation["checks"] == [
+    assert [c for c in validation["checks"] if c["level"] != "info"] == [
         {
             "id": "duplicate_date_channel",
             "level": "error",

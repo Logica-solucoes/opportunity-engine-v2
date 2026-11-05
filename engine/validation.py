@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 from engine.config import EngineConfig
 from engine.data_preprocessor import detect_cadence, drop_partial_periods, iqr_bounds
@@ -18,6 +19,8 @@ log = logging.getLogger(__name__)
 MAX_LISTED_DATES = 50
 OVERLAP_CORRELATION = 0.95
 OVERLAP_RATIO_MIN = 0.9  # the smaller total over the larger: 0.9-1.1 either way round
+MIN_COLLINEARITY_PERIODS = 30  # with fewer dates two channels correlate near ±1 by chance; A6/A10 calibrate
+MAX_FINITE_VIF = 1e6  # above this R² rounded to 1: perfect collinearity, reported as None
 CADENCE_LABEL = {1: "diária", 7: "semanal", 30: "mensal"}
 
 
@@ -93,12 +96,68 @@ def check_outliers(kpi_df: pd.DataFrame) -> list[Check]:
     ]
 
 
+def spend_matrix(investment_df: pd.DataFrame) -> pd.DataFrame:
+    """Date × channel spend, without constant channels (no correlation or VIF for them)."""
+    wide = investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
+    return wide.loc[:, wide.std() > 0]
+
+
+def channel_vif(wide: pd.DataFrame) -> dict[str, float | None]:
+    """VIF of each channel's spend on the others; None when one channel is an exact mix of the others."""
+    x = np.column_stack([np.ones(len(wide)), wide.to_numpy(dtype=float)])
+    out = {}
+    with np.errstate(divide="ignore", invalid="ignore"):
+        for i, name in enumerate(wide.columns, start=1):
+            value = float(variance_inflation_factor(x, i))
+            out[name] = round(value, 4) if np.isfinite(value) and value <= MAX_FINITE_VIF else None
+    return out
+
+
+def _connected(pairs: list[dict]) -> list[list[str]]:
+    groups: list[set[str]] = []
+    for pair in pairs:
+        linked = [g for g in groups if pair["a"] in g or pair["b"] in g]
+        groups = [g for g in groups if g not in linked] + [{pair["a"], pair["b"]}.union(*linked)]
+    return sorted(sorted(g) for g in groups)
+
+
+def collinearity(investment_df: pd.DataFrame, config: EngineConfig) -> Collinearity:
+    """Pairs over the |r| gate, every channel's VIF and the groups the pairs suggest; empty on a short series."""
+    wide = spend_matrix(investment_df)
+    if wide.shape[1] < 2 or len(wide) < MIN_COLLINEARITY_PERIODS:
+        return Collinearity()
+    limit = config.gate_threshold("collinearity_r")
+    corr = wide.corr()
+    pairs = [
+        {"a": a, "b": b, "r": round(float(corr.loc[a, b]), 4)}
+        for a, b in itertools.combinations(wide.columns, 2)
+        if abs(corr.loc[a, b]) > limit
+    ]
+    return Collinearity(pairs=pairs, vif=channel_vif(wide), suggested_groups=_connected(pairs))
+
+
+def check_short_series(investment_df: pd.DataFrame) -> list[Check]:
+    periods = int(investment_df["Date"].nunique())
+    if periods >= MIN_COLLINEARITY_PERIODS:
+        return []
+    return [
+        Check(
+            id="collinearity_not_assessed",
+            level="info",
+            message=(
+                f"A colinearidade entre canais não foi avaliada: o histórico tem {periods} período(s), "
+                f"e o mínimo é {MIN_COLLINEARITY_PERIODS}."
+            ),
+            details={"periods": periods},
+        )
+    ]
+
+
 def check_channel_overlap(investment_df: pd.DataFrame) -> list[Check]:
     """Two channels that move together and add up to the same total are probably one source reported twice."""
     if investment_df.empty:
         return []
-    wide = investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
-    wide = wide.loc[:, wide.std() > 0]
+    wide = spend_matrix(investment_df)
     checks = []
     for a, b in itertools.combinations(wide.columns, 2):
         total_a, total_b = wide[a].sum(), wide[b].sum()
@@ -138,7 +197,8 @@ def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None]:
 
 def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> ValidationReport:
     """Reads the files and reports every problem found. A problem in the data never raises: it is a check."""
-    legacy = EngineConfig.from_input(config).to_legacy_dict()
+    engine_config = EngineConfig.from_input(config)
+    legacy = engine_config.to_legacy_dict()
     try:
         raw = read_inputs(legacy, inputs)
     except EngineError as e:
@@ -150,6 +210,8 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
     series, period_days = _series_checks(raw)
     checks = [*raw.checks, *series]
     investment = raw.investment_df
+    if not investment.empty:
+        checks += check_short_series(investment)
     return ValidationReport(
         ok=not any(c.level == "error" for c in checks),
         cadence=None if period_days is None else CADENCE_LABEL.get(period_days, f"{period_days} dias"),
@@ -157,5 +219,5 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
         date_range=None if investment.empty else _iso([investment["Date"].min(), investment["Date"].max()]),
         channels=sorted(investment["Product Group"].unique()),
         checks=checks,
-        collinearity=Collinearity(),
+        collinearity=Collinearity() if investment.empty else collinearity(investment, engine_config),
     )

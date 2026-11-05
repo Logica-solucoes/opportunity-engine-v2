@@ -32,7 +32,7 @@ test('analyst uploads the templates, accepts the suggested mapping and validates
 
   await analystPage.getByRole('button', { name: 'Validar' }).click()
 
-  await expect(analystPage.getByText('Nenhum problema encontrado.')).toBeVisible()
+  await expect(analystPage.getByText('A colinearidade entre canais não foi avaliada', { exact: false })).toBeVisible()
   await expect(analystPage.getByText('SEARCH, YOUTUBE')).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
