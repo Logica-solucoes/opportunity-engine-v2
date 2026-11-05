@@ -88,7 +88,8 @@ def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
         return pd.DataFrame(columns=columns)
     product_filter = cfg.get("product_group_filter")
     if product_filter:
-        event_map = event_map[event_map["ad_product"].isin(product_filter)]
+        group_names = {member: " + ".join(group) for group in cfg.get("channel_groups") or [] for member in group}
+        event_map = event_map[event_map["ad_product"].isin({group_names.get(p, p) for p in product_filter})]
     if event_map.empty:
         log.warning("Analysis complete: No events found for the specified products.")
         return pd.DataFrame(columns=columns)

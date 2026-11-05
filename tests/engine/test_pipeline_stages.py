@@ -91,3 +91,11 @@ def test_individual_curves_function_returns_the_frame(synthetic_computed):
         synthetic_computed.mmm, synthetic_computed.effective_config, output_dir=None
     )
     assert list(frame.columns) == ["Channel", "Channel_Spend", "Projected_Total_KPIs", "Historical_Avg", "Recommended"]
+
+
+def test_product_filter_naming_a_member_keeps_the_grouped_events(tmp_path):
+    config = {"channel_groups": [["YOUTUBE", "DISPLAY"]], "product_group_filter": ["YOUTUBE"]}
+    _, prepared, legacy = _prepared(tmp_path, config=config)
+    candidates = pipeline.detect_events(prepared, legacy)
+    assert not candidates.empty
+    assert set(candidates["product_group"]) == {"YOUTUBE + DISPLAY"}
