@@ -216,7 +216,7 @@ def test_unreadable_values_become_a_check_not_an_error(logged, analyst, ws, make
     assert r.status_code == 200
     validation = r.json()["validation"]
     assert validation["ok"] is False
-    assert "value_not_numeric" in [c["id"] for c in validation["checks"]]
+    assert [c["id"] for c in validation["checks"]] == ["value_not_numeric", "no_valid_rows"]
 
 
 def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulation):
