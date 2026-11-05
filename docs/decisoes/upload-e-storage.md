@@ -12,7 +12,7 @@ O `trilha-b` listava "validar → confirmar mapeamento", mas o `validate` recebe
 
 ## 30 MB, não 200 MB
 
-O protótipo aceitava 200 MB. O dado é agregado por dia e canal: 2 anos × 15 canais ≈ 11 mil linhas, menos de 1 MB, e 30 MB é ~30× o arquivo real. O número veio do Cloud Run, que corta o corpo em 32 MiB. O Starlette grava o corpo inteiro em arquivo temporário antes do auth e do nosso teto rodarem, e quem limitava de fato era o Cloud Run. **Com a hospedagem em servidor próprio (04/nov/2026), não há teto de corpo**: o proxy reverso do B11 precisa cortar em 32 MiB (`docs/decisoes/infra-e-operacao.md`).
+O protótipo aceitava 200 MB. O dado é agregado por dia e canal: 2 anos × 15 canais ≈ 11 mil linhas, menos de 1 MB, e 30 MB é ~30× o arquivo real. O número veio do Cloud Run, que corta o corpo em 32 MiB. O Starlette grava o corpo inteiro em arquivo temporário antes do auth e do nosso teto rodarem, e quem limitava de fato era o Cloud Run. **Com a hospedagem em servidor próprio (04/nov/2026), o teto passou para a app**: `api/main.py` devolve 413 para `Content-Length` acima de 32 MiB antes de ler o corpo. Corpo *chunked* escapa desse teto, então o proxy reverso do B11 também corta em 32 MiB (`docs/decisoes/infra-e-operacao.md`).
 
 ## Storage local, endereçado por conteúdo
 
@@ -42,7 +42,7 @@ A ordem é banco, depois storage. Apagar a linha leva `simulation_files`, `runs`
 
 Apagar a simulação também tira os runs dela do uso (a view `usage` lê `runs`). É de propósito: o hard delete é o que uma limpeza no estilo LGPD precisa, e um uso que sobrevivesse ao apagar exigiria uma tabela própria.
 
-Limites conhecidos: um upload que ainda está gravando no storage quando o apagar confirma recria a pasta `inputs/` com um arquivo órfão (o `save_file` grava antes de travar a linha), e um worker vivo de um run já marcado como morto recria a pasta do run com um `results.json` órfão. Os dois são raros (o run só é morto aos 20 min) e ficam para o B11, junto com o timeout do worker. Duas operações simultâneas sobre uma simulação que acabou de ser apagada dão 500, não 404.
+Limites conhecidos: um upload que ainda está gravando no storage quando o apagar confirma recria a pasta `inputs/` com um arquivo órfão (o `save_file` grava antes de travar a linha), e um worker vivo de um run já marcado como morto recria a pasta do run com um `results.json` órfão. Os dois são raros (o run só é morto aos 20 min) e ficam para o B11. Duas operações simultâneas sobre uma simulação que acabou de ser apagada dão 500, não 404.
 
 ## Telas (B2b e B9b)
 

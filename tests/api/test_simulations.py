@@ -131,6 +131,17 @@ def test_upload_rejects_file_over_the_limit(logged, analyst, ws, make_simulation
     assert (r.status_code, r.json()["detail"]) == (413, "Arquivo maior que 30 MB.")
 
 
+def test_oversized_body_is_refused_before_auth_reads_it(client):
+    # without the Cloud Run cap, Starlette would spool the whole body to disk before auth ran
+    r = client.put(
+        "/api/w/a/simulations/1/files/investment",
+        content=b"x",
+        headers={"content-length": str(33 * 1024 * 1024), "origin": "https://testserver"},
+    )
+
+    assert (r.status_code, r.json()["detail"]) == (413, "Arquivo maior que 30 MB.")
+
+
 @pytest.mark.parametrize(
     "filename, content, message",
     [

@@ -19,6 +19,18 @@ def health():
     return {"status": "ok", "db": "ok" if db.ping() else "down"}
 
 
+# a 30 MB file plus multipart overhead; Starlette spools the whole body to disk before any route or auth runs
+MAX_BODY_BYTES = 32 * 1024 * 1024
+
+
+async def refuse_oversized_body(request: Request, call_next):
+    # ponytail: Content-Length only; a chunked body still needs the reverse proxy's cap
+    length = request.headers.get("content-length", "")
+    if length.isdigit() and int(length) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": "Arquivo maior que 30 MB."}, status_code=413)
+    return await call_next(request)
+
+
 def busy(request: Request, exc: passwords.Busy):
     return JSONResponse({"detail": "busy"}, status_code=503, headers={"Retry-After": "1"})
 
@@ -48,6 +60,7 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
 def create_app(web_dist: Path | None = None) -> FastAPI:
     app = FastAPI(title="Marketing GEM")
     app.middleware("http")(auth.check_origin)
+    app.middleware("http")(refuse_oversized_body)
     # added last = outermost: it must run in uvicorn's own task, which logs the access line and a 500's traceback
     app.middleware("http")(logs.request_context)
     app.exception_handler(passwords.Busy)(busy)
