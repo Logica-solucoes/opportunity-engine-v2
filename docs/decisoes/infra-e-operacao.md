@@ -1,10 +1,32 @@
 # Infra e operação
 
-Decisões do B0 (esqueleto), 21/out/2026.
+Decisões do B0 (esqueleto), 21/out/2026, revistas em 04/nov/2026 (hospedagem).
+
+## Hospedagem: servidor próprio, sem GCP (04/nov/2026)
+
+O plano do M2 previa Cloud Run (service + Job), Cloud SQL, GCS, Secret Manager e Cloud Logging. O projeto GCP não saiu (dependência externa do `docs/m2/README.md`), e em 04/nov/2026 a decisão passou a ser **hospedar num servidor próprio x86-64, com Docker e sem GCP**. Tudo o que já rodava local continua igual, e as trocas que esperavam o B11 deixam de existir:
+
+| Peça | Plano antigo (GCP) | Agora |
+|---|---|---|
+| API + SPA | Cloud Run service | um container da imagem única no servidor |
+| Worker | Cloud Run Job | subprocess disparado pelo `api/launcher.py`, no mesmo container (o que já existe) |
+| Banco | Cloud SQL | Postgres 16 em Docker no próprio servidor (o mesmo do `docker-compose.yml`) |
+| Arquivos | GCS | disco local em `STORAGE_DIR` (volume do container) |
+| Segredos | Secret Manager | variáveis de ambiente (`.env` no servidor, fora do git, leitura só do dono) |
+| Logs | Cloud Logging | JSON no stdout, lido por `docker logs` |
+| Gemini | Vertex ou API key | API key (`GEMINI_API_KEY`); Vertex descartado |
+| Conector Ads/GA4 (BigQuery) | parte do M2 | **fora do escopo por ora**: o código do B8 fica, mas o dado entra só por upload de CSV |
+
+O que muda para o B11, porque o Cloud Run fazia sozinho:
+
+- **Limite do corpo da requisição.** O Starlette grava o corpo inteiro em arquivo temporário antes do auth e do teto de 30 MB rodarem, e quem cortava em 32 MiB era o Cloud Run. Sem ele, um POST anônimo enche o disco. O proxy reverso na frente da API precisa limitar o corpo (ex.: `client_max_body_size 32m` no nginx).
+- **Timeout do worker.** O Job expirava em 15 min; um subprocess pendurado roda para sempre. O run é dado como morto aos 20 min (`STALE_AFTER`), mas o processo continua gastando CPU: o launcher ou o worker precisam de um timeout que mate o processo.
+- **TLS, backup do Postgres e do `STORAGE_DIR`, e restart dos containers** passam a ser nossos.
+- O worker roda em processo na mesma máquina da API: um run usa ~1 núcleo com o BLAS em 1 thread (`docs/decisoes/engine.md`), e isso disputa CPU com a API.
 
 ## Imagem única para API, SPA e worker
 
-Um `Dockerfile` com três estágios (bun → build do `web/`, uv → venv, runtime). A API serve o `web/dist` no mesmo processo, então é um serviço Cloud Run só e **sem CORS**. O worker é a mesma imagem com outro comando (`python -m api.worker`), por isso o `Dockerfile` usa `CMD` e não `ENTRYPOINT`: `docker run <img> <cmd>` e o Cloud Run Job trocam o comando sem brigar com o entrypoint. O `CMD` é shell form (`sh -c "exec uvicorn … --port ${PORT:-8080}"`) para o `$PORT` do Cloud Run expandir.
+Um `Dockerfile` com três estágios (bun → build do `web/`, uv → venv, runtime). A API serve o `web/dist` no mesmo processo, então é um container só e **sem CORS**. O worker usa a mesma imagem com outro comando (`python -m api.worker`), e hoje roda como subprocess da API. O `Dockerfile` usa `CMD` e não `ENTRYPOINT`, para `docker run <img> <cmd>` trocar o comando sem brigar com o entrypoint. O `CMD` é shell form (`sh -c "exec uvicorn … --port ${PORT:-8080}"`) para a porta vir de `$PORT`; isso foi pensado para o Cloud Run e continua servindo.
 
 ## `COPY --chown` em vez de `chown -R`
 
@@ -20,7 +42,7 @@ O `results.json` leva `engine_version` para auditoria. A imagem não tem `.git` 
 
 ## `/api/health` sempre responde 200
 
-Reporta `db: ok|down` no corpo, mas o status HTTP não depende do banco. **Por quê:** o healthcheck do container e a liveness do Cloud Run não devem matar a API por uma queda de banco que ela pode sobreviver. `db.ping()` usa `connect_timeout=2` para não pendurar a resposta.
+Reporta `db: ok|down` no corpo, mas o status HTTP não depende do banco. **Por quê:** o healthcheck do container não deve matar a API por uma queda de banco que ela pode sobreviver. `db.ping()` usa `connect_timeout=2` para não pendurar a resposta.
 
 ## SPA com fallback e 404 JSON na API
 
@@ -44,7 +66,7 @@ O `docker-compose.yml` publica `5432:5432`. **Sintoma:** com outro Postgres loca
 
 ## Logs em JSON com os IDs da request (B9)
 
-Uma linha JSON por evento no stdout (`severity`, `logger`, `message` e, quando existem, `user_id`, `workspace_id`, `run_id`), na API e no worker, inclusive no dev: o Cloud Logging lê assim, e o dev vê o mesmo que a produção. `api/logs.py` concentra o formatter, o filtro e o `setup()`, que também troca os handlers do uvicorn (o access log incluso). O `setup()` roda no import de `api/main.py` porque o uvicorn configura os loggers dele antes de importar a app. O `cli.py` continua em texto: a saída dele é para quem está no terminal.
+Uma linha JSON por evento no stdout (`severity`, `logger`, `message` e, quando existem, `user_id`, `workspace_id`, `run_id`), na API e no worker, inclusive no dev: é o formato que um coletor de log lê sem parser (era o do Cloud Logging; no servidor próprio, `docker logs`), e o dev vê o mesmo que a produção. `api/logs.py` concentra o formatter, o filtro e o `setup()`, que também troca os handlers do uvicorn (o access log incluso). O `setup()` roda no import de `api/main.py` porque o uvicorn configura os loggers dele antes de importar a app. O `cli.py` continua em texto: a saída dele é para quem está no terminal.
 
 **Sintoma que guiou o desenho:** dependência síncrona do FastAPI roda numa cópia do contexto, então um `ContextVar.set()` feito no `require_role` não chega à rota. O middleware cria um `dict` por request no `ContextVar`, e `current_session`/`require_role`/`find_run` **mutam** esse objeto (`logs.tag`), que é o mesmo nas cópias. O worker abre o seu no `main` (`logs.scope(run_id=…)`) e completa com workspace e autor no `execute`. Nenhuma chamada `log.info` precisa passar `extra=`. O middleware não reseta o `ContextVar` ao sair: o uvicorn loga o traceback de um 500 e a linha de access log depois que o middleware retorna, e cada request roda na sua própria task, então o `dict` morre com ela.
 

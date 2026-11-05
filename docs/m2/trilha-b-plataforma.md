@@ -114,7 +114,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B4 · Jobs assíncronos e log em tempo real — semana 2
 
-- **Status:** ✅ feito. B4a (backend) em 27/out/2026, verificado por `tests/api/test_runs.py` (gate, snapshot, worker, run morto, SSE com retomada, isolamento entre workspaces, erro do motor em pt-BR com traceback só no stdout) e `tests/api/test_rbac.py`; B4b (tela) em 27/out/2026, verificado por `web/e2e/simulations.spec.ts` (rodar, log ao vivo, recarregar e retomar) e screenshots nos dois temas (rodando, concluída, falhou, lista com run ativo). Fora até a Trilha A: `engine.run` real e tradução do log (A0/A1). Fora até o B11: launcher do Cloud Run Jobs. Desvios em `docs/decisoes/runs-e-jobs.md`.
+- **Status:** ✅ feito. B4a (backend) em 27/out/2026, verificado por `tests/api/test_runs.py` (gate, snapshot, worker, run morto, SSE com retomada, isolamento entre workspaces, erro do motor em pt-BR com traceback só no stdout) e `tests/api/test_rbac.py`; B4b (tela) em 27/out/2026, verificado por `web/e2e/simulations.spec.ts` (rodar, log ao vivo, recarregar e retomar) e screenshots nos dois temas (rodando, concluída, falhou, lista com run ativo). Fora até a Trilha A: `engine.run` real e tradução do log (A0/A1). O launcher do Cloud Run Jobs não vai existir (servidor próprio, sem GCP, 04/nov/2026): o subprocess é o de produção. Desvios em `docs/decisoes/runs-e-jobs.md`.
 - **Observação:** a B4 foi verificada só com um **motor falso** (`api/engine_run.py`). Ele imita as etapas do log com pausa configurável (`FAKE_ENGINE_STEP_SECONDS`), simula falha com `FAKE_ENGINE_FAIL=1` e devolve um `results.json` com todas as seções `null`. Quando o A0/A1 entrar, o módulo vira `from engine import run` e o fluxo precisa ser verificado de novo com o motor real: duração, volume de log, tradução pt-BR e `results.json` preenchido.
 - **BRD:** Capabilities › Processing engine & real-time log; Improvement Requests › Execution e Logs; deliverable "Real-time log".
 - **Depende de:** A0, B2, B3.
@@ -129,7 +129,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
     - `run_logs` (`bigserial id`, `run_id`, `ts`, `level`, `message`).
   - `launcher` com duas implementações por env:
     - local, por subprocess `python -m api.worker <run_id>`;
-    - cloud, pela API do Cloud Run Jobs com override de env `RUN_ID`.
+    - ~~cloud, pela API do Cloud Run Jobs com override de env `RUN_ID`~~ (cortado em 04/nov/2026: sem GCP).
   - Worker:
     1. baixa os inputs;
     2. roda `engine.run` com `on_log` que grava linhas traduzidas em `run_logs`, em lote a cada 0,5 s;
@@ -209,6 +209,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B8 · Conectores Google Ads e GA4 — semanas 2–3
 
+- **Fora do escopo por ora (04/nov/2026):** sem projeto GCP, o dado entra só por CSV; o código fica no repo, desligado.
 - **Status:** ✅ feito, com o aceite de ±1% pendente. B8a (backend) em 29/out/2026, verificado por `tests/api/test_google_import.py` (grade com zeros, canais, SQL com parâmetros, arquivos mapeados e validados, 409/422/502, 404 entre workspaces), `tests/api/test_admin.py` (config só do platform admin, regex contra injeção, `/api/me` sem datasets), `tests/api/test_rbac.py` e `tests/api/test_bigquery_live.py` (pulado: sem sandbox). B8b (telas) em 29/out/2026, verificado por `web/e2e/admin.spec.ts` (configurar, editar, erro por campo, remover) e `web/e2e/simulations.spec.ts` (import só com conector, erro do BigQuery na tela) e screenshots nos dois temas. Pendente: rodar `tests/api/test_bigquery_live.py` num sandbox e o total do período contra o Google Ads UI (±1%) quando houver acesso a uma conta Core com DTS. Respostas do "Em aberto" e desvios em `docs/decisoes/conectores-google.md`.
 - **BRD:** Technical Details §1 (inclusive o fallback); Capabilities › Google connectors; deliverable "Google connectors"; Datasets.
 - **Depende de:** projeto GCP e acesso das contas (README › dependências), B2.
@@ -249,19 +250,23 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
   - Definir o modo de integração e implementar o mínimo dele.
 - **Em aberto (bloqueia o design):** como o GEM entra no Metrics — link no menu, iframe embutido ou módulo do mesmo app? E o login, é o mesmo do Metrics ou separado? O BRD pede login/senha próprio.
 
-## B11 · Deploy GCP, QA e performance — semana 4
+## B11 · Deploy no servidor próprio, QA e performance — semana 4
 
-- **BRD:** Phase 2 Week 4; deliverable "Tests & QA"; Process ownership (Cloud Run, BigQuery, GCS); Dependencies (GCP).
-- **Depende de:** projeto GCP.
+- **Revisto em 04/nov/2026:** hospedagem num servidor próprio x86-64 com Docker, **sem GCP** (sem Cloud Run, Cloud SQL, GCS, Secret Manager). O porquê em `docs/decisoes/infra-e-operacao.md`.
+- **BRD:** Phase 2 Week 4; deliverable "Tests & QA"; Process ownership (era Cloud Run, BigQuery, GCS).
+- **Depende de:** acesso ao servidor (SSH, Docker, DNS e TLS).
 - **Fazer:**
-  - `deploy/` com scripts `gcloud` idempotentes, sem Terraform:
-    - Cloud Run service `gem-api`;
-    - Cloud Run Job `gem-worker`;
-    - Cloud SQL Postgres;
-    - bucket GCS;
-    - secrets (DB, Gemini, chave de sessão);
-    - service accounts de privilégio mínimo.
-  - Ambientes staging e prod. Migrações Alembic rodam antes do deploy da API.
+  - `deploy/` com o compose de produção, idempotente:
+    - container da API (imagem única, `--build-arg ENGINE_VERSION=$(git rev-parse --short HEAD)`);
+    - Postgres 16 em container, com volume;
+    - volume de `STORAGE_DIR`;
+    - `.env` do servidor (DB, Gemini, chave de sessão), fora do git, leitura só do dono;
+    - restart automático dos containers.
+  - **Proxy reverso com TLS e limite de corpo de 32 MiB** (sem ele, um POST anônimo enche o disco; `docs/decisoes/upload-e-storage.md`).
+  - **Timeout do worker**: matar o subprocess que passar do `STALE_AFTER` (o Cloud Run Job fazia isso aos 15 min).
+  - `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` no ambiente do worker (`docs/decisoes/engine.md`).
+  - Backup do Postgres e do `STORAGE_DIR`, com restauração testada uma vez.
+  - Ambientes staging e prod. Migrações Alembic rodam antes de subir a API.
   - Teste de carga: 10 runs simultâneos e 30 usuários navegando, e anotar os tempos.
   - Memória da instância: cada scrypt de login usa ~128 MB e até `passwords.SLOTS` (4) rodam juntos.
   - Rate limit por IP no login. Até lá, quem sabe o e-mail do platform admin consegue mantê-lo bloqueado (5 requests a cada 15 min); o `create-admin` pelo CLI recupera.
@@ -270,4 +275,4 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
   - Guia do usuário v1, com a parte de interpretação vinda da trilha A.
 - **Aceite:**
   - As 4 jornadas do BRD rodam ponta a ponta em staging.
-  - Rollback = redeploy da revisão anterior do Cloud Run, testado uma vez.
+  - Rollback = subir a imagem anterior (tag por commit), testado uma vez.

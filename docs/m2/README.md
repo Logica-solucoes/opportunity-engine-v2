@@ -26,20 +26,22 @@ O spec está pronto quando: todo critério de **Aceite** tem verificação concr
 
 ## Decisões tomadas (20/out/2026)
 
+**Revisão de 04/nov/2026: hospedagem em servidor próprio x86-64, sem GCP.** O projeto GCP não saiu. As linhas marcadas com *(revisto)* abaixo mudaram por isso; o porquê e o que o B11 precisa cobrir estão em `docs/decisoes/infra-e-operacao.md`.
+
 | Tema | Decisão | Por quê |
 |---|---|---|
 | Motor | **Reaproveitar** o Python atual como pacote `engine/` | ~5k linhas já auditadas (julho); reescrever é risco sem ganho |
 | UI | **Substituir Streamlit** por React | BRD exige visual do Almap Metrics (React), RBAC e jobs assíncronos — Streamlit não entrega |
 | Front | Vite + React + TypeScript + TanStack Router + TanStack Query, gráficos com plotly.js | Metrics é React; plotly.js permite portar `dashboard_charts.py` quase 1:1 |
-| API | FastAPI, servindo também o build estático do front (mesma origem, sem CORS) | um serviço Cloud Run só |
-| Execução | Cloud Run **Jobs** (worker) — mesma imagem Docker da API, outro comando | BRD: "cloud execution as asynchronous jobs" |
-| Banco do app | **Postgres** (Cloud SQL), SQLAlchemy 2 + Alembic | SQLite em disco não sobrevive ao Cloud Run e trava com escrita concorrente |
-| Arquivos | Cloud Storage (local: diretório em disco, mesma interface) | BRD: uploads, snapshots, relatórios |
-| BigQuery | Dados de mídia (Ads/GA4) e **cópia analítica** do histórico. Postgres é a fonte de verdade de runs | BigQuery não serve como banco transacional |
-| Gemini | Chave única da plataforma no Secret Manager (fim da chave por usuário). SDK `google-genai` (aceita API key e Vertex) | BRD fala em Vertex AI; `google-generativeai` está descontinuado e não tem `response_schema` confiável |
+| API | FastAPI, servindo também o build estático do front (mesma origem, sem CORS) | um container só (era: um serviço Cloud Run só) |
+| Execução | *(revisto)* Worker como **subprocess** da API, mesma imagem Docker (era: Cloud Run Jobs) | BRD: "cloud execution as asynchronous jobs"; os jobs continuam assíncronos, só não rodam no GCP |
+| Banco do app | **Postgres** *(revisto: em Docker no próprio servidor, era Cloud SQL)*, SQLAlchemy 2 + Alembic | SQLite trava com escrita concorrente |
+| Arquivos | *(revisto)* Diretório em disco no servidor (`STORAGE_DIR`), sem Cloud Storage | BRD: uploads, snapshots, relatórios |
+| BigQuery | *(revisto)* **Fora por ora**: nem conector nem cópia analítica. Postgres é a fonte de verdade de runs | sem projeto GCP |
+| Gemini | Chave única da plataforma *(revisto: por variável de ambiente, sem Secret Manager; Vertex descartado)* (fim da chave por usuário). SDK `google-genai` | BRD fala em Vertex AI; `google-generativeai` está descontinuado e não tem `response_schema` confiável |
 | Matemática | **Fica só em Python.** O front nunca recalcula curva, CPA ou ponto ótimo; pede à API | a auditoria cobre um lugar só |
 | Streamlit | Continua funcionando até o React atingir paridade (fim da semana 3), depois é removido | é o plano B de demo e a referência de paridade |
-| Conectores Google | Começar pelo **fallback** do BRD (BigQuery Data Transfer + export nativo do GA4); OAuth próprio só se o developer token sair a tempo | 2 devs; o BRD autoriza o fallback |
+| Conectores Google | *(revisto)* **Fora do escopo por ora**: o dado entra só por CSV. O fallback do BRD (BigQuery Data Transfer + export nativo do GA4) foi implementado no B8 e fica no código, desligado | sem projeto GCP nem acesso às contas |
 | Export PDF | CSS de impressão + `window.print()` | nativo, zero dependência |
 
 ---
@@ -47,15 +49,16 @@ O spec está pronto quando: todo critério de **Aceite** tem verificação concr
 ## Arquitetura alvo
 
 ```
-web/ (React SPA) ──HTTP/SSE──▶ api/ (FastAPI, Cloud Run service)
+servidor próprio x86-64 (Docker, sem GCP)
+web/ (React SPA) ──HTTP/SSE──▶ proxy reverso ──▶ api/ (FastAPI, container da imagem única)
                                  │  auth, RBAC, upload, validação síncrona,
                                  │  sugestão Gemini, runs, histórico, cenários
-                                 ├──▶ Postgres (Cloud SQL): users, workspaces, runs, run_logs
-                                 ├──▶ Cloud Storage: inputs/, results.json, artefatos
-                                 └──dispara──▶ worker (Cloud Run Job, mesma imagem)
+                                 ├──▶ Postgres (container): users, workspaces, runs, run_logs
+                                 ├──▶ disco (STORAGE_DIR): inputs/, results.json, artefatos
+                                 └──dispara──▶ worker (subprocess, mesma imagem)
                                                   └─ engine.run(...) → results.json
-                                                     logs → run_logs (UI) + stdout JSON (Cloud Logging)
-BigQuery: tabelas de Ads/GA4 (DTS) ──consulta──▶ api/ingestão  ·  worker ──append──▶ histórico analítico
+                                                     logs → run_logs (UI) + stdout JSON (docker logs)
+Conector BigQuery (Ads/GA4): no código, fora do escopo por ora.
 ```
 
 Layout do repo:
@@ -64,7 +67,7 @@ Layout do repo:
 engine/        # Trilha A. Ex-scripts/ (git mv, mesmos nomes de módulo). Sem I/O de rede além do Gemini.
 api/           # Trilha B. FastAPI, worker.py, storage.py, migrations/ (Alembic)
 web/           # Trilha B. Vite + React
-deploy/        # Trilha B. scripts gcloud (sem Terraform)
+deploy/        # Trilha B. deploy no servidor próprio (B11)
 tests/         # pytest, ambos
 docs/m2/       # este plano
 ```
@@ -156,7 +159,7 @@ Em paralelo: o onboarding das 4 marcas Core vai de 26/out a 13/nov. Rode `engine
 
 | O quê | Quem destrava | Prazo | Sem isso |
 |---|---|---|---|
-| Projeto GCP Omnicom aprovado (Cloud Run, SQL, GCS, BigQuery, Secret Manager, Vertex) | Marcio (Data Tech) | antes de 26/out | sem deploy nem staging; tudo roda só local |
+| ~~Projeto GCP Omnicom aprovado~~ | — | — | **Dispensado em 04/nov/2026**: hospedagem em servidor próprio. No lugar: acesso ao servidor x86-64 (SSH, Docker, DNS e TLS) |
 | Google Ads developer token (Basic) + OAuth consent (adwords, analytics.readonly) | Data Tech | pedir na semana 1 | usar DTS + export GA4 (plano padrão) |
 | Contas Google Ads das Core no MCC Almap + acesso GA4 | Account teams | 26/out | CSV |
 | Tokens visuais / design system do Almap Metrics | time Metrics | semana 1 | tema próprio, ajuste depois |
@@ -171,10 +174,10 @@ Em paralelo: o onboarding das 4 marcas Core vai de 26/out a 13/nov. Rode `engine
 3. Uso do resultado de experimento como calibração (A7) — guardar o upload basta.
 4. Comparação lado a lado no histórico (B6) — busca e filtro bastam.
 5. Overlap DV360/CM360 (A2) — vira warning manual.
-6. Cópia do histórico no BigQuery (B11; era B9) — Postgres basta para o M2.
-7. OAuth nativo Ads/GA4 (B8) — o fallback DTS já é o padrão.
+6. ~~Cópia do histórico no BigQuery~~ — já cortada (sem GCP, 04/nov/2026).
+7. ~~OAuth nativo Ads/GA4 (B8)~~ — já cortado: o conector inteiro está fora do escopo por ora.
 
-**Nunca cortar:** gates de publicação, RBAC por workspace, jobs na nuvem, grounding do Gemini e auditoria. É isso que o Google homologa no M2.
+**Nunca cortar:** gates de publicação, RBAC por workspace, jobs assíncronos, grounding do Gemini e auditoria. É isso que o Google homologa no M2.
 
 ---
 

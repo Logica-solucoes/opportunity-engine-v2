@@ -12,7 +12,7 @@ O analista passa o dia na ferramenta; uma sessão fixa curta o desloga no meio d
 
 ## `SameSite=Lax` + checagem de `Origin`
 
-A API serve o SPA na mesma origem, então `Lax` basta para o navegador não mandar o cookie em POST de outro site. A checagem de `Origin` nas mutações é a segunda camada, e existe porque a integração com o Almap Metrics (B10) não está definida: se virar iframe cross-site, o cookie precisa de `SameSite=None` e o `Origin` passa a ser a proteção de CSRF. Compara só o host, não o esquema: o Cloud Run termina o TLS e a app vê `http` enquanto o navegador manda `https://`. Request sem `Origin` passa (CLI, curl, testes); navegador sempre manda em POST.
+A API serve o SPA na mesma origem, então `Lax` basta para o navegador não mandar o cookie em POST de outro site. A checagem de `Origin` nas mutações é a segunda camada, e existe porque a integração com o Almap Metrics (B10) não está definida: se virar iframe cross-site, o cookie precisa de `SameSite=None` e o `Origin` passa a ser a proteção de CSRF. Compara só o host, não o esquema: quem termina o TLS é o proxy na frente (era o Cloud Run; no servidor próprio, o proxy reverso do B11) e a app vê `http` enquanto o navegador manda `https://`. Request sem `Origin` passa (CLI, curl, testes); navegador sempre manda em POST.
 
 ## 404 entre workspaces, 403 para papel insuficiente
 
@@ -42,7 +42,7 @@ Rebaixar ou remover o último admin do workspace responde 409 `last_admin`. As m
 
 Como o login é público, uma rajada de requests derrubaria a instância. Por isso há dois limites (revisão do B1, 22/out/2026):
 
-- **Semáforo de 4 scrypts simultâneos** (`passwords.SLOTS`): o resto espera na fila, então o teto de RAM é ~512 MB. Ao dimensionar o Cloud Run no B11, deixe memória para isso ou reduza `SLOTS`.
+- **Semáforo de 4 scrypts simultâneos** (`passwords.SLOTS`): o resto espera na fila, então o teto de RAM é ~512 MB. Ao dimensionar o servidor no B11, deixe memória para isso ou reduza `SLOTS`.
 - **Espera na fila limitada a 5 s** (`SLOT_WAIT_S`), depois 503 `busy` com `Retry-After`. As rotas são `def` síncronas e dividem as 40 threads do AnyIO: sem teto, uma rajada de logins com e-mail aleatório deixava todas as threads paradas no semáforo e travava a API inteira, `/api/health` incluído (review de 26/out/2026). 5 s e não 1 s porque o E2E faz logins em paralelo num notebook lento, onde um scrypt leva ~1,5 s. É um teto, não um rate limit: o rate limit por IP continua no B11.
 - **Login sem conexão presa durante o scrypt**: lê o usuário, encerra a transação, roda o scrypt e só então trava a linha para contar a falha ou zerar o contador. Se a senha mudou nesse meio-tempo, o palpite conta como errado. Sem isso, uns 15 logins ruins simultâneos esgotariam o pool (5+10) e travariam todas as rotas.
 
@@ -58,7 +58,7 @@ Sessão expirada é apagada quando o cookie volta, mas cookie que nunca volta (s
 
 ## Bootstrap por CLI
 
-Sem auto-cadastro, alguém cria o primeiro platform admin: `mise run create-admin <email> <nome>` (em produção, Cloud Run Job one-off com o mesmo comando). Seed por env deixaria uma senha morando num secret para sempre.
+Sem auto-cadastro, alguém cria o primeiro platform admin: `mise run create-admin <email> <nome>` (em produção, `docker compose exec api python -m api.cli create-admin …` no servidor). Seed por env deixaria uma senha morando num secret para sempre.
 
 ## `detail` em código estável nos erros de auth
 

@@ -100,7 +100,7 @@ Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine
 5. Testes: `tests/conftest.py` (`fast_engine`) e `tests/api/test_runs.py` usam `FAKE_ENGINE_*`; trocar por um motor falso injetado, ou manter o falso atrás de uma variável de ambiente nos testes.
 6. `run` roda um run inteiro dentro do processo do worker: nenhum subprocess, nenhuma thread gRPC pendurada (o adaptador do Gemini usa `google-genai`).
 7. **`EngineError` no worker.** `api/worker.py` captura `Exception` e grava uma mensagem genérica. Com o A2, o `run` para no primeiro check de erro com `EngineError` (mensagem pt-BR, `check_id`); sem um `except EngineError as e: message = str(e)`, essa mensagem nunca chega à tela do run.
-8. **Custo de import.** `from engine import validate` executa o `engine/__init__`, que carrega `pipeline`, statsmodels, sklearn e matplotlib: ~2,2 s e bem mais memória no processo da API (pior no cold start do Cloud Run). Medir no swap; se pesar, tornar os exports do `__init__` preguiçosos.
+8. **Custo de import.** `from engine import validate` executa o `engine/__init__`, que carrega `pipeline`, statsmodels, sklearn e matplotlib: ~2,2 s e bem mais memória no processo da API (no boot e a cada reload da API). Medir no swap; se pesar, tornar os exports do `__init__` preguiçosos.
 9. **Relatórios do LLM.** O `run` chama o Gemini por evento e mais uma vez no global (até 60 s cada) para gerar os HTML legados, mas `reports` sai `null` no `results.json` (A9) e o worker apaga o diretório. Até o A9, rode o worker com `LLM_PROVIDER=none`: o custo, a latência e o envio de agregados do cliente não servem para nada.
 10. O `run` já grava o `results.json` no `out_dir`; o worker pode enviar esse arquivo em vez de regravar o dict.
 

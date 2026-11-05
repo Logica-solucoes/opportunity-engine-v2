@@ -186,7 +186,7 @@ web/ (React SPA) ──HTTP/SSE──▶ api/ (FastAPI; hospedagem: servidor pr�
 (Conector BigQuery/Ads/GA4: existe no código da API, mas está FORA do escopo por ora; só entra dado por upload de CSV)
 ```
 
-Tecnologias **[spec/código]**: Python 3.13 com `uv` (nunca pip/poetry), FastAPI, SQLAlchemy 2 + Alembic + psycopg 3, Postgres 16; front em Vite + React 19 + TypeScript + TanStack Router/Query com `bun`; testes `pytest` e Playwright; a spec original previa Cloud Run; **a decisão atual (04/nov) é hospedar num servidor próprio x86-64, sem GCP**, ainda com API e worker na **mesma imagem Docker**, comandos diferentes. O texto de `docs/m2/` e do `CLAUDE.md` sobre Cloud Run, GCS, Secret Manager e B11 ainda não reflete isso.
+Tecnologias **[spec/código]**: Python 3.13 com `uv` (nunca pip/poetry), FastAPI, SQLAlchemy 2 + Alembic + psycopg 3, Postgres 16; front em Vite + React 19 + TypeScript + TanStack Router/Query com `bun`; testes `pytest` e Playwright; a spec original previa Cloud Run; **a decisão atual (04/nov) é hospedar num servidor próprio x86-64, sem GCP**, ainda com API e worker na **mesma imagem Docker**, comandos diferentes. Desde 05/nov/2026 o `docs/m2/`, o `CLAUDE.md` e o `docs/decisoes/infra-e-operacao.md` refletem isso.
 
 ### O caminho de um run, passo a passo
 

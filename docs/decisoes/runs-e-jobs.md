@@ -8,7 +8,7 @@ O A0 ainda não entregou o `engine/`. `api/engine_run.py` segue a assinatura do 
 
 ## Só o launcher local
 
-`api/launcher.py` dispara `python -m api.worker <run_id>` por subprocess e não espera. O launcher do Cloud Run Jobs (override de env `RUN_ID`, que o worker já lê) entra no B11: sem projeto GCP, uma implementação só com mock seria aparência. Os testes trocam o `launch` por uma lista (fixture `launched`, autouse) e rodam `worker.execute` no processo.
+`api/launcher.py` dispara `python -m api.worker <run_id>` por subprocess e não espera. É o launcher de produção também: com a hospedagem em servidor próprio (`docs/decisoes/infra-e-operacao.md`, 04/nov/2026), o launcher do Cloud Run Jobs não vai existir. O worker ainda aceita `RUN_ID` por env, sobra do desenho antigo. Os testes trocam o `launch` por uma lista (fixture `launched`, autouse) e rodam `worker.execute` no processo.
 
 ## Gate no servidor
 
@@ -20,7 +20,7 @@ O `POST …/runs` refaz a conta do `runBlockReason` da tela, com as mesmas frase
 
 ## Run morto sem heartbeat
 
-O trilha-b pedia heartbeat. O Job tem timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e no stream a cada 15 s sem linha nova (junto com o ping, não a cada volta). O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Localmente nada mata um worker pendurado; ele só deixa de importar depois dos 20 min.
+O trilha-b pedia heartbeat. O desenho era um Cloud Run Job com timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. Sem o Job, nada mata o processo: falta um timeout no subprocess (B11). A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e no stream a cada 15 s sem linha nova (junto com o ping, não a cada volta). O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Hoje nada mata um worker pendurado, nem no servidor; ele só deixa de importar depois dos 20 min.
 
 ## Uma linha de log por insert
 
@@ -28,7 +28,7 @@ O trilha-b pedia lote de 0,5 s. O motor emite centenas de linhas por run, não m
 
 ## Erro do motor nunca chega cru à tela
 
-Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução N)." em `runs.error` e numa linha `error` do log; o mesmo vale quando o motor devolve `status: "failed"` sem exceção (o `results.json` fica guardado). O traceback e a mensagem crua vão só para o stdout JSON (`severity`, `message`, `run_id`, `workspace_id`), que o Cloud Logging lê. A mensagem crua pode estar em inglês ou carregar dado do cliente. Pergunta ao dev A no contrato §3: uma exceção do motor com mensagem pt-BR própria para a tela.
+Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução N)." em `runs.error` e numa linha `error` do log; o mesmo vale quando o motor devolve `status: "failed"` sem exceção (o `results.json` fica guardado). O traceback e a mensagem crua vão só para o stdout JSON (`severity`, `message`, `run_id`, `workspace_id`), que o `docker logs` do servidor mostra. A mensagem crua pode estar em inglês ou carregar dado do cliente. Pergunta ao dev A no contrato §3: uma exceção do motor com mensagem pt-BR própria para a tela.
 
 ## SSE com sessões curtas
 

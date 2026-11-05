@@ -221,7 +221,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 - **Aceite:**
   - Testes do checador com textos fabricados: número inventado reprova, canal rejeitado reprova, arredondamento legítimo passa.
   - Sem chave de API, o run termina com relatório determinístico.
-- **Em aberto:** Vertex AI ou API key? Depende do projeto GCP (README › dependências).
+- **Decidido em 04/nov/2026:** API key por variável de ambiente, pelo módulo `llm/`. Vertex AI saiu junto com o GCP (`docs/decisoes/infra-e-operacao.md`).
 
 ## A10 · Auditoria matemática — semana 4 (9–13/nov)
 

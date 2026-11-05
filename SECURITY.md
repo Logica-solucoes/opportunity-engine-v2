@@ -28,8 +28,9 @@ O resto deste arquivo são as regras que o código segue. O porquê de cada uma 
 
 ## Segredos e superfícies expostas
 
-- Segredo só via env, nunca no código nem no repositório: `DATABASE_URL`, a chave do Gemini (Secret Manager em produção), o que o B1 e o B8 acrescentarem. O `.env.example` traz o que cada um é e como gerar.
-- Chave do Gemini é **única da plataforma** (Secret Manager), nunca por usuário nem em texto puro no banco.
+- Segredo só via env, nunca no código nem no repositório: `DATABASE_URL`, a chave do Gemini, o que o B1 e o B8 acrescentarem. O `.env.example` traz o que cada um é e como gerar.
+- Chave do Gemini é **única da plataforma**, nunca por usuário nem em texto puro no banco.
+- Em produção (servidor próprio, sem Secret Manager; `docs/decisoes/infra-e-operacao.md`) os segredos ficam no `.env` do servidor, fora do git e com leitura só do dono.
 - O BRD e dados de cliente (CSV de investimento, resultados) **não vão para o repositório** (`.gitignore`: `*.docx`, `inputs/`, `outputs/`).
 - `/docs`, `/redoc` e `/openapi.json`: fechar em produção (decisão a registrar no B11).
 - Mesma origem (API serve o SPA): sem CORS aberto.

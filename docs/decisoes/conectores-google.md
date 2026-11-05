@@ -1,5 +1,7 @@
 # Conectores Google (B8)
 
+**Fora do escopo por ora (04/nov/2026).** Com a hospedagem em servidor próprio e sem projeto GCP (`docs/decisoes/infra-e-operacao.md`), o dado entra só por upload de CSV. O código do B8 fica no repo e os testes continuam rodando, mas o conector não é configurado em nenhum workspace e não faz parte do aceite do M2. O que está abaixo vale se ele voltar.
+
 ## Fallback do BRD primeiro, OAuth nunca por ora
 
 O BRD autoriza puxar Ads e GA4 pelo BigQuery (Data Transfer Service do Google Ads + export nativo do GA4) em vez de OAuth próprio. O OAuth depende de developer token que não saiu e é o último da ordem de corte (`docs/m2/README.md`). A carga diária fica com o DTS; a plataforma só lê.

@@ -1,6 +1,6 @@
 # Banco de dados
 
-Postgres 16 (Docker no dev, Cloud SQL em produção), SQLAlchemy 2 com `DATABASE_URL` em `api/db.py` (default `postgresql+psycopg://app:app@localhost:5432/app`), migrations Alembic em `api/migrations/`. O `docs/m2/README.md` vence em dúvida de schema; o Postgres é a fonte de verdade de runs (BigQuery guarda só mídia e cópia analítica).
+Postgres 16 (Docker no dev e em produção, no próprio servidor; sem Cloud SQL desde 04/nov/2026), SQLAlchemy 2 com `DATABASE_URL` em `api/db.py` (default `postgresql+psycopg://app:app@localhost:5432/app`), migrations Alembic em `api/migrations/`. O `docs/m2/README.md` vence em dúvida de schema; o Postgres é a fonte de verdade de runs (a cópia analítica no BigQuery saiu com o GCP).
 
 ## Regras
 
