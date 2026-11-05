@@ -73,3 +73,20 @@ def test_vw_total_revenue_has_only_warnings_and_infos():
     report = validate(files, config)
     assert report.ok, report.checks
     assert set(_ids(report)) <= {"missing_dates", "outliers"}
+
+
+def test_gol_sits_just_above_the_collinearity_limit():
+    """GOOGLE DISPLAY/VIDEO x KAYAK at |r| 0.8501 (limit 0.85): the gate asks for a decision, the group is suggested."""
+    report = validate(gol_files(), {**GOL_CONFIG, "block_per_channel": False})
+    assert not report.ok and _ids(report)["collinearity_unresolved"] == "error"
+    assert [(p["a"], p["b"]) for p in report.collinearity.pairs] == [("GOOGLE DISPLAY/VIDEO", "KAYAK")]
+    assert report.collinearity.suggested_groups == [["GOOGLE DISPLAY/VIDEO", "KAYAK"]]
+    assert max(v for v in report.collinearity.vif.values() if v is not None) < 10
+
+    accepted = validate(gol_files(), {**GOL_CONFIG, "block_per_channel": True})
+    assert accepted.ok and _ids(accepted)["collinearity_blocked"] == "warning"
+
+    grouped = validate(
+        gol_files(), {**GOL_CONFIG, "block_per_channel": False, "channel_groups": [["GOOGLE DISPLAY/VIDEO", "KAYAK"]]}
+    )
+    assert grouped.ok and "GOOGLE DISPLAY/VIDEO + KAYAK" in grouped.channels

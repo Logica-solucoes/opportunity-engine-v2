@@ -94,6 +94,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 ## A3 · Gate de colinearidade — semana 2
 
 - **BRD:** Technical Details §2; Capabilities › Model validation & publication gates.
+- **Status:** ✅ feito em 05/nov/2026 (branch `feat/a0-engine-package`; spec `docs/superpowers/specs/2026-11-05-a3-colinearidade-design.md`). `validate` preenche `collinearity` (pares, VIF do spend cru, `suggested_groups`); `collinearity_unresolved` (erro) bloqueia o run até `channel_groups` ou `block_per_channel`; o agrupamento soma o spend antes de modelar e o grupo é um canal no `results.json`. Verificado: testes por check, VIF contra regressão manual, aceite sintético (r ≈ 0.95 sinalizado, agrupado vira um canal e o `results.json` só traz o grupo), `validate` < 10 s em 730 × 15, paridade sintética e da Gol (`parity-real`, 6 passed) intactas. **Gol:** par `GOOGLE DISPLAY/VIDEO` × `KAYAK` com \|r\| 0.8501 (limite 0.85) pede decisão; `parity-real` usa `block_per_channel`. Falta: calibrar limiares com as Core (A10), `identifiable` por canal (A5), swap da API e tela de agrupamento (Dev B).
 - **Depende de:** A2. **Bloqueia:** A5, B2 (tela de agrupamento).
 - **Hoje:** não há VIF. A única correlação calculada é a matriz de Pearson (`data_preprocessor.py:1041,1069`), usada no hack de adstock e enviada ao Gemini.
 - **Fazer:**

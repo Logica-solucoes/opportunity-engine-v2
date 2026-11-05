@@ -88,7 +88,19 @@ Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine
 - **`missing_dates`** olha lacunas por série (intervalo / cadência arredondado), tolerando o ±1 dia de re-ancoramento semanal que `detect_cadence` já aceita.
 - **Achado nos dados reais:** `exemplo_csv/Gol/investment.csv` tem GOOGLE 5 vezes por dia (valores diferentes, provavelmente subcampanhas) e o protótipo tirava a **média**. Agora a Gol como enviada é rejeitada. Se o certo é **somar** e não tirar a média (a média subestima o investimento do canal), isso é decisão de negócio com a Data Analytics; hoje o analista precisa consolidar o arquivo. `parity-real` compara protótipo e motor numa cópia da Gol com a média aplicada **no teste** (`tests/engine/real_data.py`); sobre o arquivo original os dois já não concordam (o adstock do protótipo rodava nas linhas repetidas antes do `pivot_table`).
 - **Para o Dev B (swap):** `api/validation.py` vira `from engine import validate`; o `config` pode ir como veio (dict ou `EngineConfig`). A tela do B2 deve tratar os novos ids (`details` por id) e o nível `info`. Ausência de `generic_trends_file` é `None`.
-- **Fora do A2:** colinearidade (`collinearity` sai vazia, A3), templates CSV oficiais e nomes DV360/CM360 (Data Analytics).
+- **Fora do A2:** colinearidade (A3, abaixo), templates CSV oficiais e nomes DV360/CM360 (Data Analytics).
+
+## Colinearidade (A3, 05/nov/2026)
+
+Spec: `docs/superpowers/specs/2026-11-05-a3-colinearidade-design.md`. Dois canais que se movem juntos tornam o coeficiente de cada um indeterminável, então o `validate` mede e o analista decide antes do run.
+
+- **Medida:** correlação par a par e VIF (`statsmodels`) do **spend cru** (sem adstock), sem os períodos parciais descartados, em `engine/collinearity.py`. Par sinalizado com `abs(r) > collinearity_r` (o sinal não importa); canal constante ou de soma zero fica fora; sem linhas suficientes (n ≤ canais + 1) o VIF sai vazio; colinearidade perfeita sai `null` e conta como VIF alto. `suggested_groups` são os componentes conexos dos pares; canal só com VIF alto entra no grupo do canal mais correlacionado.
+- **Limiares** em `gate_thresholds`: `collinearity_r` (default 0.85) e `vif_max` (default 10). Valor inválido numa chave conhecida é `EngineError` de config; chave desconhecida é ignorada. São chutes do item, para calibrar com as Core (A10).
+- **Resolução:** `channel_groups` (`list[list[str]]`, nome do grupo = `"A + B"`) soma o spend dos membros antes do adstock e do modelo (`engine/grouping.py`, passo compartilhado por `validate` e `load_and_prepare_data`); o grupo é um canal em todo o `results.json`. `block_per_channel=true` aceita a colinearidade: o gate vira o aviso `collinearity_blocked` e o modelo roda (a marca `identifiable=false` por canal é do A5).
+- **Gate no conjunto efetivo.** `collinearity` e `channels` do relatório descrevem os canais depois dos grupos. Sinalizado e sem resolução é o erro `collinearity_unresolved` (um grupo que ainda colide com outro canal continua sinalizado). Erros de grupo (`group_unknown_channel`, `group_overlap`, `group_too_small`) impedem aplicar os grupos e o gate não roda.
+- **Achado nos dados reais:** a Gol consolidada tem um par, `GOOGLE DISPLAY/VIDEO` × `KAYAK`, com \|r\| = 0.8501 (limite 0.85), VIF máximo 8.99. Com os defaults a Gol exige uma decisão; `GOL_CONFIG` do parity usa `block_per_channel=True`, que não muda número nenhum.
+- **Para o Dev B (swap):** `api/engine_config.py` precisa do campo `block_per_channel`. Um teste do B3 grava `channel_groups` como dict (`{"Busca": [...]}`) e o `EngineConfig` estrito recusa esse formato; migrar configs salvas. A tela de agrupamento do B2 usa `details.suggested_groups` do `collinearity_unresolved`.
+- **Fora do A3:** `identifiable=false` e a exclusão de curva/mix do canal (A5), adstock oculto por correlação negativa (A10).
 
 ## Passos do swap (Dev B)
 
