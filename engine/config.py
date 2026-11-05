@@ -5,9 +5,12 @@ The analytical modules still read a plain dict with `config.get(...)`; `to_legac
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from engine.errors import EngineError
+
+# gate thresholds (A3); A4 adds control_spend_corr and A5 collinearity_vif when they use them
+GATE_DEFAULTS = {"collinearity_r": 0.85}
 
 
 class Strict(BaseModel):
@@ -48,7 +51,8 @@ class EngineConfig(Strict):
     date_formats: dict = Field(default_factory=dict)
     channel_groups: list[list[str]] = Field(default_factory=list)
     controls: list[str] = Field(default_factory=list)
-    gate_thresholds: dict = Field(default_factory=dict)
+    gate_thresholds: dict[str, float] = Field(default_factory=dict)
+    block_per_channel: bool = False  # the analyst accepts results only at the aggregate level (A3 gate; effect in A5)
     product_group_filter: list[str] | None = None
     min_intervention_date: str | None = None
     country_code: str = "BR"
@@ -63,6 +67,28 @@ class EngineConfig(Strict):
     client_industry: str | None = None
     client_business_goal: str | None = None
     primary_business_metric_name: str = "KPIs"
+
+    @field_validator("channel_groups")
+    @classmethod
+    def _groups_are_disjoint(cls, groups: list[list[str]]) -> list[list[str]]:
+        groups = [[name.strip().upper() for name in group] for group in groups]  # as the reader normalizes channels
+        seen: set[str] = set()
+        for group in groups:
+            if len(set(group)) < 2:
+                raise ValueError("cada grupo precisa de pelo menos dois canais diferentes")
+            repeated = seen & set(group)
+            if repeated:
+                raise ValueError(f"o canal {min(repeated)} está em mais de um grupo")
+            seen |= set(group)
+        return groups
+
+    @field_validator("gate_thresholds")
+    @classmethod
+    def _known_gates(cls, thresholds: dict[str, float]) -> dict[str, float]:
+        unknown = sorted(set(thresholds) - set(GATE_DEFAULTS))
+        if unknown:
+            raise ValueError(f"limite desconhecido: {', '.join(unknown)}")
+        return thresholds
 
     @model_validator(mode="after")
     def _revenue_needs_a_ticket(self) -> Self:
@@ -91,6 +117,9 @@ class EngineConfig(Strict):
         kpi_col = self.column_mapping.get("performance_file", {}).get("kpi_col")
         legacy["performance_kpi_column"] = kpi_col or "Sessions"
         return legacy
+
+    def gate_threshold(self, name: str) -> float:
+        return {**GATE_DEFAULTS, **self.gate_thresholds}[name]
 
 
 def _describe(err: dict) -> str:

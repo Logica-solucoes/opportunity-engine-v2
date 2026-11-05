@@ -29,6 +29,7 @@ def test_defaults_match_the_spec():
     assert c.max_channel_mix_share == 0.4 and c.min_marketing_contribution == 0.05
     assert c.reallocation_min_cv_r2 == 0.1 and c.minimum_acceptable_iroi == 0
     assert c.treat_outliers is False and c.channel_groups == [] and c.controls == []
+    assert c.block_per_channel is False and c.gate_thresholds == {}
 
 
 def test_extra_key_is_an_engine_error_naming_the_field():
@@ -101,3 +102,32 @@ def test_legacy_dict_covers_every_key_the_modules_read():
         keys |= set(KEY_READ.findall(path.read_text(encoding="utf-8")))
     missing = keys - set(EngineConfig().to_legacy_dict()) - RUNTIME_KEYS
     assert not missing, f"to_legacy_dict() lacks keys the engine reads: {sorted(missing)}"
+
+
+def test_channel_groups_are_normalized_like_the_channels():
+    assert EngineConfig(channel_groups=[[" pmax", "Search "]]).channel_groups == [["PMAX", "SEARCH"]]
+
+
+@pytest.mark.parametrize(
+    ("groups", "message"),
+    [
+        ([["PMAX"]], "cada grupo precisa de pelo menos dois canais diferentes"),
+        ([["PMAX", "pmax"]], "cada grupo precisa de pelo menos dois canais diferentes"),
+        ([["PMAX", "SEARCH"], ["SEARCH", "YOUTUBE"]], "o canal SEARCH está em mais de um grupo"),
+    ],
+)
+def test_bad_channel_groups_are_an_invalid_config(groups, message):
+    with pytest.raises(EngineError) as raised:
+        EngineConfig.from_input({"channel_groups": groups})
+    assert str(raised.value) == f"Configuração inválida: campo 'channel_groups': {message}"
+
+
+def test_gate_threshold_falls_back_to_the_default():
+    assert EngineConfig().gate_threshold("collinearity_r") == 0.85
+    assert EngineConfig(gate_thresholds={"collinearity_r": 0.9}).gate_threshold("collinearity_r") == 0.9
+
+
+def test_unknown_gate_is_an_invalid_config():
+    with pytest.raises(EngineError) as raised:
+        EngineConfig.from_input({"gate_thresholds": {"colinearity_r": 0.9}})
+    assert str(raised.value) == "Configuração inválida: campo 'gate_thresholds': limite desconhecido: colinearity_r"
