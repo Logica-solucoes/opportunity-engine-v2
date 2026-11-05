@@ -97,6 +97,7 @@ Roda dentro do `validate`, sobre o **spend cru**: o `validate` não aplica `chan
 
 - **VIF só reporta.** Por canal (`variance_inflation_factor` do statsmodels), `None` quando infinito ou > 1e6. O limite `collinearity_vif` vem com o A5, quando o VIF passa a decidir algo.
 - **`suggested_groups`** são os componentes conexos dos pares sinalizados.
+- **Não reavalia depois de agrupar.** O gate olha o spend cru: a soma de um grupo pode correlacionar acima do limite com um terceiro canal e passar. Se isso aparecer nos dados reais, rodar a correlação de novo sobre a matriz agrupada.
 - **Gate:** `collinearity_unresolved` (erro, `details` com `pairs` e `suggested_groups`) se algum par não estiver inteiro dentro de um grupo de `channel_groups`. Passa com todos os pares cobertos por grupos ou com `block_per_channel=true`; o efeito deste último no resultado é do A5. `channel_group_unknown` (erro) se um grupo cita canal que não está no arquivo de investimento.
 - **`channel_groups`** (lista de listas de canal; nomes com strip/upper, cada grupo com 2+ canais distintos, nenhum canal em dois grupos) soma o spend por data logo após `read_inputs`, antes dos períodos parciais e do adstock de correlação negativa. O canal do grupo se chama `"A + B"`, na ordem do config.
 - **Abaixo de 30 períodos não avalia** (`collinearity_not_assessed`, info; `collinearity` vazia): com poucas datas dois canais correlacionam perto de ±1 por acaso (com 2 datas, ±1 exato). O histórico mínimo é do A6 e a calibração do A10.
