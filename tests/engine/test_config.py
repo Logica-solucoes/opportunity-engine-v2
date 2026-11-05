@@ -134,3 +134,25 @@ def test_gate_threshold_defaults_live_in_the_config_schema():
 def test_gate_threshold_rejects_inf_and_bool(bad):
     with pytest.raises(EngineError, match="gate_thresholds"):
         EngineConfig.from_input({"gate_thresholds": bad})
+
+
+def test_control_spend_corr_default_is_in_the_schema():
+    gate = EngineConfig.model_json_schema()["$defs"]["GateThresholds"]["properties"]
+    assert gate["control_spend_corr"]["default"] == 0.5
+    assert EngineConfig().gate_thresholds.control_spend_corr == 0.5
+
+
+@pytest.mark.parametrize("bad", [0, 1.5, True, "x"])
+def test_invalid_control_spend_corr(bad):
+    with pytest.raises(EngineError, match="gate_thresholds"):
+        EngineConfig.from_input({"gate_thresholds": {"control_spend_corr": bad}})
+
+
+def test_controls_are_normalized():
+    assert EngineConfig.from_input({"controls": [" Selic ", "Selic", "IPCA"]}).controls == ["Selic", "IPCA"]
+
+
+@pytest.mark.parametrize("bad", [[""], [3], ["  "]])
+def test_invalid_controls(bad):
+    with pytest.raises(EngineError, match="controls"):
+        EngineConfig.from_input({"controls": bad})

@@ -130,6 +130,16 @@ class EventSeries(_Model):
     kpi: list[KpiPoint] = Field(default_factory=list)
 
 
+class RejectedControl(_Model):
+    name: str
+    r: float  # signed correlation with the treated channel's spend in the pre-period
+
+
+class EventControls(_Model):
+    used: list[str] = Field(default_factory=list)
+    rejected: list[RejectedControl] = Field(default_factory=list)
+
+
 class CausalEvent(_Model):
     id: str
     channels: list[str]
@@ -145,6 +155,7 @@ class CausalEvent(_Model):
     cpa_incremental: float | None = None
     fit: Fit | None = None
     placebo: Placebo | None = None
+    controls: EventControls | None = None
     series: EventSeries | None = None
 
 

@@ -5,7 +5,7 @@ The analytical modules still read a plain dict with `config.get(...)`; `to_legac
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from engine.errors import EngineError
 
@@ -28,6 +28,9 @@ class GateThresholds(BaseModel):
 
     collinearity_r: float = Field(default=0.85, gt=0, le=1, strict=True)  # a pair is flagged when |r| is above this
     vif_max: float = Field(default=10.0, ge=1, strict=True)  # a channel is flagged when its VIF is above this
+    control_spend_corr: float = Field(
+        default=0.5, gt=0, le=1, strict=True
+    )  # a control above this |r| with the spend is out
 
 
 class EngineConfig(Strict):
@@ -73,6 +76,19 @@ class EngineConfig(Strict):
     client_industry: str | None = None
     client_business_goal: str | None = None
     primary_business_metric_name: str = "KPIs"
+
+    @field_validator("controls", mode="before")
+    @classmethod
+    def _normalize_controls(cls, value):
+        if not isinstance(value, list):
+            return value
+        names: list[str] = []
+        for name in value:
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("cada controle deve ser o nome de uma coluna do arquivo de tendências")
+            if name.strip() not in names:
+                names.append(name.strip())
+        return names
 
     @model_validator(mode="after")
     def _revenue_needs_a_ticket(self) -> Self:

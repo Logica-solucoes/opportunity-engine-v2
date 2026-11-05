@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from engine.results import sanitize
-from engine.results_schema import SCHEMA_VERSION, CausalEvent, Reports, ResultsV1
+from engine.results_schema import SCHEMA_VERSION, CausalEvent, EventControls, RejectedControl, Reports, ResultsV1
 
 ROOT_KEYS = {
     "schema_version",
@@ -62,3 +62,11 @@ def test_sanitize_replaces_non_finite_at_any_depth():
     original = {"a": [float("nan"), {"b": float("inf")}], "c": -float("inf"), "d": 1.5, "e": True, "f": "x", "g": 2}
     assert sanitize(original) == {"a": [None, {"b": None}], "c": None, "d": 1.5, "e": True, "f": "x", "g": 2}
     assert original["c"] == -float("inf")  # input untouched
+
+
+def test_event_controls_are_optional_and_round_trip():
+    bare = CausalEvent(id="e", channels=["A"], status="rejected")
+    assert bare.controls is None
+    controls = EventControls(used=["a"], rejected=[RejectedControl(name="b", r=0.7)])
+    event = CausalEvent(id="e", channels=["A"], status="published", controls=controls)
+    assert CausalEvent.model_validate_json(event.model_dump_json()).controls == controls
