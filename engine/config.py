@@ -71,7 +71,9 @@ class EngineConfig(Strict):
     @field_validator("channel_groups")
     @classmethod
     def _groups_are_disjoint(cls, groups: list[list[str]]) -> list[list[str]]:
-        groups = [[name.strip().upper() for name in group] for group in groups]  # as the reader normalizes channels
+        groups = [
+            list(dict.fromkeys(name.strip().upper() for name in group)) for group in groups
+        ]  # as the reader normalizes channels
         seen: set[str] = set()
         for group in groups:
             if len(set(group)) < 2:
