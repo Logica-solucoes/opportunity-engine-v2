@@ -111,7 +111,7 @@ def test_a_group_or_the_block_flag_resolves_the_gate(tmp_path, resolution):
 
 
 def test_a_group_that_misses_one_side_of_the_pair_does_not_resolve_it(tmp_path):
-    config = {**dataset_config(), "channel_groups": [["SEARCH", "YOUTUBE"]]}
+    config = {**dataset_config(), "channel_groups": [["YOUTUBE", "DISPLAY"]]}
 
     assert "collinearity_unresolved" in {c.id for c in validate(collinear_inputs(tmp_path), config).checks}
 
@@ -174,3 +174,39 @@ def test_a_partial_period_does_not_count_toward_the_minimum(tmp_path):
 
     check = next(c for c in report.checks if c.id == "collinearity_not_assessed")
     assert check.details == {"periods": MIN_COLLINEARITY_PERIODS - 1}
+
+
+def test_one_channel_has_nothing_to_assess(tmp_path):
+    n = MIN_COLLINEARITY_PERIODS - 1
+    investment = [(d, "SEARCH", 100 + i * 3) for i, d in enumerate(days(n))]
+    kpi = [(d, 1000 + i) for i, d in enumerate(days(n))]
+
+    report = validate(write_inputs(tmp_path, investment, kpi), dataset_config())
+
+    assert "collinearity_not_assessed" not in {c.id for c in report.checks}
+
+
+def _sum_of_a_pair_is_collinear_with_a_third(tmp_path, n=300):
+    """A and B are mirror images around x (r ≈ 0.9), C is x plus noise: r(A, C) and r(B, C) < 0.85 < r(A + B, C)."""
+    z = np.random.default_rng(5).normal(size=(n, 3))
+    q, _ = np.linalg.qr(z - z.mean(axis=0))  # orthogonal columns: the correlations below are exact
+    x, e, w = q.T * np.sqrt(n - 1) * 10
+    a, b, c = 100 + x + e * np.sqrt(0.05), 100 + x - e * np.sqrt(0.05), 100 + x + w * np.sqrt(0.35)
+    r = np.corrcoef([a, b, c, a + b])
+    assert r[0, 1] > 0.85 and r[0, 2] < 0.85 and r[1, 2] < 0.85 and r[3, 2] > 0.85
+    ds = days(n)
+    investment = [(d, name, v) for name, series in (("A", a), ("B", b), ("C", c)) for d, v in zip(ds, series)]
+    return write_inputs(tmp_path, investment, [(d, 1000 + i) for i, d in enumerate(ds)])
+
+
+def test_a_group_that_ends_up_collinear_with_another_channel_is_still_open(tmp_path):
+    paths = _sum_of_a_pair_is_collinear_with_a_third(tmp_path)
+    assert [(p["a"], p["b"]) for p in validate(paths, dataset_config()).collinearity.pairs] == [("A", "B")]
+
+    report = validate(paths, {**dataset_config(), "channel_groups": [["A", "B"]]})
+
+    check = next(c for c in report.checks if c.id == "collinearity_unresolved")
+    assert [(p["a"], p["b"]) for p in check.details["pairs"]] == [("A + B", "C")]
+    assert check.details["suggested_groups"] == [["A", "B", "C"]]
+    assert "A + B + C" in check.message
+    assert [(p["a"], p["b"]) for p in report.collinearity.pairs] == [("A", "B")]

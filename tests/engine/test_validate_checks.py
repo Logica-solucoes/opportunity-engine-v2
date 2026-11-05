@@ -87,6 +87,17 @@ def test_channel_overlap_is_by_series_not_name(tmp_path, names):
     assert check.level == "warning" and sorted(check.details["channels"]) == sorted(names)
 
 
+def test_an_overlap_pair_is_reported_but_never_gated_or_suggested_for_grouping(tmp_path):
+    investment, kpi = _two_channels(lambda x, rng: x * 1.02 + rng.normal(0, 0.01))
+
+    report = validate(write_inputs(tmp_path, investment, kpi), _config())
+
+    assert "dv360_cm360_overlap" in _by_id(report) and "collinearity_unresolved" not in _by_id(report)
+    assert report.ok
+    assert [(p["a"], p["b"]) for p in report.collinearity.pairs] == [("A", "B")]
+    assert report.collinearity.suggested_groups == []
+
+
 def test_no_overlap_when_totals_differ_or_series_constant(tmp_path):
     investment, kpi = _two_channels(lambda x, rng: x * 3 + rng.normal(0, 0.01))
     assert "dv360_cm360_overlap" not in _by_id(validate(write_inputs(tmp_path / "a", investment, kpi), _config()))

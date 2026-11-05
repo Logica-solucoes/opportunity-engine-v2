@@ -11,7 +11,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from engine.config import EngineConfig
 from engine.data_preprocessor import detect_cadence, drop_partial_periods, iqr_bounds
 from engine.errors import EngineError
-from engine.inputs import RawInputs, cadence_check, read_inputs, sufficiency_check
+from engine.inputs import RawInputs, apply_channel_groups, cadence_check, read_inputs, sufficiency_check
 from engine.results_schema import Check, Collinearity, ValidationReport
 
 log = logging.getLogger(__name__)
@@ -123,23 +123,42 @@ def _connected(pairs: list[dict]) -> list[list[str]]:
     return sorted(sorted(g) for g in groups)
 
 
-def collinearity(wide: pd.DataFrame, config: EngineConfig) -> Collinearity:
-    """Pairs over the |r| gate, every channel's VIF and the groups the pairs suggest; empty on a short series."""
-    if wide.shape[1] < 2 or len(wide) < MIN_COLLINEARITY_PERIODS:
-        return Collinearity()
+def _assessable(wide: pd.DataFrame) -> bool:
+    return wide.shape[1] >= 2 and len(wide) >= MIN_COLLINEARITY_PERIODS
+
+
+def _pairs_over(wide: pd.DataFrame, config: EngineConfig) -> list[dict]:
+    if not _assessable(wide):
+        return []
     limit = config.gate_threshold("collinearity_r")
     corr = wide.corr()
-    pairs = [
+    return [
         {"a": a, "b": b, "r": round(float(corr.loc[a, b]), 4)}
         for a, b in itertools.combinations(wide.columns, 2)
         if abs(corr.loc[a, b]) > limit
     ]
-    return Collinearity(pairs=pairs, vif=channel_vif(wide), suggested_groups=_connected(pairs))
+
+
+def _not_overlap(pairs: list[dict], overlapping: set[frozenset]) -> list[dict]:
+    return [p for p in pairs if frozenset((p["a"], p["b"])) not in overlapping]
+
+
+def collinearity(wide: pd.DataFrame, config: EngineConfig, overlapping: set[frozenset] = frozenset()) -> Collinearity:
+    """Pairs over the |r| gate, every channel's VIF and the groups the pairs suggest; empty on a short series.
+
+    An overlap pair stays in `pairs` but is not suggested for grouping: summing one source reported twice doubles it.
+    """
+    if not _assessable(wide):
+        return Collinearity()
+    pairs = _pairs_over(wide, config)
+    return Collinearity(
+        pairs=pairs, vif=channel_vif(wide), suggested_groups=_connected(_not_overlap(pairs, overlapping))
+    )
 
 
 def check_short_series(wide: pd.DataFrame) -> list[Check]:
     periods = len(wide)
-    if periods >= MIN_COLLINEARITY_PERIODS:
+    if wide.shape[1] < 2 or periods >= MIN_COLLINEARITY_PERIODS:
         return []
     return [
         Check(
@@ -178,8 +197,10 @@ def check_channel_overlap(wide: pd.DataFrame) -> list[Check]:
     return checks
 
 
-def check_groups(found: Collinearity, channels: set[str], config: EngineConfig) -> list[Check]:
-    """The analyst's answer to the gate: every flagged pair inside one group, or block_per_channel."""
+def check_groups(
+    kept_inv: pd.DataFrame, channels: set[str], config: EngineConfig, overlapping: set[frozenset]
+) -> list[Check]:
+    """The analyst's answer to the gate: no pair over the limit once the groups are summed, or block_per_channel."""
     checks = []
     unknown = sorted({member for group in config.channel_groups for member in group} - channels)
     if unknown:
@@ -193,11 +214,14 @@ def check_groups(found: Collinearity, channels: set[str], config: EngineConfig) 
         )
     if config.block_per_channel:
         return checks
-    open_pairs = [
-        p for p in found.pairs if not any(p["a"] in group and p["b"] in group for group in config.channel_groups)
-    ]
+    grouped = spend_matrix(apply_channel_groups(kept_inv, config.channel_groups))
+    open_pairs = _not_overlap(_pairs_over(grouped, config), overlapping)
     if open_pairs:
-        suggested = "; ".join(" + ".join(group) for group in found.suggested_groups)
+        members = {" + ".join(group): group for group in config.channel_groups}
+        suggested_groups = sorted(
+            sorted({m for name in group for m in members.get(name, [name])}) for group in _connected(open_pairs)
+        )
+        suggested = "; ".join(" + ".join(group) for group in suggested_groups)
         checks.append(
             Check(
                 id="collinearity_unresolved",
@@ -206,7 +230,7 @@ def check_groups(found: Collinearity, channels: set[str], config: EngineConfig) 
                     "Há canais que gastam juntos, e o modelo não consegue separar o efeito de cada um "
                     f"(sugestão: {suggested}). Agrupe-os ou aceite resultados só no nível agregado."
                 ),
-                details={"pairs": open_pairs, "suggested_groups": found.suggested_groups},
+                details={"pairs": open_pairs, "suggested_groups": suggested_groups},
             )
         )
     return checks
@@ -245,10 +269,11 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
     found = Collinearity()
     if not investment.empty:
         wide = spend_matrix(kept_inv)
-        checks += check_channel_overlap(wide)
-        found = collinearity(wide, engine_config)
-        checks += check_short_series(wide)
-        checks += check_groups(found, set(investment["Product Group"]), engine_config)
+        overlap = check_channel_overlap(wide)
+        overlapping = {frozenset(c.details["channels"]) for c in overlap}
+        found = collinearity(wide, engine_config, overlapping)
+        checks += [*overlap, *check_short_series(wide)]
+        checks += check_groups(kept_inv, set(investment["Product Group"]), engine_config, overlapping)
     return ValidationReport(
         ok=not any(c.level == "error" for c in checks),
         cadence=None if period_days is None else CADENCE_LABEL.get(period_days, f"{period_days} dias"),
