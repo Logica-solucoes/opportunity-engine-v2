@@ -90,6 +90,10 @@ class EngineConfig(Strict):
         unknown = sorted(set(thresholds) - set(GATE_DEFAULTS))
         if unknown:
             raise ValueError(f"limite desconhecido: {', '.join(unknown)}")
+        # all gates are correlations; A5's VIF limit is above 1 and needs its own bound
+        for name in sorted(thresholds):
+            if not 0 < thresholds[name] < 1:
+                raise ValueError(f"limite fora de (0, 1): {name}")
         return thresholds
 
     @model_validator(mode="after")

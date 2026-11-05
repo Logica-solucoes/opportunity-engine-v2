@@ -133,5 +133,12 @@ def test_unknown_gate_is_an_invalid_config():
     assert str(raised.value) == "Configuração inválida: campo 'gate_thresholds': limite desconhecido: colinearity_r"
 
 
+@pytest.mark.parametrize("value", [85, 1.0, 0, -0.1])
+def test_gate_threshold_outside_zero_one_is_an_invalid_config(value):
+    with pytest.raises(EngineError) as raised:
+        EngineConfig.from_input({"gate_thresholds": {"collinearity_r": value}})
+    assert str(raised.value) == "Configuração inválida: campo 'gate_thresholds': limite fora de (0, 1): collinearity_r"
+
+
 def test_channel_group_members_are_deduplicated_in_order():
     assert EngineConfig(channel_groups=[["a", "A", "b"]]).channel_groups == [["A", "B"]]
