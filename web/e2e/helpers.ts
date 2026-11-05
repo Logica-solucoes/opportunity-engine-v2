@@ -88,7 +88,7 @@ export async function uploadTemplatesAndValidate(page: Page) {
   await page.getByLabel('Arquivo de performance').setInputFiles(template('performance.csv'))
   await expect(page.getByText('performance.csv', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Validar' }).click()
-  await expect(page.getByText('Nenhum problema encontrado.')).toBeVisible()
+  await expect(page.getByText('A colinearidade entre canais não foi avaliada', { exact: false })).toBeVisible()
 }
 
 // the fake engine takes ~5 s (FAKE_ENGINE_STEP_SECONDS=1 in env.ts); returns the run page's URL
