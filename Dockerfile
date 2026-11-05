@@ -26,7 +26,13 @@ ENV HOME=/home/app PATH=/app/.venv/bin:$PATH
 
 COPY --chown=app:app --from=builder /app/.venv /app/.venv
 COPY --chown=app:app api/ ./api/
+COPY --chown=app:app engine/ ./engine/
+COPY --chown=app:app llm/ ./llm/
 COPY --chown=app:app --from=web /web/dist ./web/dist
+
+# results.json carries the engine version; pass the commit sha: --build-arg ENGINE_VERSION=$(git rev-parse --short HEAD)
+ARG ENGINE_VERSION
+ENV ENGINE_VERSION=${ENGINE_VERSION}
 
 USER app
 EXPOSE 8080

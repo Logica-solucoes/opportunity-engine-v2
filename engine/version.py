@@ -1,10 +1,13 @@
 import importlib.metadata
+import os
 import subprocess
 from pathlib import Path
 
 
 def engine_version() -> str:
-    """Short git sha when running from a checkout, else the installed package version, else 'unknown'."""
+    """ENGINE_VERSION (set at image build, which has no .git), else the git sha, else the package version."""
+    if os.environ.get("ENGINE_VERSION"):
+        return os.environ["ENGINE_VERSION"]
     try:
         sha = subprocess.run(
             ["git", "-C", str(Path(__file__).resolve().parent), "rev-parse", "--short", "HEAD"],
