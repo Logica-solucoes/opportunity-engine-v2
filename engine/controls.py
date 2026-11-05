@@ -3,6 +3,8 @@
 import numpy as np
 import pandas as pd
 
+from engine.config import GateThresholds
+
 
 def screen_controls(
     pre_data: pd.DataFrame, candidates: list[str], treated_channels: list[str], threshold: float
@@ -27,3 +29,9 @@ def screen_controls(
             accepted.append(name)
     rejected.sort(key=lambda item: (-abs(item["r"]), item["name"]))
     return sorted(accepted), rejected
+
+
+def control_threshold(config: dict) -> float:
+    """`gate_thresholds.control_spend_corr` of the legacy config dict, or the default when it is not set."""
+    gate = GateThresholds.model_validate(config.get("gate_thresholds") or {})
+    return gate.control_spend_corr

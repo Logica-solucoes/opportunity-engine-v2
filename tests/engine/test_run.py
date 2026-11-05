@@ -210,3 +210,19 @@ def test_run_with_block_per_channel_runs(monkeypatch, tmp_path):
     run = _run_once(tmp_path, {**dataset_config(), "block_per_channel": True}, inputs)
     assert run.result["status"] == "succeeded"
     assert "collinearity_blocked" in [c["id"] for c in run.result["validation"]["checks"]]
+
+
+def test_rejected_control_reaches_results_json_without_failing_the_event(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = make_dataset(tmp_path / "data", n_days=SHORT)
+    investment = pd.read_csv(inputs["investment_file"])
+    youtube = investment[investment["product_group"] == "YOUTUBE"].set_index("dates")["total_revenue"]
+    trends = pd.read_csv(inputs["generic_trends_file"])
+    trends["Like_YT"] = youtube.reindex(trends["Day"]).to_numpy() * 1.01
+    trends.to_csv(inputs["generic_trends_file"], index=False)
+    run = _run_once(tmp_path, {**dataset_config(), "controls": ["Like_YT"]}, inputs)
+    events = [e for e in run.result["causal"]["events"] if e["channels"] == ["YOUTUBE"] and e["controls"]]
+    assert events
+    for event in events:
+        assert [c["name"] for c in event["controls"]["rejected"]] == ["Like_YT"]
+        assert not any("control" in reason for reason in event["reasons"])

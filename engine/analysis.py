@@ -18,7 +18,10 @@ from scipy.optimize import OptimizeWarning, curve_fit
 from scipy.signal import lfilter
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.linear_model import LassoCV
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import MinMaxScaler
+
+from engine.controls import control_threshold, screen_controls
 
 warnings.filterwarnings("ignore", category=OptimizeWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -255,7 +258,7 @@ def run_causal_impact_analysis(
     kpi_df,
     daily_investment_df,
     market_trends_df,
-    performance_df,
+    controls_df,
     pre_period,
     post_period,
     event_name,
@@ -277,43 +280,11 @@ def run_causal_impact_analysis(
         model_data = pd.merge(data[["Date", "kpi"]], investment_pivot_df, on="Date", how="inner")
         model_data = pd.merge(model_data, market_trends_df, on="Date", how="left")
 
-        # --- Start of New Dynamic Code ---
-
-        # Rename columns for consistency
-        perf_df_renamed = performance_df.rename(
-            columns={
-                "date": "Date",
-                "leads": "Leads",
-                "Impressions": "Impressions",
-                "Clicks": "Clicks",
-            }
-        )
-
-        # Define potential covariates and find which ones actually exist in the data
-        possible_covariates = ["Leads", "Clicks", "Impressions"]
-        found_covariates = [col for col in possible_covariates if col in perf_df_renamed.columns]
-
-        if found_covariates:
-            log.info(f"   - Found additional covariates in performance data: {found_covariates}")
-            for col in found_covariates:
-                if perf_df_renamed[col].dtype == "object":
-                    perf_df_renamed[col] = perf_df_renamed[col].str.replace(".", "", regex=False)
-                perf_df_renamed[col] = pd.to_numeric(perf_df_renamed[col], errors="coerce")
-
-            perf_df_renamed["Date"] = pd.to_datetime(perf_df_renamed["Date"], errors="coerce")
-            perf_df_renamed.dropna(subset=["Date"] + found_covariates, inplace=True)
-
-            # Merge only the found and cleaned covariates
-            model_data = pd.merge(
-                model_data,
-                perf_df_renamed[["Date"] + found_covariates],
-                on="Date",
-                how="left",
-            )
-        else:
-            log.info("   - No additional performance covariates found. Proceeding without them.")
-
-        # --- End of New Dynamic Code ---
+        # User controls from the trends file (Clicks/Impressions/Leads of the performance file are ad-driven and never
+        # enter this model). They are screened per event below.
+        control_columns = [c for c in controls_df.columns if c != "Date"] if "Date" in controls_df.columns else []
+        if control_columns:
+            model_data = pd.merge(model_data, controls_df[["Date", *control_columns]], on="Date", how="left")
 
         model_data.set_index("Date", inplace=True)
         model_data.sort_index(inplace=True)
@@ -369,16 +340,24 @@ def run_causal_impact_analysis(
             )
             return None, None, None, None, None
 
-        log.info("   - Running automated feature selection for causal model...")
-        potential_exog_vars = list(transformed_features.keys()) + [
-            col
-            for col in model_data.columns
-            if "generic" in col.lower() or "day_" in col or col in ["is_weekend", "is_payday_period", "is_holiday"]
-        ]
+        event_channels_list = [ch.strip() for ch in product_group.split(",")]
+        candidates = (["Generic Searches"] if "Generic Searches" in model_data.columns else []) + control_columns
+        accepted_controls, rejected_controls = screen_controls(
+            pre_data_for_model, candidates, event_channels_list, control_threshold(config)
+        )
+        if rejected_controls:
+            log.info(f"   - Controls rejected for moving with the spend of {product_group}: {rejected_controls}")
 
-        # --- Add the dynamically found covariates to the list ---
-        if found_covariates:
-            potential_exog_vars.extend(found_covariates)
+        log.info("   - Running automated feature selection for causal model...")
+        potential_exog_vars = (
+            list(transformed_features.keys())
+            + accepted_controls
+            + [
+                col
+                for col in model_data.columns
+                if "day_" in col or col in ["is_weekend", "is_payday_period", "is_holiday"]
+            ]
+        )
 
         varianced_features = _select_variance_threshold_features(pre_data_for_model, potential_exog_vars)
 
@@ -389,7 +368,10 @@ def run_causal_impact_analysis(
             scaler_lasso = MinMaxScaler()
             X_lasso_scaled = scaler_lasso.fit_transform(pre_data_for_model[varianced_features])
 
-            lasso = LassoCV(cv=5, random_state=0, max_iter=10000).fit(X_lasso_scaled, pre_data_for_model["kpi"])
+            n_splits = max(2, min(5, len(pre_data_for_model) - 1))
+            lasso = LassoCV(cv=TimeSeriesSplit(n_splits=n_splits), random_state=0, max_iter=10000).fit(
+                X_lasso_scaled, pre_data_for_model["kpi"]
+            )
             selected_features = [var for i, var in enumerate(varianced_features) if lasso.coef_[i] != 0]
             if not selected_features:
                 selected_features = list(transformed_features.keys())
@@ -558,6 +540,8 @@ def run_causal_impact_analysis(
             "mape": mape,
             "model_r_squared": r_squared,
             "event_period_avg_investment": event_period_avg_investment,
+            "controls_used": accepted_controls,
+            "controls_rejected": rejected_controls,
         }
 
         return (

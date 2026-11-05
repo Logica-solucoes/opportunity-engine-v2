@@ -346,3 +346,17 @@ def test_scenario_icpa_is_null_without_incremental_investment(synthetic_computed
     built = results.build_results(dataclasses.replace(synthetic_computed, strategic_reallocation_point=point), "v")
     scenario = next(s for s in built.elasticity.scenarios if s.name == "strategic_reallocation")
     assert scenario.icpa is None and scenario.incremental_investment == 0.0
+
+
+def test_controls_come_from_the_results_data_and_do_not_touch_reasons(synthetic_computed):
+    data = _result_data(controls_used=["Macro"], controls_rejected=[{"name": "Generic Searches", "r": 0.73}])
+    event = results._causal(with_events(synthetic_computed, [outcome(data=data)])).events[0]
+    assert event.controls.used == ["Macro"]
+    assert [(c.name, c.r) for c in event.controls.rejected] == [("Generic Searches", 0.73)]
+    assert event.reasons == [] and event.status == "published"
+
+
+def test_event_without_controls_in_the_data_has_none(synthetic_computed):
+    assert results._causal(with_events(synthetic_computed, [outcome()])).events[0].controls is None
+    failed = EventOutcome("YOUTUBE_2024-06-03", "YOUTUBE", "2024-06-03", None, reasons=["analysis_failed"])
+    assert results._causal(with_events(synthetic_computed, [failed])).events[0].controls is None

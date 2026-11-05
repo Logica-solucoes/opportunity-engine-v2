@@ -151,7 +151,7 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
                 prepared.kpi_df,
                 prepared.investment_df,
                 prepared.trends_df,
-                prepared.performance_df,
+                prepared.controls_df,
                 pre,
                 post,
                 event["event_id"],

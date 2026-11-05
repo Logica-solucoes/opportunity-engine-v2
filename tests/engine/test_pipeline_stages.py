@@ -91,3 +91,64 @@ def test_individual_curves_function_returns_the_frame(synthetic_computed):
         synthetic_computed.mmm, synthetic_computed.effective_config, output_dir=None
     )
     assert list(frame.columns) == ["Channel", "Channel_Spend", "Projected_Total_KPIs", "Historical_Avg", "Recommended"]
+
+
+# --- A4: causal controls ---------------------------------------------------------------------------------------
+
+
+def _with_columns(path, columns: dict):
+    import pandas as pd
+
+    frame = pd.read_csv(path)
+    for name, values in columns.items():
+        frame[name] = values
+    frame.to_csv(path, index=False)
+
+
+def test_ad_driven_performance_columns_do_not_change_the_causal_result(tmp_path):
+    import numpy as np
+
+    from tests.fixtures.parity.generate_legacy_snapshot import jsonable
+
+    results = []
+    for name, extra in (("plain", False), ("with_clicks", True)):
+        files = make_dataset(tmp_path / name, n_days=SHORT)
+        if extra:
+            import pandas as pd
+
+            rng = np.random.default_rng(3)
+            sessions = pd.read_csv(files["performance_file"])["Sessions"].to_numpy()
+            # ad-driven and tightly tied to the KPI: the old model would have picked them
+            _with_columns(
+                files["performance_file"],
+                {
+                    col: sessions * k + rng.normal(0, 5, SHORT)
+                    for col, k in (("Clicks", 3), ("Impressions", 40), ("Leads", 0.1))
+                },
+            )
+        cfg = EngineConfig.from_input(dataset_config())
+        prepared = pipeline.load_inputs(files, cfg)
+        legacy = {**cfg.to_legacy_dict(), "period_days": prepared.period_days}
+        events = pipeline.analyze_events(prepared, pipeline.detect_events(prepared, legacy), legacy)
+        results.append([jsonable(e.results_data) for e in events])
+    assert results[0] and results[0] == results[1]
+
+
+def test_a_rejected_control_is_reported_and_does_not_fail_the_event(tmp_path):
+    import pandas as pd
+
+    files = make_dataset(tmp_path, n_days=SHORT)
+    investment = pd.read_csv(files["investment_file"])
+    youtube = investment[investment["product_group"] == "YOUTUBE"].set_index("dates")["total_revenue"]
+    dates = pd.read_csv(files["generic_trends_file"])["Day"]
+    _with_columns(files["generic_trends_file"], {"Like_YT": youtube.reindex(dates).to_numpy() * 1.01})
+    cfg = EngineConfig.from_input({**dataset_config(), "controls": ["Like_YT"]})
+    prepared = pipeline.load_inputs(files, cfg)
+    legacy = {**cfg.to_legacy_dict(), "period_days": prepared.period_days}
+    events = pipeline.analyze_events(prepared, pipeline.detect_events(prepared, legacy), legacy)
+    youtube_events = [e for e in events if e.product_group == "YOUTUBE" and e.results_data]
+    assert youtube_events
+    for event in youtube_events:
+        assert [c["name"] for c in event.results_data["controls_rejected"]] == ["Like_YT"]
+        assert not any("control" in reason for reason in event.reasons)
+    assert any(e.passed for e in youtube_events)

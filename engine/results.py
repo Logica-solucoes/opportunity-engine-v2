@@ -17,6 +17,7 @@ from engine.results_schema import (
     CurvePoint,
     Elasticity,
     ElasticityMetrics,
+    EventControls,
     EventDetected,
     EventSeries,
     Fit,
@@ -27,6 +28,7 @@ from engine.results_schema import (
     Lift,
     LinePoint,
     MonthlyBaseline,
+    RejectedControl,
     ResponseRow,
     ResultsV1,
     Scenario,
@@ -108,6 +110,11 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
     event.incremental_investment = _num(data["total_investment_post_period"])
     event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
     event.fit = Fit(r2=_num(data["model_r_squared"]), mae=_num(data["mae"]), mape=_num(data["mape"]))
+    if "controls_used" in data:
+        event.controls = EventControls(
+            used=list(data["controls_used"]),
+            rejected=[RejectedControl(name=c["name"], r=_num(c["r"])) for c in data.get("controls_rejected", [])],
+        )
     event.series = _series(outcome)
     return event
 

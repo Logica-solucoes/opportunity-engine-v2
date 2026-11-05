@@ -395,3 +395,143 @@ def test_select_variance_threshold_features_keeps_only_varying_columns():
     )
     result = _select_variance_threshold_features(pre_data, ["varies", "constant"])
     assert result == ["varies"]
+
+
+# --- A4: causal controls ---------------------------------------------------------------------------------------
+
+
+def _causal_setup(n_days=210, seed=1):
+    """Two channels (A, B) driving the KPI, an independent Generic Searches, and the pre-trained response params."""
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range("2024-01-01", periods=n_days, freq="D")
+    a = np.clip(100 + rng.normal(0, 15, n_days), 10, None)
+    b = np.clip(80 + rng.normal(0, 12, n_days), 10, None)
+    kpi = 50 + 8 * np.sqrt(a) + 6 * np.sqrt(b) + rng.normal(0, 2, n_days)
+    investment = pd.concat(
+        [
+            pd.DataFrame({"Date": dates, "Product Group": "A", "investment": a}),
+            pd.DataFrame({"Date": dates, "Product Group": "B", "investment": b}),
+        ]
+    )
+    kpi_df = pd.DataFrame({"Date": dates, "kpi": kpi})
+    trends = pd.DataFrame({"Date": dates, "Generic Searches": 50 + rng.normal(0, 5, n_days)})
+    config = full_config(
+        {
+            "optimization_target": "CONVERSIONS",
+            "financial_targets": {"target_roas": 0, "target_iroas": 0},
+            "average_ticket": 0,
+            "conversion_rate_from_kpi_to_bo": 0,
+            "investment_limit_factor": 2.0,
+            "country_code": "BR",
+            "period_days": 1,
+            "min_pre_period_days": 14,
+        }
+    )
+    *_, params, _ = run_opportunity_projection(kpi_df, investment, trends, "A, B", config)
+    return {
+        "kpi": kpi_df,
+        "inv": investment,
+        "trends": trends,
+        "params": params,
+        "config": config,
+        "a": a,
+        "b": b,
+        "dates": dates,
+    }
+
+
+def _causal(
+    setup,
+    product_group="A",
+    controls=None,
+    trends=None,
+    pre=("2024-01-01", "2024-06-28"),
+    post=("2024-06-29", "2024-07-12"),
+    config=None,
+):
+    results, *_ = run_causal_impact_analysis(
+        setup["kpi"],
+        setup["inv"],
+        setup["trends"] if trends is None else trends,
+        pd.DataFrame() if controls is None else controls,
+        pre,
+        post,
+        "E",
+        product_group,
+        setup["params"],
+        config or setup["config"],
+    )
+    assert results is not None
+    return results
+
+
+def test_control_equal_to_spend_plus_noise_is_rejected_and_reported():
+    s = _causal_setup()
+    noise = np.random.default_rng(5).normal(0, 1, len(s["dates"]))
+    independent = np.random.default_rng(6).normal(0, 1, len(s["dates"]))
+    controls = pd.DataFrame({"Date": s["dates"], "Spend_like": s["a"] + noise, "Macro": 10 + independent})
+    results = _causal(s, "A", controls)
+    assert [c["name"] for c in results["controls_rejected"]] == ["Spend_like"]
+    assert abs(results["controls_rejected"][0]["r"]) > 0.9
+    assert "Macro" in results["controls_used"] and "Spend_like" not in results["controls_used"]
+
+
+def test_triage_is_per_event():
+    s = _causal_setup()
+    controls = pd.DataFrame({"Date": s["dates"], "Like_A": s["a"] + np.random.default_rng(5).normal(0, 1, 210)})
+    assert [c["name"] for c in _causal(s, "A", controls)["controls_rejected"]] == ["Like_A"]
+    on_b = _causal(s, "B", controls)
+    assert on_b["controls_rejected"] == [] and "Like_A" in on_b["controls_used"]
+
+
+def test_multi_channel_event_uses_the_summed_spend():
+    s = _causal_setup()
+    both = pd.DataFrame({"Date": s["dates"], "Like_AB": s["a"] + s["b"]})
+    assert [c["name"] for c in _causal(s, "A, B", both)["controls_rejected"]] == ["Like_AB"]
+
+
+def test_generic_searches_is_screened_like_any_control():
+    s = _causal_setup()
+    trends = pd.DataFrame({"Date": s["dates"], "Generic Searches": s["a"] + np.random.default_rng(5).normal(0, 1, 210)})
+    results = _causal(s, "A", trends=trends)
+    assert [c["name"] for c in results["controls_rejected"]] == ["Generic Searches"]
+    assert "Generic Searches" not in results["controls_used"]
+
+
+def test_all_controls_rejected_still_runs():
+    s = _causal_setup()
+    trends = pd.DataFrame({"Date": s["dates"], "Generic Searches": s["a"] + np.random.default_rng(5).normal(0, 1, 210)})
+    results = _causal(s, "A", trends=trends)
+    assert results["controls_used"] == [] and "absolute_lift" in results
+
+
+def test_control_with_missing_dates_runs():
+    s = _causal_setup()
+    controls = pd.DataFrame({"Date": s["dates"][::3], "Macro": np.random.default_rng(7).normal(10, 1, 70)})
+    assert "Macro" in _causal(s, "A", controls)["controls_used"] + [
+        c["name"] for c in _causal(s, "A", controls)["controls_rejected"]
+    ]
+
+
+def test_lasso_uses_time_series_folds(monkeypatch):
+    from sklearn.model_selection import TimeSeriesSplit
+
+    import engine.analysis as module
+
+    seen = []
+    original = module.LassoCV
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("cv"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "LassoCV", spy)
+    s = _causal_setup()
+    _causal(s, "A")
+    assert seen and all(isinstance(cv, TimeSeriesSplit) for cv in seen) and seen[0].n_splits == 5
+
+
+def test_short_pre_period_does_not_break_the_lasso():
+    s = _causal_setup()
+    results = _causal(s, "A", pre=("2024-06-01", "2024-06-14"), post=("2024-06-15", "2024-06-25"))
+    assert "absolute_lift" in results
