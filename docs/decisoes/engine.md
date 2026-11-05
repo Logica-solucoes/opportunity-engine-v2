@@ -4,7 +4,7 @@ Decisões do A0, 04/nov/2026. Spec: `docs/superpowers/specs/2026-11-04-a0-pacote
 
 ## O que o A0 entregou
 
-`engine.run(inputs, config, out_dir, on_log) -> dict` (contrato §3), `EngineConfig`, `EngineError` e `python -m engine`. O `run` devolve só o mínimo do contrato (`schema_version`, `engine_version`, `status`, demais seções `null`); o `results.json` é o A1. `validate` (A2) continua sendo o falso de `api/validation.py`.
+`engine.run(inputs, config, out_dir, on_log) -> dict` (contrato §3), `EngineConfig`, `EngineError` e `python -m engine`. Com o A1 e o A2, `run` grava e devolve o `results.json` v1 e `engine.validate` existe (seções abaixo). A branch entrou no `main` em 05/nov/2026; a API ainda usa os falsos (`api/engine_run.py`, `api/validation.py`, `api/engine_config.py`) até o swap do Dev B.
 
 ## Pipeline em estágios, sem mexer na matemática
 
@@ -14,7 +14,7 @@ Decisões do A0, 04/nov/2026. Spec: `docs/superpowers/specs/2026-11-04-a0-pacote
 - Os dados são lidos **uma vez**; antes, `local_main` e `run_mmm_engine` liam e preparavam duas vezes, e o arquivo de performance uma terceira.
 - Um evento que falha não derruba o run. Os três gates (`require_statistical_significance`, `require_logical_direction`, `require_model_fit`) registram `reasons` (`not_significant`, `illogical_direction`, `poor_fit`, `analysis_failed`) em memória; hoje isso não chega ao `results.json` (A1).
 - `status`: `succeeded`, ou `failed` quando o MMM não produz resultado e nenhum evento passa. `inconclusive` é da A6.
-- Saída em `out_dir`: `<canais>/<data>/…` por evento selecionado e `global_saturation_analysis/`. O nível `<advertiser>` e o `output_directory` do protótipo sumiram (nada lê esses caminhos). O relatório do evento é `report_<canais>_<data>.html` (era `gemini_report_*.html`). A falha ou a ausência do LLM cai em `RECOMMENDATIONS.md` (texto determinístico).
+- Saída em `out_dir`: `<canais>/<data>/…` (nomes com tudo fora de `[\w-]` trocado por `_`, porque canal e anunciante vêm do dado do cliente e um `../` escrevia fora do `out_dir`; corrigido na revisão de 05/nov) por evento selecionado e `global_saturation_analysis/`. O nível `<advertiser>` e o `output_directory` do protótipo sumiram (nada lê esses caminhos). O relatório do evento é `report_<canais>_<data>.html` (era `gemini_report_*.html`). A falha ou a ausência do LLM cai em `RECOMMENDATIONS.md` (texto determinístico).
 
 ## `EngineConfig`
 
@@ -50,6 +50,7 @@ Os defaults do motor vêm do protótipo; **os definitivos são da Data Science**
 
 - Verificado na máquina de desenvolvimento (x86-64): idêntico a 1e-9, antes (Fase 1) e depois (Fase 2) da centralização dos defaults.
 - **Falta rodar no servidor de produção** (x86-64, outra CPU): CPUs diferentes podem escolher kernels de BLAS diferentes. Se passar de 1e-9, registre aqui a tolerância medida.
+- **No Windows o MMM cai em outro ótimo (05/nov/2026).** Com as mesmas versões das bibliotecas (o OpenBLAS do wheel de Windows), os eventos causais batem até ~1e-6, mas a contribuição por canal muda muito (SOCIAL 70% contra 51,6%, DISPLAY 4,5% contra 7,0%) e a curva de resposta acompanha. Fixar o BLAS em 1 thread não muda nada. Por isso `test_parity.py` só roda no Linux, que é a plataforma do snapshot, do CI e da produção. **O que isso diz sobre o motor:** o ajuste do adstock/Hill é mal condicionado, e um ruído de última casa decimal troca o mix recomendado. É herança do protótipo e é assunto da A10 (auditoria matemática), não do refactor.
 - O dataset sintético prova o refactor, não a estatística. Em `require_model_fit=False` porque o R² dentro da amostra do modelo causal é negativo nesse dado.
 - **Paridade com dado real (Gol, 04/nov/2026):** `tests/engine/test_parity_real.py` compara o `compute()` com o protótipo sobre `exemplo_csv/Gol` (53 eventos, 15 passam, 5 selecionados; MMM R² 0,27, CV 0,22), os seis blocos a `rtol=1e-9`: **passa**. `exemplo_csv/` e os números do protótipo (`tests/fixtures/parity/real/gol.json`) são confidenciais e ignorados pelo git, então o teste é pulado onde não existem. Para gerar e rodar: `mise run parity-real` (~5 min; usa `LEGACY_REPO`, padrão `../opportunity-engine`).
 - **A paridade com dado real só vale com BLAS de 1 thread.** Com todas as threads a curva de resposta e seus pontos se afastaram até ~7,5e-4 (relativo) do protótipo; com 1 thread, idênticos. O teste real fixa 1 thread com `threadpoolctl`; o sintético não mostrou essa sensibilidade. Reforça a recomendação de fixar as variáveis abaixo no worker: sem isso, o mesmo input pode dar curvas ligeiramente diferentes entre execuções e máquinas.
@@ -92,14 +93,23 @@ Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine
 
 ## Passos do swap (Dev B)
 
-1. `pyproject.toml` já tem as dependências; o `Dockerfile` precisa de `COPY engine/ ./engine/` e `COPY llm/ ./llm/` (medir o tamanho da imagem antes/depois).
+1. Feito: o `pyproject.toml` tem as dependências e o `Dockerfile` copia `engine/` e `llm/` e recebe `ENGINE_VERSION` (`docs/decisoes/infra-e-operacao.md`). Falta medir o tamanho da imagem.
 2. `api/engine_run.py` vira `from engine import run`; `api/engine_config.py` passa a derivar do `EngineConfig` (formulário e `/api/engine/config-schema` vêm de `EngineConfig.model_json_schema()`; decidir o layout dos campos novos e o que fica "avançado").
 3. **Configs já salvas** têm as chaves provisórias (`require_significance`, `require_good_fit`): o `EngineConfig` as recusa com `EngineError`. Migrar `simulations.config` e decidir o que fazer com `runs.config` antigos ("Rodar de novo" já filtra pelo schema).
-4. `block_reason` (gate do Rodar) e `runBlockReason` da tela não mudam. O `validate` falso vira `from engine import validate` (A2 pronto, ver a seção `validate`).
+4. `block_reason` (gate do Rodar) e `runBlockReason` da tela não mudam. O `validate` falso vira `from engine import validate`, **mas o real devolve um `ValidationReport` (pydantic), não dict**: `api/simulations.py` faz `report["ok"]` e grava em JSONB, e `api/runs.py` itera `validation["checks"]`. Use `validate(...).model_dump(mode="json")`. O `validate` também levanta `EngineError` com config inválido, e o `save_mapping` passa o `simulation.config` com os parâmetros já salvos (passo 3): sem migrar nem capturar, vira 500.
 5. Testes: `tests/conftest.py` (`fast_engine`) e `tests/api/test_runs.py` usam `FAKE_ENGINE_*`; trocar por um motor falso injetado, ou manter o falso atrás de uma variável de ambiente nos testes.
 6. `run` roda um run inteiro dentro do processo do worker: nenhum subprocess, nenhuma thread gRPC pendurada (o adaptador do Gemini usa `google-genai`).
+7. **`EngineError` no worker.** `api/worker.py` captura `Exception` e grava uma mensagem genérica. Com o A2, o `run` para no primeiro check de erro com `EngineError` (mensagem pt-BR, `check_id`); sem um `except EngineError as e: message = str(e)`, essa mensagem nunca chega à tela do run.
+8. **Custo de import.** `from engine import validate` executa o `engine/__init__`, que carrega `pipeline`, statsmodels, sklearn e matplotlib: ~2,2 s e bem mais memória no processo da API (pior no cold start do Cloud Run). Medir no swap; se pesar, tornar os exports do `__init__` preguiçosos.
+9. **Relatórios do LLM.** O `run` chama o Gemini por evento e mais uma vez no global (até 60 s cada) para gerar os HTML legados, mas `reports` sai `null` no `results.json` (A9) e o worker apaga o diretório. Até o A9, rode o worker com `LLM_PROVIDER=none`: o custo, a latência e o envio de agregados do cliente não servem para nada.
+10. O `run` já grava o `results.json` no `out_dir`; o worker pode enviar esse arquivo em vez de regravar o dict.
 
 ## Limitações conhecidas
+
+- **`incremental_investment` dos eventos é o investimento total do pós-período** (`total_investment_post_period`), não o incremental (pós − base, que `reports.py` calcula). O `cpa_incremental` usa o mesmo total. Está no spec do A1, mas o nome engana, e o front não pode recalcular. Decidir (renomear ou calcular o incremental no Python) antes de o B5 consumir o campo. Achado da revisão de 05/nov/2026, dono: Trilha A.
+- Fallbacks de nome de coluna fixos no código (`inputs.py`: `"Start Date"`, `"Ad Opportunities"`, `"dates"`, `"product_group"`, `"total_revenue"`; `config.py`: `"Sessions"`), contra o CODE-STYLE. Uma coluna mapeada que não existe é trocada por outra com só um `log.warning`, que dentro do `validate` não chega a lugar nenhum. Deveria virar check. Dono: Trilha A.
+- `investment_change_pct = 0` com pré-período zerado (`analysis.py`) é sentinela e chega ao `results.json`.
+- Em `pipeline.py`, `write_legacy_outputs`, `generate_reports` e `build_results` ficam fora do `try`: uma exceção ali sobe crua em vez de `EngineError`. O `log.error` de "análise não produziu resultados" roda depois do `forward_logs` e não chega ao `on_log`.
 
 - Mensagens do motor ainda misturam inglês (as que não têm regra em `logmessages.py`) e a `reports.py` mantém os prompts em inglês/pt-BR do protótipo (A9).
 - `ruff`: o código copiado tem exceções por arquivo em `pyproject.toml` (`# legacy prototype style`); revisar na A10.

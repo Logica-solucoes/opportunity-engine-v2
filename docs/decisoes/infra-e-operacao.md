@@ -12,7 +12,11 @@ Um `Dockerfile` com três estágios (bun → build do `web/`, uv → venv, runti
 
 ## Deps enxutas no v2
 
-O `pyproject.toml` do v2 tem só o que a plataforma usa (fastapi, uvicorn, sqlalchemy, alembic, psycopg, pillow). As deps analíticas (pandas, scipy, statsmodels, scikit-learn, plotly…) entram junto com o `engine/` no A0, assim como o `COPY engine/ ./engine/` no `Dockerfile`. **Por quê:** o Streamlit e suas dependências pesavam ~900MB e não fazem parte da plataforma.
+O `pyproject.toml` do v2 não tem Streamlit nem nada da UI do protótipo. **Por quê:** o Streamlit e suas dependências pesavam ~900MB e não fazem parte da plataforma. As deps analíticas (numpy, pandas, scipy, statsmodels, scikit-learn, matplotlib, holidays, google-genai) entraram com o `engine/` no A0, com versão **fixa** porque a paridade com o protótipo depende delas (`docs/decisoes/engine.md`). O `Dockerfile` copia `api/`, `engine/` e `llm/`. Falta medir o tamanho da imagem com as deps do motor (era 291MB só com a API).
+
+## `ENGINE_VERSION` no build
+
+O `results.json` leva `engine_version` para auditoria. A imagem não tem `.git` nem instala o projeto como pacote (`--no-install-project`), então o `git rev-parse` e o `importlib.metadata` de `engine/version.py` falham e a versão sairia `unknown`. **Decisão:** `engine_version()` lê primeiro a variável `ENGINE_VERSION`, que o `Dockerfile` recebe por `ARG`. O build de produção (B11) passa `--build-arg ENGINE_VERSION=$(git rev-parse --short HEAD)`.
 
 ## `/api/health` sempre responde 200
 

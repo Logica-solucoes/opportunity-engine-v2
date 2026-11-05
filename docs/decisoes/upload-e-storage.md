@@ -26,9 +26,9 @@ Upload e `PUT …/mapping` travam a linha da simulação (`FOR NO KEY UPDATE`, `
 
 Encoding: o arquivo inteiro decodifica como `utf-8-sig`? senão `latin-1` (exports de BI brasileiros). Delimitador: o mais frequente de `,;\t|` na linha do cabeçalho. O `csv.Sniffer` foi descartado porque em arquivo com `;` e decimal com vírgula (`1.234,56`) a vírgula aparece em todas as linhas de dado e ele pode escolhê-la. Arquivo com byte NUL (ex.: export UTF-16 do Excel) é recusado no upload: o Postgres não aceita `\u0000` em jsonb.
 
-## `validate` falso até o A2
+## `validate` falso até o swap
 
-O `engine/` não existe ainda. `api/validation.py` segue a assinatura e o formato do contrato §2 e implementa só `duplicate_date_channel`, o suficiente para o aceite "duplicata bloqueia o Rodar" rodar fim a fim. O A2 saiu em 04/nov/2026 (`engine.validate`, `docs/decisoes/engine.md`); o módulo vira `from engine import validate` e o fake é apagado. O formato de `inputs` (`{"investment_file", "performance_file", "generic_trends_file"}` → caminho) foi proposto ao dev A no `docs/m2/README.md` › contrato §2.
+Quando o B2a foi feito, o `engine/` não existia. `api/validation.py` segue a assinatura e o formato do contrato §2 e implementa só `duplicate_date_channel`, o suficiente para o aceite "duplicata bloqueia o Rodar" rodar fim a fim. O A2 saiu em 04/nov/2026 (`engine.validate`, `docs/decisoes/engine.md`); o módulo vira `from engine import validate` (com `.model_dump(mode="json")`, porque o real devolve pydantic) e o fake é apagado. Os ids novos e o nível `info` precisam de tratamento na tela. O formato de `inputs` (`{"investment_file", "performance_file", "generic_trends_file"}` → caminho) foi proposto ao dev A no `docs/m2/README.md` › contrato §2.
 
 ## O gate do Rodar é do B4
 
