@@ -20,7 +20,7 @@ MAX_LISTED_DATES = 50
 OVERLAP_CORRELATION = 0.95
 OVERLAP_RATIO_MIN = 0.9  # the smaller total over the larger: 0.9-1.1 either way round
 MIN_COLLINEARITY_PERIODS = 30  # with fewer dates two channels correlate near ±1 by chance; A6/A10 calibrate
-MAX_FINITE_VIF = 1e6  # above this R² rounded to 1: perfect collinearity, reported as None
+MAX_FINITE_VIF = 1e6  # above this (or negative, R² rounded past 1): perfect collinearity, reported as None
 CADENCE_LABEL = {1: "diária", 7: "semanal", 30: "mensal"}
 
 
@@ -109,7 +109,7 @@ def channel_vif(wide: pd.DataFrame) -> dict[str, float | None]:
     with np.errstate(divide="ignore", invalid="ignore"):
         for i, name in enumerate(wide.columns, start=1):
             value = float(variance_inflation_factor(x, i))
-            out[name] = round(value, 4) if np.isfinite(value) and value <= MAX_FINITE_VIF else None
+            out[name] = round(value, 4) if np.isfinite(value) and 0 < value <= MAX_FINITE_VIF else None
     return out
 
 
