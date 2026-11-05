@@ -766,6 +766,7 @@ def load_and_prepare_data(config, paths):
     generic_trends_file (or None) to the files; `config` is only read.
     """
     log.info("Loading, Cleaning, and Preparing Data...")
+    from engine.grouping import apply_groups
     from engine.inputs import cadence_check, read_inputs, sufficiency_check  # inputs imports this module's helpers
 
     try:
@@ -774,7 +775,10 @@ def load_and_prepare_data(config, paths):
         for check in raw.checks:
             if check.level == "error":
                 raise EngineError(check.message, check.id)
-        kpi_df, daily_investment_df, trends_df = raw.kpi_df, raw.investment_df, raw.trends_df
+        daily_investment_df, group_checks = apply_groups(raw.investment_df, config.get("channel_groups") or [])
+        if group_checks:
+            raise EngineError(group_checks[0].message, group_checks[0].id)
+        kpi_df, trends_df = raw.kpi_df, raw.trends_df
         performance_df = raw.performance_df
 
         # --- Cadence Detection & Partial-Period Pruning ---

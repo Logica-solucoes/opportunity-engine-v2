@@ -44,7 +44,8 @@ def test_partial_period_dropped_is_info_with_counts(tmp_path):
         ("2024-01-04", "SOCIAL", 5),
     ]
     perf = [(d, v) for d, v in kpi if d in weekly] + [("2024-01-04", 5)]
-    report = validate(write_inputs(tmp_path, inv, perf), _config())
+    # clean_rows channels are the same linear ramp, so the collinearity gate is accepted: this test is about partials
+    report = validate(write_inputs(tmp_path, inv, perf), {**_config(), "block_per_channel": True})
     check = _by_id(report)["partial_period_dropped"]
     assert check.level == "info" and check.details == {"investment": 1, "performance": 1}
     assert report.ok

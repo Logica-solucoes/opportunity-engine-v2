@@ -15,6 +15,7 @@ GOL_DIR = REPO_ROOT / "exemplo_csv" / "Gol"
 GOL_SNAPSHOT = REPO_ROOT / "tests" / "fixtures" / "parity" / "real" / "gol.json"
 
 GOL_CONFIG = {
+    "block_per_channel": True,  # GOOGLE DISPLAY/VIDEO x KAYAK sit at |r| 0.8501: the gate is accepted, numbers unchanged
     "column_mapping": {
         "investment_file": {"date_col": "date", "channel_col": "channel", "investment_col": "investment"},
         "performance_file": {"date_col": "date", "kpi_col": "kpi"},

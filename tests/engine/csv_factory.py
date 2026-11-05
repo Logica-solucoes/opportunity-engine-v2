@@ -54,3 +54,33 @@ def clean_rows(n: int = 10, channels: tuple[str, ...] = ("SEARCH", "SOCIAL")) ->
     investment = [(d, c, 100 + i * 3 + j * 50) for j, c in enumerate(channels) for i, d in enumerate(ds)]
     kpi = [(d, 1000 + i * 7) for i, d in enumerate(ds)]
     return investment, kpi
+
+
+def correlated_rows(n: int = 60, noise: float = 0.02) -> tuple[list[tuple], list[tuple]]:
+    """Channels A and B move together (r above 0.95), C is independent. Rows for `write_inputs`."""
+    import numpy as np
+
+    rng = np.random.default_rng(3)
+    ds = days(n)
+    a = rng.normal(1000, 200, n).clip(min=100)
+    b = a * (1 + rng.normal(0, noise, n))
+    c = rng.normal(500, 80, n).clip(min=50)
+    investment = [
+        (d, name, round(float(v), 2)) for name, series in (("A", a), ("B", b), ("C", c)) for d, v in zip(ds, series)
+    ]
+    kpi = [(d, round(float(5000 + 3 * x + 2 * y + rng.normal(0, 50)), 2)) for d, x, y in zip(ds, a, c)]
+    return investment, kpi
+
+
+def with_twin(paths: dict, source: str = "SEARCH", twin: str = "SEARCH2", noise: float = 0.002) -> dict:
+    """Adds a channel that follows `source` to the investment file written by make_dataset."""
+    import numpy as np
+
+    path = paths["investment_file"]
+    frame = pd.read_csv(path)
+    rng = np.random.default_rng(5)
+    copy = frame[frame["product_group"] == source].copy()
+    copy["product_group"] = twin
+    copy["total_revenue"] = copy["total_revenue"] * (1 + rng.normal(0, noise, len(copy)))
+    pd.concat([frame, copy]).sort_values(["dates", "product_group"]).to_csv(path, index=False)
+    return paths

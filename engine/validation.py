@@ -1,5 +1,6 @@
 """engine.validate: what is wrong with the three uploaded files, before any model runs (docs/m2/README.md §2)."""
 
+import dataclasses
 import itertools
 import logging
 from pathlib import Path
@@ -7,9 +8,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from engine.collinearity import analyze, flagged
 from engine.config import EngineConfig
 from engine.data_preprocessor import detect_cadence, drop_partial_periods, iqr_bounds
 from engine.errors import EngineError
+from engine.grouping import apply_groups, thresholds
 from engine.inputs import RawInputs, cadence_check, read_inputs, sufficiency_check
 from engine.results_schema import Check, Collinearity, ValidationReport
 
@@ -136,9 +139,39 @@ def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None]:
     return checks, inv_cadence
 
 
+def check_collinearity(
+    investment_df: pd.DataFrame, config: dict, inv_cadence: int | None
+) -> tuple[Collinearity, list[Check]]:
+    """The gate: channels that move together cannot be told apart, so the analyst groups them or accepts it."""
+    if investment_df.empty or inv_cadence is None:
+        return Collinearity(), []
+    kept = drop_partial_periods(investment_df, "Date", inv_cadence)
+    wide = kept.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
+    r_max, vif_max = thresholds(config)
+    result = analyze(wide, r_max, vif_max)
+    pairs, high_vif = flagged(result, vif_max)
+    if not pairs and not high_vif:
+        return result, []
+    involved = sorted({name for pair in pairs for name in (pair["a"], pair["b"])} | set(high_vif))
+    details = {"pairs": pairs, "vif_channels": high_vif, "suggested_groups": result.suggested_groups}
+    listed = ", ".join(involved)
+    if config.get("block_per_channel"):
+        message = (
+            f"Canais que se movem juntos ({listed}): o modelo roda, mas o resultado destes canais "
+            "não é identificável individualmente."
+        )
+        return result, [Check(id="collinearity_blocked", level="warning", message=message, details=details)]
+    message = (
+        f"Canais que se movem juntos ({listed}): o modelo não consegue separar o efeito de cada um. "
+        "Agrupe os canais ou aceite o resultado só no nível do grupo."
+    )
+    return result, [Check(id="collinearity_unresolved", level="error", message=message, details=details)]
+
+
 def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> ValidationReport:
     """Reads the files and reports every problem found. A problem in the data never raises: it is a check."""
-    legacy = EngineConfig.from_input(config).to_legacy_dict()
+    engine_config = EngineConfig.from_input(config)
+    legacy = engine_config.to_legacy_dict()
     try:
         raw = read_inputs(legacy, inputs)
     except EngineError as e:
@@ -147,8 +180,14 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
             checks=[Check(id=e.check_id or "file_unreadable", level="error", message=str(e))],
             collinearity=Collinearity(),
         )
+    grouped, group_checks = apply_groups(raw.investment_df, engine_config.channel_groups)
+    raw = dataclasses.replace(raw, investment_df=grouped)
     series, period_days = _series_checks(raw)
-    checks = [*raw.checks, *series]
+    if group_checks:
+        collinearity, gate = Collinearity(), []
+    else:
+        collinearity, gate = check_collinearity(grouped, legacy, period_days)
+    checks = [*raw.checks, *group_checks, *series, *gate]
     investment = raw.investment_df
     return ValidationReport(
         ok=not any(c.level == "error" for c in checks),
@@ -157,5 +196,5 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
         date_range=None if investment.empty else _iso([investment["Date"].min(), investment["Date"].max()]),
         channels=sorted(investment["Product Group"].unique()),
         checks=checks,
-        collinearity=Collinearity(),
+        collinearity=collinearity,
     )

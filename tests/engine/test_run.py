@@ -13,6 +13,7 @@ import engine
 from engine import pipeline
 from engine.errors import EngineError
 from llm.base import LLMBadOutput, LLMUnavailable
+from tests.engine.csv_factory import with_twin
 from tests.engine.synthetic_data import dataset_config, make_dataset
 from tests.fakes.llm import EVENT_NARRATIVE, GLOBAL_NARRATIVE, FakeLLM
 
@@ -179,3 +180,33 @@ def test_unexpected_analysis_error_becomes_an_engine_error_without_the_details(m
     assert "Erro inesperado" in str(raised.value)
     assert "/srv/data" not in str(raised.value) and "event channels" not in str(raised.value)
     assert isinstance(raised.value.__cause__, ValueError)  # the detail stays in the chain for the server log
+
+
+def test_run_stops_on_unresolved_collinearity(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = with_twin(make_dataset(tmp_path / "data", n_days=SHORT))
+    with pytest.raises(EngineError) as raised:
+        _run_once(tmp_path, dataset_config(), inputs)
+    assert raised.value.check_id == "collinearity_unresolved"
+    assert not (tmp_path / "out" / "results.json").exists()
+
+
+def test_run_with_group_publishes_only_the_group(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = with_twin(make_dataset(tmp_path / "data", n_days=SHORT))
+    config = {**dataset_config(), "channel_groups": [["SEARCH", "SEARCH2"]]}
+    run = _run_once(tmp_path, config, inputs)
+    document = run.result
+    names = [c["name"] for c in document["elasticity"]["channels"]]
+    assert "SEARCH + SEARCH2" in names and "SEARCH" not in names and "SEARCH2" not in names
+    assert [g["name"] for g in document["elasticity"]["groups"]] == ["SEARCH + SEARCH2"]
+    assert document["validation"]["collinearity"]["pairs"] == []
+    assert "SEARCH + SEARCH2" in document["validation"]["channels"]
+
+
+def test_run_with_block_per_channel_runs(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = with_twin(make_dataset(tmp_path / "data", n_days=SHORT))
+    run = _run_once(tmp_path, {**dataset_config(), "block_per_channel": True}, inputs)
+    assert run.result["status"] == "succeeded"
+    assert "collinearity_blocked" in [c["id"] for c in run.result["validation"]["checks"]]
