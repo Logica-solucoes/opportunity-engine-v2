@@ -32,7 +32,9 @@ A API usa o motor real desde 05/nov/2026, e o `ParamsIn` (formulário) não tem 
 | Escopo de `block_per_channel` no A3 | Campo + gate; efeito no A5 | O efeito é identificabilidade por canal, que é o A5. |
 | Onde o grupo é somado | Na leitura, antes de períodos parciais e adstock | Um ponto só; todas as análises veem o grupo sem tocar no código legado. |
 | Colinearidade calculada antes ou depois do grupo? | Antes (dado cru) | O relatório mostra a colinearidade real; o grupo só decide se o par está coberto. |
-| Formato de `gate_thresholds` | Dict livre, chaves `collinearity_r` e `collinearity_vif` | Duas chaves não pedem submodelo; o A4 acrescenta `control_spend_corr` do mesmo jeito. |
+| Formato de `gate_thresholds` | Dict com chaves conhecidas (`collinearity_r`); chave desconhecida é config inválida | Uma chave não pede submodelo; o A4 acrescenta `control_spend_corr` e o A5 `collinearity_vif` do mesmo jeito. |
+| Limite de VIF | Fica para o A5 | No A3 o VIF só é reportado; nada o lê para decidir. Quem usa (A5, identificabilidade) cria a chave. |
+| Série curta | Menos de 30 períodos: não avalia (check `info`) | Com poucas datas a correlação dá ±1 por construção: o template de exemplo (2 datas) seria bloqueado. O A6 define o histórico mínimo; a A10 calibra. Decidido com o dono em 05/nov/2026. |
 
 ## Abordagens consideradas
 
@@ -56,7 +58,7 @@ A API usa o motor real desde 05/nov/2026, e o `ParamsIn` (formulário) não tem 
 - `channel_groups: list[list[str]]` (já existe). Validação no `EngineConfig`: cada grupo tem ≥ 2 membros e nenhum canal aparece em dois grupos; violação é `Configuração inválida…` (mesmo caminho dos outros erros de config). Os nomes são comparados como o motor normaliza os canais (`strip().upper()`).
 - Nome do grupo: `" + ".join(membros)`, o mesmo que `engine/results.py` já usa para `elasticity.groups`.
 - `block_per_channel: bool = False`, novo, fora do `ANALYST_FIELDS` da API.
-- `gate_thresholds`: `collinearity_r` (default 0.85) e `collinearity_vif` (default 10). Chave ausente usa o default; os defaults moram em `engine/config.py`, única fonte.
+- `gate_thresholds`: chave `collinearity_r` (default 0.85). Chave ausente usa o default (`GATE_DEFAULTS` em `engine/config.py`, única fonte); chave fora de `GATE_DEFAULTS` é `Configuração inválida`.
 
 ### O cálculo, em `validate`
 
@@ -64,8 +66,9 @@ A API usa o motor real desde 05/nov/2026, e o `ParamsIn` (formulário) não tem 
 2. |r| de Pearson para cada par; par com |r| > `collinearity_r` entra em `pairs` como `{"a", "b", "r"}` (r arredondado a 4 casas, com sinal).
 3. VIF por canal com `statsmodels.stats.outliers_influence.variance_inflation_factor`, com constante na matriz. VIF infinito ou indefinido (colinearidade perfeita) vira `None` no JSON.
 4. `suggested_groups` = componentes conexos do grafo dos pares sinalizados, cada um ordenado, a lista ordenada.
-5. Canal com VIF > `collinearity_vif` (ou `None`) que não está em nenhum par fica só no `vif`: não força grupo nem gera erro. O VIF alto sem par forte costuma ser combinação de três ou mais canais; o A5 trata a identificabilidade.
+5. O VIF é só reportado: não força grupo nem gera erro. VIF alto sem par forte costuma ser combinação de três ou mais canais; o A5 trata a identificabilidade e cria o limite `collinearity_vif`. VIF acima de 1e6 também vira `None` (R² arredondado para 1).
 6. Com menos de 2 canais, `collinearity` sai vazio.
+7. Com menos de 30 datas no pivot (`MIN_COLLINEARITY_PERIODS`), `collinearity` sai vazio e o relatório ganha `collinearity_not_assessed` (`info`), com o número de períodos em `details.periods`. O gate não roda.
 
 ### Quando o gate passa
 
@@ -88,6 +91,7 @@ O `run` já recusa um relatório com erro (`EngineError` com o id do primeiro er
 - Com `block_per_channel=true`: o `validate` passa.
 - VIF bate com o cálculo manual (regressão de cada canal nos outros, `1/(1-R²)`) numa matriz pequena.
 - Colinearidade perfeita (um canal = 2 × outro): VIF `None`, sem exceção.
+- Série com 29 datas e canais colineares: `collinearity` vazio, `collinearity_not_assessed` (`info`), `ok=true`. Com 30: avaliada.
 - `channel_groups` com canal em dois grupos ou grupo de um membro: `Configuração inválida`. Membro inexistente: `channel_group_unknown`.
 - Paridade intacta: no dataset sintético o maior |r| é 0.066 e os VIF ficam em ~1.01, então nada é sinalizado.
 - `validate` continua < 10 s em 730 dias × 15 canais.
@@ -99,5 +103,5 @@ O `run` já recusa um relatório com erro (`EngineError` com o id do primeiro er
 
 ## Em aberto fora do motor
 
-- Thresholds 0.85 e 10 são os do BRD; calibrar na A10 com os dados das Core.
+- Threshold 0.85 (e o VIF 10, que entra no A5) e o mínimo de 30 períodos: calibrar na A10 com os dados das Core.
 - A spec da Trilha A fala em thresholds "ajustáveis por Admin do workspace via B1". A API não tem onde guardar isso hoje; é da Trilha B.
