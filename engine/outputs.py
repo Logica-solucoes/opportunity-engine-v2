@@ -39,12 +39,17 @@ def _kpi_name(cfg: dict) -> str:
     return cfg["performance_kpi_column"]
 
 
+def _safe(name: str) -> str:
+    # channel and advertiser names come from the client's data: never let them become a path
+    return re.sub(r"[^\w-]", "_", name)
+
+
 def _write_event(computed: "Computed", outcome, out_dir: Path, written: Written) -> None:
     cfg = computed.effective_config
-    event_dir = out_dir / outcome.product_group.replace(", ", "_") / outcome.intervention_date
+    safe_group, safe_date = _safe(outcome.product_group), _safe(outcome.intervention_date)
+    event_dir = out_dir / safe_group / safe_date
     event_dir.mkdir(parents=True, exist_ok=True)
-    safe_group = re.sub(r"[^\w-]", "_", outcome.product_group)
-    base = f"{cfg['advertiser_name']}_{safe_group}_{outcome.intervention_date}"
+    base = f"{_safe(cfg['advertiser_name'])}_{safe_group}_{safe_date}"
     kpi_name = _kpi_name(cfg)
 
     images = {
