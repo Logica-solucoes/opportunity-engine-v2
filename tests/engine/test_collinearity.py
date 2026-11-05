@@ -87,3 +87,36 @@ def test_a_short_series_is_not_assessed(tmp_path):
     assert report.ok and report.collinearity.pairs == [] and report.collinearity.vif == {}
     check = next(c for c in report.checks if c.id == "collinearity_not_assessed")
     assert check.level == "info" and check.details == {"periods": n}
+
+
+def test_a_collinear_pair_blocks_until_resolved(tmp_path):
+    report = validate(collinear_inputs(tmp_path), dataset_config())
+
+    check = next(c for c in report.checks if c.id == "collinearity_unresolved")
+    assert not report.ok and check.level == "error"
+    assert [(p["a"], p["b"]) for p in check.details["pairs"]] == [("PMAX", "SEARCH")]
+    assert check.details["suggested_groups"] == [["PMAX", "SEARCH"]]
+    assert "PMAX + SEARCH" in check.message
+
+
+@pytest.mark.parametrize("resolution", [{"channel_groups": [["SEARCH", "PMAX"]]}, {"block_per_channel": True}])
+def test_a_group_or_the_block_flag_resolves_the_gate(tmp_path, resolution):
+    report = validate(collinear_inputs(tmp_path), {**dataset_config(), **resolution})
+
+    assert report.ok, [c.id for c in report.checks if c.level == "error"]
+    assert report.collinearity.pairs  # the report still shows the real collinearity
+
+
+def test_a_group_that_misses_one_side_of_the_pair_does_not_resolve_it(tmp_path):
+    config = {**dataset_config(), "channel_groups": [["SEARCH", "YOUTUBE"]]}
+
+    assert "collinearity_unresolved" in {c.id for c in validate(collinear_inputs(tmp_path), config).checks}
+
+
+def test_a_group_naming_a_channel_not_in_the_file_is_an_error(tmp_path):
+    config = {**dataset_config(), "channel_groups": [["SEARCH", "TIKTOK"]]}
+
+    report = validate(make_dataset(tmp_path, n_days=364), config)
+
+    check = next(c for c in report.checks if c.id == "channel_group_unknown")
+    assert not report.ok and check.level == "error" and check.details == {"channels": ["TIKTOK"]}

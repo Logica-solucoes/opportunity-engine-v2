@@ -180,6 +180,40 @@ def check_channel_overlap(investment_df: pd.DataFrame) -> list[Check]:
     return checks
 
 
+def check_groups(found: Collinearity, channels: set[str], config: EngineConfig) -> list[Check]:
+    """The analyst's answer to the gate: every flagged pair inside one group, or block_per_channel."""
+    checks = []
+    unknown = sorted({member for group in config.channel_groups for member in group} - channels)
+    if unknown:
+        checks.append(
+            Check(
+                id="channel_group_unknown",
+                level="error",
+                message=f"O agrupamento cita canais que não estão no arquivo de investimento: {', '.join(unknown)}.",
+                details={"channels": unknown},
+            )
+        )
+    if config.block_per_channel:
+        return checks
+    open_pairs = [
+        p for p in found.pairs if not any(p["a"] in group and p["b"] in group for group in config.channel_groups)
+    ]
+    if open_pairs:
+        suggested = "; ".join(" + ".join(group) for group in found.suggested_groups)
+        checks.append(
+            Check(
+                id="collinearity_unresolved",
+                level="error",
+                message=(
+                    "Há canais que gastam juntos, e o modelo não consegue separar o efeito de cada um "
+                    f"(sugestão: {suggested}). Agrupe-os ou aceite resultados só no nível agregado."
+                ),
+                details={"pairs": open_pairs, "suggested_groups": found.suggested_groups},
+            )
+        )
+    return checks
+
+
 def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None]:
     inv, kpi = raw.investment_df, raw.kpi_df
     if inv.empty or kpi.empty:
@@ -210,8 +244,11 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
     series, period_days = _series_checks(raw)
     checks = [*raw.checks, *series]
     investment = raw.investment_df
+    found = Collinearity()
     if not investment.empty:
+        found = collinearity(investment, engine_config)
         checks += check_short_series(investment)
+        checks += check_groups(found, set(investment["Product Group"]), engine_config)
     return ValidationReport(
         ok=not any(c.level == "error" for c in checks),
         cadence=None if period_days is None else CADENCE_LABEL.get(period_days, f"{period_days} dias"),
@@ -219,5 +256,5 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
         date_range=None if investment.empty else _iso([investment["Date"].min(), investment["Date"].max()]),
         channels=sorted(investment["Product Group"].unique()),
         checks=checks,
-        collinearity=Collinearity() if investment.empty else collinearity(investment, engine_config),
+        collinearity=found,
     )
