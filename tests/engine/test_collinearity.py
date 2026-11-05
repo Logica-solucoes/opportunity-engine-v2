@@ -1,8 +1,11 @@
 import numpy as np
 import pandas as pd
 import pytest
+from threadpoolctl import threadpool_limits
 
+import engine
 from engine.config import EngineConfig
+from engine.errors import EngineError
 from engine.validation import MIN_COLLINEARITY_PERIODS, channel_vif, collinearity, validate
 from tests.engine.csv_factory import days, write_inputs
 from tests.engine.synthetic_data import dataset_config, make_dataset
@@ -120,3 +123,28 @@ def test_a_group_naming_a_channel_not_in_the_file_is_an_error(tmp_path):
 
     check = next(c for c in report.checks if c.id == "channel_group_unknown")
     assert not report.ok and check.level == "error" and check.details == {"channels": ["TIKTOK"]}
+
+
+@pytest.fixture
+def no_llm(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+
+
+def test_run_refuses_unresolved_collinearity_before_computing(tmp_path, no_llm):
+    with pytest.raises(EngineError) as raised:
+        engine.run(collinear_inputs(tmp_path / "data"), dataset_config(), tmp_path / "out", lambda level, msg: None)
+
+    assert raised.value.check_id == "collinearity_unresolved"
+
+
+def test_run_with_a_group_reports_only_the_group(tmp_path, no_llm):
+    config = {**dataset_config(), "channel_groups": [["SEARCH", "PMAX"]]}
+
+    with threadpool_limits(limits=1):
+        result = engine.run(collinear_inputs(tmp_path / "data"), config, tmp_path / "out", lambda level, msg: None)
+
+    elasticity = result["elasticity"]
+    assert elasticity["status"] == "ok", elasticity["reasons"]
+    names = {c["name"] for c in elasticity["channels"]}
+    assert "SEARCH + PMAX" in names and not {"SEARCH", "PMAX"} & names
+    assert elasticity["groups"] == [{"name": "SEARCH + PMAX", "members": ["SEARCH", "PMAX"]}]
