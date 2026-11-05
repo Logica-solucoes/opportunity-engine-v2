@@ -5,8 +5,9 @@ import pytest
 from sqlalchemy import delete
 
 from api import csvfile, gemini, simulations, suggestions
-from api.engine_config import EngineConfig, ParamsIn
+from api.engine_config import ANALYST_FIELDS, ParamsIn
 from api.models import Simulation
+from engine.config import EngineConfig
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 
@@ -30,16 +31,23 @@ def test_config_schema_lists_only_the_form_fields(logged):
     schema = logged.get("/api/engine/config-schema").json()
 
     props = schema["properties"]
-    assert props["investment_limit_factor"]["default"] == 1.5
+    assert list(props) == list(ANALYST_FIELDS)
+    assert props["min_pre_period_days"]["default"] == 14
     assert props["optimization_target"]["enum"] == ["REVENUE", "CONVERSIONS"]
-    assert {"column_mapping", "channel_groups", "controls", "gate_thresholds"}.isdisjoint(props)
+    assert {"column_mapping", "treat_outliers", "require_significance", "require_good_fit"}.isdisjoint(props)
 
 
-def test_engine_config_is_the_form_fields_plus_the_rest():
-    config = EngineConfig()
+def test_params_in_copies_default_and_limits_from_the_engine():
+    for name in ANALYST_FIELDS:
+        ours, engine_field = ParamsIn.model_fields[name], EngineConfig.model_fields[name]
+        assert ours.get_default(call_default_factory=True) == engine_field.get_default(call_default_factory=True)
+        assert ours.metadata == engine_field.metadata, name
 
-    assert config.max_budget_step == 0.2 and config.column_mapping == {}
-    assert set(ParamsIn.model_fields) < set(EngineConfig.model_fields)
+
+def test_the_old_provisional_names_are_refused(logged, mapped):
+    r = logged.put(f"/api/w/a/simulations/{mapped.id}/params", json={"require_good_fit": True})
+
+    assert [(e["loc"], e["type"]) for e in r.json()["detail"]] == [(["body", "require_good_fit"], "extra_forbidden")]
 
 
 @pytest.fixture
