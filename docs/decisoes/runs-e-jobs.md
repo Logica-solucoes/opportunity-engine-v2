@@ -2,9 +2,9 @@
 
 Decisões do B4, 27/out/2026. Spec: `docs/superpowers/specs/2026-10-27-b4-jobs-e-log-design.md`.
 
-## `engine.run` falso em `api/`
+## `engine.run` real, com fake por env
 
-O A0 ainda não entregou o `engine/`. `api/engine_run.py` segue a assinatura do contrato §3 (`run(inputs, config, out_dir, on_log) -> dict`, `on_log(level, message)`), emite seis etapas em pt-BR com pausa de `FAKE_ENGINE_STEP_SECONDS` e falha com `FAKE_ENGINE_FAIL=1`. Quando o motor existir, o módulo vira `from engine import run`. Mesmo caminho do `validate` (B2) e do `EngineConfig` (B3).
+`api/engine_run.py` chama o `engine.run` real (contrato §3: `run(inputs, config, out_dir, on_log) -> dict`) desde 05/nov/2026. Com `ENGINE_FAKE=1`, `fake_run` só emite seis etapas em pt-BR com pausa de `FAKE_ENGINE_STEP_SECONDS` e falha com `FAKE_ENGINE_FAIL=1` (as duas variáveis só valem com o fake). O fake é ligado só pelo E2E (`web/e2e/env.ts`) e pela suíte da API (fixture autouse `fast_engine`); nunca em produção. O worker continua guardando o dict que o `run` devolve, não o arquivo de `out_dir`.
 
 ## Só o launcher local
 
@@ -28,8 +28,7 @@ O trilha-b pedia lote de 0,5 s. O motor emite centenas de linhas por run, não m
 
 ## Erro do motor nunca chega cru à tela
 
-Exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução N)." em `runs.error` e numa linha `error` do log; o mesmo vale quando o motor devolve `status: "failed"` sem exceção (o `results.json` fica guardado). O traceback e a mensagem crua vão só para o stdout JSON (`severity`, `message`, `run_id`, `workspace_id`), que o `docker logs` do servidor mostra. A mensagem crua pode estar em inglês ou carregar dado do cliente. Pergunta ao dev A no contrato §3: uma exceção do motor com mensagem pt-BR própria para a tela.
-
+Desde 05/nov/2026 o worker separa dois casos. `EngineError` (mensagem pt-BR segura para a tela, por contrato) vira `failed` com a mensagem do próprio motor em `runs.error` e no log, e o `check_id` vai para o log do servidor. Qualquer outra exceção do motor vira `failed` com "O motor falhou. Detalhes técnicos ficam no log do servidor (execução N)." em `runs.error` e numa linha `error` do log; o mesmo vale quando o motor devolve `status: "failed"` sem exceção (o `results.json` fica guardado). O traceback e a mensagem crua vão só para o stdout JSON (`severity`, `message`, `run_id`, `workspace_id`), que o `docker logs` do servidor mostra. A mensagem crua pode estar em inglês ou carregar dado do cliente.
 ## SSE com sessões curtas
 
 `GET …/logs/stream` é um gerador assíncrono no `StreamingResponse`. A rota checa auth e escopo com a sessão da requisição e a devolve ao pool antes de abrir o stream; cada volta do laço (0,5 s) roda `poll` no threadpool (`run_in_threadpool`), que abre uma sessão curta, lê o status e depois as linhas novas (nessa ordem: o worker grava todas as linhas antes do status final); a espera entre voltas é `asyncio.sleep`. Sem `Last-Event-ID` vão as 300 últimas linhas; com ele, as de id maior, e o `EventSource` reconecta sozinho mandando o último id. Uma aba parada não segura thread (só as queries de cada volta passam pelo threadpool), e uma aba fechada é notada no próximo `await`. O front (B4b) deve chamar `close()` no `EventSource` ao receber `end`: o servidor encerrar a conexão faz o `EventSource` reconectar.

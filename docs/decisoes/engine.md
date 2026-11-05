@@ -4,7 +4,7 @@ Decisões do A0, 04/nov/2026. Spec: `docs/superpowers/specs/2026-11-04-a0-pacote
 
 ## O que o A0 entregou
 
-`engine.run(inputs, config, out_dir, on_log) -> dict` (contrato §3), `EngineConfig`, `EngineError` e `python -m engine`. Com o A1 e o A2, `run` grava e devolve o `results.json` v1 e `engine.validate` existe (seções abaixo). A branch entrou no `main` em 05/nov/2026; a API ainda usa os falsos (`api/engine_run.py`, `api/validation.py`, `api/engine_config.py`) até o swap do Dev B.
+`engine.run(inputs, config, out_dir, on_log) -> dict` (contrato §3), `EngineConfig`, `EngineError` e `python -m engine`. Com o A1 e o A2, `run` grava e devolve o `results.json` v1 e `engine.validate` existe (seções abaixo). A branch entrou no `main` em 05/nov/2026. O swap da API para o motor real foi feito no mesmo dia (passos abaixo); só o `run` falso sobrou, atrás de `ENGINE_FAKE=1`.
 
 ## Pipeline em estágios, sem mexer na matemática
 
@@ -26,7 +26,7 @@ Pydantic, `extra="forbid"`, `allow_inf_nan=False`. Os módulos continuam lendo u
 - Provedor e modelo de LLM **não** são config de run: variáveis de ambiente (`docs/decisoes/llm.md`).
 - Chave desconhecida ou valor fora do limite → `EngineError("Configuração inválida: …")` citando o campo.
 
-### Divergências com `api/engine_config.py` (resolver no swap)
+### Divergências que a API tinha (resolvidas em 05/nov/2026)
 
 | | `ParamsIn` da API | `EngineConfig` |
 |---|---|---|
@@ -40,7 +40,7 @@ Os defaults do motor vêm do protótipo; **os definitivos são da Data Science**
 
 ## Erros e `on_log`
 
-- `EngineError` leva mensagem em pt-BR **segura para a tela**: sem caminho de arquivo (o motor só vê o caminho do storage) e sem dado do cliente. `data_preprocessor` converte seus `ValueError`/`FileNotFoundError` nele. Qualquer outra exceção sobe como está. O worker hoje esconde toda exceção; adotar `EngineError` ali é decisão do Dev B (é a pergunta em aberto do contrato §3).
+- `EngineError` leva mensagem em pt-BR **segura para a tela**: sem caminho de arquivo (o motor só vê o caminho do storage) e sem dado do cliente. `data_preprocessor` converte seus `ValueError`/`FileNotFoundError` nele. Qualquer outra exceção sobe como está. O worker mostra a mensagem do `EngineError` na tela do run e esconde qualquer outra exceção (passo 7 do swap, 05/nov/2026).
 - `on_log(level, message)`: um handler nos loggers `engine` e `llm` (INFO+, restaurado no `finally`) passa cada registro por `translate_line` (regras pt-BR do `logger.py` do protótipo; `None` descarta ruído; **linha sem regra passa como está**, então ainda aparecem mensagens em inglês). `WARNING→warning`, `ERROR/CRITICAL→error`.
 - O `run` não escreve em stdout, não muda o cwd e restaura os filtros de warnings (`catch_warnings`).
 
@@ -76,7 +76,7 @@ Spec: `docs/superpowers/specs/2026-11-04-a1-results-json-design.md`. `engine/res
 - **Curva e cenários.** `mix` da curva tem três variantes (`historical`, `optimized`, `strategic`) porque a curva agregada calcula as três. `scenarios` empacota os seis pontos notáveis; o A8 os refina. `iroas` é `Incremental_ROI` (receita incremental / investimento incremental) e `revenue` é `Projected_Revenue`, **só em modo receita** (`kpi_is_monetary` ou alvo `REVENUE`); fora dele valem 0 por construção e saem `null`. `iroas` também é `null` com investimento incremental 0 (o motor escreve 0 para 0/0), e `icpa` é `null` sem investimento ou sem KPI incremental (o motor escreve 0). Um 0 nesses campos nunca é valor real.
 - **PNG/HTML do matplotlib continuam sendo gerados** até o B5 estar em paridade.
 - **Fixtures** (`tests/fixtures/results/`): Gol **anonimizada** (canais `CANAL_NN`, investimento e KPI multiplicados por fatores privados em `.private/factors.json`, git-ignorado; **datas reais**, risco aceito: o formato da série ainda é reconhecível por quem conhece a Gol). Teste de CI garante só nomes anônimos e nenhum caminho; teste local confirma que nenhum nome ou valor original aparece. Regenerar exige `exemplo_csv/` e o mesmo arquivo de fatores (`generate_fixtures.py`, ~6 min).
-- **Para o Dev B:** `api/worker.py` hoje faz `json.dumps(results)` e grava; como `run` já devolve o dict seguro, os dois arquivos saem iguais. No swap, o worker pode só enviar o `results.json` que o `run` gravou.
+- **Para o Dev B:** `api/worker.py` faz `json.dumps(results)` e grava; como `run` já devolve o dict seguro, os dois arquivos saem iguais. Mantido assim no swap (passo 10).
 
 ## `validate` (A2, 04/nov/2026)
 
@@ -94,20 +94,21 @@ Spec: `docs/superpowers/specs/2026-11-04-a2-validacao-upload-design.md`. `engine
 ## Passos do swap (Dev B)
 
 1. Feito: o `pyproject.toml` tem as dependências e o `Dockerfile` copia `engine/` e `llm/` e recebe `ENGINE_VERSION` (`docs/decisoes/infra-e-operacao.md`). Falta medir o tamanho da imagem.
-2. `api/engine_run.py` vira `from engine import run`; `api/engine_config.py` passa a derivar do `EngineConfig` (formulário e `/api/engine/config-schema` vêm de `EngineConfig.model_json_schema()`; decidir o layout dos campos novos e o que fica "avançado").
-3. **Configs já salvas** têm as chaves provisórias (`require_significance`, `require_good_fit`): o `EngineConfig` as recusa com `EngineError`. Migrar `simulations.config` e decidir o que fazer com `runs.config` antigos ("Rodar de novo" já filtra pelo schema).
-4. `block_reason` (gate do Rodar) e `runBlockReason` da tela não mudam. O `validate` falso vira `from engine import validate`, **mas o real devolve um `ValidationReport` (pydantic), não dict**: `api/simulations.py` faz `report["ok"]` e grava em JSONB, e `api/runs.py` itera `validation["checks"]`. Use `validate(...).model_dump(mode="json")`. O `validate` também levanta `EngineError` com config inválido, e o `save_mapping` passa o `simulation.config` com os parâmetros já salvos (passo 3): sem migrar nem capturar, vira 500.
-5. Testes: `tests/conftest.py` (`fast_engine`) e `tests/api/test_runs.py` usam `FAKE_ENGINE_*`; trocar por um motor falso injetado, ou manter o falso atrás de uma variável de ambiente nos testes.
+2. **Feito em 05/nov/2026.** `api/engine_run.py` chama `engine.run`. `api/engine_config.py` só tem `ANALYST_FIELDS` (17 nomes) e o `ParamsIn`, criado com `create_model` copiando tipo, default e limites de cada campo do `EngineConfig` do motor (`extra="forbid"`); o `EngineConfig` provisório saiu. `treat_outliers` fica fora do formulário (recebe lista de canais, que o formulário gerado não desenha) e mantém o default do motor. Campos novos no formulário: `post_event_days`, `max_events_to_analyze`, `require_logical_direction`. `PUT …/params` com `REVENUE` sem `average_ticket` dá 422 em `["body", "average_ticket"]` (`revenue_needs_ticket`), checado na rota (um `model_validator` daria `loc ["body"]`, que o formulário não liga a um campo).
+3. **Feito em 05/nov/2026.** Migration `0006_rename_require_params`: renomeia `require_significance` → `require_statistical_significance` e `require_good_fit` → `require_model_fit` em `simulations.config` **e** `runs.config`, mantendo os valores (um `false` salvo pode ser escolha do analista); o `downgrade` inverte.
+4. **Feito em 05/nov/2026.** `block_reason` e `runBlockReason` não mudaram. `api/validation.py` chama `engine.validate(inputs, config).model_dump(mode="json")` **sempre**, também nos testes e no E2E (o `validate` falso saiu). Problema de dado é check, nunca exceção; só config que o motor recusa levanta `EngineError`, que o `save_mapping` (`api/simulations.py`) transforma em 422 com a mensagem do motor. O caminho `csvfile.Unreadable` → 422 saiu: valor ilegível vira o check `value_not_numeric`, e arquivo sem linha legível ganha também `no_valid_rows`.
+5. **Feito em 05/nov/2026.** O falso ficou só para o `run`, atrás de `ENGINE_FAKE=1` (`fake_run` em `api/engine_run.py`, que só emite as linhas de log). Quem liga: o E2E (`web/e2e/env.ts`) e a suíte da API (fixture autouse `fast_engine` em `tests/conftest.py`). `FAKE_ENGINE_STEP_SECONDS` e `FAKE_ENGINE_FAIL` só valem com o falso. Nunca em produção. `tests/api/test_engine_swap.py` sobe CSV sintético, valida e roda no motor real.
 6. `run` roda um run inteiro dentro do processo do worker: nenhum subprocess, nenhuma thread gRPC pendurada (o adaptador do Gemini usa `google-genai`).
-7. **`EngineError` no worker.** `api/worker.py` captura `Exception` e grava uma mensagem genérica. Com o A2, o `run` para no primeiro check de erro com `EngineError` (mensagem pt-BR, `check_id`); sem um `except EngineError as e: message = str(e)`, essa mensagem nunca chega à tela do run.
+7. **Feito em 05/nov/2026.** **`EngineError` no worker.** `api/worker.py` tem `except EngineError` antes do `except Exception`: o run falha com a mensagem do próprio motor (pt-BR, segura para a tela por contrato) em `runs.error` e no log, e registra o `check_id`. Qualquer outra exceção segue com a mensagem genérica.
 8. **Custo de import.** `from engine import validate` executa o `engine/__init__`, que carrega `pipeline`, statsmodels, sklearn e matplotlib: ~2,2 s e bem mais memória no processo da API (no boot e a cada reload da API). Medir no swap; se pesar, tornar os exports do `__init__` preguiçosos.
 9. **Relatórios do LLM.** O `run` chama o Gemini por evento e mais uma vez no global (até 60 s cada) para gerar os HTML legados, mas `reports` sai `null` no `results.json` (A9) e o worker apaga o diretório. Até o A9, o `api/launcher.py` sobe o worker com `LLM_PROVIDER=none` (feito em 05/nov/2026): o custo, a latência e o envio de agregados do cliente não serviam para nada. Tirar isso do launcher quando o A9 preencher `reports`.
-10. O `run` já grava o `results.json` no `out_dir`; o worker pode enviar esse arquivo em vez de regravar o dict.
+10. O `run` já grava o `results.json` no `out_dir`, mas **o worker continua guardando o dict que o `run` devolve** (`json.dumps`), decidido em 05/nov/2026. Enviar o arquivo quebraria os testes que trocam o `run` por uma lambda, e o ganho é nulo: o dict é o mesmo documento.
 
 ## Limitações conhecidas
 
 - **`incremental_investment` dos eventos é o investimento total do pós-período** (`total_investment_post_period`), não o incremental (pós − base, que `reports.py` calcula). O `cpa_incremental` usa o mesmo total. Está no spec do A1, mas o nome engana, e o front não pode recalcular. Decidir (renomear ou calcular o incremental no Python) antes de o B5 consumir o campo. Achado da revisão de 05/nov/2026, dono: Trilha A.
 - Fallbacks de nome de coluna fixos no código (`inputs.py`: `"Start Date"`, `"Ad Opportunities"`, `"dates"`, `"product_group"`, `"total_revenue"`; `config.py`: `"Sessions"`), contra o CODE-STYLE. Uma coluna mapeada que não existe é trocada por outra com só um `log.warning`, que dentro do `validate` não chega a lugar nenhum. Deveria virar check. Dono: Trilha A.
+- **A `message` de `value_not_numeric` (e dos checks que mostram exemplos) leva o valor bruto da coluna, sem limite de tamanho.** Um campo de 200 KB vira uma mensagem de 200 KB no banco e na tela, e o valor é dado do cliente. Truncar os exemplos é da Trilha A.
 - `investment_change_pct = 0` com pré-período zerado (`analysis.py`) é sentinela e chega ao `results.json`.
 - Em `pipeline.py`, `write_legacy_outputs`, `generate_reports` e `build_results` ficam fora do `try`: uma exceção ali sobe crua em vez de `EngineError`. O `log.error` de "análise não produziu resultados" roda depois do `forward_logs` e não chega ao `on_log`.
 

@@ -1,6 +1,6 @@
 # Marketing GEM — guia de onboarding para o Dev A (Trilha A, motor)
 
-> **Atualização de 04/nov/2026:** o A0 foi implementado (branch `feat/a0-engine-package`): `engine/`, `llm/` e o snapshot de paridade existem. O que este guia descreve como "a fazer" no A0 e como "o falso da API" continua valendo para a API até o swap do Dev B. Decisões atuais: `docs/decisoes/engine.md` e `llm.md`.
+> **Atualização de 04/nov/2026:** o A0 foi implementado (branch `feat/a0-engine-package`): `engine/`, `llm/` e o snapshot de paridade existem. O que este guia descreve como "a fazer" no A0 é histórico. **Atualização de 05/nov/2026:** o swap da API foi feito; a API usa `engine.validate`, `engine.run` e o `EngineConfig` reais, e o falso do `run` só existe atrás de `ENGINE_FAKE=1`. As passagens abaixo sobre "falso", "provisório" e "stand-in" descrevem o estado de 03/nov. Decisões atuais: `docs/decisoes/engine.md` e `llm.md`.
 
 Escrito em 03/nov/2026 para quem entra agora no projeto e vai assumir o **motor estatístico** (`engine/`). Este documento **não substitui** a spec: ele explica o projeto, os conceitos e o código, e aponta para a spec quando você precisar do texto canônico. Em qualquer divergência, vale a ordem: `docs/m2/README.md` > `docs/m2/trilha-a-motor.md` > este guia.
 
@@ -194,10 +194,10 @@ Quem faz cada passo é fundamental para saber *onde seu código entra* (passos 4
 
 1. **Cadastro e upload** (API). O analista cria uma *simulação* (um rascunho no banco), sobe até 3 CSVs (`investimento`, `performance` e, opcional, `trends`; ≤ 30 MB) (a importação do Google/BigQuery existe na API mas está fora do escopo por ora). Os arquivos vão para o storage com o nome `ws/{workspace_id}/sim/{simulation_id}/inputs/{sha256}.csv` (endereçados por conteúdo).
 2. **Mapeamento de colunas** (API + tela). O analista confirma qual coluna do CSV é a data, o canal, o investimento, o KPI. Isso fica em `config.column_mapping`.
-3. **Validação síncrona** (API). Na confirmação do mapeamento, a API chama `validate(inputs, config)` e guarda o `ValidationReport` em `simulation.validation`. **← Seu código (A2/A3) vai aqui.** Hoje é um falso que só detecta `duplicate_date_channel`.
+3. **Validação síncrona** (API). Na confirmação do mapeamento, a API chama `validate(inputs, config)` e guarda o `ValidationReport` em `simulation.validation`. **← Seu código (A2/A3) vai aqui.** Desde 05/nov/2026 é o `engine.validate` real.
 4. **Parâmetros** (API + tela). O analista edita o formulário gerado do JSON Schema do `EngineConfig` (com sugestões determinísticas dos dados e do Gemini). Salva no `config` da simulação.
 5. **Rodar** (API). `POST …/runs` confere o *gate do servidor* (validação ok, avisos confirmados, parâmetros salvos, nenhum run ativo na simulação) e cria o `Run` com um **snapshot** de `config` e do sha256 dos inputs. Dispara o worker.
-6. **Worker** (`api/worker.py`, **[código]**). Muda o run para `running`, resolve os caminhos dos inputs no storage, chama `engine_run.run(inputs, config, out_dir, on_log)` e, ao fim: escreve `results.json` no storage, grava `status`, `engine_version`, `results_uri` no run. **← Seu código (A0/A1) vai aqui.** Hoje é um motor falso.
+6. **Worker** (`api/worker.py`, **[código]**). Muda o run para `running`, resolve os caminhos dos inputs no storage, chama `engine_run.run(inputs, config, out_dir, on_log)` e, ao fim: escreve `results.json` no storage, grava `status`, `engine_version`, `results_uri` no run. **← Seu código (A0/A1) vai aqui.** Desde 05/nov/2026 é o `engine.run` real (o falso só com `ENGINE_FAKE=1`); o worker grava o dict que o `run` devolve.
 7. **Log ao vivo** (SSE). Cada chamada de `on_log(level, message)` vira uma linha em `run_logs`; a tela acompanha em tempo real. Em caso de erro, a tela vê uma mensagem genérica e o traceback vai só para o log do servidor.
 8. **Dashboards** (B5, bloqueado). Leem `results.json` pela API; filtros e sliders chamam `engine.scenario` (A8) via `GET /runs/{id}/scenario`.
 9. **Histórico e publicação** (B6, pronto). Um analista revisa e *publica* o run; só então o viewer o enxerga.
@@ -214,15 +214,15 @@ O que você precisa saber sem ser dono disso:
 - **Tabelas relevantes** **[código, `api/models.py`]**: `simulations` (config jsonb, validation jsonb), `simulation_files`, `runs` (`status`, `config`, `inputs`, `engine_version`, `results_uri`, `summary`, `error`, `confirmed_warnings`, `published_at`…), `run_logs` (`run_id`, `ts`, `level`, `message`). O `Run.status` vai `queued → running → succeeded | inconclusive | failed`. Um índice único garante **um run ativo por simulação**.
 - **O Gemini já é chamado pela API** (sugestão de parâmetros, `api/gemini.py`, SDK `google-genai`, modelo `gemini-flash-latest`) e **só vê agregados**, nunca linhas de dados. O seu A9 (relatórios) é outra chamada ao Gemini, dentro do motor, com as mesmas preocupações de confidencialidade.
 - **Gemini no motor**: chave única da plataforma (`GEMINI_API_KEY` por variável de ambiente, sem Secret Manager). **O acesso ao LLM passa a ser um módulo plugável `llm/`** (criado no A0, só com o adaptador Gemini): o motor e a API chamam `get_llm()` e não o SDK do Google; trocar de provedor no futuro é escrever um adaptador. Ver o spec do A0, seção "Módulo LLM", nunca por usuário.
-- **Como a API enxerga o motor hoje**: três módulos-ponte que o seu trabalho substitui:
+- **Como a API enxerga o motor (desde 05/nov/2026)**: três módulos-ponte, já trocados pelo motor real:
 
-| Arquivo da API | O que é hoje | Vira |
-|---|---|---|
-| `api/engine_config.py` | `ParamsIn`/`EngineConfig` provisórios (pydantic) | `from engine.config import EngineConfig` (A0) |
-| `api/validation.py` | `validate` falso, só `duplicate_date_channel` | `from engine import validate` (A2) |
-| `api/engine_run.py` | `run` falso: emite 6 linhas de log e devolve todas as seções `null` | `from engine import run` (A0/A1) |
+| Arquivo da API | O que é hoje |
+|---|---|
+| `api/engine_config.py` | `ANALYST_FIELDS` e `ParamsIn`, recortado do `EngineConfig` do motor |
+| `api/validation.py` | chama `engine.validate(...).model_dump(mode="json")` |
+| `api/engine_run.py` | chama `engine.run`; `fake_run` (6 linhas de log) só com `ENGINE_FAKE=1` |
 
-- **Variáveis de motor falso** para testes **[código]**: `FAKE_ENGINE_STEP_SECONDS` (pausa entre etapas) e `FAKE_ENGINE_FAIL=1` (simula falha). O `tests/conftest.py` e o `tests/api/test_runs.py` dependem delas; quando trocar o motor, esses testes precisam de um substituto (ex.: um fake injetado no lugar do `engine.run`).
+- **Motor falso só para o `run`**, em E2E e testes **[código]**: `ENGINE_FAKE=1` liga o falso; `FAKE_ENGINE_STEP_SECONDS` (pausa entre etapas) e `FAKE_ENGINE_FAIL=1` (simula falha) só valem com ele. O `tests/conftest.py` (`fast_engine`) liga tudo isso; `tests/api/test_engine_swap.py` roda o motor real.
 - Documentação do porquê de cada decisão da plataforma: `docs/decisoes/` (leia `runs-e-jobs.md` e `parametros-e-gemini.md` primeiro; são os que tocam você). Regras: `CODE-STYLE.md`, `API-GUIDE.md`, `DATABASE.md`, `SECURITY.md`.
 
 ---
@@ -235,7 +235,7 @@ Entregar o pacote `engine/` com: (a) o pipeline único e executável como worker
 
 ### 5.2 Estado real
 
-- `engine/` não existe. A API usa três stand-ins (seção 4).
+- (Estado de 03/nov; hoje o `engine/` existe e a API o usa, ver o aviso no topo.) `engine/` não existia e a API usava três stand-ins (seção 4).
 - O protótipo tem duas entradas (`local_main.py` e `local_main-without-gemini.py`) com ~90% de código repetido que já divergiram, e muitos hábitos incompatíveis com rodar como serviço: `sys.exit`, `os._exit`, `os.getcwd()`, `sys.path`, `warnings.filterwarnings("ignore")` global, config mutada, dados carregados duas vezes, defaults inconsistentes (`investment_limit_factor` vale 2.0, 3.0 e 1.5 em lugares diferentes). Tudo isso é o A0. (Lista com arquivo e linha no item A0 de `trilha-a-motor.md`.)
 - Existe uma auditoria interna de julho, **disponível no repo do protótipo**: `/home/rodrigo/Sistemas/Dash/opportunity-engine/docs/superpowers/plans/2026-07-08-statistical-audit-findings.md` (achados F1–F17; **leia inteira antes do A0**, ela explica *por que* o código tem tantas guardas e comentários longos). Status: F1–F7, F11–F13 e F15 corrigidos; F9 parcial; F8 e F10 adiados; F14 é escolha de config; F16 e F17 anotados. O experimento de controle dela (KPI = ruído branco ainda gerava ~16% de "lift") é o caso de aceite do A6.
 - O protótipo traz **209 testes** (`tests/test_analysis.py`, `test_elasticity_analysis.py`, `test_data_preprocessor.py`, `test_dashboard_charts.py`, `test_gemini_report.py`…). Eles viram a rede de segurança do A0: mova-os junto com o código.
@@ -369,7 +369,7 @@ MAPPING = {
 ```
 
   Note que a API chama `validate` **antes** de o analista salvar os parâmetros, então a `config` pode ter só `column_mapping` (sem `optimization_target` etc.). O seu `validate` precisa funcionar com essa config parcial (use os defaults do `EngineConfig` para o que faltar), ou a API terá de mudar a ordem do fluxo. Combine com o Dev B (ver a nota "Parâmetros não zeram a validação" em `parametros-e-gemini.md`).
-- A API traduz `csvfile.Unreadable` em "Não foi possível ler o arquivo de investimento". A API já lê CSV com detecção de encoding (`utf-8-sig` senão `latin-1`) e delimitador (o mais frequente de `,;\t|` no cabeçalho). O seu `validate` precisa tolerar os mesmos formatos (o protótipo também tem essa lógica em `data_preprocessor.py`).
+- (Desde 05/nov/2026 o caminho `csvfile.Unreadable` → 422 não existe mais: valor ilegível vira o check `value_not_numeric`.) A API já lê CSV com detecção de encoding (`utf-8-sig` senão `latin-1`) e delimitador (o mais frequente de `,;\t|` no cabeçalho). O seu `validate` precisa tolerar os mesmos formatos (o protótipo também tem essa lógica em `data_preprocessor.py`).
 - Datas e números **BR e US** (`1.234,56` vs `1,234.56`) circulam nos CSVs reais. O protótipo trata isso, mas a spec aponta um bug: `.replace(".", "")` em string quebra decimal US.
 
 ### 6.3 `run(inputs, config, out_dir, on_log) -> dict` (dono: A0/A1)

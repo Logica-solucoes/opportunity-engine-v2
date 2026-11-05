@@ -2,9 +2,14 @@
 
 Decisões do B3, 26/out/2026. Spec: `docs/superpowers/specs/2026-10-26-b3-parametros-gemini-design.md`.
 
-## `EngineConfig` provisório em `api/`
+## `ParamsIn` recortado do `EngineConfig` do motor (05/nov/2026)
 
-O A0 ainda não entregou o `engine/`, e o B3 e o B4 dependem do config. `api/engine_config.py` define `ParamsIn` (os campos do formulário) e `EngineConfig` (`ParamsIn` + `column_mapping`, `channel_groups`, `controls`, `gate_thresholds`) com os campos do contrato §1. Os nomes `require_significance`/`require_good_fit` e os defaults causais foram escolhidos aqui e são provisórios: o A0 decide. Quando o `engine/config.py` existir, o arquivo vira import de lá. Mesmo caminho do `validate` falso do B2.
+Até o swap, `api/engine_config.py` tinha um `EngineConfig` provisório. Agora o arquivo só tem `ANALYST_FIELDS` (17 nomes: os campos do formulário) e `ParamsIn`, criado com `create_model` copiando tipo, default e limites de cada campo do `EngineConfig` de `engine/config.py` (`extra="forbid"`). Nome fora do `EngineConfig` quebra no import. Defaults e limites têm uma fonte só.
+
+- **`treat_outliers` fica fora do formulário:** recebe uma lista de canais, que o formulário gerado do schema não desenha; usa o default do motor.
+- **Campos novos no formulário:** `post_event_days`, `max_events_to_analyze`, `require_logical_direction`. Os gates se chamam `require_statistical_significance`, `require_logical_direction` e `require_model_fit` (a migration `0006` renomeou os antigos nos configs salvos).
+- **Defaults que mudaram para o analista** (agora vêm do motor): `min_pre_period_days` 28 → 14, `r_squared_threshold` 0,5 → 0,3, `increase_threshold_percent` 20 → 50, `decrease_threshold_percent` 20 → 30 (máximo agora 100). Os definitivos são da Data Science.
+- **`REVENUE` sem `average_ticket`:** `PUT …/params` responde 422 com erro em `["body", "average_ticket"]` (tipo `revenue_needs_ticket`, traduzido em `web/src/lib/params.ts`). A checagem fica na rota: um `model_validator` no `ParamsIn` daria `loc ["body"]`, que o formulário não liga a um campo.
 
 ## Rotas sob o workspace e schema fora dele
 
@@ -24,7 +29,7 @@ A saída estruturada pede `{field, value, reason}` com `value` em string, e cada
 
 ## Parâmetros não zeram a validação
 
-O `validate` falso só lê o `column_mapping`, que o formulário não toca. Quando o `validate` real (A2) passar a depender de outro campo, o `PUT …/params` passa a zerar o report.
+O `engine.validate` hoje só depende do `column_mapping`, que o formulário não toca. Se passar a depender de outro campo, o `PUT …/params` passa a zerar o report.
 
 ## Tela (B3b)
 

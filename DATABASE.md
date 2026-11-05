@@ -36,6 +36,7 @@ Atualize esta tabela no mesmo commit da migration (linha deixa de ser "planejada
 - Rodar sempre com `-c api/alembic.ini`: `mise run db-migrate` aplica; `uv run alembic -c api/alembic.ini revision -m "…"` cria.
 - `api/migrations/env.py` lê `DATABASE_URL` de `api/db.py` (a URL não vai no `.ini`) e usa `Base.metadata` (`import api.models` registra as tabelas). `fileConfig(..., disable_existing_loggers=False)`: os testes rodam o Alembic no mesmo processo e o default calaria os loggers da API.
 - `tests/api/test_migrations.py` compara migrations e models (`compare_metadata`); model novo sem migration quebra o teste.
+- `0006`: migration de dados (sem tabela nova): renomeia `require_significance`/`require_good_fit` em `simulations.config` e `runs.config` para `require_statistical_significance`/`require_model_fit`, mantendo os valores; o `downgrade` inverte.
 - Valor novo de enum do Postgres não pode ser usado na transação em que foi adicionado.
 
 ### Nova coluna ou tabela
