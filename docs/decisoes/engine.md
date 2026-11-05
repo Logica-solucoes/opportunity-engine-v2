@@ -99,9 +99,9 @@ Roda dentro do `validate`, sobre o **spend cru**: o `validate` não aplica `chan
 - **`suggested_groups`** são os componentes conexos dos pares sinalizados.
 - **Gate:** `collinearity_unresolved` (erro, `details` com `pairs` e `suggested_groups`) se algum par não estiver inteiro dentro de um grupo de `channel_groups`. Passa com todos os pares cobertos por grupos ou com `block_per_channel=true`; o efeito deste último no resultado é do A5. `channel_group_unknown` (erro) se um grupo cita canal que não está no arquivo de investimento.
 - **`channel_groups`** (lista de listas de canal; nomes com strip/upper, cada grupo com 2+ canais distintos, nenhum canal em dois grupos) soma o spend por data logo após `read_inputs`, antes dos períodos parciais e do adstock de correlação negativa. O canal do grupo se chama `"A + B"`, na ordem do config.
-- **Abaixo de 30 períodos não avalia** (`collinearity_not_assessed`, info; `collinearity` vazia): com poucas datas a correlação é ±1 por construção. O histórico mínimo é do A6 e a calibração do A10.
+- **Abaixo de 30 períodos não avalia** (`collinearity_not_assessed`, info; `collinearity` vazia): com poucas datas dois canais correlacionam perto de ±1 por acaso (com 2 datas, ±1 exato). O histórico mínimo é do A6 e a calibração do A10.
 - **Consequência:** a API não manda `channel_groups` nem `block_per_channel` (não estão em `ParamsIn`), então dataset colinear com 30+ períodos não roda pela plataforma até a tela do B2 existir.
-- **Verificado:** `tests/engine/test_collinearity.py`; paridade sintética intacta (|r| máximo do sintético: 0.066).
+- **Verificado:** `tests/engine/test_collinearity.py`; o dataset da paridade não dispara o gate (|r| máximo 0.066) e, sem `channel_groups`, a leitura não muda; o teste de paridade em si só roda no Linux.
 
 ## Passos do swap (Dev B)
 

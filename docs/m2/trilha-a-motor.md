@@ -94,7 +94,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 ## A3 · Gate de colinearidade — semana 2
 
 - **BRD:** Technical Details §2; Capabilities › Model validation & publication gates.
-- **Status:** ✅ feito em 05/nov/2026. `validate` preenche `collinearity` (pares |r| > 0.85 no spend cru, VIF por canal, `suggested_groups`) e dá `collinearity_unresolved` até o config trazer `channel_groups` (somados na leitura) ou `block_per_channel`; abaixo de 30 períodos não avalia. Verificado: `tests/engine/test_collinearity.py`; paridade sintética intacta; |r| máximo do sintético 0.066. Falta: rodar sobre a Gol e os datasets das Core; limites ajustáveis pelo Admin são da Trilha B. Decisões em `docs/decisoes/engine.md`.
+- **Status:** ✅ feito em 05/nov/2026. `validate` preenche `collinearity` (pares |r| > 0.85 no spend cru, VIF por canal, `suggested_groups`) e dá `collinearity_unresolved` até o config trazer `channel_groups` (somados na leitura) ou `block_per_channel`; abaixo de 30 períodos não avalia. Verificado: `tests/engine/test_collinearity.py`; o dataset da paridade não dispara o gate (|r| máximo 0.066) e, sem `channel_groups`, a leitura não muda; falta rodar a paridade no Linux. Falta: rodar sobre a Gol e os datasets das Core; limites ajustáveis pelo Admin são da Trilha B. Decisões em `docs/decisoes/engine.md`.
 - **Depende de:** A2. **Bloqueia:** A5, B2 (tela de agrupamento).
 - **Hoje:** não há VIF. A única correlação calculada é a matriz de Pearson (`data_preprocessor.py:1041,1069`), usada no hack de adstock e enviada ao Gemini.
 - **Fazer:**
