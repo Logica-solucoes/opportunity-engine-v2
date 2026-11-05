@@ -64,11 +64,18 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
     fields: [
       { path: 'p_value_threshold', label: 'p-valor máximo' },
       { path: 'min_pre_period_days', label: 'Pré-período mínimo (dias)' },
+      { path: 'post_event_days', label: 'Pós-evento (dias)', help: 'Janela medida depois de cada evento.' },
       { path: 'r_squared_threshold', label: 'R² mínimo' },
       { path: 'increase_threshold_percent', label: 'Aumento mínimo para evento (%)' },
       { path: 'decrease_threshold_percent', label: 'Queda mínima para evento (%)' },
-      { path: 'require_significance', label: 'Exigir significância' },
-      { path: 'require_good_fit', label: 'Exigir bom ajuste' },
+      { path: 'max_events_to_analyze', label: 'Máximo de eventos analisados' },
+      { path: 'require_statistical_significance', label: 'Exigir significância' },
+      {
+        path: 'require_logical_direction',
+        label: 'Exigir direção lógica',
+        help: 'O efeito precisa ir na direção da mudança de investimento.',
+      },
+      { path: 'require_model_fit', label: 'Exigir bom ajuste' },
     ],
   },
 ]
