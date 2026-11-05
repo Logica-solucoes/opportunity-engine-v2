@@ -13,6 +13,7 @@ from api import engine_run, logs, simulations, storage
 from api.db import SessionLocal
 from api.models import Run, RunLog
 from api.runs import STALE_AFTER
+from engine import EngineError
 
 log = logging.getLogger("api.worker")
 
@@ -62,6 +63,11 @@ def execute(db: Session, run_id: int) -> None:
         if results["status"] == "failed":
             values["error"] = ENGINE_ERROR.format(id=rid)
             db.add(RunLog(run_id=rid, level="error", message=values["error"]))
+    except EngineError as e:  # pt-BR and safe for the screen by contract: no paths, no client data
+        log.warning("worker.engine_refused run_id=%s check_id=%s", rid, e.check_id)
+        db.rollback()
+        db.add(RunLog(run_id=rid, level="error", message=str(e)))
+        values = {"status": "failed", "error": str(e)}
     except Exception:  # any engine failure fails the run; the raw message may be English or carry data
         log.exception("worker.engine_failed run_id=%s", rid)
         db.rollback()

@@ -422,6 +422,23 @@ def test_a_failed_engine_status_shows_the_ptbr_error(db, ready, analyst, monkeyp
     assert messages(db, run.id)[-1] == run.error
 
 
+def test_an_engine_error_shows_the_engine_message(db, ready, analyst, monkeypatch):
+    from engine import EngineError
+
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    def refuse(*args):
+        raise EngineError("Há linhas repetidas no investimento.", check_id="duplicate_date_channel")
+
+    monkeypatch.setattr(engine_run, "run", refuse)
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    assert (run.status, run.error) == ("failed", "Há linhas repetidas no investimento.")
+    assert messages(db, run.id)[-1] == run.error
+
+
 def test_worker_ignores_a_run_that_is_not_queued(db, ready, analyst):
     run = runs.create(db, ready(), set(), by=analyst)
     run.status = "succeeded"
