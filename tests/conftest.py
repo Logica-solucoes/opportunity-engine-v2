@@ -75,6 +75,8 @@ def launched(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def fast_engine(monkeypatch):
+    # a real run needs months of data and ~40 s; tests/api/test_engine_swap.py turns this off
+    monkeypatch.setenv("ENGINE_FAKE", "1")
     monkeypatch.setenv("FAKE_ENGINE_STEP_SECONDS", "0")
     monkeypatch.delenv("FAKE_ENGINE_FAIL", raising=False)
 

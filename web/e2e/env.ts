@@ -14,7 +14,9 @@ export const pyEnv = {
   STORAGE_DIR: join(tmpdir(), 'gem-e2e-storage'),
   // the E2E never calls Gemini: an empty key takes the "unavailable" path even if the dev shell has one
   GEMINI_API_KEY: '',
-  // the worker subprocess inherits this env: ~5 s per run, long enough to see "Rodando" and reload mid-run
+  // the worker subprocess inherits this env: the fake engine takes ~5 s per run, long enough to see "Rodando"
+  // and reload mid-run; the real one needs months of data
+  ENGINE_FAKE: '1',
   FAKE_ENGINE_STEP_SECONDS: '1',
   FAKE_ENGINE_FAIL: '',
   // no Google credentials even if the dev shell has some: the import reaches BigQuery's client and comes back

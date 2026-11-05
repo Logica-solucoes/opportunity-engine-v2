@@ -3,6 +3,8 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+import engine
+
 STEPS = [
     "Lendo os arquivos de investimento e performance",
     "Detectando eventos de investimento",
@@ -14,8 +16,13 @@ STEPS = [
 
 
 def run(inputs: dict[str, Path | None], config: dict, out_dir: Path, on_log: Callable[[str, str], None]) -> dict:
-    # ponytail: stand-in for engine.run (A0/A1, docs/m2/README.md contract §3) that only paces log lines;
-    # when engine/ exists this module becomes `from engine import run`
+    if os.environ.get("ENGINE_FAKE") == "1":
+        return fake_run(on_log)
+    return engine.run(inputs, config, out_dir, on_log)
+
+
+def fake_run(on_log: Callable[[str, str], None]) -> dict:
+    # ponytail: only paces log lines, for the E2E and the API tests; never set ENGINE_FAKE in production
     pause = float(os.environ.get("FAKE_ENGINE_STEP_SECONDS", "1"))
     for i, message in enumerate(STEPS):
         if i:

@@ -32,6 +32,18 @@ def test_fake_engine_fails_on_request(tmp_path, monkeypatch):
         engine_run.run({}, {}, tmp_path, lambda level, message: None)
 
 
+def test_without_engine_fake_the_real_engine_runs(tmp_path, monkeypatch):
+    import engine
+
+    calls = []
+    monkeypatch.delenv("ENGINE_FAKE")
+    monkeypatch.setattr(engine, "run", lambda *args: calls.append(args) or {"status": "succeeded"})
+
+    engine_run.run({"investment_file": None}, {"a": 1}, tmp_path, print)
+
+    assert calls == [({"investment_file": None}, {"a": 1}, tmp_path, print)]
+
+
 @pytest.fixture
 def analyst(make_user):
     return make_user("ana@x.com")
