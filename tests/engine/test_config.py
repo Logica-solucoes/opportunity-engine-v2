@@ -101,3 +101,17 @@ def test_legacy_dict_covers_every_key_the_modules_read():
         keys |= set(KEY_READ.findall(path.read_text(encoding="utf-8")))
     missing = keys - set(EngineConfig().to_legacy_dict()) - RUNTIME_KEYS
     assert not missing, f"to_legacy_dict() lacks keys the engine reads: {sorted(missing)}"
+
+
+def test_block_per_channel_defaults_to_false():
+    assert EngineConfig().block_per_channel is False
+
+
+@pytest.mark.parametrize("bad", [{"collinearity_r": 1.5}, {"collinearity_r": 0}, {"vif_max": 0.5}, {"vif_max": "x"}])
+def test_invalid_gate_threshold_is_an_engine_error(bad):
+    with pytest.raises(EngineError, match="gate_thresholds"):
+        EngineConfig.from_input({"gate_thresholds": bad})
+
+
+def test_unknown_gate_threshold_key_is_accepted():
+    assert EngineConfig.from_input({"gate_thresholds": {"outra_chave": 1}}).gate_thresholds == {"outra_chave": 1}

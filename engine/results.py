@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+from engine.grouping import group_name
 from engine.results_schema import (
     AccuracyPoint,
     Baseline,
@@ -235,7 +236,7 @@ def _elasticity(computed: "Computed") -> Elasticity:
     if not mmm:
         return Elasticity(status="failed", reasons=["model_failed"])
     groups = [
-        Group(name=" + ".join(members), members=list(members))
+        Group(name=group_name(members), members=[m.strip().upper() for m in members])
         for members in computed.effective_config.get("channel_groups") or []
     ]
     return Elasticity(
