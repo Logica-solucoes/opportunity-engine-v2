@@ -186,7 +186,7 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
 def save_params(db: Session, simulation: Simulation, params: dict) -> None:
     lock(db, simulation)
     require_mapping(simulation)
-    # the parameters never touch the report: the stand-in validate reads only the mapping
+    # the parameters never touch the report: engine.validate reads only the mapping and date formats
     simulation.config = {**simulation.config, **params}
     simulation.updated_at = func.now()
     db.commit()
