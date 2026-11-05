@@ -198,22 +198,25 @@ def test_mapping_runs_the_validation(logged, analyst, ws, make_simulation):
     assert body["config"] == {"column_mapping": MAPPING}
     assert body["validation"] == {
         "ok": True,
-        "cadence": None,
-        "period_days": None,
-        "date_range": None,
+        "cadence": "diária",
+        "period_days": 1,
+        "date_range": ["2024-01-01", "2024-01-02"],
         "channels": ["SEARCH", "YOUTUBE"],
         "checks": [],
-        "collinearity": None,
+        "collinearity": {"pairs": [], "vif": {}, "suggested_groups": []},
     }
 
 
-def test_mapping_rejects_unreadable_data_rows(logged, analyst, ws, make_simulation):
+def test_unreadable_values_become_a_check_not_an_error(logged, analyst, ws, make_simulation):
     huge_field = b'data,canal,investimento\n2024-01-01,SEARCH,"' + b"x" * 200_000 + b'"\n'
     simulation = make_simulation(ws, analyst, files={"investment": huge_field, "performance": PERFORMANCE})
 
     r = put_mapping(logged, simulation.id, MAPPING)
 
-    assert (r.status_code, r.json()["detail"]) == (422, "Não foi possível ler o arquivo de investimento.")
+    assert r.status_code == 200
+    validation = r.json()["validation"]
+    assert validation["ok"] is False
+    assert "value_not_numeric" in [c["id"] for c in validation["checks"]]
 
 
 def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulation):
@@ -227,10 +230,24 @@ def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulat
         {
             "id": "duplicate_date_channel",
             "level": "error",
-            "message": "1 linha repetida de (data, canal) no investimento",
-            "details": {"rows": [{"date": "2024-01-01", "channel": "SEARCH", "count": 2}]},
+            "message": "Há 1 linha(s) repetida(s) para a mesma data e o mesmo canal no arquivo de investimento. "
+            "Remova ou consolide as duplicatas e envie o arquivo novamente.",
+            "details": {"count": 1, "examples": [{"date": "2024-01-01", "channel": "SEARCH"}]},
         }
     ]
+
+
+def test_a_config_the_engine_refuses_is_422_with_its_message(logged, db, analyst, ws, make_simulation):
+    simulation = make_simulation(ws, analyst, files=BOTH)
+    simulation.config = {"bogus": 1}
+    db.commit()
+
+    r = put_mapping(logged, simulation.id, MAPPING)
+
+    assert (r.status_code, r.json()["detail"]) == (
+        422,
+        "Configuração inválida: campo 'bogus' não é reconhecido pelo motor",
+    )
 
 
 def test_mapping_with_trends(logged, analyst, ws, make_simulation):

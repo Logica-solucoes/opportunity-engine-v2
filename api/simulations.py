@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from api import csvfile, storage, suggestions, validation
 from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, SimulationFile, User, Workspace
+from engine import EngineError
 
 log = logging.getLogger(__name__)
 
@@ -174,8 +175,8 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
     simulation.config = {**simulation.config, "column_mapping": mapping}
     try:
         report = validation.validate(inputs, simulation.config)
-    except csvfile.Unreadable:
-        raise InvalidInput("Não foi possível ler o arquivo de investimento.")
+    except EngineError as e:
+        raise InvalidInput(str(e))
     simulation.validation = report
     simulation.updated_at = func.now()
     db.commit()

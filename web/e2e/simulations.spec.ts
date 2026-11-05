@@ -55,7 +55,11 @@ test('a repeated (date, channel) row shows the pt-BR error and blocks the run', 
   await expect(analystPage.getByText('performance.csv', { exact: true })).toBeVisible()
   await analystPage.getByRole('button', { name: 'Validar' }).click()
 
-  await expect(analystPage.getByText('1 linha repetida de (data, canal) no investimento')).toBeVisible()
+  await expect(
+    analystPage.getByText('Há 1 linha(s) repetida(s) para a mesma data e o mesmo canal no arquivo de investimento.', {
+      exact: false,
+    }),
+  ).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
   await expect(analystPage.getByText('Corrija os erros antes de rodar.')).toBeVisible()
 })
