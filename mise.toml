@@ -51,6 +51,16 @@ rm -f "$SPEC"
 uv run pytest tests/engine/test_parity_real.py -q
 """
 
+[tasks.parity-a4-golden]
+description = "Regenerate the engine's own golden for the causal events (A4) and print how far each event moved from the prototype. Only with approval"
+env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1" }
+run = """
+set -e
+# the synthetic one is generated multi-threaded like snapshot.json; the Gol one single-threaded like parity-real
+env -u OMP_NUM_THREADS -u OPENBLAS_NUM_THREADS -u MKL_NUM_THREADS uv run python -m tests.fixtures.parity.make_a4_golden
+uv run python -m tests.fixtures.parity.make_a4_golden --real
+"""
+
 [tasks.e2e]
 description = "Playwright E2E against the built SPA (needs docker compose up)"
 dir = "web"

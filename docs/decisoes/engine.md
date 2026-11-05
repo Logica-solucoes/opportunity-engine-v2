@@ -103,6 +103,20 @@ Spec: `docs/superpowers/specs/2026-11-05-a3-colinearidade-design.md`. Dois canai
 - **Mídia duplicada:** o erro `collinearity_unresolved` avisa que, se os dois canais são a mesma mídia reportada duas vezes (ver `dv360_cm360_overlap`), o certo é remover um do arquivo; agrupar soma e dobra o gasto.
 - **Fora do A3:** `identifiable=false` e a exclusão de curva/mix do canal (A5), adstock oculto por correlação negativa (A10).
 
+## Controles causais (A4, 05/nov/2026)
+
+Spec: `docs/superpowers/specs/2026-11-05-a4-controles-causais-design.md`. O contrafactual do modelo causal só vale se os regressores não forem efeito do próprio investimento.
+
+- **Saiu:** as covariáveis `Leads`, `Clicks` e `Impressions` do arquivo de performance (o anúncio as move) nunca mais entram no modelo causal. O `.replace(".", "")` que quebrava decimal US saiu junto.
+- **Controles:** a `Generic Searches` do arquivo de tendências e as colunas listadas em `config.controls` (nomes de coluna do mesmo arquivo, comparados sem espaços nas pontas e sem diferenciar caixa). Ficam em `PreparedData.controls_df`, **separado** do `trends_df`: a elasticidade (MMM) lê todas as colunas de `trends_df` como contexto, e a triagem do MMM não é do A4, então ele segue lendo só a `Generic Searches`.
+- **Triagem por evento** (`engine/controls.py`): correlação de Pearson, no pré-período do evento, entre o controle e o spend cru do canal tratado (soma, se há vários canais). `abs(r) > gate_thresholds.control_spend_corr` (default 0.5) rejeita. Constante não rejeita. A mesma série pode ser aceita num evento e rejeitada em outro.
+- **Onde fica o registro:** `CausalEvent.controls` (`used`, `rejected` com `name` e `r`), campo opcional novo; `schema_version` continua 1. Rejeitar um controle **não** põe nada em `reasons` e não reprova o evento (o item dizia listar em `reasons`; `reasons` vazio é o que faz o evento passar).
+- **Lasso:** `LassoCV(cv=TimeSeriesSplit(...))`, com `min(5, linhas − 1)` folds (mínimo 2) para pré-período curto.
+- **Checks no `validate`:** `control_missing` (controle ausente do arquivo de tendências, ou sem arquivo) e `control_name_clash` (nome igual a canal de investimento, `Date`, `kpi` ou `Generic Searches`); controle não numérico usa `value_not_numeric`.
+- **Paridade:** `period_days`, `mmm`, curva, pontos e mix seguem idênticos ao protótipo. Os números causais por evento passam a ser comparados com um golden gerado pelo motor (`tests/fixtures/parity/snapshot_a4_events.json`; Gol em `real/gol_a4_events.json`, git-ignorado; `mise run parity-a4-golden`), e a detecção dos eventos (id, canal, data) continua contra o protótipo. **Sintético:** os números causais ficaram idênticos ao protótipo (delta 0). **Gol (insumo da A10):** nenhum controle foi rejeitado (a `Generic Searches` não passa de 0.5 com nenhum canal tratado), então toda a mudança vem dos folds temporais do Lasso: 39 dos 52 eventos mudam de número, 3 deixam de passar nos gates (15 → 12 passando) e os eventos selecionados (top 5) são os mesmos.
+- **Para o Dev B (swap):** `api/engine_config.py` precisa de `control_spend_corr` em `gate_thresholds`; a tela deve listar as colunas do arquivo de tendências como controles possíveis; o B5 mostra `controls.used`/`rejected` por evento.
+- **Fora do A4:** BCB (IPCA, Selic), triagem dos controles no MMM e no modelo de resposta pré-treinado (A10), placebo e suficiência (A6). Um controle com buracos de datas é zerado pelo `fillna(0)` que já existia antes da triagem.
+
 ## Passos do swap (Dev B)
 
 1. `pyproject.toml` já tem as dependências; o `Dockerfile` precisa de `COPY engine/ ./engine/` e `COPY llm/ ./llm/` (medir o tamanho da imagem antes/depois).

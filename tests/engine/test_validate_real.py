@@ -90,3 +90,10 @@ def test_gol_sits_just_above_the_collinearity_limit():
         gol_files(), {**GOL_CONFIG, "block_per_channel": False, "channel_groups": [["GOOGLE DISPLAY/VIDEO", "KAYAK"]]}
     )
     assert grouped.ok and "GOOGLE DISPLAY/VIDEO + KAYAK" in grouped.channels
+
+
+def test_gol_controls_are_checked_against_its_trends_file():
+    """The Gol trends file has only Generic Searches: a declared extra control is reported, not ignored."""
+    missing = validate(gol_files(), {**GOL_CONFIG, "controls": ["Selic"]})
+    assert not missing.ok and _ids(missing)["control_missing"] == "error"
+    assert validate(gol_files(), GOL_CONFIG).ok

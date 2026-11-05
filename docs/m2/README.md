@@ -108,6 +108,7 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
                "lift":{"abs":4640000,"ci":[…,…],"rel_pct":12.1},"p_value":0.01,
                "incremental_investment":3400000,"cpa_incremental":…,"fit":{"r2":…,"wmape":…},
                "placebo":{"p_value":0.62,"passed":true},
+               "controls":{"used":["Selic"],"rejected":[{"name":"Generic Searches","r":0.71}]},
                "series":{"line":[…],"accuracy":[…],"investment":[…],"kpi":[…]}}]},
  "elasticity": {
    "metrics": {"cv_r2":…, "r2":…, "media_contribution_pct":…, "low_confidence":false, "reallocation_suppressed":false},

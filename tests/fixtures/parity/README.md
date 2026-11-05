@@ -25,3 +25,13 @@ Notes
 `real/gol.json`, then `tests/engine/test_parity_real.py` checks the engine against it. Both the data and `real/` are
 confidential and git-ignored; the test skips where they are missing. The test pins BLAS to one thread: with all threads
 the response curve drifts up to ~7e-4 (relative) on this data.
+
+## Causal numbers since A4
+
+A4 changed the causal model on purpose (no ad-driven covariates, controls screened, temporal Lasso folds), so the
+per-event numbers are no longer the prototype's. `test_parity.py` and `test_parity_real.py` now compare the detected
+events (id, channel, date) with the prototype and the causal numbers with the engine's own golden:
+`snapshot_a4_events.json` (versioned) and `real/gol_a4_events.json` (git-ignored). Both come from
+`mise run parity-a4-golden`, which also prints how far each event moved from the prototype; regenerate only with
+approval. The golden detects regressions from A4 on; it is not evidence of parity. The other blocks (`period_days`,
+`mmm`, `response_curve`, `points`, `optimized_mix`) still match the prototype.

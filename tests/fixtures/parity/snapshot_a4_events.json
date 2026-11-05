@@ -1,0 +1,188 @@
+[
+ {
+  "event_id": "synthetic_YOUTUBE_2024-10-28",
+  "product_group": "YOUTUBE",
+  "intervention_date": "2024-10-28",
+  "results_data": {
+   "start_date": "2024-10-28",
+   "end_date": "2024-11-11",
+   "product_group": "YOUTUBE",
+   "absolute_lift": 5293.409751893261,
+   "absolute_lift_ci_lower": 3298.5849111332554,
+   "absolute_lift_ci_upper": 7288.234592653267,
+   "relative_lift_pct": 4.358297268054679,
+   "p_value": 1.9821957455041607e-07,
+   "investment_change_pct": 154.15748500370063,
+   "cpa_incremental": 3.5830738366062382,
+   "total_investment_post_period": 18966.677988445063,
+   "total_investment_pre_period": 7462.569118579727,
+   "mae": 315.75335712685575,
+   "mape": 3.905266786858251,
+   "model_r_squared": -2.4847520459251045,
+   "event_period_avg_investment": 1264.4451992296708,
+   "controls_used": [
+    "Generic Searches"
+   ],
+   "controls_rejected": []
+  },
+  "passed": true,
+  "reasons": [],
+  "selected": true
+ },
+ {
+  "event_id": "synthetic_YOUTUBE_2024-11-04",
+  "product_group": "YOUTUBE",
+  "intervention_date": "2024-11-04",
+  "results_data": {
+   "start_date": "2024-11-04",
+   "end_date": "2024-11-18",
+   "product_group": "YOUTUBE",
+   "absolute_lift": 3350.3272733487192,
+   "absolute_lift_ci_lower": 1326.0772727574247,
+   "absolute_lift_ci_upper": 5374.577273940014,
+   "relative_lift_pct": 2.7560953363001897,
+   "p_value": 0.001178689684494819,
+   "investment_change_pct": 141.38712259956682,
+   "cpa_incremental": 5.379835731817868,
+   "total_investment_post_period": 18024.21037844537,
+   "total_investment_pre_period": 7466.931203428543,
+   "mae": 315.96710845937724,
+   "mape": 3.9044011596875907,
+   "model_r_squared": -2.3655572109447776,
+   "event_period_avg_investment": 1201.6140252296912,
+   "controls_used": [
+    "Generic Searches"
+   ],
+   "controls_rejected": []
+  },
+  "passed": true,
+  "reasons": [],
+  "selected": true
+ },
+ {
+  "event_id": "synthetic_YOUTUBE_2024-11-11",
+  "product_group": "YOUTUBE",
+  "intervention_date": "2024-11-11",
+  "results_data": {
+   "start_date": "2024-11-11",
+   "end_date": "2024-11-25",
+   "product_group": "YOUTUBE",
+   "absolute_lift": -1358.0887161104492,
+   "absolute_lift_ci_lower": -3426.489575622609,
+   "absolute_lift_ci_upper": 710.3121434017107,
+   "relative_lift_pct": -1.094363551933035,
+   "p_value": 0.19812428864832987,
+   "investment_change_pct": 51.064851741549276,
+   "cpa_incremental": -9.38050186805969,
+   "total_investment_post_period": 12739.553738464856,
+   "total_investment_pre_period": 8433.168663389974,
+   "mae": 315.4799209428082,
+   "mape": 3.8945217084652666,
+   "model_r_squared": -2.2822979855431846,
+   "event_period_avg_investment": 849.3035825643237,
+   "controls_used": [
+    "Generic Searches"
+   ],
+   "controls_rejected": []
+  },
+  "passed": false,
+  "reasons": [
+   "not_significant",
+   "illogical_direction"
+  ],
+  "selected": false
+ },
+ {
+  "event_id": "synthetic_PMAX_2025-06-02",
+  "product_group": "PMAX",
+  "intervention_date": "2025-06-02",
+  "results_data": {
+   "start_date": "2025-06-02",
+   "end_date": "2025-06-16",
+   "product_group": "PMAX",
+   "absolute_lift": -6340.505414171763,
+   "absolute_lift_ci_lower": -8284.998586339792,
+   "absolute_lift_ci_upper": -4396.012242003734,
+   "relative_lift_pct": -5.19355594275615,
+   "p_value": 1.6472970172944693e-10,
+   "investment_change_pct": -51.75032363324765,
+   "cpa_incremental": -0.9117936211180651,
+   "total_investment_post_period": 5781.232391306368,
+   "total_investment_pre_period": 11981.909158027165,
+   "mae": 267.1050267267261,
+   "mape": 3.2941471645795466,
+   "model_r_squared": -1.1730127370299668,
+   "event_period_avg_investment": 385.41549275375786,
+   "controls_used": [
+    "Generic Searches"
+   ],
+   "controls_rejected": []
+  },
+  "passed": true,
+  "reasons": [],
+  "selected": true
+ },
+ {
+  "event_id": "synthetic_PMAX_2025-06-09",
+  "product_group": "PMAX",
+  "intervention_date": "2025-06-09",
+  "results_data": {
+   "start_date": "2025-06-09",
+   "end_date": "2025-06-23",
+   "product_group": "PMAX",
+   "absolute_lift": -6799.205558758338,
+   "absolute_lift_ci_lower": -8753.042998303017,
+   "absolute_lift_ci_upper": -4845.368119213659,
+   "relative_lift_pct": -5.58235510183625,
+   "p_value": 9.062899641564377e-12,
+   "investment_change_pct": -65.02852117243324,
+   "cpa_incremental": -0.6162768166509,
+   "total_investment_post_period": 4190.192757506692,
+   "total_investment_pre_period": 11981.743117490683,
+   "mae": 267.80713389102056,
+   "mape": 3.304489926899644,
+   "model_r_squared": -1.1436410404519233,
+   "event_period_avg_investment": 279.3461838337795,
+   "controls_used": [
+    "Generic Searches"
+   ],
+   "controls_rejected": []
+  },
+  "passed": true,
+  "reasons": [],
+  "selected": true
+ },
+ {
+  "event_id": "synthetic_PMAX_2025-06-16",
+  "product_group": "PMAX",
+  "intervention_date": "2025-06-16",
+  "results_data": {
+   "start_date": "2025-06-16",
+   "end_date": "2025-06-30",
+   "product_group": "PMAX",
+   "absolute_lift": 675.9928063448824,
+   "absolute_lift_ci_lower": -1362.5735498775493,
+   "absolute_lift_ci_upper": 2714.559162567314,
+   "relative_lift_pct": 0.5761085394000642,
+   "p_value": 0.515730952790358,
+   "investment_change_pct": -40.806428004595006,
+   "cpa_incremental": 10.179001708771382,
+   "total_investment_post_period": 6880.93193090172,
+   "total_investment_pre_period": 11624.458026347633,
+   "mae": 270.63998982031734,
+   "mape": 3.342207844383302,
+   "model_r_squared": -1.0956109856216059,
+   "event_period_avg_investment": 458.728795393448,
+   "controls_used": [
+    "Generic Searches"
+   ],
+   "controls_rejected": []
+  },
+  "passed": false,
+  "reasons": [
+   "not_significant",
+   "illogical_direction"
+  ],
+  "selected": false
+ }
+]

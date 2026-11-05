@@ -13,6 +13,8 @@ from tests.fixtures.parity.generate_legacy_snapshot import jsonable
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOL_DIR = REPO_ROOT / "exemplo_csv" / "Gol"
 GOL_SNAPSHOT = REPO_ROOT / "tests" / "fixtures" / "parity" / "real" / "gol.json"
+GOL_LEGACY = GOL_SNAPSHOT  # the prototype's numbers
+GOL_A4_EVENTS = REPO_ROOT / "tests" / "fixtures" / "parity" / "real" / "gol_a4_events.json"
 
 GOL_CONFIG = {
     "block_per_channel": True,  # GOOGLE DISPLAY/VIDEO x KAYAK sit at |r| 0.8501: the gate is accepted, numbers unchanged

@@ -62,8 +62,11 @@ def test_cadence_matches(computed, snapshot):
     assert computed.prepared.period_days == snapshot["period_days"]
 
 
-def test_events_and_gates_match(computed, snapshot):
-    actual = [
+A4_EVENTS = Path(__file__).resolve().parents[1] / "fixtures" / "parity" / "snapshot_a4_events.json"
+
+
+def _events(computed):
+    return [
         {
             "event_id": e.event_id,
             "product_group": e.product_group,
@@ -75,7 +78,19 @@ def test_events_and_gates_match(computed, snapshot):
         }
         for e in computed.events
     ]
-    assert_close(actual, snapshot["events"], "events")
+
+
+def test_detected_events_match_the_prototype(computed, snapshot):
+    """Event detection is untouched by A4: same events, in the same order, as the prototype."""
+    identity = ("event_id", "product_group", "intervention_date")
+    assert [{k: e[k] for k in identity} for e in _events(computed)] == [
+        {k: e[k] for k in identity} for e in snapshot["events"]
+    ]
+
+
+def test_causal_numbers_match_the_a4_golden(computed):
+    """Since A4 the causal numbers are pinned to the engine's own golden (make_a4_golden.py), not the prototype's."""
+    assert_close(_events(computed), json.loads(A4_EVENTS.read_text(encoding="utf-8")), "events")
 
 
 def test_mmm_matches(computed, snapshot):

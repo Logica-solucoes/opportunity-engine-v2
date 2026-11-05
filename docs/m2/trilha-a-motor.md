@@ -113,6 +113,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 ## A4 · Controles causais livres de contaminação — semana 2
 
 - **BRD:** Technical Details §7; Improvement Requests › Causal controls.
+- **Status:** ✅ feito em 05/nov/2026 (branch `feat/a0-engine-package`; spec `docs/superpowers/specs/2026-11-05-a4-controles-causais-design.md`). `Clicks`/`Impressions`/`Leads` saíram do modelo causal; os controles (`Generic Searches` e `config.controls`, colunas do arquivo de tendências) passam por triagem por evento contra o spend do canal tratado (`gate_thresholds.control_spend_corr`, 0.5), registrada em `CausalEvent.controls`; o LassoCV usa `TimeSeriesSplit`. Verificado: testes por comportamento (rejeição, triagem por evento, canais somados, tudo rejeitado, pré-período curto, Clicks sem efeito, checks `control_missing`/`control_name_clash`); blocos não causais da paridade idênticos ao protótipo. **Paridade:** os números causais passam a ter golden do motor; no sintético nada mudou, na Gol 39 de 52 eventos mudam de número (só pelos folds temporais; nenhum controle foi rejeitado) e 3 deixam de passar nos gates (15 → 12), sem trocar os selecionados. Falta: calibrar o 0.5 e a escolha do Lasso (A10), BCB (cortado), triagem no MMM, e as telas (Dev B).
 - **Depende de:** A0.
 - **Hoje:**
   - Covariáveis hardcoded `Leads`, `Clicks`, `Impressions` (`analysis.py:307-320`), com case exato e fora do `column_mapping`.
