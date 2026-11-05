@@ -2,10 +2,8 @@
 
 import pandas as pd
 
+from engine.config import GateThresholds
 from engine.results_schema import Check
-
-DEFAULT_COLLINEARITY_R = 0.85
-DEFAULT_VIF_MAX = 10.0
 
 
 def _normalize(name: str) -> str:
@@ -17,12 +15,9 @@ def group_name(members: list[str]) -> str:
 
 
 def thresholds(config: dict) -> tuple[float, float]:
-    """(collinearity_r, vif_max) from `gate_thresholds`, with the defaults for what is not set."""
-    gate = config.get("gate_thresholds") or {}
-    return (
-        float(gate.get("collinearity_r", DEFAULT_COLLINEARITY_R)),
-        float(gate.get("vif_max", DEFAULT_VIF_MAX)),
-    )
+    """(collinearity_r, vif_max) from `gate_thresholds`; the defaults are the ones of `GateThresholds`."""
+    gate = GateThresholds.model_validate(config.get("gate_thresholds") or {})
+    return gate.collinearity_r, gate.vif_max
 
 
 def _error(check_id: str, message: str, channels: list[str]) -> Check:
@@ -63,6 +58,15 @@ def apply_groups(investment_df: pd.DataFrame, groups: list[list[str]]) -> tuple[
     if small:
         checks.append(
             _error("group_too_small", f"Cada grupo precisa de pelo menos 2 canais: {', '.join(small)}.", small)
+        )
+    taken = sorted({group_name(m) for m in normalized} & (known - {x for m in normalized for x in m}))
+    if taken:
+        checks.append(
+            _error(
+                "group_name_taken",
+                f"O nome do grupo coincide com um canal que já existe no arquivo: {', '.join(taken)}.",
+                taken,
+            )
         )
     if checks:
         return investment_df, checks

@@ -79,3 +79,10 @@ def test_thresholds_default_and_override():
     assert thresholds({}) == (0.85, 10.0)
     assert thresholds({"gate_thresholds": None}) == (0.85, 10.0)
     assert thresholds({"gate_thresholds": {"collinearity_r": 0.9, "vif_max": 5}}) == (0.9, 5.0)
+
+
+def test_group_name_equal_to_an_existing_channel_is_an_error():
+    df = _long([("2024-01-01", "A", 1.0), ("2024-01-01", "B", 2.0), ("2024-01-01", "A + B", 4.0)])
+    out, checks = apply_groups(df, [["A", "B"]])
+    assert [c.id for c in checks] == ["group_name_taken"] and checks[0].details["channels"] == ["A + B"]
+    pd.testing.assert_frame_equal(out, df)

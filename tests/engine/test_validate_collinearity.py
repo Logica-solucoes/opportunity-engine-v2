@@ -109,3 +109,8 @@ def test_validate_stays_fast_with_collinearity(tmp_path):
     start = time.perf_counter()
     validate(paths, _config(block_per_channel=True))
     assert time.perf_counter() - start < 10
+
+
+def test_unresolved_message_warns_against_summing_a_duplicated_source(tmp_path):
+    message = _by_id(validate(_correlated(tmp_path), _config()))["collinearity_unresolved"].message
+    assert "mesma mídia" in message and "remova" in message

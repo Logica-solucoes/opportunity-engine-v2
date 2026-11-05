@@ -5,7 +5,7 @@ The analytical modules still read a plain dict with `config.get(...)`; `to_legac
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from engine.errors import EngineError
 
@@ -19,6 +19,15 @@ class FinancialTargets(Strict):
     target_icpa: float | None = Field(default=None, gt=0)
     target_roas: float | None = Field(default=None, gt=0)
     target_iroas: float | None = Field(default=None, gt=0)
+
+
+class GateThresholds(BaseModel):
+    """Limits of the publication gates. Keys other than the known ones are kept (the Admin screen and later items add more)."""
+
+    model_config = ConfigDict(extra="allow", allow_inf_nan=False)
+
+    collinearity_r: float = Field(default=0.85, gt=0, le=1, strict=True)  # a pair is flagged when |r| is above this
+    vif_max: float = Field(default=10.0, ge=1, strict=True)  # a channel is flagged when its VIF is above this
 
 
 class EngineConfig(Strict):
@@ -48,7 +57,7 @@ class EngineConfig(Strict):
     date_formats: dict = Field(default_factory=dict)
     channel_groups: list[list[str]] = Field(default_factory=list)
     controls: list[str] = Field(default_factory=list)
-    gate_thresholds: dict = Field(default_factory=dict)
+    gate_thresholds: GateThresholds = Field(default_factory=lambda: GateThresholds())
     block_per_channel: bool = False
     product_group_filter: list[str] | None = None
     min_intervention_date: str | None = None
@@ -64,19 +73,6 @@ class EngineConfig(Strict):
     client_industry: str | None = None
     client_business_goal: str | None = None
     primary_business_metric_name: str = "KPIs"
-
-    @field_validator("gate_thresholds")
-    @classmethod
-    def _known_thresholds_are_sane(cls, value: dict) -> dict:
-        def number(key: str) -> float | None:
-            v = value.get(key)
-            return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
-
-        if "collinearity_r" in value and not (number("collinearity_r") and 0 < number("collinearity_r") <= 1):
-            raise ValueError("'collinearity_r' deve ser um número maior que 0 e até 1")
-        if "vif_max" in value and not (number("vif_max") and number("vif_max") >= 1):
-            raise ValueError("'vif_max' deve ser um número a partir de 1")
-        return value
 
     @model_validator(mode="after")
     def _revenue_needs_a_ticket(self) -> Self:

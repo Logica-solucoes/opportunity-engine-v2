@@ -163,7 +163,9 @@ def check_collinearity(
         return result, [Check(id="collinearity_blocked", level="warning", message=message, details=details)]
     message = (
         f"Canais que se movem juntos ({listed}): o modelo não consegue separar o efeito de cada um. "
-        "Agrupe os canais ou aceite o resultado só no nível do grupo."
+        "Agrupe os canais ou aceite o resultado só no nível do grupo. "
+        "Se for a mesma mídia reportada duas vezes, remova uma delas do arquivo em vez de agrupar: "
+        "agrupar soma o investimento e dobra o gasto."
     )
     return result, [Check(id="collinearity_unresolved", level="error", message=message, details=details)]
 

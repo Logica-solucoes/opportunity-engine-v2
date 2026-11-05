@@ -114,4 +114,23 @@ def test_invalid_gate_threshold_is_an_engine_error(bad):
 
 
 def test_unknown_gate_threshold_key_is_accepted():
-    assert EngineConfig.from_input({"gate_thresholds": {"outra_chave": 1}}).gate_thresholds == {"outra_chave": 1}
+    assert (
+        EngineConfig.from_input({"gate_thresholds": {"outra_chave": 1}}).to_legacy_dict()["gate_thresholds"][
+            "outra_chave"
+        ]
+        == 1
+    )
+
+
+def test_gate_threshold_defaults_live_in_the_config_schema():
+    """The front reads defaults from the JSON Schema, so they must be in EngineConfig and not only in the loader."""
+    schema = EngineConfig.model_json_schema()
+    gate = schema["$defs"]["GateThresholds"]["properties"]
+    assert gate["collinearity_r"]["default"] == 0.85 and gate["vif_max"]["default"] == 10
+    assert EngineConfig().gate_thresholds.collinearity_r == 0.85
+
+
+@pytest.mark.parametrize("bad", [{"vif_max": float("inf")}, {"collinearity_r": True}, {"vif_max": True}])
+def test_gate_threshold_rejects_inf_and_bool(bad):
+    with pytest.raises(EngineError, match="gate_thresholds"):
+        EngineConfig.from_input({"gate_thresholds": bad})
