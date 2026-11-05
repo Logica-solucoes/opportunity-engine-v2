@@ -766,7 +766,12 @@ def load_and_prepare_data(config, paths):
     generic_trends_file (or None) to the files; `config` is only read.
     """
     log.info("Loading, Cleaning, and Preparing Data...")
-    from engine.inputs import cadence_check, read_inputs, sufficiency_check  # inputs imports this module's helpers
+    from engine.inputs import (  # inputs imports this module's helpers
+        apply_channel_groups,
+        cadence_check,
+        read_inputs,
+        sufficiency_check,
+    )
 
     try:
         user_kpi_col = config["performance_kpi_column"]
@@ -774,7 +779,9 @@ def load_and_prepare_data(config, paths):
         for check in raw.checks:
             if check.level == "error":
                 raise EngineError(check.message, check.id)
-        kpi_df, daily_investment_df, trends_df = raw.kpi_df, raw.investment_df, raw.trends_df
+        kpi_df, trends_df = raw.kpi_df, raw.trends_df
+        # before partial periods and the negative-correlation adstock: from here on a group is a plain channel
+        daily_investment_df = apply_channel_groups(raw.investment_df, config["channel_groups"])
         performance_df = raw.performance_df
 
         # --- Cadence Detection & Partial-Period Pruning ---

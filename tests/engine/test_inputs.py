@@ -1,8 +1,12 @@
+import pandas as pd
 import pytest
 
+from engine.config import EngineConfig
 from engine.errors import EngineError
-from engine.inputs import read_inputs
+from engine.inputs import apply_channel_groups, read_inputs
+from engine.pipeline import load_inputs
 from tests.engine.csv_factory import clean_rows, legacy_config, write_inputs
+from tests.engine.synthetic_data import dataset_config, make_dataset
 
 
 def _config(**mapping_overrides):
@@ -134,3 +138,28 @@ def test_a_missing_path_is_file_unreadable(tmp_path):
     with pytest.raises(EngineError) as exc:
         read_inputs(_config(), paths)
     assert exc.value.check_id == "file_unreadable"
+
+
+def test_apply_channel_groups_sums_the_members_per_date():
+    df = pd.DataFrame(
+        {
+            "Date": pd.to_datetime(["2024-01-01"] * 3 + ["2024-01-02"] * 3),
+            "Product Group": ["PMAX", "SEARCH", "YOUTUBE"] * 2,
+            "investment": [1.0, 2.0, 4.0, 10.0, 20.0, 40.0],
+        }
+    )
+
+    out = apply_channel_groups(df, [["SEARCH", "PMAX"]])
+
+    assert sorted(out["Product Group"].unique()) == ["SEARCH + PMAX", "YOUTUBE"]
+    assert out.loc[out["Product Group"] == "SEARCH + PMAX", "investment"].tolist() == [3.0, 30.0]
+    assert apply_channel_groups(df, []) is df
+
+
+def test_load_turns_a_group_into_one_channel_before_any_analysis(tmp_path):
+    config = EngineConfig.from_input({**dataset_config(), "channel_groups": [["SEARCH", "PMAX"]]})
+
+    prepared = load_inputs(make_dataset(tmp_path, n_days=364), config)
+
+    channels = set(prepared.investment_df["Product Group"])
+    assert "SEARCH + PMAX" in channels and not {"SEARCH", "PMAX"} & channels

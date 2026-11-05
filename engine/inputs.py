@@ -324,6 +324,15 @@ def sufficiency_check(investment_df: pd.DataFrame, kpi_df: pd.DataFrame) -> Chec
     )
 
 
+def apply_channel_groups(investment_df: pd.DataFrame, groups: list[list[str]]) -> pd.DataFrame:
+    """Each group becomes one channel named 'A + B', its members' spend summed per date (A3)."""
+    if not groups:
+        return investment_df
+    names = {member: " + ".join(group) for group in groups for member in group}
+    renamed = investment_df.assign(**{"Product Group": investment_df["Product Group"].replace(names)})
+    return renamed.groupby(["Date", "Product Group"], as_index=False)["investment"].sum()
+
+
 def read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
     """Reads the three files. Whatever the data does to the parsers, the caller gets an EngineError with a check id."""
     try:
