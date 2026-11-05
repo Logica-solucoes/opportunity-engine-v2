@@ -13,7 +13,7 @@ from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, SimulationFile, Use
 
 log = logging.getLogger(__name__)
 
-# Cloud Run caps HTTP/1 request bodies at 32 MiB; aggregated daily data is well under 1 MB
+# the body itself is capped at 32 MiB in api/main.py; aggregated daily data is well under 1 MB
 MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 CHUNK_BYTES = 1024 * 1024
 

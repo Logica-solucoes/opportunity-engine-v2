@@ -188,7 +188,7 @@ def require_platform_admin(user: User = Depends(active_user)) -> User:
 
 
 async def check_origin(request: Request, call_next):
-    # host only, not scheme: Cloud Run terminates TLS, so the app sees http while the browser sends https
+    # host only, not scheme: the reverse proxy terminates TLS, so the app sees http while the browser sends https
     origin = request.headers.get("origin")
     if (
         request.method in UNSAFE_METHODS

@@ -37,7 +37,7 @@ class ContextFilter(logging.Filter):
 
 
 class JsonFormatter(logging.Formatter):
-    # Cloud Logging reads one JSON object per stdout line; the traceback rides inside `message`
+    # one JSON object per stdout line, readable by `docker logs` or any collector; the traceback rides inside `message`
     def format(self, record: logging.LogRecord) -> str:
         entry = {"severity": record.levelname, "logger": record.name, "message": super().format(record)}
         entry.update({k: getattr(record, k) for k in IDS if hasattr(record, k)})

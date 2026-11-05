@@ -2,7 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
-# ponytail: local dir only; GCS comes in B11, chosen by env here, with path() downloading to a temp file
+# ponytail: local dir, also in production (own server, no GCP); back it up with the database
 # and delete_prefix() listing and deleting the blobs under the prefix
 ROOT = Path(os.environ.get("STORAGE_DIR", "data"))
 

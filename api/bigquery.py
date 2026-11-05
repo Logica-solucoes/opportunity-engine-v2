@@ -32,7 +32,7 @@ def query(sql: str, params: dict[str, date | str]) -> list[dict]:
         maximum_bytes_billed=MAX_BYTES_BILLED,
     )
     try:
-        # project and credentials come from ADC: GOOGLE_APPLICATION_CREDENTIALS locally, the attached SA on Cloud Run
+        # project and credentials come from ADC: GOOGLE_APPLICATION_CREDENTIALS locally, a service account file on a server (connector out of scope for now)
         rows = bq.Client().query(sql, job_config=config).result(timeout=TIMEOUT_S)
         return [dict(row.items()) for row in rows]
     except (exceptions.Forbidden, exceptions.NotFound) as e:
