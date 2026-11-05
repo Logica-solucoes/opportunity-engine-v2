@@ -10,9 +10,10 @@ from pathlib import Path
 import pandas as pd
 
 from engine import analysis, elasticity_analysis, outputs, results
-from engine.config import EngineConfig
+from engine.config import EngineConfig, GateThresholds
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
+from engine.identifiability import assess, collinear_channels
 from engine.logmessages import forward_logs
 from engine.results_schema import ValidationReport
 from engine.validation import validate
@@ -55,6 +56,7 @@ class Computed:
     candidates: pd.DataFrame = field(default_factory=pd.DataFrame)  # every detected event, `eligible` or not
     individual_curves_df: pd.DataFrame | None = None  # per-channel curves (Channel, Channel_Spend, ...)
     validation: ValidationReport | None = None  # what validate reported for these inputs (set by run)
+    identifiability: dict[str, dict] | None = None  # per MMM channel: identifiable, reasons, coef_ci, point (A5)
 
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
@@ -223,12 +225,19 @@ def compute(
     candidates = detect_events(prepared, cfg)
     events = analyze_events(prepared, candidates, cfg)
     elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
+    identifiability = None
+    if elasticity.get("mmm"):
+        gate = GateThresholds.model_validate(cfg.get("gate_thresholds") or {})
+        flagged = collinear_channels(validation, gate.vif_max)
+        mmm = elasticity["mmm"]
+        identifiability = assess(mmm["bootstrap_coefs"], mmm["spend_cols"], gate.identifiability_width_ratio, flagged)
     return Computed(
         prepared=prepared,
         effective_config=cfg,
         events=events,
         candidates=candidates,
         validation=validation,
+        identifiability=identifiability,
         **elasticity,
     )
 

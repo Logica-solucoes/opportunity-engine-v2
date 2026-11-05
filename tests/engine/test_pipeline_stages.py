@@ -152,3 +152,15 @@ def test_a_rejected_control_is_reported_and_does_not_fail_the_event(tmp_path):
         assert [c["name"] for c in event.results_data["controls_rejected"]] == ["Like_YT"]
         assert not any("control" in reason for reason in event.reasons)
     assert any(e.passed for e in youtube_events)
+
+
+# --- A5: identifiability ---------------------------------------------------------------------------------------
+
+
+def test_compute_assesses_every_channel_and_keeps_the_bootstrap_matrix(tmp_path):
+    files = make_dataset(tmp_path, n_days=SHORT)
+    computed = pipeline.compute(files, EngineConfig.from_input(dataset_config()))
+    columns = computed.mmm["spend_cols"]
+    assert set(computed.identifiability) == set(columns)
+    assert computed.mmm["bootstrap_coefs"].shape == (200, len(columns))
+    assert all({"identifiable", "reasons", "coef_ci", "point"} <= set(v) for v in computed.identifiability.values())

@@ -245,6 +245,23 @@ def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5
     return best_result
 
 
+def bootstrap_coefficients(X, y, n_bootstrap=200, seed=42):
+    """
+    The matrix (n_bootstrap x columns) of Ridge(alpha=1.0, positive=True, fit_intercept=False) coefficients, one row
+    per resample of the rows (with replacement). `bootstrap_average_coefficients` averages it; the identifiability
+    gate (A5) reads its percentiles.
+    """
+    rng = np.random.default_rng(seed)
+    n_rows = X.shape[0]
+    y_arr = np.asarray(y)
+    coefs = np.zeros((n_bootstrap, X.shape[1]))
+    for b in range(n_bootstrap):
+        idx = rng.integers(0, n_rows, n_rows)
+        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y_arr[idx])
+        coefs[b] = model.coef_
+    return coefs
+
+
 def bootstrap_average_coefficients(X, y, n_bootstrap=200, seed=42):
     """
     Refits Ridge(alpha=1.0, positive=True, fit_intercept=False) on n_bootstrap
@@ -259,15 +276,7 @@ def bootstrap_average_coefficients(X, y, n_bootstrap=200, seed=42):
     resamples smooths this out: a channel that only wins the corner solution by
     chance on the full dataset won't win it in every resample.
     """
-    rng = np.random.default_rng(seed)
-    n_rows = X.shape[0]
-    y_arr = np.asarray(y)
-    coefs = np.zeros((n_bootstrap, X.shape[1]))
-    for b in range(n_bootstrap):
-        idx = rng.integers(0, n_rows, n_rows)
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y_arr[idx])
-        coefs[b] = model.coef_
-    return coefs.mean(axis=0)
+    return bootstrap_coefficients(X, y, n_bootstrap=n_bootstrap, seed=seed).mean(axis=0)
 
 
 def run_mmm_engine(config, prepared):
@@ -416,7 +425,8 @@ def run_mmm_engine(config, prepared):
     mkt_scaler = MinMaxScaler()
     X_mkt_scaled = mkt_scaler.fit_transform(transformed_mkt)
     mkt_model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X_mkt_scaled, y_lift)
-    mkt_model.coef_ = bootstrap_average_coefficients(X_mkt_scaled, y_lift)
+    bootstrap_coefs = bootstrap_coefficients(X_mkt_scaled, y_lift)
+    mkt_model.coef_ = bootstrap_coefs.mean(axis=0)
 
     y_mkt_pred = mkt_model.predict(X_mkt_scaled)
     final_r2 = r2_score(y_lift, y_mkt_pred)
@@ -487,6 +497,7 @@ def run_mmm_engine(config, prepared):
         "kpi_col": kpi_col,
         "dataframe": df,
         "organic_baseline_mean": df["kpi_organic_baseline"].mean(),
+        "bootstrap_coefs": bootstrap_coefs,  # in memory only: the identifiability gate (A5) and the A8 bands read it
     }
 
 

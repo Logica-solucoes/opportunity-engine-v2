@@ -7,6 +7,7 @@ from sklearn.linear_model import Ridge
 
 from engine.elasticity_analysis import (
     bootstrap_average_coefficients,
+    bootstrap_coefficients,
     cap_channel_mix_share,
     cap_channel_share_per_channel,
     create_calendar_features,
@@ -346,3 +347,31 @@ class TestRunMmmEngineDoesNotLoadData:
         )
 
         assert run_mmm_engine({"period_days": 1}, prepared) is None  # no channel with spend: the path past the load
+
+
+class TestBootstrapMatrix(unittest.TestCase):
+    def _data(self):
+        rng = np.random.default_rng(1)
+        X = rng.uniform(1, 10, (40, 3))
+        y = X @ np.array([1.0, 0.5, 0.0]) + rng.normal(0, 1.0, 40)
+        return X, y
+
+    def test_matrix_has_one_row_per_resample(self):
+        X, y = self._data()
+        self.assertEqual(bootstrap_coefficients(X, y, n_bootstrap=25, seed=3).shape, (25, 3))
+
+    def test_the_average_is_exactly_the_mean_of_the_matrix(self):
+        X, y = self._data()
+        np.testing.assert_array_equal(
+            bootstrap_average_coefficients(X, y, n_bootstrap=30, seed=5),
+            bootstrap_coefficients(X, y, n_bootstrap=30, seed=5).mean(axis=0),
+        )
+
+    def test_the_average_equals_the_original_loop(self):
+        X, y = self._data()
+        rng = np.random.default_rng(5)
+        coefs = np.zeros((30, 3))
+        for b in range(30):
+            idx = rng.integers(0, 40, 40)
+            coefs[b] = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y[idx]).coef_
+        np.testing.assert_array_equal(bootstrap_average_coefficients(X, y, n_bootstrap=30, seed=5), coefs.mean(axis=0))

@@ -28,6 +28,7 @@ class GateThresholds(BaseModel):
 
     collinearity_r: float = Field(default=0.85, gt=0, le=1, strict=True)  # a pair is flagged when |r| is above this
     vif_max: float = Field(default=10.0, ge=1, strict=True)  # a channel is flagged when its VIF is above this
+    identifiability_width_ratio: float = Field(default=1.0, gt=0, strict=True)  # 95% interval width over |coefficient|
     control_spend_corr: float = Field(
         default=0.5, gt=0, le=1, strict=True
     )  # a control above this |r| with the spend is out

@@ -156,3 +156,14 @@ def test_controls_are_normalized():
 def test_invalid_controls(bad):
     with pytest.raises(EngineError, match="controls"):
         EngineConfig.from_input({"controls": bad})
+
+
+def test_identifiability_width_ratio_default_is_in_the_schema():
+    gate = EngineConfig.model_json_schema()["$defs"]["GateThresholds"]["properties"]
+    assert gate["identifiability_width_ratio"]["default"] == 1.0
+
+
+@pytest.mark.parametrize("bad", [0, -1, True, "x"])
+def test_invalid_identifiability_width_ratio(bad):
+    with pytest.raises(EngineError, match="gate_thresholds"):
+        EngineConfig.from_input({"gate_thresholds": {"identifiability_width_ratio": bad}})
