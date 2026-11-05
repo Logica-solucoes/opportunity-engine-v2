@@ -168,3 +168,35 @@ def test_channel_overlap_does_not_depend_on_channel_order(tmp_path):
         investment = [(d, first if c == "A" else second, v) for d, c, v in investment]
         report = validate(write_inputs(tmp_path / first, investment, kpi), _config())
         assert "dv360_cm360_overlap" in _by_id(report), (first, second)
+
+
+def _controls_case(tmp_path, controls, columns):
+    investment, kpi = clean_rows(30)
+    trends = [(d, 50 + i) for i, (d, _) in enumerate(kpi)]
+    extra = {name: [10.0 + (i % 5) for i in range(30)] for name in columns}
+    paths = write_inputs(tmp_path, investment, kpi, trends=trends, trends_columns=extra)
+    mapping = {"generic_trends_file": {"date_col": "Day", "trends_col": "Ad Opportunities"}}
+    config = {**_config(), "controls": controls, "column_mapping": {**_config()["column_mapping"], **mapping}}
+    legacy = legacy_config()
+    legacy["column_mapping"]["generic_trends_file"] = mapping["generic_trends_file"]
+    legacy["controls"] = controls
+    return paths, config, legacy
+
+
+def test_controls_present_and_numeric_are_ok(tmp_path):
+    paths, config, _ = _controls_case(tmp_path, ["Selic"], ["Selic"])
+    report = validate(paths, {**config, "block_per_channel": True})
+    assert report.ok, report.checks
+
+
+@pytest.mark.parametrize(
+    ("controls", "columns", "check_id"),
+    [(["Nope"], ["Selic"], "control_missing"), (["SEARCH"], ["SEARCH"], "control_name_clash")],
+)
+def test_control_errors_agree_between_validate_and_loader(tmp_path, controls, columns, check_id):
+    paths, config, legacy = _controls_case(tmp_path, controls, columns)
+    report = validate(paths, {**config, "block_per_channel": True})
+    assert not report.ok and _by_id(report)[check_id].level == "error"
+    with pytest.raises(EngineError) as raised:
+        load_and_prepare_data(legacy, paths)
+    assert raised.value.check_id == check_id

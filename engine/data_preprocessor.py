@@ -4,7 +4,7 @@ This module handles all data loading, validation, cleaning, and pre-processing.
 
 import csv
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -758,6 +758,9 @@ class PreparedData:
     performance_df: pd.DataFrame  # raw performance file (date column renamed to Date), kept for covariates
     correlation_matrix: pd.DataFrame
     period_days: int  # detected cadence; a result of the data, never written back into the config
+    controls_df: pd.DataFrame = field(  # user controls from the trends file; only the causal model reads them
+        default_factory=lambda: pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]")})
+    )
 
 
 def load_and_prepare_data(config, paths):
@@ -877,6 +880,7 @@ def load_and_prepare_data(config, paths):
             performance_df=performance_df,
             correlation_matrix=correlation_matrix,
             period_days=inv_cadence,
+            controls_df=raw.controls_df,
         )
 
     except EngineError:

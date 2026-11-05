@@ -37,6 +37,64 @@ class RawInputs:
     trends_df: pd.DataFrame  # Date, Generic Searches
     performance_df: pd.DataFrame  # the performance file as sent (date column renamed to Date), kept for covariates
     checks: list[Check] = field(default_factory=list)
+    controls_df: pd.DataFrame = field(default_factory=lambda: pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]")}))
+
+
+RESERVED_COLUMNS = {"date", "kpi", "generic searches"}
+
+
+def _read_controls(
+    trends_df: pd.DataFrame, requested: list[str], primary_header: str | None, checks: list[Check]
+) -> pd.DataFrame:
+    """Control columns of the trends file, matched by header ignoring case and edge spaces. Problems become checks."""
+    empty = pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]")})
+    if not requested:
+        return empty
+    available = {} if trends_df is None else {str(c).strip().lower(): c for c in trends_df.columns}
+    primary = None if primary_header is None else primary_header.strip().lower()
+    wanted = [n for n in dict.fromkeys(requested) if n.strip().lower() != primary]
+    clashing = [n for n in wanted if n.strip().lower() in RESERVED_COLUMNS]
+    missing = [n for n in wanted if n not in clashing and n.strip().lower() not in available]
+    if clashing:
+        checks.append(_control_check("control_name_clash", clashing))
+    if missing:
+        checks.append(_control_check("control_missing", missing))
+    found = [n for n in wanted if n not in clashing and n not in missing]
+    if not found:
+        return empty
+    frame = pd.DataFrame({"Date": trends_df["Date"]})
+    for name in found:
+        header = available[name.strip().lower()]
+        raw_values = trends_df[header]
+        values = robust_numeric_parsing(raw_values, column_name=str(header))
+        ratio = values.isna().mean() if len(values) else 0
+        if ratio > 0.5:
+            checks.append(
+                _not_numeric(
+                    "de tendências",
+                    str(header),
+                    ratio,
+                    raw_values[values.isna()].unique()[:3].tolist(),
+                    "Verifique o controle escolhido.",
+                )
+            )
+        frame[str(header)] = values
+    return frame.sort_values(by="Date").reset_index(drop=True)
+
+
+def _control_check(check_id: str, names: list[str]) -> Check:
+    if check_id == "control_missing":
+        message = (
+            "Os controles escolhidos não existem no arquivo de tendências: " + ", ".join(names) + ". "
+            "Inclua as colunas no arquivo ou retire-as dos controles."
+        )
+    else:
+        message = (
+            "Um controle não pode ter o nome de um canal de investimento nem de uma coluna reservada: "
+            + ", ".join(names)
+            + ". Renomeie a coluna no arquivo de tendências."
+        )
+    return Check(id=check_id, level="error", message=message, details={"controls": names})
 
 
 def _empty_trends() -> pd.DataFrame:
@@ -168,6 +226,9 @@ def _read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
     performance_raw = kpi_df.copy()
     investment_df = _read(paths, "investment_file")
 
+    controls_requested = list(config.get("controls") or [])
+    controls_df = pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]")})
+    control_checks: list[Check] = []
     if paths.get("generic_trends_file"):
         trends_df = _read(paths, "generic_trends_file")
         date_col = _column(
@@ -189,10 +250,12 @@ def _read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
         )
         trends_df["Date"] = _dates(trends_df["Date"], date_formats.get("generic_trends_file"))
         trends_df = trends_df.dropna(subset=["Date"])
+        controls_df = _read_controls(trends_df, controls_requested, value_col, control_checks)
         trends_df = trends_df[["Date", "Generic Searches"]].sort_values(by="Date").reset_index(drop=True)
     else:
         log.info("   - INFO: No generic trends file path provided. Continuing without trends data.")
         trends_df = _empty_trends()
+        _read_controls(None, controls_requested, None, control_checks)
 
     kpi_date_col = _column(kpi_df, perf_map.get("date_col", "date"), "date", "coluna de data do arquivo de performance")
     kpi_value_col = _column(
@@ -286,12 +349,18 @@ def _read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
             )
         )
 
+    channel_names = {str(c).strip().lower() for c in investment_df["Product Group"].unique()}
+    channel_clash = [c for c in controls_df.columns if c != "Date" and c.strip().lower() in channel_names]
+    if channel_clash:
+        control_checks.append(_control_check("control_name_clash", channel_clash))
+
     return RawInputs(
         kpi_df=kpi_df,
         investment_df=investment_df,
         trends_df=trends_df,
         performance_df=performance_df,
-        checks=checks,
+        checks=[*checks, *control_checks],
+        controls_df=controls_df,
     )
 
 

@@ -26,6 +26,7 @@ def write_inputs(
     sep: str = ",",
     inv_header: tuple = ("dates", "product_group", "total_revenue"),
     kpi_header: tuple = ("date", "Sessions"),
+    trends_columns: dict[str, list] | None = None,
 ) -> dict[str, Path | None]:
     """Rows are written verbatim: `investment` as (date, channel, value), `kpi` as (date, value, *extra columns).
 
@@ -45,7 +46,9 @@ def write_inputs(
         "generic_trends_file": None,
     }
     if trends is not None:
-        paths["generic_trends_file"] = write("trends.csv", ("Day", "Ad Opportunities"), trends)
+        extra = trends_columns or {}
+        rows = [(*row, *(values[i] for values in extra.values())) for i, row in enumerate(trends)]
+        paths["generic_trends_file"] = write("trends.csv", ("Day", "Ad Opportunities", *extra), rows)
     return paths
 
 

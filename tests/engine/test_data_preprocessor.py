@@ -1306,3 +1306,19 @@ def test_csv_detection_warnings_do_not_carry_the_file_path(tmp_path, caplog):
     warned = " ".join(record.getMessage() for record in caplog.records)
     assert "latin-1" in warned and "Delimitador" in warned  # both warnings fired
     assert str(tmp_path) not in warned
+
+
+def test_prepared_data_carries_the_controls_apart_from_the_trends(tmp_path):
+    from tests.engine.csv_factory import clean_rows, legacy_config, write_inputs
+
+    investment, kpi = clean_rows(30)
+    trends = [(d, 50 + i) for i, (d, _) in enumerate(kpi)]
+    paths = write_inputs(
+        tmp_path, investment, kpi, trends=trends, trends_columns={"Selic": [1.0 + i for i in range(30)]}
+    )
+    config = legacy_config()
+    config["column_mapping"]["generic_trends_file"] = {"date_col": "Day", "trends_col": "Ad Opportunities"}
+    config["controls"] = ["Selic"]
+    prepared = _prepare_raw(config, paths)
+    assert list(prepared.controls_df.columns) == ["Date", "Selic"]
+    assert list(prepared.trends_df.columns) == ["Date", "Generic Searches"]

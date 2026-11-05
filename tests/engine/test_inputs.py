@@ -134,3 +134,71 @@ def test_a_missing_path_is_file_unreadable(tmp_path):
     with pytest.raises(EngineError) as exc:
         read_inputs(_config(), paths)
     assert exc.value.check_id == "file_unreadable"
+
+
+def _with_trends(tmp_path, controls, columns):
+    investment, kpi = clean_rows()
+    n = len(kpi)
+    trends = [(d, 50 + i) for i, (d, _) in enumerate(kpi)]
+    extra = {name: [10.0 + (i % 5) for i in range(n)] for name in columns}
+    paths = write_inputs(tmp_path, investment, kpi, trends=trends, trends_columns=extra)
+    config = _config(generic_trends_file={"date_col": "Day", "trends_col": "Ad Opportunities"})
+    config["controls"] = controls
+    return paths, config
+
+
+def test_controls_are_read_from_the_trends_file(tmp_path):
+    paths, config = _with_trends(tmp_path, ["Selic", "IPCA"], ["Selic", "IPCA"])
+    raw = read_inputs(config, paths)
+    assert list(raw.controls_df.columns) == ["Date", "Selic", "IPCA"]
+    assert raw.controls_df["Selic"].dtype.kind == "f" and len(raw.controls_df) == 10
+    assert list(raw.trends_df.columns) == ["Date", "Generic Searches"]
+    assert raw.checks == []
+
+
+def test_control_header_matches_ignoring_case_and_edge_spaces(tmp_path):
+    paths, config = _with_trends(tmp_path, ["selic"], ["Selic"])
+    assert list(read_inputs(config, paths).controls_df.columns) == ["Date", "Selic"]
+
+
+def test_repeated_and_primary_trends_column_count_once(tmp_path):
+    paths, config = _with_trends(tmp_path, ["Selic", "Selic", "Ad Opportunities"], ["Selic"])
+    raw = read_inputs(config, paths)
+    assert list(raw.controls_df.columns) == ["Date", "Selic"] and raw.checks == []
+
+
+def test_no_controls_gives_an_empty_controls_df(tmp_path):
+    investment, kpi = clean_rows()
+    raw = read_inputs(_config(), write_inputs(tmp_path, investment, kpi))
+    assert list(raw.controls_df.columns) == ["Date"] and raw.controls_df.empty
+
+
+def test_missing_control_is_a_check(tmp_path):
+    paths, config = _with_trends(tmp_path, ["Selic", "Nope"], ["Selic"])
+    check = {c.id: c for c in read_inputs(config, paths).checks}["control_missing"]
+    assert check.level == "error" and check.details["controls"] == ["Nope"]
+
+
+def test_controls_without_a_trends_file_are_missing(tmp_path):
+    investment, kpi = clean_rows()
+    config = _config()
+    config["controls"] = ["Selic"]
+    check = {c.id: c for c in read_inputs(config, write_inputs(tmp_path, investment, kpi)).checks}["control_missing"]
+    assert check.details["controls"] == ["Selic"]
+
+
+@pytest.mark.parametrize("name", ["SEARCH", "kpi", "Generic Searches", "date"])
+def test_control_named_like_a_channel_or_reserved_column_clashes(tmp_path, name):
+    paths, config = _with_trends(tmp_path, [name], [name] if name == "SEARCH" else ["Selic"])
+    check = {c.id: c for c in read_inputs(config, paths).checks}["control_name_clash"]
+    assert check.level == "error" and check.details["controls"] == [name]
+
+
+def test_non_numeric_control_is_value_not_numeric(tmp_path):
+    investment, kpi = clean_rows()
+    trends = [(d, 50 + i) for i, (d, _) in enumerate(kpi)]
+    paths = write_inputs(tmp_path, investment, kpi, trends=trends, trends_columns={"Selic": ["abc"] * len(kpi)})
+    config = _config(generic_trends_file={"date_col": "Day", "trends_col": "Ad Opportunities"})
+    config["controls"] = ["Selic"]
+    check = {c.id: c for c in read_inputs(config, paths).checks}["value_not_numeric"]
+    assert "Selic" in check.message
