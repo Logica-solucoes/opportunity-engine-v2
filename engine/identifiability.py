@@ -5,10 +5,11 @@ import numpy as np
 UNIDENTIFIED = "Não identificados"  # no channel collides: names are upper-cased on load (data_preprocessor)
 
 
-def assess(mmm: dict) -> dict[str, dict]:
+def assess(mmm: dict, collinear: set[str] = frozenset()) -> dict[str, dict]:
     """{channel: {"ci": (p2.5, p97.5), "identifiable": bool, "reasons": [...]}}, the CI in KPI units over the period.
 
-    The Ridge is positive, so a contribution is never negative: "the CI crosses zero" is p2.5 == 0.
+    The Ridge is positive, so a contribution is never negative: "the CI crosses zero" is p2.5 == 0. A channel the
+    collinearity gate left open (block_per_channel) is never identifiable, whatever its CI.
     """
     totals = np.asarray(mmm["channel_totals"])
     contributions = np.asarray(mmm["coef_samples"]) * totals
@@ -21,6 +22,8 @@ def assess(mmm: dict) -> dict[str, dict]:
             reasons.append("coef_ci_includes_zero")
         if hi[i] - lo[i] > points[i]:
             reasons.append("coef_ci_too_wide")
+        if name in collinear:
+            reasons.append("collinearity")
         verdicts[name] = {"ci": (float(lo[i]), float(hi[i])), "identifiable": not reasons, "reasons": reasons}
     return verdicts
 

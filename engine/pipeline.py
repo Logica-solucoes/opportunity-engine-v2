@@ -202,8 +202,6 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
     if not mmm:
         return result
 
-    result["identifiability"] = identifiability.assess(mmm)
-    _log_contribution_split(mmm, result["identifiability"])
     pivot = prepared.investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
     totals = pivot.sum()
     result["current_split"] = (totals / totals.sum()).to_dict()
@@ -238,12 +236,18 @@ def compute(
     candidates = detect_events(prepared, cfg)
     events = analyze_events(prepared, candidates, cfg)
     elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
+    verdicts = {}
+    if elasticity["mmm"]:
+        collinearity = validation.collinearity if validation else None
+        verdicts = identifiability.assess(elasticity["mmm"], set(collinearity.unresolved) if collinearity else set())
+        _log_contribution_split(elasticity["mmm"], verdicts)
     return Computed(
         prepared=prepared,
         effective_config=cfg,
         events=events,
         candidates=candidates,
         validation=validation,
+        identifiability=verdicts,
         **elasticity,
     )
 

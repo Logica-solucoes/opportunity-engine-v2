@@ -245,9 +245,7 @@ def _channel_fits(computed: "Computed") -> list[ChannelFit]:
     """A channel that is not identifiable keeps only its verdict and observed spend: no share, Hill, adstock or curve."""
     mmm = computed.mmm
     if not computed.identifiability:
-        raise ValueError(
-            "Computed has an MMM but no identifiability verdicts: run_elasticity runs identifiability.assess"
-        )
+        raise ValueError("Computed has an MMM but no identifiability verdicts: compute() runs identifiability.assess")
     params, frame = mmm["optimal_params"], mmm["dataframe"]
     curves = computed.individual_curves_df
     fits = []

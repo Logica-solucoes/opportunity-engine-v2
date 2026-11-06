@@ -2,9 +2,12 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from threadpoolctl import threadpool_limits
 
+import engine
 from engine import identifiability
 from engine.identifiability import UNIDENTIFIED, assess, fold_mix, unidentified
+from tests.engine.synthetic_data import collinear_inputs, dataset_config
 
 
 def _mmm(samples: dict[str, list[float]], totals: dict[str, float]) -> dict:
@@ -105,3 +108,25 @@ def test_the_contribution_log_leaves_out_channels_that_are_not_identifiable(capl
     assert "STRONG: 80.00%" in text
     assert "NOEFFECT" not in text and "20.00" not in text
     assert "1 channel(s) not identifiable" in text
+
+
+def test_a_collinear_channel_is_never_identifiable():
+    tight = list(np.linspace(0.9, 1.1, 200))
+    verdicts = assess(_mmm({"A": tight, "B": tight}, {"A": 100.0, "B": 100.0}), {"B"})
+
+    assert verdicts["A"]["identifiable"] is True
+    assert verdicts["B"]["identifiable"] is False and verdicts["B"]["reasons"] == ["collinearity"]
+
+
+def test_block_per_channel_publishes_the_collinear_pair_only_in_aggregate(tmp_path, monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    config = {**dataset_config(), "block_per_channel": True}
+
+    with threadpool_limits(limits=1):
+        result = engine.run(collinear_inputs(tmp_path / "data"), config, tmp_path / "out", lambda level, msg: None)
+
+    assert result["validation"]["collinearity"]["unresolved"] == ["PMAX", "SEARCH"]
+    channels = {c["name"]: c for c in result["elasticity"]["channels"]}
+    for name in ("PMAX", "SEARCH"):
+        assert channels[name]["identifiable"] is False and "collinearity" in channels[name]["reasons"]
+        assert channels[name]["curve"] == [] and channels[name]["contribution_pct"] is None
