@@ -11,6 +11,7 @@ Divisão de trabalho: o `CLAUDE.md` e os arquivos da raiz (`CODE-STYLE.md`, `DAT
 | [upload-e-storage.md](upload-e-storage.md) | Simulação como rascunho, mapeamento antes do validate, limite de 30 MB, storage local por conteúdo, leitura do CSV, `validate` do motor |
 | [parametros-e-gemini.md](parametros-e-gemini.md) | `ParamsIn` recortado do `EngineConfig` do motor, rotas de sugestão, sugestão dos dados, o que o Gemini vê, validação das respostas |
 | [runs-e-jobs.md](runs-e-jobs.md) | motor real com fake por env, launcher local, gate no servidor, um run ativo, run morto sem heartbeat, log por linha, erro do motor, SSE |
+| [dashboards.md](dashboards.md) | Recharts no lugar do plotly, evento rejeitado sem número, abas em subrotas do run, front sem conta |
 | [engine.md](engine.md) | Pacote `engine/`, pipeline em estágios, `EngineConfig` e a divergência com a API, `EngineError`, `on_log`, paridade (só Linux), `results.json` v1, `validate`, passos do swap, limitações |
 | [llm.md](llm.md) | Módulo `llm/` plugável (só Gemini): interface, erros, seleção por ambiente, como adicionar um provedor |
 | [conectores-google.md](conectores-google.md) | **Fora do escopo por ora.** Fallback DTS/GA4, sandbox sem acesso real, import pelo caminho do upload, grade com zeros, canais, service account única, teto de custo |
