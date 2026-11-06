@@ -57,7 +57,7 @@ O contrafactual do causal (`run_causal_impact_analysis`) aceita como controle qu
 
 ### `engine/inputs.py`
 
-- Entrada opcional `bcb_file`: CSV `Date,<id>…` em formato fixo (gerado pela plataforma, fora do `column_mapping`: não é arquivo do usuário). Lido, ordenado por data e reamostrado com forward-fill para os dias do run; fica junto das tendências no `model_data`.
+- Entrada opcional `bcb_file`: CSV `Date,<id>…` em formato fixo (gerado pela plataforma, fora do `column_mapping`: não é arquivo do usuário). Lido, ordenado e com forward-fill por coluna; vai para `PreparedData.controls_df` (no lugar do `performance_df`, que só servia às covariáveis). No causal, `pd.merge_asof` dá a cada data do run o último valor publicado até ela: é o forward-fill e cobre os dias depois da última publicação (o IPCA sai com um mês de atraso; uma reamostragem diária até o fim do último mês zeraria o pós-período).
 - `controls` não vazio sem `bcb_file`, ou sem a coluna de um controle pedido → `EngineError`: "Controle do Banco Central pedido sem a série: <id>."
 - `python -m engine` aceita `bcb_file` no JSON de entrada.
 
