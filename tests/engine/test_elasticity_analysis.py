@@ -152,6 +152,20 @@ class TestBootstrapCoefficients(unittest.TestCase):
         result_b = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
         np.testing.assert_array_equal(result_a, result_b)
 
+    def test_the_mean_is_bit_identical_to_the_original_averaging_loop(self):
+        rng = np.random.default_rng(1)
+        X = rng.uniform(1, 10, (40, 3))
+        y = X @ np.array([1.0, 0.5, 0.0]) + rng.normal(0, 1.0, 40)
+        loop_rng = np.random.default_rng(5)
+        coefs = np.zeros((30, 3))
+        for b in range(30):
+            idx = loop_rng.integers(0, 40, 40)
+            coefs[b] = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y[idx]).coef_
+
+        np.testing.assert_array_equal(
+            bootstrap_coefficients(X, y, n_bootstrap=30, seed=5).mean(axis=0), coefs.mean(axis=0)
+        )
+
     def test_returns_one_row_per_resample(self):
         rng = np.random.default_rng(2)
         X = rng.uniform(1, 10, (30, 3))

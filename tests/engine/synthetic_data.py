@@ -117,12 +117,12 @@ def dataset_config() -> dict:
     }
 
 
-def make_identifiable_dataset(out_dir: Path, n_days: int = 364) -> dict[str, Path | None]:
+def make_identifiable_dataset(out_dir: Path, n_days: int = 364, seed: int = 7) -> dict[str, Path | None]:
     """Two channels with widely varying spend: STRONG drives the KPI, NOEFFECT does not (A5 acceptance).
 
     Not "NULL" as a name: pandas reads it as a missing value.
     """
-    rng = np.random.default_rng(7)
+    rng = np.random.default_rng(seed)
     out_dir.mkdir(parents=True, exist_ok=True)
     days = pd.date_range(START, periods=n_days, freq="D")
     strong = 1000 * rng.lognormal(0, 0.5, n_days)
