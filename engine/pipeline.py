@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from engine import analysis, elasticity_analysis, outputs, results
+from engine import analysis, elasticity_analysis, identifiability, outputs, results
 from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
@@ -55,6 +55,7 @@ class Computed:
     candidates: pd.DataFrame = field(default_factory=pd.DataFrame)  # every detected event, `eligible` or not
     individual_curves_df: pd.DataFrame | None = None  # per-channel curves (Channel, Channel_Spend, ...)
     validation: ValidationReport | None = None  # what validate reported for these inputs (set by run)
+    identifiability: dict = field(default_factory=dict)  # channel -> identifiability.assess verdict; {} without a model
 
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
@@ -190,6 +191,7 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
     if not mmm:
         return result
 
+    result["identifiability"] = identifiability.assess(mmm)
     pivot = prepared.investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
     totals = pivot.sum()
     result["current_split"] = (totals / totals.sum()).to_dict()

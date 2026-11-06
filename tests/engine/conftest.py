@@ -3,7 +3,7 @@ from threadpoolctl import threadpool_limits
 
 from engine.config import EngineConfig
 from engine.pipeline import compute, load_inputs
-from tests.engine.synthetic_data import dataset_config, make_dataset
+from tests.engine.synthetic_data import dataset_config, identifiable_config, make_dataset, make_identifiable_dataset
 
 SHORT = 364  # one year: fast, and still holds the YOUTUBE spike
 
@@ -22,3 +22,10 @@ def synthetic_prepared(synthetic_inputs):
 def synthetic_computed(synthetic_inputs):
     with threadpool_limits(limits=1):
         return compute(synthetic_inputs, EngineConfig.from_input(dataset_config()))
+
+
+@pytest.fixture(scope="session")
+def identifiable_computed(tmp_path_factory):
+    inputs = make_identifiable_dataset(tmp_path_factory.mktemp("identifiable"))
+    with threadpool_limits(limits=1):
+        return compute(inputs, EngineConfig.from_input(identifiable_config()))

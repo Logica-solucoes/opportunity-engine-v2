@@ -115,3 +115,42 @@ def dataset_config() -> dict:
             "generic_trends_file": {"date_col": "Day", "trends_col": "Ad Opportunities"},
         },
     }
+
+
+def make_identifiable_dataset(out_dir: Path, n_days: int = 364) -> dict[str, Path | None]:
+    """Two channels with widely varying spend: STRONG drives the KPI, NOEFFECT does not (A5 acceptance).
+
+    Not "NULL" as a name: pandas reads it as a missing value.
+    """
+    rng = np.random.default_rng(7)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    days = pd.date_range(START, periods=n_days, freq="D")
+    strong = 1000 * rng.lognormal(0, 0.5, n_days)
+    noeffect = 800 * rng.lognormal(0, 0.5, n_days)
+    carried = np.zeros(n_days)
+    for t in range(n_days):
+        carried[t] = strong[t] + (0.5 * carried[t - 1] if t else 0.0)
+    kpi = (5000 + 3000 * carried / (carried + 2000)) * rng.lognormal(0, 0.03, n_days)
+
+    paths: dict[str, Path | None] = {
+        "investment_file": out_dir / "investment.csv",
+        "performance_file": out_dir / "performance.csv",
+        "generic_trends_file": None,
+    }
+    investment = pd.DataFrame(
+        {
+            "dates": np.tile(days, 2),
+            "product_group": np.repeat(["STRONG", "NOEFFECT"], n_days),
+            "total_revenue": np.concatenate([strong, noeffect]),
+        }
+    )
+    investment.to_csv(paths["investment_file"], index=False, date_format="%Y-%m-%d")
+    pd.DataFrame({"date": days, "Sessions": kpi}).to_csv(paths["performance_file"], index=False, date_format="%Y-%m-%d")
+    return paths
+
+
+def identifiable_config() -> dict:
+    """dataset_config without the trends file, which make_identifiable_dataset does not write."""
+    config = dataset_config()
+    config["column_mapping"] = {k: v for k, v in config["column_mapping"].items() if k != "generic_trends_file"}
+    return config

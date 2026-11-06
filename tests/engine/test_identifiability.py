@@ -72,3 +72,22 @@ def test_fold_mix_treats_a_missing_value_as_zero():
 
 def test_the_bucket_name_is_shown_as_is():
     assert identifiability.UNIDENTIFIED == "Não identificados"
+
+
+def test_compute_keeps_the_bootstrap_matrix_and_the_verdicts(synthetic_computed):
+    mmm = synthetic_computed.mmm
+    assert mmm["coef_samples"].shape == (200, len(mmm["spend_cols"]))
+    np.testing.assert_allclose(mmm["coef_samples"].mean(axis=0), mmm["model"].coef_)
+    assert set(synthetic_computed.identifiability) == set(mmm["spend_cols"])
+
+
+def test_the_flat_spend_synthetic_has_no_identifiable_channel(synthetic_computed):
+    # spend varies ~3% outside two spikes: the split between channels is not separable (measured 05/nov/2026)
+    assert unidentified(synthetic_computed.identifiability) == set(synthetic_computed.mmm["spend_cols"])
+
+
+def test_a_strong_channel_is_identifiable_and_a_no_effect_one_is_not(identifiable_computed):
+    verdicts = identifiable_computed.identifiability
+    assert verdicts["STRONG"]["identifiable"] is True
+    assert verdicts["NOEFFECT"]["identifiable"] is False
+    assert "coef_ci_includes_zero" in verdicts["NOEFFECT"]["reasons"]
