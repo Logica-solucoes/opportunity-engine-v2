@@ -184,6 +184,7 @@ class ChannelFit(_Model):
     contribution_pct: float | None = None
     identifiable: bool | None = None
     coef_ci: tuple[float | None, float | None] | None = None
+    reasons: list[str] = Field(default_factory=list)  # coef_ci_includes_zero, coef_ci_too_wide (A5)
     hill: Hill | None = None
     adstock: float | None = None
     observed_spend_range: tuple[float | None, float | None] | None = None

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+from engine import identifiability
 from engine.results_schema import (
     AccuracyPoint,
     Baseline,
@@ -164,6 +165,7 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
     if frame is None or frame.empty:
         return []
     spend_cols = computed.mmm["spend_cols"]
+    hidden = identifiability.unidentified(computed.identifiability)
     revenue_mode = _revenue_mode(computed.effective_config)  # outside it revenue and ROAS are 0 by construction
     rows = []
     for record in frame.to_dict("records"):
@@ -180,7 +182,9 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
                 incremental_investment=_num(record.get("Incremental_Investment")),
                 incremental_kpi=_num(record.get("Incremental_KPI")),
                 mix={
-                    variant: {ch: _num(record.get(f"Spend_{ch}_{suffix}")) for ch in spend_cols}
+                    variant: identifiability.fold_mix(
+                        {ch: _num(record.get(f"Spend_{ch}_{suffix}")) for ch in spend_cols}, hidden
+                    )
                     for variant, suffix in MIX_VARIANTS.items()
                 },
             )
@@ -208,25 +212,30 @@ def _scenarios(computed: "Computed") -> list[Scenario]:
 
 
 def _channel_fits(computed: "Computed") -> list[ChannelFit]:
+    """A channel that is not identifiable keeps only its verdict and observed spend: no share, Hill, adstock or curve."""
     mmm = computed.mmm
     params, frame = mmm["optimal_params"], mmm["dataframe"]
     curves = computed.individual_curves_df
     fits = []
     for i, name in enumerate(mmm["spend_cols"]):
-        curve = []
-        if curves is not None and not curves.empty:
-            own = curves[curves["Channel"] == name]
-            curve = [CurvePoint(x=_num(r.Channel_Spend), y=_num(r.Projected_Total_KPIs)) for r in own.itertuples()]
-        fits.append(
-            ChannelFit(
-                name=name,
-                contribution_pct=_num(mmm["contribution_pct"].get(name)),
-                hill=Hill(K=_num(params["ks"][i]), n=_num(params["ss"][i])),
-                adstock=_num(params["alphas"][i]),
-                observed_spend_range=(_num(frame[name].min()), _num(frame[name].max())),
-                curve=curve,
-            )
+        verdict = computed.identifiability[name]
+        fit = ChannelFit(
+            name=name,
+            identifiable=verdict["identifiable"],
+            coef_ci=tuple(_num(v) for v in verdict["ci"]),
+            reasons=verdict["reasons"],
+            observed_spend_range=(_num(frame[name].min()), _num(frame[name].max())),
         )
+        if verdict["identifiable"]:
+            fit.contribution_pct = _num(mmm["contribution_pct"].get(name))
+            fit.hill = Hill(K=_num(params["ks"][i]), n=_num(params["ss"][i]))
+            fit.adstock = _num(params["alphas"][i])
+            if curves is not None and not curves.empty:
+                own = curves[curves["Channel"] == name]
+                fit.curve = [
+                    CurvePoint(x=_num(r.Channel_Spend), y=_num(r.Projected_Total_KPIs)) for r in own.itertuples()
+                ]
+        fits.append(fit)
     return fits
 
 
@@ -238,8 +247,10 @@ def _elasticity(computed: "Computed") -> Elasticity:
         Group(name=" + ".join(members), members=list(members))
         for members in computed.effective_config.get("channel_groups") or []
     ]
+    none_identifiable = identifiability.unidentified(computed.identifiability) >= set(mmm["spend_cols"])
     return Elasticity(
-        status="ok",
+        status="inconclusive" if none_identifiable else "ok",
+        reasons=["no_identifiable_channel"] if none_identifiable else [],
         metrics=ElasticityMetrics(
             cv_r2=_num(mmm["cv_r_squared"]),
             r2=_num(mmm["r_squared"]),
@@ -272,9 +283,16 @@ def _baseline(computed: "Computed") -> Baseline:
 
 
 def run_status(causal: Causal, elasticity: Elasticity | None) -> str:
-    """succeeded when both analyses produced something, failed when neither did, inconclusive otherwise."""
+    """succeeded when both analyses are ok, failed when neither published anything, inconclusive otherwise.
+
+    An inconclusive elasticity still publishes the total curve and the scenarios (A5), so it counts as something.
+    """
     ok = [causal.status == "ok", elasticity is not None and elasticity.status == "ok"]
-    return "succeeded" if all(ok) else "inconclusive" if any(ok) else "failed"
+    if all(ok):
+        return "succeeded"
+    if any(ok) or (elasticity is not None and elasticity.status == "inconclusive"):
+        return "inconclusive"
+    return "failed"
 
 
 def build_results(computed: "Computed", engine_version: str) -> ResultsV1:

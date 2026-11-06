@@ -3,7 +3,7 @@ import math
 
 import pandas as pd
 
-from engine import results
+from engine import identifiability, results
 from engine.pipeline import EventOutcome
 
 
@@ -184,8 +184,21 @@ def _dump(model) -> dict:
     return results.sanitize(model.model_dump(mode="json", by_alias=True))
 
 
+def _with_verdicts(computed, hidden=frozenset()):
+    """The computed with every channel identifiable except `hidden` (the synthetic itself has none identifiable)."""
+    verdicts = {
+        ch: {
+            "ci": (1.0, 2.0),
+            "identifiable": ch not in hidden,
+            "reasons": ["coef_ci_includes_zero"] if ch in hidden else [],
+        }
+        for ch in computed.mmm["spend_cols"]
+    }
+    return dataclasses.replace(computed, identifiability=verdicts)
+
+
 def test_elasticity_metrics_and_channels(synthetic_computed):
-    elasticity = results.build_results(synthetic_computed, "v").elasticity
+    elasticity = results.build_results(_with_verdicts(synthetic_computed), "v").elasticity
     mmm = synthetic_computed.mmm
     assert elasticity.status == "ok" and elasticity.reasons == []
     assert elasticity.metrics.cv_r2 == mmm["cv_r_squared"] and elasticity.metrics.r2 == mmm["r_squared"]
@@ -195,11 +208,12 @@ def test_elasticity_metrics_and_channels(synthetic_computed):
         assert channel.hill.K == mmm["optimal_params"]["ks"][i] and channel.hill.n == mmm["optimal_params"]["ss"][i]
         assert channel.adstock == mmm["optimal_params"]["alphas"][i]
         assert channel.observed_spend_range[0] <= channel.observed_spend_range[1]
-        assert len(channel.curve) == 100 and channel.identifiable is None and channel.coef_ci is None
+        assert len(channel.curve) == 100 and channel.identifiable is True
+        assert channel.coef_ci == (1.0, 2.0) and channel.reasons == []
 
 
 def test_response_curve_rows_map_the_columns(synthetic_computed):
-    curve = results.build_results(synthetic_computed, "v").elasticity.response_curve
+    curve = results.build_results(_with_verdicts(synthetic_computed), "v").elasticity.response_curve
     frame = synthetic_computed.response_curve_df
     assert len(curve) == len(frame)
     first = curve[0]
@@ -207,6 +221,38 @@ def test_response_curve_rows_map_the_columns(synthetic_computed):
     assert set(first.mix) == {"historical", "optimized", "strategic"}
     assert set(first.mix["historical"]) == set(synthetic_computed.mmm["spend_cols"])
     assert first.kpi_lo is None and first.extrapolated is None
+
+
+def test_an_unidentified_channel_loses_its_fit_and_its_mix_key(synthetic_computed):
+    built = results.build_results(_with_verdicts(synthetic_computed, hidden={"DISPLAY"}), "v")
+    dumped = _dump(built)["elasticity"]
+    display = next(c for c in dumped["channels"] if c["name"] == "DISPLAY")
+    assert display["identifiable"] is False and display["reasons"] == ["coef_ci_includes_zero"]
+    assert display["coef_ci"] == [1.0, 2.0] and display["observed_spend_range"] is not None
+    assert display["curve"] == [] and display["hill"] is None and display["adstock"] is None
+    assert display["contribution_pct"] is None
+    for row in dumped["response_curve"]:
+        for mix in row["mix"].values():
+            assert "DISPLAY" not in mix and identifiability.UNIDENTIFIED in mix
+    assert dumped["status"] == "ok"
+
+
+def test_mix_totals_survive_the_fold(synthetic_computed):
+    plain = results.build_results(_with_verdicts(synthetic_computed), "v").elasticity.response_curve
+    hidden = {"DISPLAY", "SOCIAL"}
+    folded = results.build_results(_with_verdicts(synthetic_computed, hidden=hidden), "v").elasticity.response_curve
+    for a, b in zip(plain, folded, strict=True):
+        for variant in a.mix:
+            total_a = sum(v or 0 for v in a.mix[variant].values())
+            assert sum(v or 0 for v in b.mix[variant].values()) == pytest.approx(total_a)
+
+
+def test_no_identifiable_channel_makes_elasticity_inconclusive(synthetic_computed):
+    elasticity = results.build_results(synthetic_computed, "v").elasticity  # flat-spend synthetic: none identifiable
+    assert elasticity.status == "inconclusive" and elasticity.reasons == ["no_identifiable_channel"]
+    assert elasticity.response_curve and elasticity.scenarios
+    assert all(set(m) == {identifiability.UNIDENTIFIED} for row in elasticity.response_curve for m in row.mix.values())
+    assert all(c.identifiable is False and c.curve == [] and c.coef_ci is not None for c in elasticity.channels)
 
 
 def test_non_finite_curve_values_are_null_after_the_dump(synthetic_computed):
