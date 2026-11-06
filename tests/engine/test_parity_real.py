@@ -11,7 +11,7 @@ from threadpoolctl import threadpool_limits
 from engine.config import EngineConfig
 from engine.pipeline import compute
 from tests.engine.real_data import GOL_CONFIG, GOL_ENGINE_EVENTS, GOL_SNAPSHOT, engine_snapshot, gol_files
-from tests.engine.test_parity import assert_close
+from tests.engine.test_parity import assert_close, without_a8
 
 pytestmark = pytest.mark.skipif(
     not (GOL_SNAPSHOT.exists() and all(p.exists() for p in gol_files().values())),
@@ -37,7 +37,7 @@ def actual():
 
 @pytest.mark.parametrize("block", BLOCKS)
 def test_gol_block_matches_the_prototype(block, actual, legacy):
-    assert_close(actual[block], legacy[block], block)
+    assert_close(without_a8(actual[block]), legacy[block], block)
 
 
 def test_gol_detected_events_match_the_prototype(actual, legacy):
