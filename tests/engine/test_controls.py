@@ -46,19 +46,27 @@ def test_each_date_takes_the_last_value_published_up_to_it():
     assert with_controls(model, pd.DataFrame()) is model
 
 
+def test_a_date_before_the_first_release_takes_the_first_value():
+    model = pd.DataFrame({"Date": pd.date_range("2024-01-01", periods=5, freq="D"), "kpi": 1.0})
+    controls = pd.DataFrame({"Date": pd.to_datetime(["2024-01-03"]), "bcb_ipca": [0.4]})
+
+    assert with_controls(model, controls)["bcb_ipca"].tolist() == [0.4] * 5
+
+
 def test_lasso_folds_are_in_time_order_and_fit_a_short_pre_period():
     assert lasso_folds(8).n_splits == 2
     assert lasso_folds(400).n_splits == 5
 
 
-def _event(control, controls_df=None, controls=()):
+def _event(control, controls_df=None, controls=(), trends=None):
     rng = np.random.default_rng(3)
     spend = 100 + rng.normal(0, 15, len(DAYS))
     spend[100:] *= 2
     kpi = 50 + 8 * np.sqrt(spend) + rng.normal(0, 2, len(DAYS))
     investment = pd.DataFrame({"Date": DAYS, "Product Group": "TV", "investment": spend})
     kpi_df = pd.DataFrame({"Date": DAYS, "kpi": kpi})
-    trends = pd.DataFrame({"Date": DAYS, "Generic Searches": control(spend, rng)})
+    if trends is None:
+        trends = pd.DataFrame({"Date": DAYS, "Generic Searches": control(spend, rng)})
     config = full_config({"controls": list(controls)})
     *_, params, _ = run_opportunity_projection(kpi_df, investment, trends, "TV", config)
     results, *_ = run_causal_impact_analysis(
@@ -92,6 +100,12 @@ def test_independent_trends_and_a_bcb_series_are_screened_and_kept():
     results = _event(lambda spend, rng: 50 + rng.normal(0, 5, len(spend)), monthly, ["bcb_ipca"])
 
     assert [(c["name"], c["accepted"]) for c in results["controls"]] == [("trends", True), ("bcb_ipca", True)]
+
+
+def test_without_a_trends_file_there_is_no_trends_control():
+    results = _event(lambda spend, rng: spend, trends=pd.DataFrame({"Date": [], "Generic Searches": []}))
+
+    assert results["controls"] == []
 
 
 def _outcomes(inputs):

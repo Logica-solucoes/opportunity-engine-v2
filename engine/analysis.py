@@ -261,7 +261,11 @@ def with_controls(model_data: pd.DataFrame, controls_df: pd.DataFrame) -> pd.Dat
     if controls_df.empty:
         return model_data
     controls = controls_df.assign(Date=controls_df["Date"].astype(model_data["Date"].dtype)).sort_values("Date")
-    return pd.merge_asof(model_data.sort_values("Date"), controls, on="Date")
+    merged = pd.merge_asof(model_data.sort_values("Date"), controls, on="Date")
+    # ponytail: back-filling holds the first value before the first release; fetching older history is the upgrade
+    columns = [c for c in controls.columns if c != "Date"]
+    merged[columns] = merged[columns].bfill()
+    return merged
 
 
 def screen_controls(pre: pd.DataFrame, spend: pd.Series, limit: float) -> list[dict]:
@@ -364,7 +368,8 @@ def run_causal_impact_analysis(
             return None, None, None, None, None
 
         log.info("   - Running automated feature selection for causal model...")
-        candidates = [col for col in (TRENDS_COLUMN, *config["controls"]) if col in model_data.columns]
+        trends = [] if market_trends_df.empty else [TRENDS_COLUMN]  # no file: the column is all zeros, not a control
+        candidates = [col for col in (*trends, *config["controls"]) if col in model_data.columns]
         limit = config["control_spend_corr"]
         pre_spend = pre_data_for_model[event_channels].sum(axis=1)
         controls = screen_controls(pre_data_for_model[candidates], pre_spend, limit)
