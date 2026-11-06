@@ -24,6 +24,7 @@
    "placebo_p_value": 0.08632786456096153,
    "oos_wmape": 0.02779654226856814,
    "robust_p_value": 1.9821957455041607e-07,
+   "robust_lift": 5293.409751893261,
    "controls_used": [
     "Generic Searches"
    ],
@@ -62,6 +63,7 @@
    "placebo_p_value": 0.15574767971800393,
    "oos_wmape": 0.02933087824656104,
    "robust_p_value": 0.001178689684494819,
+   "robust_lift": 3350.3272733487192,
    "controls_used": [
     "Generic Searches"
    ],
@@ -98,6 +100,7 @@
    "placebo_p_value": 0.5397970279199582,
    "oos_wmape": 0.0317365156267795,
    "robust_p_value": 0.19812428864832987,
+   "robust_lift": -1358.0887161104492,
    "controls_used": [
     "Generic Searches"
    ],
@@ -137,6 +140,7 @@
    "placebo_p_value": 0.8142198982296093,
    "oos_wmape": 0.02514319540985819,
    "robust_p_value": 1.6472970172944693e-10,
+   "robust_lift": -6340.505414171763,
    "controls_used": [
     "Generic Searches"
    ],
@@ -173,6 +177,7 @@
    "placebo_p_value": 0.239518117505499,
    "oos_wmape": 0.02654990566124452,
    "robust_p_value": 9.062899641564377e-12,
+   "robust_lift": -6799.205558758338,
    "controls_used": [
     "Generic Searches"
    ],
@@ -209,6 +214,7 @@
    "placebo_p_value": 0.3382271166373848,
    "oos_wmape": 0.02969504317886318,
    "robust_p_value": 0.515730952790358,
+   "robust_lift": 675.9928063448824,
    "controls_used": [
     "Generic Searches"
    ],

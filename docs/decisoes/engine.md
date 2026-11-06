@@ -63,6 +63,8 @@ Run completo (`python -m engine`) no dataset sintético de 2 anos diários × 5 
 | padrão (todos os núcleos) | ~99 s | ~10 min |
 | `OMP_NUM_THREADS=OPENBLAS_NUM_THREADS=MKL_NUM_THREADS=1` | **~40 s** | ~40 s |
 
+**Depois do A6 (06/nov/2026):** o `compute` da Gol (52 eventos, 12 canais) leva ~97 s com 1 thread de BLAS (placebo, WMAPE fora da amostra e robustez somam 3 ajustes por evento). Fica longe do corte de 20 min do run morto.
+
 Os modelos são pequenos: o BLAS multithread só gera disputa de threads. **Recomendação para o ambiente do worker: fixar essas três variáveis em 1** (e então o tamanho do servidor importa pouco: um run usa ~1 núcleo). O `response_curve_data.csv` saiu idêntico byte a byte nas duas medições. Não fixei isso no código do motor (`threadpoolctl`) porque muda o comportamento do processo; é decisão de implantação (Dev B), mas agora também é questão de reprodutibilidade (acima). O limite do run (`STALE_AFTER`, 20 min em `api/runs.py`) é do Dev B; com 1 núcleo, o dataset sintético leva bem menos que isso.
 
 ## `results.json` v1 (A1, 04/nov/2026)
@@ -143,6 +145,8 @@ Spec: `docs/superpowers/specs/2026-11-05-a6-suficiencia-placebo-design.md` (com 
 - **Suficiência (`engine/sufficiency.py`).** `validated_events` conta os eventos que passaram todos os gates antes do corte `max_events_to_analyze`; CV de spend (`spend_cv_min`, 0.10) só dos canais desses eventos; `cv_in_sample` (CV da elasticidade com < 40 linhas). Razões causais derrubam os eventos (`insufficient_run`, sem lift publicado); `cv_in_sample` só torna o run `inconclusive`.
 - **Emenda: gate de robustez (`model_dependent`).** A medição de aceite mostrou que o placebo não pega o ruído puro: em 10 sementes (`make_noise_dataset`, `p_value_threshold` 0.05) 6 publicavam evento. Causa: o Lasso mantém as cinco features de mídia mesmo sem sinal e extrapolar esses coeficientes sobre um pico de spend de 2.5× gera um "lift" de ~3% com p ≈ 0, algo que o placebo (meio do pré, sem pico) não vê. O ajuste sem as features de mídia (`baseline_only_p_value`) rejeita o evento quando o lift só é significativo com elas. Resultado: 2 de 10 sementes ainda publicam (6 eventos × 5% de nível nominal), os testes usam as sementes 1–3. Custo: um efeito pequeno que só o modelo com mídia enxerga também cai.
 - **Gol (06/nov/2026):** 52 eventos, 50 analisados, placebo rodou em 48, 11 `placebo_failed` (taxa acima do nominal: o erro-padrão acumulado subestima a incerteza, já anotado no código do p-valor), 0 `model_dependent`, 11 passam todos os gates (eram 12 depois do A4), WMAPE mediano 0.197, run `succeeded`. Números e limiares são medição para o A10 (`tests/engine/test_sufficiency_real.py`).
+- **Evento de run insuficiente:** o `results.json` não publica `lift`, `p_value`, `cpa_incremental`, `incremental_investment` nem `series` do evento com `insufficient_run` (ficam `fit`, `placebo`, `robustness`, `controls`). Eventos rejeitados por um gate comum continuam com os números (contrato do A1).
+- **Robustez também confere o sinal:** o evento só passa se o ajuste sem mídia for significativo **e** do mesmo sinal do lift com mídia (`pipeline.robust_passed`).
 - **Golden:** o do A4 (sintético e Gol) foi regenerado: o ajuste do evento real não mudou, mudou quem passa nos gates e os campos novos (`placebo_*`, `oos_wmape`, `robust_*`).
 - **Para o Dev B:** `spend_cv_min` e `oos_wmape_max` em `api/engine_config.py`; B5 mostra `sufficiency.reasons`, `placebo` (`passed = null` = não rodou), `robustness` e os motivos `placebo_failed`, `model_dependent`, `insufficient_run`.
 
