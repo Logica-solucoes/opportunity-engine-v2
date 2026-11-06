@@ -147,11 +147,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B5 · Dashboards Causal Impact e Elasticidade — semana 3
 
-- **Status:** ⛔ bloqueado em 28/out/2026. Faltam duas entregas da Trilha A:
-  - os fixtures do A1 em `tests/fixtures/results/`, previstos para 23/out e ainda não entregues (`engine/` também não existe);
-  - o `engine.scenario` do A8, previsto para a semana 3.
-
-  O schema do `results.json` só existe como esboço no README › contrato §3, e o `engine.run` falso devolve todas as seções `null`. Começar com um fixture feito à mão daria retrabalho quando o A1 fechar o schema e não permitiria conferir a paridade numérica com o Streamlit. Por isso a B6 foi adiantada.
+- **Status:** 🟡 parte 1 (Causal) feita em 06/nov/2026. Rota `GET /api/w/{slug}/runs/{run_id}/results`, página do run em abas (`causal`, `detalhes`, Elasticidade desabilitada) e aba Causal com resumo, lista de eventos (publicados e, no filtro "Todos", rejeitados só com o motivo), veredito, métricas e os gráficos de impacto, investimento, KPI e acurácia, em Recharts. Verificado: `tests/api/test_results.py`, `tests/api/test_rbac.py`, `web/e2e/results.spec.ts` com a Gol anonimizada do A1 (E2E completo 31/31) e screenshots nos dois temas (publicado, rejeitado, inconclusivo). Desvios (Recharts, rotas em português, rejeitado sem número) em `docs/decisoes/dashboards.md`. O card mostra o `incremental_investment` como vem; ver a pendência em `docs/decisoes/engine.md`. Falta a parte 2: aba Elasticidade com filtros e slider sobre o `scenario` do A8 (`GET /api/w/{slug}/runs/{run_id}/scenario`), bandas, extrapolação e `ramp` (os fixtures ainda saem sem banda e sem `extrapolated` até serem regenerados com a Gol); o card do experiment design (A7) e o selo de grounding (A9).
 - **BRD:** deliverables "Causal Impact dashboard" e "Elasticity dashboard"; Journeys 1 e 2; Wireframe 2; Capabilities › gates ("kept out of dashboards").
 - **Depende de:** A1 (fixtures servem desde a semana 1), A8 (`scenario`).
 - **Hoje:**

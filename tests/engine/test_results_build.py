@@ -241,7 +241,8 @@ def test_response_curve_rows_map_the_columns(synthetic_computed):
     assert first.investment == frame["Daily_Investment"].iloc[0] and first.kpi == frame["Projected_Total_KPIs"].iloc[0]
     assert set(first.mix) == {"historical", "optimized", "strategic"}
     assert set(first.mix["historical"]) == set(synthetic_computed.mmm["spend_cols"])
-    assert first.kpi_lo is None and first.extrapolated is None
+    assert first.kpi_lo == frame["KPI_Lo"].iloc[0] and first.kpi_hi == frame["KPI_Hi"].iloc[0]
+    assert first.extrapolated == bool(frame["Extrapolated"].iloc[0])
 
 
 def test_an_unidentified_channel_loses_its_fit_and_its_mix_key(synthetic_computed):

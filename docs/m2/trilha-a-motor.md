@@ -184,6 +184,8 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 ## A8 · Guardrails do planner e `engine.scenario` — semana 3
 
+- **Status:** ✅ feito em 06/nov/2026. Banda p5/p95 das 200 reamostragens da Ridge (Hill, adstock e scaler fixos: banda otimista, para a A10) e `extrapolated` (total ou canal fora do `[min, max]` histórico) em toda linha da curva, cenário e ponto de curva individual; curvas individuais sempre dentro do cap; `ramp` em degraus compostos de `max_budget_step` e `notes` tCPA/tROAS nos cenários. `engine.scenario(results, filters, max_budget_step)` puro sobre o `results.json`, com os filtros do Streamlit e saída mensal, exposto em `GET /api/w/{slug}/runs/{run_id}/scenario`. Learning/budget-limited cortado (conector fora do escopo). Verificado: `tests/engine/test_ramp.py`, `test_guardrails.py`, `test_scenario.py` (paridade com o filtro e o `find_saturation_point` do Streamlit em 8 combinações sobre a Gol; < 300 ms), `tests/api/test_scenario_route.py`; suíte inteira 885 passed, 21 skipped no Windows. Falta: paridade no Linux e regenerar os fixtures do A1 com banda (precisa da Gol). Spec: `docs/superpowers/specs/2026-11-06-a8-guardrails-scenario-design.md`.
+
 - **BRD:** Technical Details §5; Capabilities › Scenarios & recommendations; Journey 2 (slider).
 - **Depende de:** A1, A5.
 - **Hoje:**

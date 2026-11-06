@@ -197,7 +197,7 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
 
   await analystPage.getByRole('button', { name: 'Rodar' }).click()
 
-  await expect(analystPage).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+$`))
+  await expect(analystPage).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+/detalhes$`))
   const log = analystPage.getByRole('log', { name: 'Log da execução' })
   await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
   // the reload must land mid-run, or the test would only prove the backlog of a finished run
@@ -208,7 +208,7 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
   await expect(analystPage.getByText('Concluída', { exact: true })).toBeVisible()
   await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
   await expect(log.getByText('Montando o resultado')).toBeVisible()
-  await expect(analystPage.getByText('Execução concluída. Os dashboards chegam em breve.')).toBeVisible()
+  await expect(analystPage.getByRole('link', { name: 'Causal' })).toBeVisible()
 
   await analystPage.getByRole('link', { name: '← Rodada' }).click()
   await expect(analystPage.getByRole('heading', { name: 'Execuções' })).toBeVisible()

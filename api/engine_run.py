@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from collections.abc import Callable
@@ -31,6 +32,10 @@ def fake_run(on_log: Callable[[str, str], None]) -> dict:
         if i == 2 and os.environ.get("FAKE_ENGINE_FAIL") == "1":
             raise RuntimeError("fake engine failure: model did not converge")
     on_log("info", "Execução concluída")
+    # the E2E points this at a fixture from tests/fixtures/results/ to have a real document to render
+    results = os.environ.get("FAKE_ENGINE_RESULTS")
+    if results:
+        return json.loads(Path(results).read_text(encoding="utf-8"))
     return {
         "schema_version": 1,
         "engine_version": "fake",

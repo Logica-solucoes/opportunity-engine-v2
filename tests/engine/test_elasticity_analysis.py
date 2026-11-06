@@ -239,6 +239,7 @@ class TestReallocationSuppression(unittest.TestCase):
             "organic_baseline_mean": 1000.0,
             "contribution_pct": {"A": 80.0, "B": 20.0},
             "cv_r_squared": cv_r2,
+            "coef_samples": model.coef_[None, :],
         }
 
     def _max_realloc_gap(self, cv_r2):

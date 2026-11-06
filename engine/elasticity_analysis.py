@@ -153,6 +153,15 @@ def predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_featur
     return organic_baseline_mean + mkt_model.predict(scaled_features)[0]
 
 
+def kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features) -> tuple[float, float]:
+    """p5/p95 of the KPI over the bootstrap resamples of the Ridge (A8). Hill, adstock and scaler stay fixed, so the
+    band is optimistic: it carries the uncertainty of the split, not of the curve shapes."""
+    features = pd.DataFrame([mkt_features], columns=getattr(mkt_scaler, "feature_names_in_", None))
+    scaled = np.clip(mkt_scaler.transform(features), 0.0, None)[0]
+    lo, hi = np.percentile(organic_baseline_mean + np.asarray(coef_samples) @ scaled, [5, 95])
+    return float(lo), float(hi)
+
+
 def _transform_channels(df, spend_cols, alphas, ks, ss):
     """Adstock + Hill-saturate each channel's spend into a features DataFrame."""
     transformed_df = pd.DataFrame()
@@ -645,6 +654,33 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
             mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
         return predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
 
+    coef_samples = elasticity_results["coef_samples"]
+    total_history = df[active_spend_cols].sum(axis=1)
+    total_range = (total_history.min(), total_history.max())
+    channel_range = {col: (df[col].min(), df[col].max()) for col in active_spend_cols}
+
+    def simulate_band(total_spend, mix):
+        mkt_features = []
+        for i, col in enumerate(active_spend_cols):
+            simulated_daily_spend = _capped_channel_spend(total_spend * mix.get(col, 0), col)
+            simulated_adstocked = simulated_daily_spend * adstock_multipliers[col]
+            mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
+        return kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features)
+
+    def is_extrapolated(total_spend, mix):
+        # outside the observed spend, total or any channel's share of it (A8)
+        if not total_range[0] <= total_spend <= total_range[1]:
+            return True
+        return any(
+            not channel_range[col][0] <= total_spend * mix.get(col, 0) <= channel_range[col][1]
+            for col in active_spend_cols
+        )
+
+    def with_guardrails(point, mix):
+        point["KPI_Lo"], point["KPI_Hi"] = simulate_band(point["Daily_Investment"], mix)
+        point["Extrapolated"] = is_extrapolated(point["Daily_Investment"], mix)
+        return point
+
     def optimize_spend_mix_for_budget(total_budget, previous_optimal_mix=None):
         if total_budget <= 0:
             return {col: 0.0 for col in active_spend_cols}
@@ -742,6 +778,8 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
             "Projected_Total_KPIs_Historical": historical_kpi_daily,
             "Projected_Total_KPIs_Optimized": optimized_kpi_daily,
         }
+        res_dict["KPI_Lo"], res_dict["KPI_Hi"] = simulate_band(current_total_daily_spend, current_optimal_mix)
+        res_dict["Extrapolated"] = is_extrapolated(current_total_daily_spend, current_optimal_mix)
 
         for ch in active_spend_cols:
             res_dict[f"Spend_{ch}_Historical"] = current_total_daily_spend * historical_mix.get(ch, 0)
@@ -921,6 +959,10 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
         ) as f:
             json.dump(metrics_out, f, ensure_ascii=False, indent=2)
 
+    with_guardrails(baseline_point, historical_mix)
+    with_guardrails(max_efficiency_point, optimized_mix)
+    with_guardrails(strategic_reallocation_point, reallocated_optimal_mix)
+
     return (
         res_df,
         baseline_point,
@@ -947,6 +989,8 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
     avg_daily_spend = {col: df[col].mean() for col in active_spend_cols}
     historical_max_daily_spend = {col: df[col].max() for col in active_spend_cols}
     per_channel_limit_factor = config["per_channel_investment_limit_factor"]
+    coef_samples = elasticity_results["coef_samples"]
+    historical_min_daily_spend = {col: df[col].min() for col in active_spend_cols}
 
     # Calculate steady-state adstock multipliers
     adstock_multipliers = {}
@@ -968,17 +1012,10 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
             if rec_spend is not None:
                 max_spend = max(max_spend, rec_spend * 1.2)  # Give some padding
 
-        # Same reasoning as _capped_channel_spend in generate_aggregated_response_curve:
-        # don't let a channel's individual curve chart extrapolate the Hill fit past
-        # a range the model was actually calibrated against.
-        # However, if we have a recommended investment that exceeds the channel cap, we
-        # bypass the cap to show the curve up to the recommended point.
+        # A8: the curve never passes the range the Hill fit is trusted in, not even to reach the recommended spend
         channel_cap = historical_max_daily_spend.get(target_channel, 0) * per_channel_limit_factor
         if channel_cap > 0:
-            if rec_spend is not None and rec_spend * 1.2 > channel_cap:
-                max_spend = rec_spend * 1.2
-            else:
-                max_spend = min(max_spend, channel_cap)
+            max_spend = min(max_spend, channel_cap)
 
         spend_points = np.linspace(0, max_spend, 100)
 
@@ -994,6 +1031,8 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
                 mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
 
             predicted_kpi = predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
+            kpi_lo, kpi_hi = kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features)
+            observed = historical_min_daily_spend[target_channel] <= spend <= historical_max_daily_spend[target_channel]
             individual_curves.append(
                 {
                     "Channel": target_channel,
@@ -1001,6 +1040,9 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
                     "Projected_Total_KPIs": predicted_kpi,
                     "Historical_Avg": target_avg_spend,
                     "Recommended": rec_spend,
+                    "KPI_Lo": kpi_lo,
+                    "KPI_Hi": kpi_hi,
+                    "Extrapolated": not observed,
                 }
             )
 

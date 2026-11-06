@@ -230,6 +230,7 @@ class Scenario(_Model):
     incremental_kpi: float | None = None
     extrapolated: bool | None = None
     ramp: list[dict[str, Any]] | None = None
+    notes: list[str] = Field(default_factory=list)  # tCPA/tROAS note when the budget changes (A8)
 
 
 class Elasticity(_Model):

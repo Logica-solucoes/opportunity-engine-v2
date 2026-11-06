@@ -153,3 +153,17 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - `LassoCV(cv=TimeSeriesSplit(max(2, min(5, n // 4))))`.
 - Paridade: `test_events_and_gates_match` compara com o protótipo só a detecção e a aritmética de investimento (`MODEL_FREE`); os números do modelo causal mudaram de propósito. MMM e curva seguem idênticos. Diferença medida no Linux: pendente. Sai do job `py` do CI (Ubuntu), que roda o teste de paridade; no Windows ele é pulado e `mise run parity` (só Linux) não foi rodado nesta mudança. Pendente para a A10: calibrar o 0.5.
 - Limite conhecido: dado com mais de 10 anos (a busca do BCB é de 3650 dias) deixa as datas mais antigas, antes da primeira publicação da série, com o primeiro valor publicado (back-fill; buscar mais histórico é o upgrade). É o mesmo limite de 10 anos, registrado uma vez aqui.
+
+## A8 · Guardrails do planner e `engine.scenario` (06/nov/2026)
+
+- **Banda só da Ridge.** `kpi_lo`/`kpi_hi` são p5/p95 do KPI sobre as 200 reamostragens de `coef_samples`, com Hill, adstock e scaler fixos. Não carrega a incerteza do formato das curvas: é otimista. A A10 mede a cobertura; propagar K, n e α exigiria re-ajustar o Hill por reamostragem.
+- **A banda é calculada no `run`, não no `scenario`.** O filtro só escolhe pontos da curva já simulada, então a matriz do bootstrap não vai para o disco.
+- **`extrapolated`**: total por período ou spend do canal (no mix do ponto) fora do `[min, max]` histórico. Abaixo do mínimo também conta.
+- **Curvas individuais sempre dentro do cap** (`per_channel_investment_limit_factor`), sem o bypass que as estendia até o recomendado × 1,2.
+- **`ramp`**: degraus compostos de no máximo `max_budget_step` a partir do atual; −50% com 20% são 4 degraus (0,8; 0,64; 0,512; 0,5).
+- **`scenario` em valores mensais** (× 30 / `period_days`); o `results.json` continua por período. Recebe `max_budget_step` como argumento porque o `results.json` não guarda config; a API passa o do `run.config`.
+- **Desvios do Streamlit:** o ROAS do filtro é `receita / investimento` no mesmo período (o protótipo dividia receita por período por investimento mensal); a base dos incrementais é o cenário `current` do `results.json`, não um baseline recalculado dos CSV; com o KPI em modo receita a tabela traz ROAS e iROAS (o protótipo só mostrava com `kpi_is_monetary`).
+- **Investimento zero sempre passa o filtro de CPA/ROAS.** A linha de investimento 0 da curva tem CPA 0 (o KPI é só o baseline orgânico), então nenhum `target_cpa` esvazia a curva; quando nenhum outro ponto passa, o recomendado é investir 0. É o mesmo comportamento do Streamlit e fica assim por paridade; o B5 deve mostrar esse caso como "nenhum investimento atinge a meta".
+- **`ramp` devolve `None`** para investimento atual ausente, zero, negativo ou não finito, e para alvo zero, negativo ou não finito. Cortar para 0 é pausar, não mudar lance: não há aprendizado do Smart Bidding a proteger, e degraus compostos nunca chegariam a 0. O último degrau leva o KPI e a banda do próprio cenário (o `max_efficiency` usa outro mix que a curva). No `scenario`, `icpa` e `iroas` saem nulos quando o KPI incremental é ≤ 0 (corte de verba), e número nulo na curva ou no `current` dá a mesma 409 de "sem curva".
+- **Paridade com o protótipo:** o teste tira `KPI_Lo`, `KPI_Hi` e `Extrapolated` antes de comparar; o resto continua idêntico.
+- **Cortado:** status de learning/budget-limited do Google Ads (precisa do conector, fora do escopo).

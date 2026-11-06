@@ -3,13 +3,14 @@ import json
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+import engine
 from api import bcb, logs, runs, simulations, storage
 from api.auth import Ctx, require_role
 from api.db import SessionLocal, get_db
@@ -130,6 +131,20 @@ def get_run(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get
     return run_out(find_run(db, ctx, run_id))
 
 
+RESULTS_MISSING = "Esta execução não tem resultado."
+
+
+@router.get("/runs/{run_id}/results")
+def get_results(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
+    # the file as the worker wrote it: the engine owns the schema, the API only guards who reads it
+    run = find_run(db, ctx, run_id)
+    path = storage.path(run.results_uri) if run.results_uri else None
+    # a file gone from disk (storage restored older than the db) is a missing result, not a 500
+    if path is None or not path.is_file():
+        raise HTTPException(404, RESULTS_MISSING)
+    return FileResponse(path, media_type="application/json")
+
+
 @router.post("/runs/{run_id}/publish", response_model=RunOut)
 def publish_run(run_id: RunId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
     run = find_run(db, ctx, run_id)
@@ -156,6 +171,20 @@ def download_input(run_id: RunId, key: InputKey, ctx: Ctx = Depends(analyst), db
         raise HTTPException(404)
     path = storage.path(simulations.input_key(run.workspace_id, run.simulation_id, entry["sha256"]))
     return FileResponse(path, media_type="text/csv", filename=entry["filename"])
+
+
+@router.get("/runs/{run_id}/scenario")
+def get_scenario(
+    run_id: RunId,
+    filters: Annotated[engine.ScenarioFilters, Query()],
+    ctx: Ctx = Depends(viewer),
+    db: Session = Depends(get_db),
+):
+    run = find_run(db, ctx, run_id)
+    try:
+        return runs.scenario(run, filters)
+    except runs.Blocked as e:
+        raise HTTPException(409, str(e))
 
 
 def poll(run_id: int, after: int | None, sweep: bool = False) -> tuple[str | None, str, int | None]:
