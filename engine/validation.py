@@ -115,11 +115,11 @@ def channel_vif(wide: pd.DataFrame) -> dict[str, float | None]:
     return out
 
 
-def _connected(pairs: list[dict]) -> list[list[str]]:
+def _connected(edges: list[tuple[str, str]]) -> list[list[str]]:
     groups: list[set[str]] = []
-    for pair in pairs:
-        linked = [g for g in groups if pair["a"] in g or pair["b"] in g]
-        groups = [g for g in groups if g not in linked] + [{pair["a"], pair["b"]}.union(*linked)]
+    for a, b in edges:
+        linked = [g for g in groups if a in g or b in g]
+        groups = [g for g in groups if g not in linked] + [{a, b}.union(*linked)]
     return sorted(sorted(g) for g in groups)
 
 
@@ -143,16 +143,42 @@ def _not_overlap(pairs: list[dict], overlapping: set[frozenset]) -> list[dict]:
     return [p for p in pairs if frozenset((p["a"], p["b"])) not in overlapping]
 
 
-def collinearity(wide: pd.DataFrame, config: EngineConfig, overlapping: set[frozenset] = frozenset()) -> Collinearity:
-    """Pairs over the |r| gate, every channel's VIF and the groups the pairs suggest; empty on a short series.
+def _without_twins(wide: pd.DataFrame, overlapping: set[frozenset]) -> pd.DataFrame:
+    """One channel of each overlap pair: the twin's VIF only says it duplicates the other, as the overlap check does."""
+    twins = {max(pair) for pair in overlapping}
+    return wide.drop(columns=[c for c in wide.columns if c in twins])
 
-    An overlap pair stays in `pairs` but is not suggested for grouping: summing one source reported twice doubles it.
-    """
+
+def high_vif(wide: pd.DataFrame, config: EngineConfig, overlapping: set[frozenset] = frozenset()) -> list[str]:
+    """Channels whose VIF is over `vif_max`, or undefined (an exact mix of the others); empty on a short series."""
+    if not _assessable(wide):
+        return []
+    limit = config.gate_threshold("vif_max")
+    vif = channel_vif(_without_twins(wide, overlapping))
+    return sorted(name for name, value in vif.items() if value is None or value > limit)
+
+
+def _suggested(wide: pd.DataFrame, pairs: list[dict], vif_channels: list[str]) -> list[list[str]]:
+    """Connected components of the pairs; a channel flagged only by its VIF joins the one it correlates with most."""
+    edges = [(p["a"], p["b"]) for p in pairs]
+    paired = {name for edge in edges for name in edge}
+    corr = wide.corr().abs()
+    edges += [(name, str(corr[name].drop(name).idxmax())) for name in vif_channels if name not in paired]
+    return _connected(edges)
+
+
+def collinearity(wide: pd.DataFrame, config: EngineConfig, overlapping: set[frozenset] = frozenset()) -> Collinearity:
+    """Pairs over the |r| gate, every channel's VIF and the groups the pairs and the VIFs suggest; empty on a short
+    series. An overlap pair stays in `pairs` but is not suggested for grouping: summing one source reported twice
+    doubles it. `unresolved` is filled by `validate`, on the grouped spend."""
     if not _assessable(wide):
         return Collinearity()
     pairs = _pairs_over(wide, config)
+    vif_channels = high_vif(wide, config, overlapping)
     return Collinearity(
-        pairs=pairs, vif=channel_vif(wide), suggested_groups=_connected(_not_overlap(pairs, overlapping))
+        pairs=pairs,
+        vif=channel_vif(wide),
+        suggested_groups=_suggested(wide, _not_overlap(pairs, overlapping), vif_channels),
     )
 
 
@@ -199,8 +225,9 @@ def check_channel_overlap(wide: pd.DataFrame) -> list[Check]:
 
 def check_groups(
     kept_inv: pd.DataFrame, channels: set[str], config: EngineConfig, overlapping: set[frozenset]
-) -> list[Check]:
-    """The analyst's answer to the gate: no pair over the limit once the groups are summed, or block_per_channel."""
+) -> tuple[list[Check], list[str]]:
+    """The analyst's answer to the gate, judged on the spend as modelled (groups summed): no pair over the |r| limit
+    and no VIF over vif_max, or block_per_channel. Also returns the channels still over a limit (A5 hides them)."""
     checks = []
     unknown = sorted({member for group in config.channel_groups for member in group} - channels)
     if unknown:
@@ -212,28 +239,31 @@ def check_groups(
                 details={"channels": unknown},
             )
         )
-    if config.block_per_channel:
-        return checks
     grouped = spend_matrix(apply_channel_groups(kept_inv, config.channel_groups))
     open_pairs = _not_overlap(_pairs_over(grouped, config), overlapping)
-    if open_pairs:
-        members = {" + ".join(group): group for group in config.channel_groups}
-        suggested_groups = sorted(
-            sorted({m for name in group for m in members.get(name, [name])}) for group in _connected(open_pairs)
+    vif_channels = high_vif(grouped, config, overlapping)
+    unresolved = sorted({name for p in open_pairs for name in (p["a"], p["b"])} | set(vif_channels))
+    if config.block_per_channel or not unresolved:
+        return checks, unresolved
+    members = {" + ".join(group): group for group in config.channel_groups}
+    suggested_groups = sorted(
+        sorted({m for name in group for m in members.get(name, [name])})
+        for group in _suggested(grouped, open_pairs, vif_channels)
+    )
+    suggested = "; ".join(" + ".join(group) for group in suggested_groups)
+    vif_note = f" VIF acima de {config.gate_threshold('vif_max'):g}: {', '.join(vif_channels)}." if vif_channels else ""
+    checks.append(
+        Check(
+            id="collinearity_unresolved",
+            level="error",
+            message=(
+                "Há canais que gastam juntos, e o modelo não consegue separar o efeito de cada um "
+                f"(sugestão: {suggested}).{vif_note} Agrupe-os ou aceite resultados só no nível agregado."
+            ),
+            details={"pairs": open_pairs, "vif_channels": vif_channels, "suggested_groups": suggested_groups},
         )
-        suggested = "; ".join(" + ".join(group) for group in suggested_groups)
-        checks.append(
-            Check(
-                id="collinearity_unresolved",
-                level="error",
-                message=(
-                    "Há canais que gastam juntos, e o modelo não consegue separar o efeito de cada um "
-                    f"(sugestão: {suggested}). Agrupe-os ou aceite resultados só no nível agregado."
-                ),
-                details={"pairs": open_pairs, "suggested_groups": suggested_groups},
-            )
-        )
-    return checks
+    )
+    return checks, unresolved
 
 
 def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None, pd.DataFrame]:
@@ -273,7 +303,10 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
         overlapping = {frozenset(c.details["channels"]) for c in overlap}
         found = collinearity(wide, engine_config, overlapping)
         checks += [*overlap, *check_short_series(wide)]
-        checks += check_groups(kept_inv, set(investment["Product Group"]), engine_config, overlapping)
+        group_checks, found.unresolved = check_groups(
+            kept_inv, set(investment["Product Group"]), engine_config, overlapping
+        )
+        checks += group_checks
     return ValidationReport(
         ok=not any(c.level == "error" for c in checks),
         cadence=None if period_days is None else CADENCE_LABEL.get(period_days, f"{period_days} dias"),

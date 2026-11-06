@@ -6,23 +6,9 @@ from threadpoolctl import threadpool_limits
 import engine
 from engine.config import EngineConfig
 from engine.errors import EngineError
-from engine.validation import MIN_COLLINEARITY_PERIODS, channel_vif, collinearity, spend_matrix, validate
+from engine.validation import MIN_COLLINEARITY_PERIODS, channel_vif, collinearity, high_vif, spend_matrix, validate
 from tests.engine.csv_factory import days, write_inputs
-from tests.engine.synthetic_data import dataset_config, make_dataset
-
-
-def collinear_inputs(tmp_path, n_days=364):
-    """The synthetic dataset with PMAX spend = 0.8 × SEARCH (r ≈ 0.99): one pair over the 0.85 gate.
-
-    0.8 keeps the totals apart, so dv360_cm360_overlap (same total) does not fire.
-    """
-    paths = make_dataset(tmp_path, n_days=n_days)
-    inv = pd.read_csv(paths["investment_file"])
-    search = inv.loc[inv["product_group"] == "SEARCH", "total_revenue"].to_numpy()
-    noise = np.random.default_rng(3).lognormal(0.0, 0.005, len(search))
-    inv.loc[inv["product_group"] == "PMAX", "total_revenue"] = 0.8 * search * noise
-    inv.to_csv(paths["investment_file"], index=False)
-    return paths
+from tests.engine.synthetic_data import collinear_inputs, dataset_config, make_dataset
 
 
 def _frame(columns: dict[str, np.ndarray]) -> pd.DataFrame:
@@ -210,3 +196,86 @@ def test_a_group_that_ends_up_collinear_with_another_channel_is_still_open(tmp_p
     assert check.details["suggested_groups"] == [["A", "B", "C"]]
     assert "A + B + C" in check.message
     assert [(p["a"], p["b"]) for p in report.collinearity.pairs] == [("A", "B")]
+
+
+def _vif_only_inputs(tmp_path, n=60):
+    """C = A + B: no pair is over 0.85 (r(A, C) ≈ 0.7), but C is almost an exact mix of the others (VIF in the thousands)."""
+    rng = np.random.default_rng(6)
+    a, b = rng.normal(1000, 200, n), rng.normal(1000, 200, n)
+    c = a + b + rng.normal(0, 5, n)
+    ds = days(n)
+    investment = [
+        (d, name, round(float(v), 2)) for name, series in (("A", a), ("B", b), ("C", c)) for d, v in zip(ds, series)
+    ]
+    return write_inputs(tmp_path, investment, [(d, 1000 + i) for i, d in enumerate(ds)])
+
+
+def test_a_vif_over_the_limit_blocks_even_without_a_pair(tmp_path):
+    report = validate(_vif_only_inputs(tmp_path), dataset_config())
+
+    check = next(c for c in report.checks if c.id == "collinearity_unresolved")
+    assert report.collinearity.pairs == [] and check.details["pairs"] == []
+    assert check.details["vif_channels"] == ["A", "B", "C"]
+    assert check.details["suggested_groups"] == [["A", "B", "C"]]
+    assert report.collinearity.suggested_groups == [["A", "B", "C"]]
+    assert "VIF acima de 10" in check.message
+
+
+@pytest.mark.parametrize("resolution", [{"channel_groups": [["A", "B", "C"]]}, {"block_per_channel": True}])
+def test_a_group_or_the_block_flag_resolves_the_vif_gate(tmp_path, resolution):
+    report = validate(_vif_only_inputs(tmp_path), {**dataset_config(), **resolution})
+
+    assert report.ok, [c.id for c in report.checks if c.level == "error"]
+
+
+def test_the_vif_limit_comes_from_gate_thresholds(tmp_path):
+    report = validate(_vif_only_inputs(tmp_path), {**dataset_config(), "gate_thresholds": {"vif_max": 1e9}})
+
+    assert report.ok, [c.id for c in report.checks if c.level == "error"]
+
+
+def test_an_undefined_vif_counts_as_over_the_limit():
+    a = np.arange(40, dtype=float) % 7 + 1
+    b = np.random.default_rng(1).normal(10, 1, 40)
+
+    assert high_vif(spend_matrix(_frame({"A": a, "B": b, "C": a + b})), EngineConfig()) == ["A", "B", "C"]
+
+
+def test_a_vif_only_channel_is_suggested_with_its_most_correlated_channel():
+    rng = np.random.default_rng(1)
+    a, b = rng.normal(100, 20, 300), rng.normal(100, 20, 300)
+    frame = _frame({"A": a, "B": b, "C": a + b + rng.normal(0, 0.5, 300)})
+
+    found = collinearity(spend_matrix(frame), EngineConfig(gate_thresholds={"collinearity_r": 0.95}))
+
+    assert found.pairs == [] and any("C" in group for group in found.suggested_groups)
+
+
+def test_an_overlap_pair_does_not_block_through_its_vif(tmp_path):
+    rng = np.random.default_rng(8)
+    x = rng.normal(1000, 200, 60)
+    series = {"X": x, "Y": x * (1 + rng.normal(0, 0.01, 60)), "Z": rng.normal(500, 80, 60)}
+    ds = days(60)
+    investment = [(d, name, round(float(v), 2)) for name, s in series.items() for d, v in zip(ds, s)]
+
+    report = validate(write_inputs(tmp_path, investment, [(d, 1000 + i) for i, d in enumerate(ds)]), dataset_config())
+
+    ids = {c.id for c in report.checks}
+    assert "dv360_cm360_overlap" in ids and "collinearity_unresolved" not in ids
+
+
+def test_unresolved_lists_the_channels_still_collinear_as_modelled(tmp_path):
+    blocked = validate(collinear_inputs(tmp_path / "a"), {**dataset_config(), "block_per_channel": True})
+    grouped = validate(collinear_inputs(tmp_path / "b"), {**dataset_config(), "channel_groups": [["SEARCH", "PMAX"]]})
+
+    assert blocked.ok and blocked.collinearity.unresolved == ["PMAX", "SEARCH"]
+    assert grouped.ok and grouped.collinearity.unresolved == []
+
+
+def test_the_gate_works_on_weekly_data(tmp_path):
+    paths = collinear_inputs(tmp_path, n_days=728, cadence_days=7)
+
+    report = validate(paths, dataset_config())
+
+    assert report.period_days == 7 and "collinearity_unresolved" in {c.id for c in report.checks}
+    assert validate(paths, {**dataset_config(), "channel_groups": [["SEARCH", "PMAX"]]}).ok

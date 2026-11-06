@@ -154,3 +154,17 @@ def identifiable_config() -> dict:
     config = dataset_config()
     config["column_mapping"] = {k: v for k, v in config["column_mapping"].items() if k != "generic_trends_file"}
     return config
+
+
+def collinear_inputs(out_dir: Path, *, n_days: int = 364, cadence_days: int = 1) -> dict[str, Path | None]:
+    """make_dataset with PMAX spend = 0.8 × SEARCH (r ≈ 0.99): one pair over the 0.85 gate.
+
+    0.8 keeps the totals apart, so dv360_cm360_overlap (same total) does not fire.
+    """
+    paths = make_dataset(out_dir, n_days=n_days, cadence_days=cadence_days)
+    inv = pd.read_csv(paths["investment_file"])
+    search = inv.loc[inv["product_group"] == "SEARCH", "total_revenue"].to_numpy()
+    noise = np.random.default_rng(3).lognormal(0.0, 0.005, len(search))
+    inv.loc[inv["product_group"] == "PMAX", "total_revenue"] = 0.8 * search * noise
+    inv.to_csv(paths["investment_file"], index=False)
+    return paths
