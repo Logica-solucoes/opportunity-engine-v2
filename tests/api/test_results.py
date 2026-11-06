@@ -1,14 +1,10 @@
-from pathlib import Path
-
 import pytest
 from sqlalchemy import func
 
 from api import runs, simulations, storage
 from api.engine_config import ParamsIn
 from api.models import Membership
-from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
-
-GOL = Path(__file__).resolve().parents[1] / "fixtures" / "results" / "gol_anonimizada.json"
+from tests.samples import GOL_RESULTS, INVESTMENT, MAPPING, PERFORMANCE
 
 
 @pytest.fixture
@@ -39,7 +35,7 @@ def finished(db, ws, analyst, make_simulation):
         run.status = status
         if results:
             run.results_uri = f"ws/{run.workspace_id}/sim/{run.simulation_id}/runs/{run.id}/results.json"
-            storage.put(run.results_uri, GOL)
+            storage.put(run.results_uri, GOL_RESULTS)
         db.commit()
         return run
 
@@ -53,7 +49,7 @@ def test_analyst_gets_the_stored_results(logged, finished):
 
     assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("application/json")
-    assert r.content == GOL.read_bytes()
+    assert r.content == GOL_RESULTS.read_bytes()
 
 
 def test_viewer_gets_results_only_once_published(client, finished, make_user, ws, db, login_as):
