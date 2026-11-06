@@ -56,8 +56,8 @@ def test_every_curve_row_has_a_band_around_the_point():
     tol = 1e-6 * frame["Projected_Total_KPIs"].abs()
     assert (frame["KPI_Lo"] <= frame["Projected_Total_KPIs"] + tol).all()
     assert (frame["Projected_Total_KPIs"] <= frame["KPI_Hi"] + tol).all()
-    # below the historical spend the scaled features clip to 0 and the band collapses on the baseline
-    inside = frame[frame["Daily_Investment"] >= 300]
+    # below the historical spend the scaled features clip to 0 and the band collapses on the baseline; those rows are extrapolated
+    inside = frame[~frame["Extrapolated"]]
     assert (inside["KPI_Hi"] - inside["KPI_Lo"]).gt(0).all()
 
 
