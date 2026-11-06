@@ -69,8 +69,14 @@ def test_fold_mix_without_hidden_channels_is_the_same_mix():
     assert fold_mix(mix, {"Z"}) == mix
 
 
-def test_fold_mix_treats_a_missing_value_as_zero():
-    assert fold_mix({"A": 1.0, "B": None}, {"B"}) == {"A": 1.0, UNIDENTIFIED: 0.0}
+def test_fold_mix_is_none_when_a_hidden_value_is_missing():
+    assert fold_mix({"A": 1.0, "B": None, "C": 2.0}, {"B", "C"}) == {"A": 1.0, UNIDENTIFIED: None}
+
+
+def test_reallocation_is_suppressed_while_any_channel_is_hidden():
+    assert identifiability.reallocation_suppressed({"A": {"identifiable": True}, "B": {"identifiable": False}})
+    assert not identifiability.reallocation_suppressed({"A": {"identifiable": True}})
+    assert not identifiability.reallocation_suppressed({})
 
 
 def test_the_bucket_name_is_shown_as_is():

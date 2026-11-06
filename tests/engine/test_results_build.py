@@ -418,3 +418,18 @@ def test_scenario_icpa_is_null_without_incremental_investment(synthetic_computed
     built = results.build_results(computed, "v")
     scenario = next(s for s in built.elasticity.scenarios if s.name == "strategic_reallocation")
     assert scenario.icpa is None and scenario.incremental_investment == 0.0
+
+
+def test_one_hidden_channel_drops_the_reallocation_scenario_and_says_so(synthetic_computed):
+    point = {"Daily_Investment": 10.0, "Projected_Total_KPIs": 5.0, "Incremental_Investment": 0, "Incremental_KPI": 0}
+    plain = dataclasses.replace(_with_verdicts(synthetic_computed), strategic_reallocation_point=point)
+    hidden = dataclasses.replace(
+        _with_verdicts(synthetic_computed, hidden={"DISPLAY"}), strategic_reallocation_point=point
+    )
+
+    shown, suppressed = (results.build_results(c, "v").elasticity for c in (plain, hidden))
+
+    assert "strategic_reallocation" in [s.name for s in shown.scenarios]
+    assert shown.metrics.reallocation_suppressed is False
+    assert "strategic_reallocation" not in [s.name for s in suppressed.scenarios]
+    assert suppressed.metrics.reallocation_suppressed is True

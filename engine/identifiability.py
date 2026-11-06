@@ -36,10 +36,16 @@ def none_identifiable(verdicts: dict[str, dict]) -> bool:
     return bool(verdicts) and not any(v["identifiable"] for v in verdicts.values())
 
 
+def reallocation_suppressed(verdicts: dict[str, dict]) -> bool:
+    """Moving the same budget between channels rests on every channel's own effect: no reallocation while any is hidden."""
+    return bool(unidentified(verdicts))
+
+
 def fold_mix(mix: dict[str, float | None], hidden: set[str]) -> dict[str, float | None]:
-    """The mix without the hidden channels, their spend summed under UNIDENTIFIED (a missing value counts as 0)."""
+    """The mix without the hidden channels, their spend summed under UNIDENTIFIED (None when one of them is missing)."""
     if not hidden & mix.keys():
         return mix
     kept = {name: value for name, value in mix.items() if name not in hidden}
-    kept[UNIDENTIFIED] = sum(value or 0.0 for name, value in mix.items() if name in hidden)
+    pooled = [value for name, value in mix.items() if name in hidden]
+    kept[UNIDENTIFIED] = None if any(value is None for value in pooled) else sum(pooled)
     return kept

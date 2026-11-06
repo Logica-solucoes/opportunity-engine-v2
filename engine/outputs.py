@@ -111,7 +111,9 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
     total_monthly = baseline["Daily_Investment"] * factor if baseline and "Daily_Investment" in baseline else 0
 
     reallocation = (
-        None if identifiability.none_identifiable(computed.identifiability) else computed.strategic_reallocation_point
+        None
+        if identifiability.reallocation_suppressed(computed.identifiability)
+        else computed.strategic_reallocation_point
     )
     presentation.save_opportunity_curve_plot(
         computed.response_curve_df,

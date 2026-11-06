@@ -36,3 +36,13 @@ def test_the_saturation_markdown_and_the_global_prompt_never_name_a_hidden_chann
     assert spend_cols[0] in markdown
     for name in spend_cols[1:]:
         assert name not in markdown and name not in prompt
+
+
+def test_the_reallocation_is_not_offered_to_the_llm_while_a_channel_is_hidden(synthetic_computed, tmp_path):
+    last = synthetic_computed.mmm["spend_cols"][-1]
+
+    plain, plain_prompt = _global_prompt(_hide(synthetic_computed, set()), tmp_path / "plain")
+    hidden, hidden_prompt = _global_prompt(_hide(synthetic_computed, {last}), tmp_path / "hidden")
+
+    assert plain.kpi_projections["reallocation"] is not None and "Realocação Estratégica" in plain_prompt
+    assert hidden.kpi_projections["reallocation"] is None and "Realocação" not in hidden_prompt
