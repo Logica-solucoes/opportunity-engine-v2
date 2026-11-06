@@ -51,6 +51,11 @@ rm -f "$SPEC"
 uv run pytest tests/engine/test_parity_real.py -q
 """
 
+[tasks.parity-a4-golden]
+description = "Pin the engine's own causal numbers on the Gol (real/gol_a4_events.json) and print how far each event moved from the prototype. Only with approval; needs exemplo_csv/ and real/gol.json"
+env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1" }
+run = "uv run python -m tests.fixtures.parity.make_a4_golden"
+
 [tasks.e2e]
 description = "Playwright E2E against the built SPA (needs docker compose up)"
 dir = "web"

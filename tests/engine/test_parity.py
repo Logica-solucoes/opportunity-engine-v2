@@ -21,26 +21,23 @@ from tests.fixtures.parity.generate_legacy_snapshot import jsonable
 SNAPSHOT = Path(__file__).resolve().parents[1] / "fixtures" / "parity" / "snapshot.json"
 RTOL, ATOL = 1e-9, 1e-12
 
-# A4 (06/nov/2026) changed the causal model on purpose: TimeSeriesSplit in the Lasso and the control screening move
-# every model number (lift, p-value, fit, gates). Detection and the investment arithmetic still match the prototype.
-MODEL_FREE = (
-    "start_date",
-    "end_date",
-    "product_group",
-    "investment_change_pct",
-    "total_investment_post_period",
-    "total_investment_pre_period",
-    "event_period_avg_investment",
-)
+# results_data keys and gate reasons the prototype does not have: A4's control screening and A6's placebo,
+# out-of-sample WMAPE and run-level demotion. `passed` and `selected` follow from the reasons and the selection.
+ENGINE_KEYS = {"controls", "placebo_p_value", "oos_wmape"}
+ENGINE_REASONS = {"placebo_failed", "insufficient_run"}
 
 
-def model_free(events: list[dict]) -> list[dict]:
+def prototype_view(events: list[dict]) -> list[dict]:
+    """What the prototype also computed: the event, every number of its results_data and its own gate reasons."""
     return [
         {
             "event_id": e["event_id"],
             "product_group": e["product_group"],
             "intervention_date": e["intervention_date"],
-            "results_data": {key: e["results_data"][key] for key in MODEL_FREE} if e["results_data"] else None,
+            "results_data": {k: v for k, v in e["results_data"].items() if k not in ENGINE_KEYS}
+            if e["results_data"]
+            else None,
+            "reasons": [r for r in e["reasons"] if r not in ENGINE_REASONS],
         }
         for e in events
     ]
@@ -104,7 +101,7 @@ def test_events_and_gates_match(computed, snapshot):
         }
         for e in computed.events
     ]
-    assert_close(model_free(actual), model_free(snapshot["events"]), "events")
+    assert_close(prototype_view(actual), prototype_view(snapshot["events"]), "events")
 
 
 def test_mmm_matches(computed, snapshot):

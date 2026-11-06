@@ -25,3 +25,13 @@ Notes
 `real/gol.json`, then `tests/engine/test_parity_real.py` checks the engine against it. Both the data and `real/` are
 confidential and git-ignored; the test skips where they are missing. The test pins BLAS to one thread: with all threads
 the response curve drifts up to ~7e-4 (relative) on this data.
+
+## Causal numbers since A4
+
+The synthetic dataset has no ad metrics and its Trends passes the control screening, so `test_parity.py` still compares
+every causal number with the prototype; only what the prototype does not compute is left out (`controls`, the A6
+placebo, out-of-sample WMAPE and gate reasons). On the Gol, A4 changed the numbers on purpose (Clicks/Impressions/Leads
+left the model): `test_parity_real.py` compares the detected events with the prototype and the numbers with the
+engine's own golden, `real/gol_a4_events.json` (git-ignored), written by `mise run parity-a4-golden`. That golden
+catches regressions; it is not evidence of parity. Regenerate it only with approval, after reading the printed deltas,
+and again after any change that moves a gate (A6 did).
