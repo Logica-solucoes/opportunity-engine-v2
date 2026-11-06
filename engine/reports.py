@@ -525,11 +525,7 @@ def generate_global_report(
           {{
             "scenario_name": "Estratégico (Modelo de Elasticidade)",
             "analysis": "An analysis of the 'Estratégico (Modelo de Elasticidade)' scenario, explaining the rationale for the budget allocation based on the model's long-term contribution findings."
-          }},
-          {{
-            "scenario_name": "Realocação Estratégica (Mesmo Orçamento)",
-            "analysis": "An analysis of the 'Realocação Estratégica' scenario, highlighting the efficiency gains and incremental value achieved purely by reallocating the current budget according to the elasticity model, without any actual increase in spend."
-          }}
+          }}REALLOCATION_ENTRY
         ]
       }},
       "strategic_recommendations": [
@@ -538,6 +534,14 @@ def generate_global_report(
       ]
     }}
     """
+
+    reallocation_entry = """,
+          {{
+            "scenario_name": "Realocação Estratégica (Mesmo Orçamento)",
+            "analysis": "An analysis of the 'Realocação Estratégica' scenario, highlighting the efficiency gains and incremental value achieved purely by reallocating the current budget according to the elasticity model, without any actual increase in spend."
+          }}"""
+    has_reallocation = bool((kpi_projections or {}).get("reallocation"))
+    json_schema = json_schema.replace("REALLOCATION_ENTRY", reallocation_entry if has_reallocation else "")
 
     # --- 3. Construct the prompt ---
     prompt = f"""
@@ -657,6 +661,10 @@ def generate_global_report(
                     "Modelo de Elasticidade",
                 ]:
                     raw_kpi = projected_kpis.get(split_name, 0)
+                    if raw_kpi is None:
+                        kpi_row += "<td><strong>—</strong></td>"
+                        cpa_row += "<td><strong>—</strong></td>"
+                        continue
                     actual_kpi = raw_kpi * conv_rate if conv_rate > 0 else raw_kpi
 
                     if avg_ticket > 0:
@@ -715,7 +723,8 @@ def generate_global_report(
         summary_table_html += "<li><strong>Cenário Atual (Média Histórica):</strong> Mantém o nível de investimento e o mix idênticos às médias observadas.</li>"
         summary_table_html += "<li><strong>Cenário Otimizado (Pico de Eficiência):</strong> Escala o investimento total para o ponto de maior eficiência detectado e usa o mix dos melhores períodos.</li>"
         summary_table_html += "<li><strong>Cenário Estratégico (Modelo de Elasticidade):</strong> Expande o orçamento até o limite ótimo de saturação calculado pelo modelo iterativo.</li>"
-        summary_table_html += "<li><strong>Realocação Estratégica (Mesmo Orçamento):</strong> Mantém o investimento atual, mas redistribui a verba segundo o Modelo de Elasticidade para ganho puro de eficiência.</li>"
+        if kpi_projections.get("reallocation"):
+            summary_table_html += "<li><strong>Realocação Estratégica (Mesmo Orçamento):</strong> Mantém o investimento atual, mas redistribui a verba segundo o Modelo de Elasticidade para ganho puro de eficiência.</li>"
         summary_table_html += "</ul>"
         summary_table_html += '<table class="scenarios-table">'
 

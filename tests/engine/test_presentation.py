@@ -274,3 +274,26 @@ class TestComparativeSaturationMdMonthlyFactor(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_md_prints_a_dash_for_a_kpi_without_value(tmp_path):
+    scenario = {
+        "title": "Atual",
+        "total_investment": 100.0,
+        "splits": {m: {"A": 100.0} for m in ("Média Histórica", "Pico de Eficiência", "Modelo de Elasticidade")},
+        "projected_kpis": {"Média Histórica": 50.0, "Pico de Eficiência": None, "Modelo de Elasticidade": None},
+    }
+    out = tmp_path / "out.md"
+    create_comparative_saturation_md([scenario], str(out), kpi_projections={"current": {"Daily_Investment": 1.0}})
+    content = out.read_text(encoding="utf-8")
+    assert "| **Projeção de KPIs** | **50** | **—** | **—** |" in content
+    assert "| **CPA** | **R$" in content
+    assert content.count("**—**") == 4
+    assert "Realocação" not in content
+
+
+def test_md_describes_the_reallocation_only_when_it_exists(tmp_path):
+    point = {"Daily_Investment": 1.0}
+    out = tmp_path / "out.md"
+    create_comparative_saturation_md([], str(out), kpi_projections={"current": point, "reallocation": point})
+    assert "Realocação" in out.read_text(encoding="utf-8")

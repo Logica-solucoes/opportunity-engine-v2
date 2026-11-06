@@ -48,3 +48,36 @@ def test_scenario_splits_fold_the_unidentified_channels():
     for split in scenario["splits"].values():
         assert set(split) == {"A", identifiability.UNIDENTIFIED}
         assert sum(split.values()) == pytest.approx(30.0)
+
+
+def _verdicts(**identifiable):
+    return {name: {"identifiable": ok} for name, ok in identifiable.items()}
+
+
+def test_none_identifiable():
+    assert identifiability.none_identifiable(_verdicts(A=False, B=False))
+    assert not identifiability.none_identifiable(_verdicts(A=True, B=False))
+    assert not identifiability.none_identifiable({})
+
+
+@pytest.mark.parametrize(
+    ("verdicts", "with_numbers"),
+    [
+        (_verdicts(A=False, B=False), ["Média Histórica"]),
+        (_verdicts(A=True, B=False), ["Média Histórica", "Pico de Eficiência", "Modelo de Elasticidade"]),
+    ],
+)
+def test_scenario_kpis_of_the_mixes_need_an_identifiable_channel(verdicts, with_numbers):
+    computed = SimpleNamespace(
+        current_split={"A": 0.5, "B": 0.5}, optimized_mix={"A": 0.6, "B": 0.4}, identifiability=verdicts
+    )
+    point = {
+        "Daily_Investment": 10.0,
+        "projected_kpis": {"Média Histórica": 1.0, "Pico de Eficiência": 2.0, "Modelo de Elasticidade": 3.0},
+    }
+
+    scenario = outputs._scenario("t", "d", point, 3.0, computed, {"A": 0.7, "B": 0.3})
+
+    kpis = scenario["projected_kpis"]
+    assert [k for k, v in kpis.items() if v is not None] == with_numbers
+    assert set(kpis) == set(point["projected_kpis"])

@@ -201,6 +201,9 @@ def test_elasticity_metrics_and_channels(synthetic_computed):
     elasticity = results.build_results(_with_verdicts(synthetic_computed), "v").elasticity
     mmm = synthetic_computed.mmm
     assert elasticity.status == "ok" and elasticity.reasons == []
+    assert ("strategic_reallocation" in [s.name for s in elasticity.scenarios]) == bool(
+        synthetic_computed.strategic_reallocation_point
+    )
     assert elasticity.metrics.cv_r2 == mmm["cv_r_squared"] and elasticity.metrics.r2 == mmm["r_squared"]
     assert elasticity.metrics.media_contribution_pct == mmm["marketing_contribution_of_kpi_pct"]
     assert [c.name for c in elasticity.channels] == list(mmm["spend_cols"])
@@ -251,6 +254,7 @@ def test_no_identifiable_channel_makes_elasticity_inconclusive(synthetic_compute
     elasticity = results.build_results(synthetic_computed, "v").elasticity  # flat-spend synthetic: none identifiable
     assert elasticity.status == "inconclusive" and elasticity.reasons == ["no_identifiable_channel"]
     assert elasticity.response_curve and elasticity.scenarios
+    assert "strategic_reallocation" not in [s.name for s in elasticity.scenarios]
     assert all(set(m) == {identifiability.UNIDENTIFIED} for row in elasticity.response_curve for m in row.mix.values())
     assert all(c.identifiable is False and c.curve == [] and c.coef_ci is not None for c in elasticity.channels)
 
@@ -391,6 +395,7 @@ def test_scenario_icpa_is_null_without_incremental_investment(synthetic_computed
         "Incremental_KPI": 0,
         "iCPA": 0,
     }
-    built = results.build_results(dataclasses.replace(synthetic_computed, strategic_reallocation_point=point), "v")
+    computed = dataclasses.replace(_with_verdicts(synthetic_computed), strategic_reallocation_point=point)
+    built = results.build_results(computed, "v")
     scenario = next(s for s in built.elasticity.scenarios if s.name == "strategic_reallocation")
     assert scenario.icpa is None and scenario.incremental_investment == 0.0

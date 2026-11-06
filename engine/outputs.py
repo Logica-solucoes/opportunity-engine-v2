@@ -84,6 +84,8 @@ def _scenario(title, description, point, factor, computed: "Computed", strategic
     total = point["Daily_Investment"] * factor if total is None else total
     mixes = (computed.current_split, computed.optimized_mix, strategic_ratio)
     hidden = identifiability.unidentified(computed.identifiability)  # keeps them out of the .md, HTML and Gemini
+    # with no identifiable channel the mixes are not comparable: only the historical one keeps its KPI
+    no_mix_kpi = identifiability.none_identifiable(computed.identifiability)
     return {
         "title": title,
         "description": description,
@@ -92,7 +94,10 @@ def _scenario(title, description, point, factor, computed: "Computed", strategic
             label: identifiability.fold_mix({k: v * total for k, v in mix.items()}, hidden)
             for label, mix in zip(MIX_LABELS, mixes, strict=True)
         },
-        "projected_kpis": {mix: kpi * factor for mix, kpi in point.get("projected_kpis", {}).items()},
+        "projected_kpis": {
+            mix: None if no_mix_kpi and mix != MIX_LABELS[0] else kpi * factor
+            for mix, kpi in point.get("projected_kpis", {}).items()
+        },
     }
 
 
@@ -105,6 +110,9 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
     baseline = computed.baseline_point
     total_monthly = baseline["Daily_Investment"] * factor if baseline and "Daily_Investment" in baseline else 0
 
+    reallocation = (
+        None if identifiability.none_identifiable(computed.identifiability) else computed.strategic_reallocation_point
+    )
     presentation.save_opportunity_curve_plot(
         computed.response_curve_df,
         baseline,
@@ -114,7 +122,7 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
         str(global_dir / "combined_all_channels_saturation_curve.png"),
         kpi_name=_kpi_name(cfg),
         strategic_limit_point=computed.strategic_limit_point,
-        strategic_reallocation_point=computed.strategic_reallocation_point,
+        strategic_reallocation_point=reallocation,
         config=cfg,
     )
     ratio = {k: v / 100.0 for k, v in computed.mmm["contribution_pct"].items()}
@@ -153,7 +161,7 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
         "current": baseline,
         "optimized": computed.max_efficiency_point,
         "strategic": computed.strategic_limit_point,
-        "reallocation": computed.strategic_reallocation_point,
+        "reallocation": reallocation,
     }
     presentation.create_comparative_saturation_md(
         written.scenarios,

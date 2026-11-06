@@ -127,7 +127,7 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
 ```
 O formato exato de cada seção é fechado no spec do item dono, e os nomes acima são o ponto de partida. **Entregue pelo A1 (04/nov/2026):** o tipo exato do documento inteiro é `engine/results_schema.py` (`schema_version=1`); ele vence o exemplo acima. As diferenças em relação ao exemplo são estas:
 - `elasticity` ganhou `baseline`.
-- Canal com `identifiable=false` sai sem `contribution_pct`, `hill`, `adstock` e `curve`, com `reasons` (`coef_ci_includes_zero`, `coef_ci_too_wide`); no `mix`, o spend dele entra somado na chave `"Não identificados"`. Nenhum identificável → `elasticity.status="inconclusive"` com `no_identifiable_channel` (A5).
+- Canal com `identifiable=false` sai sem `contribution_pct`, `hill`, `adstock` e `curve`, com `reasons` (`coef_ci_includes_zero`, `coef_ci_too_wide`); no `mix`, o spend dele entra somado na chave `"Não identificados"`. Nenhum identificável → `elasticity.status="inconclusive"` com `no_identifiable_channel` e sem o cenário `strategic_reallocation` (A5).
 - `scenarios[].name` é `current|max_efficiency|strategic_limit|diminishing_return|saturation|strategic_reallocation` (o A8 redefine).
 - `response_curve[].mix` tem três variantes (`historical|optimized|strategic`).
 - Os eventos têm `selected` e `fit` com `mae`/`mape`.

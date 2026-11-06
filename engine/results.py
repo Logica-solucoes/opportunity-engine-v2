@@ -196,7 +196,9 @@ def _scenarios(computed: "Computed") -> list[Scenario]:
     scenarios = []
     for name, attribute in SCENARIO_SOURCES.items():
         point = getattr(computed, attribute)
-        if not point:
+        if not point or (
+            name == "strategic_reallocation" and identifiability.none_identifiable(computed.identifiability)
+        ):
             continue
         scenarios.append(
             Scenario(
@@ -251,7 +253,7 @@ def _elasticity(computed: "Computed") -> Elasticity:
         Group(name=" + ".join(members), members=list(members))
         for members in computed.effective_config.get("channel_groups") or []
     ]
-    none_identifiable = identifiability.unidentified(computed.identifiability) >= set(mmm["spend_cols"])
+    none_identifiable = identifiability.none_identifiable(computed.identifiability)
     return Elasticity(
         status="inconclusive" if none_identifiable else "ok",
         reasons=["no_identifiable_channel"] if none_identifiable else [],

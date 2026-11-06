@@ -117,3 +117,28 @@ def test_missing_image_warning_does_not_carry_the_path(tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="engine.reports"):
         assert reports._get_image_as_base64(str(tmp_path / "gone.png")) is None
     assert str(tmp_path) not in " ".join(r.getMessage() for r in caplog.records)
+
+
+def test_global_report_without_reallocation_and_with_empty_kpis(tmp_path):
+    scenario = {
+        "title": "Atual",
+        "total_investment": 100.0,
+        "splits": {m: {"A": 100.0} for m in ("Média Histórica", "Pico de Eficiência", "Modelo de Elasticidade")},
+        "projected_kpis": {"Média Histórica": 50.0, "Pico de Eficiência": None, "Modelo de Elasticidade": None},
+    }
+    (tmp_path / "SATURATION_CURVE.md").write_text("# dummy\n", encoding="utf-8")
+    config = full_config(
+        {"average_ticket": 0, "conversion_rate_from_kpi_to_bo": 0, "primary_business_metric_name": "Leads"}
+    )
+    llm = FakeLLM([json.dumps(GLOBAL_NARRATIVE)])
+    reports.generate_global_report(
+        llm,
+        config,
+        scenarios=[scenario],
+        total_investment=100.0,
+        kpi_projections={"current": PROJECTIONS["current"], "reallocation": None},
+        global_output_dir=tmp_path,
+    )
+    html_out = (tmp_path / "global_report.html").read_text(encoding="utf-8")
+    assert "<td><strong>—</strong></td><td><strong>—</strong></td></tr>" in html_out
+    assert "Realocação" not in html_out and "Realocação" not in llm.calls[0]

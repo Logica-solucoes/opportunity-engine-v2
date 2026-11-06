@@ -29,6 +29,10 @@ def unidentified(verdicts: dict[str, dict]) -> set[str]:
     return {name for name, verdict in verdicts.items() if not verdict["identifiable"]}
 
 
+def none_identifiable(verdicts: dict[str, dict]) -> bool:
+    return bool(verdicts) and not any(v["identifiable"] for v in verdicts.values())
+
+
 def fold_mix(mix: dict[str, float | None], hidden: set[str]) -> dict[str, float | None]:
     """The mix without the hidden channels, their spend summed under UNIDENTIFIED (a missing value counts as 0)."""
     if not hidden & mix.keys():
