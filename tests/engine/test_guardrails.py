@@ -1,8 +1,11 @@
+import math
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import MinMaxScaler
 
+from engine import results
 from engine.elasticity_analysis import (
     generate_aggregated_response_curve,
     generate_individual_response_curves,
@@ -99,3 +102,24 @@ def test_individual_curve_points_carry_band_and_flag():
     low, high = mmm["dataframe"]["A"].min(), mmm["dataframe"]["A"].max()
     expected = (own["Channel_Spend"] < low) | (own["Channel_Spend"] > high)
     assert (own["Extrapolated"] == expected).all()
+
+
+def test_results_publish_band_flag_ramp_and_notes(identifiable_computed):
+    doc = results.dump_results(results.build_results(identifiable_computed, "test"))
+    elasticity = doc["elasticity"]
+
+    assert all(r["kpi_lo"] is not None and r["kpi_hi"] is not None for r in elasticity["response_curve"])
+    assert all(r["extrapolated"] in (True, False) for r in elasticity["response_curve"])
+
+    scenarios = {s["name"]: s for s in elasticity["scenarios"]}
+    current = scenarios["current"]["investment"]
+    assert scenarios["current"]["ramp"] is None and scenarios["current"]["notes"] == []
+    for s in scenarios.values():
+        assert s["kpi_lo"] is not None and s["kpi_hi"] is not None and s["extrapolated"] in (True, False)
+        assert (s["ramp"] is not None) == (abs(s["investment"] / current - 1) > 0.2 + 1e-9)
+        assert bool(s["notes"]) == (not math.isclose(s["investment"], current))
+
+    published = [c for c in elasticity["channels"] if c["identifiable"]]
+    assert published and all(
+        p["lo"] is not None and p["extrapolated"] is not None for c in published for p in c["curve"]
+    )
