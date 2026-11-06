@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from api import bigquery, launcher, passwords, simulations, storage
+from api import bcb, bigquery, launcher, passwords, simulations, storage
 from api import db as api_db
 from api.main import create_app
 from api.models import Membership, User, Workspace
@@ -63,6 +63,15 @@ def fast_scrypt(monkeypatch):
 def no_gemini_key(monkeypatch):
     # tests never reach the real API; the ones that need an answer replace gemini.ask
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def no_bcb_network(monkeypatch):
+    # tests never reach the SGS; the ones that need series replace bcb.get or bcb.fetch
+    def get(code, start, end):
+        raise AssertionError("a test tried to reach the Banco Central SGS")
+
+    monkeypatch.setattr(bcb, "get", get)
 
 
 @pytest.fixture(autouse=True)
