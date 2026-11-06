@@ -656,3 +656,39 @@ def test_causal_analysis_reports_the_placebo_and_the_oos_wmape():
     results = _causal(_causal_setup())
     assert results["placebo_ran"] is True and 0 <= results["placebo_p_value"] <= 1
     assert results["oos_wmape"] is not None and results["oos_wmape"] >= 0
+
+
+# --- A6: robustness gate ---
+
+
+def _split(frame, n_post=14):
+    return frame.iloc[:-n_post], frame.iloc[-n_post:]
+
+
+def test_baseline_only_p_value_sees_a_real_step_and_ignores_none():
+    from engine.analysis import baseline_only_p_value
+
+    pre, post = _split(_pre_frame(n=134, step_at=120, step=40.0))
+    assert baseline_only_p_value(pre, post, []) < 0.05  # no exogenous variable at all
+    for seed in (0, 1, 2):  # no step: nothing to find (fixed seeds, not a statement about every draw)
+        pre, post = _split(_pre_frame(n=134, seed=seed))
+        assert baseline_only_p_value(pre, post, []) > 0.01
+        assert baseline_only_p_value(pre, post, ["x"]) > 0.01  # with an exogenous baseline feature
+
+
+def test_baseline_only_p_value_is_none_when_the_fit_fails(monkeypatch):
+    import statsmodels.api as sm
+
+    from engine.analysis import baseline_only_p_value
+
+    def boom(*a, **k):
+        raise RuntimeError("fit failed")
+
+    monkeypatch.setattr(sm.tsa, "UnobservedComponents", boom)
+    pre, post = _split(_pre_frame())
+    assert baseline_only_p_value(pre, post, []) is None
+
+
+def test_causal_analysis_reports_the_robustness_p_value():
+    results = _causal(_causal_setup())
+    assert 0 <= results["robust_p_value"] <= 1

@@ -150,3 +150,13 @@ def make_strong_effect_dataset(out_dir: Path, *, seed: int = 11, n_days: int = D
         paths["generic_trends_file"], index=False, date_format="%Y-%m-%d"
     )
     return paths
+
+
+def make_noise_dataset(out_dir: Path, *, seed: int = 3, n_days: int = DAYS) -> dict[str, Path | None]:
+    """The default dataset's spend (spikes included), but a KPI that is pure noise: it does not respond to any channel."""
+    paths = make_dataset(out_dir, n_days=n_days)
+    rng = np.random.default_rng(seed)
+    days = pd.date_range(START, periods=n_days, freq="D")
+    noise = pd.DataFrame({"date": days, "Sessions": 5000.0 * rng.lognormal(0.0, 0.03, n_days)})
+    noise.to_csv(paths["performance_file"], index=False, date_format="%Y-%m-%d")
+    return paths

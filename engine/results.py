@@ -33,6 +33,7 @@ from engine.results_schema import (
     RejectedControl,
     ResponseRow,
     ResultsV1,
+    Robustness,
     Scenario,
     Sufficiency,
     Unidentified,
@@ -126,6 +127,8 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
             p_value=_num(data["placebo_p_value"]) if ran else None,
             passed=data["placebo_passed"] if ran else None,
         )
+    if "robust_p_value" in data:
+        event.robustness = Robustness(p_value=_num(data["robust_p_value"]), passed=data["robust_passed"])
     if "controls_used" in data:
         event.controls = EventControls(
             used=list(data["controls_used"]),

@@ -101,6 +101,11 @@ class Placebo(_Model):
     passed: bool | None = None
 
 
+class Robustness(_Model):
+    p_value: float | None = None  # p-value of the lift under a model without the media features
+    passed: bool | None = None  # False: significant only with them (`model_dependent`); None: did not run
+
+
 class LinePoint(_Model):
     date: str
     actual_kpi: float | None = None
@@ -157,6 +162,7 @@ class CausalEvent(_Model):
     cpa_incremental: float | None = None
     fit: Fit | None = None
     placebo: Placebo | None = None
+    robustness: Robustness | None = None
     controls: EventControls | None = None
     series: EventSeries | None = None
 

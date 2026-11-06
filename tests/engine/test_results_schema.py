@@ -99,3 +99,10 @@ def test_sufficiency_accepts_reasons_and_cv_flag():
     s = Sufficiency(passed=False, reasons=["cv_in_sample"], cv_out_of_sample=False, spend_variation={"A": 0.4})
     assert s.reasons == ["cv_in_sample"] and s.cv_out_of_sample is False
     assert Sufficiency(passed=True).reasons == []
+
+
+def test_causal_event_accepts_the_robustness_block():
+    from engine.results_schema import CausalEvent, Robustness
+
+    event = CausalEvent(id="e", channels=["A"], status="rejected", robustness=Robustness(p_value=0.3, passed=False))
+    assert event.robustness.passed is False and CausalEvent(id="e", channels=[], status="rejected").robustness is None

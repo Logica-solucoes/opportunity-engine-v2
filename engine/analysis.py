@@ -305,6 +305,23 @@ def placebo_p_value(pre_data, selected_features, post_len, min_pre_periods):
         return None
 
 
+def baseline_only_p_value(pre_data, post_data, baseline_features):
+    """p-value of the event's lift under a model WITHOUT the media features, or None when the fit fails.
+
+    A lift that is significant only with the media features is the model extrapolating its own coefficients
+    onto a spend spike (they can be pure noise), not a response seen in the KPI (robustness gate, A6).
+    """
+    try:
+        forecast = _fit_state_space(pre_data, baseline_features).get_forecast(
+            steps=len(post_data), exog=post_data[baseline_features] if baseline_features else None
+        )
+        impact = float((post_data["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
+        return cumulative_p_value(impact, forecast)[0]
+    except Exception as e:
+        log.warning(f"   - Robustness fit (without the media features) could not be computed: {e}")
+        return None
+
+
 HOLDOUT_FRACTION = 0.2
 
 
@@ -467,6 +484,8 @@ def run_causal_impact_analysis(
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
         placebo_p = placebo_p_value(pre_data_for_model, selected_features, len(post_data), min_pre_periods)
         oos = oos_wmape(pre_data_for_model, selected_features, min_pre_periods)
+        baseline_features = [f for f in selected_features if f not in transformed_features]
+        robust_p = baseline_only_p_value(pre_data_for_model, post_data, baseline_features)
 
         accuracy_df = pre_data_for_model.copy()
         accuracy_df["Predicted"] = in_sample_preds
@@ -610,6 +629,7 @@ def run_causal_impact_analysis(
             "placebo_ran": placebo_p is not None,
             "placebo_p_value": placebo_p,
             "oos_wmape": oos,
+            "robust_p_value": robust_p,
             "controls_used": accepted_controls,
             "controls_rejected": rejected_controls,
         }

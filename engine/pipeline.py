@@ -36,7 +36,7 @@ class EventOutcome:
     passed: bool = False
     reasons: list[str] = field(
         default_factory=list
-    )  # not_significant, illogical_direction, poor_fit, placebo_failed, analysis_failed
+    )  # not_significant, illogical_direction, poor_fit, placebo_failed, model_dependent, analysis_failed
     selected: bool = False  # among the max_events_to_analyze best passing events
 
 
@@ -129,6 +129,8 @@ def _gate_reasons(results: dict, cfg: dict) -> list[str]:
         reasons.append("poor_fit")
     if results.get("placebo_passed") is False:
         reasons.append("placebo_failed")  # the model "finds" an effect where nothing happened
+    if results.get("robust_passed") is False:
+        reasons.append("model_dependent")  # significant only through the media features' extrapolation
     return reasons
 
 
@@ -178,6 +180,11 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
             outcome.sessions_bar_df, outcome.accuracy_df = sessions_bar_df, accuracy_df
             p_placebo = results.get("placebo_p_value")
             results["placebo_passed"] = None if p_placebo is None else p_placebo >= cfg["p_value_threshold"]
+            p_robust = results.get("robust_p_value")
+            threshold = cfg["p_value_threshold"]
+            results["robust_passed"] = (
+                None if p_robust is None else not (results["p_value"] < threshold and p_robust >= threshold)
+            )
             outcome.reasons = _gate_reasons(results, cfg)
             outcome.passed = not outcome.reasons
             if not outcome.passed:

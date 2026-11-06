@@ -275,3 +275,23 @@ def test_the_thresholds_come_from_the_gate_thresholds_config():
     cfg = {"gate_thresholds": {"oos_wmape_max": 0.1}}
     out = pipeline.judge_sufficiency(_prepared_stub(A="varying"), events, {"cv_out_of_sample": True}, cfg)
     assert out.reasons == ["high_oos_wmape"]
+
+
+def test_a_lift_that_needs_the_media_features_is_model_dependent():
+    from engine.pipeline import _gate_reasons
+
+    cfg = _gate_cfg()
+    assert _gate_reasons(_gate_results(robust_p_value=0.6, robust_passed=False), cfg) == ["model_dependent"]
+    assert _gate_reasons(_gate_results(robust_p_value=0.01, robust_passed=True), cfg) == []
+    assert _gate_reasons(_gate_results(robust_p_value=None, robust_passed=None), cfg) == []
+
+
+def test_analyze_events_derives_robust_passed_from_both_p_values(tmp_path):
+    _, prepared, legacy = _prepared(tmp_path, config={"p_value_threshold": 0.1})
+    events = pipeline.analyze_events(prepared, pipeline.detect_events(prepared, legacy), legacy)
+    for e in (e for e in events if e.results_data):
+        data, thr = e.results_data, 0.1
+        expected = (
+            None if data["robust_p_value"] is None else not (data["p_value"] < thr and data["robust_p_value"] >= thr)
+        )
+        assert data["robust_passed"] is expected

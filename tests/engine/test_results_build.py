@@ -543,3 +543,15 @@ def test_run_status_never_succeeds_with_a_failed_sufficiency():
         results.run_status(Causal(status="inconclusive"), Elasticity(status="failed"), Sufficiency(passed=False))
         == "failed"
     )
+
+
+def test_event_carries_the_robustness(synthetic_computed):
+    data = {**_result_data(), "robust_p_value": 0.4, "robust_passed": False}
+    event = results._causal(with_events(synthetic_computed, [outcome(data=data, passed=False, selected=False)])).events[
+        0
+    ]
+    assert event.robustness.p_value == 0.4 and event.robustness.passed is False
+
+
+def test_event_without_the_robustness_keys_publishes_none(synthetic_computed):
+    assert results._causal(with_events(synthetic_computed, [outcome()])).events[0].robustness is None
