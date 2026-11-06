@@ -185,6 +185,7 @@ def _dump(model) -> dict:
 
 
 def test_elasticity_metrics_and_channels(synthetic_computed):
+    synthetic_computed = dataclasses.replace(synthetic_computed, identifiability=None)  # the unfiltered shape
     elasticity = results.build_results(synthetic_computed, "v").elasticity
     mmm = synthetic_computed.mmm
     assert elasticity.status == "ok" and elasticity.reasons == []
@@ -199,6 +200,7 @@ def test_elasticity_metrics_and_channels(synthetic_computed):
 
 
 def test_response_curve_rows_map_the_columns(synthetic_computed):
+    synthetic_computed = dataclasses.replace(synthetic_computed, identifiability=None)  # the unfiltered shape
     curve = results.build_results(synthetic_computed, "v").elasticity.response_curve
     frame = synthetic_computed.response_curve_df
     assert len(curve) == len(frame)
@@ -360,3 +362,82 @@ def test_event_without_controls_in_the_data_has_none(synthetic_computed):
     assert results._causal(with_events(synthetic_computed, [outcome()])).events[0].controls is None
     failed = EventOutcome("YOUTUBE_2024-06-03", "YOUTUBE", "2024-06-03", None, reasons=["analysis_failed"])
     assert results._causal(with_events(synthetic_computed, [failed])).events[0].controls is None
+
+
+# --- A5: only identifiable channels are published ---------------------------------------------------------------
+
+
+def _assessed(computed, identifiable: set[str], *, reason="ci_crosses_zero"):
+    verdicts = {
+        name: {
+            "identifiable": name in identifiable,
+            "reasons": [] if name in identifiable else [reason],
+            "coef_ci": (0.5, 2.0) if name in identifiable else (0.0, 3.0),
+            "point": 1.0,
+        }
+        for name in computed.mmm["spend_cols"]
+    }
+    return dataclasses.replace(computed, identifiability=verdicts)
+
+
+def test_unidentified_channel_loses_curve_hill_adstock_and_contribution(synthetic_computed):
+    keep, hidden = synthetic_computed.mmm["spend_cols"][:2]
+    elasticity = results.build_results(_assessed(synthetic_computed, {keep}), "v").elasticity
+    channels = {c.name: c for c in elasticity.channels}
+    assert channels[keep].identifiable is True and channels[keep].hill is not None and len(channels[keep].curve) == 100
+    assert channels[keep].contribution_pct is not None and channels[keep].coef_ci == (0.5, 2.0)
+    gone = channels[hidden]
+    assert gone.identifiable is False and gone.reasons == ["ci_crosses_zero"] and gone.coef_ci == (0.0, 3.0)
+    assert gone.hill is None and gone.adstock is None and gone.curve == [] and gone.contribution_pct is None
+    assert gone.observed_spend_range is not None
+
+
+def test_mix_pools_hidden_channels_and_keeps_the_row_sum(synthetic_computed):
+    from engine.identifiability import UNIDENTIFIED_KEY
+
+    spend_cols = list(synthetic_computed.mmm["spend_cols"])
+    keep, hidden = spend_cols[0], set(spend_cols[1:])
+    plain = results.build_results(dataclasses.replace(synthetic_computed, identifiability=None), "v")
+    filtered = results.build_results(_assessed(synthetic_computed, {keep}), "v")
+    for before, after in zip(plain.elasticity.response_curve, filtered.elasticity.response_curve, strict=True):
+        for variant in ("historical", "optimized", "strategic"):
+            assert not hidden & set(after.mix[variant])
+            assert set(after.mix[variant]) == {keep, UNIDENTIFIED_KEY}
+            assert sum(after.mix[variant].values()) == pytest.approx(sum(before.mix[variant].values()))
+
+
+def test_unidentified_section_lists_names_and_summed_contribution(synthetic_computed):
+    spend_cols = list(synthetic_computed.mmm["spend_cols"])
+    elasticity = results.build_results(_assessed(synthetic_computed, {spend_cols[0]}), "v").elasticity
+    assert elasticity.unidentified.channels == spend_cols[1:]
+    expected = sum(synthetic_computed.mmm["contribution_pct"][c] for c in spend_cols[1:])
+    assert elasticity.unidentified.contribution_pct == pytest.approx(expected)
+    assert "no_identifiable_channel" not in elasticity.reasons
+
+
+def test_no_identifiable_channel_still_publishes_the_total(synthetic_computed):
+    elasticity = results.build_results(_assessed(synthetic_computed, set()), "v").elasticity
+    assert elasticity.status == "ok" and elasticity.reasons == ["no_identifiable_channel"]
+    assert elasticity.unidentified.channels == list(synthetic_computed.mmm["spend_cols"])
+    assert elasticity.response_curve and elasticity.scenarios and elasticity.metrics is not None
+    assert all(set(row.mix["historical"]) == {"nao_identificavel"} for row in elasticity.response_curve)
+
+
+def test_special_characters_in_channel_names_are_never_mix_keys(synthetic_computed):
+    mmm = dict(synthetic_computed.mmm)
+    old = mmm["spend_cols"][0]
+    new = "GOOGLE DISPLAY/VIDEO"
+    mmm["spend_cols"] = [new, *mmm["spend_cols"][1:]]
+    frame = synthetic_computed.response_curve_df.rename(columns=lambda c: c.replace(f"_{old}_", f"_{new}_"))
+    mmm["contribution_pct"] = {(new if k == old else k): v for k, v in mmm["contribution_pct"].items()}
+    mmm["dataframe"] = mmm["dataframe"].rename(columns={old: new})
+    computed = dataclasses.replace(synthetic_computed, mmm=mmm, response_curve_df=frame)
+    computed = _assessed(computed, set(mmm["spend_cols"][1:]))
+    rows = results.build_results(computed, "v").elasticity.response_curve
+    assert all(new not in row.mix["historical"] for row in rows)
+
+
+def test_without_identifiability_nothing_is_filtered(synthetic_computed):
+    elasticity = results.build_results(dataclasses.replace(synthetic_computed, identifiability=None), "v").elasticity
+    assert elasticity.unidentified is None and all(c.reasons == [] for c in elasticity.channels)
+    assert all("nao_identificavel" not in row.mix["historical"] for row in elasticity.response_curve)

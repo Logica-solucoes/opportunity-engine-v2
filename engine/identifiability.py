@@ -39,3 +39,19 @@ def collinear_channels(validation: ValidationReport | None, vif_max: float) -> s
     flagged = {name for pair in collinearity.pairs for name in (pair["a"], pair["b"])}
     flagged |= {name for name, value in collinearity.vif.items() if value is None or value > vif_max}
     return flagged
+
+
+def hidden_channels(identifiability: dict[str, dict] | None) -> set[str]:
+    """Channels that must not be published on their own; empty when nothing was assessed."""
+    if not identifiability:
+        return set()
+    return {name for name, verdict in identifiability.items() if not verdict["identifiable"]}
+
+
+def pool(values: dict[str, float | None], hidden: set[str]) -> dict[str, float | None]:
+    """`values` with the hidden channels summed under UNIDENTIFIED_KEY (the key exists only if one was pooled)."""
+    kept = {name: value for name, value in values.items() if name not in hidden}
+    pooled = [value for name, value in values.items() if name in hidden]
+    if pooled:
+        kept[UNIDENTIFIED_KEY] = None if any(v is None for v in pooled) else sum(pooled)
+    return kept

@@ -2,7 +2,17 @@ import pytest
 from pydantic import ValidationError
 
 from engine.results import sanitize
-from engine.results_schema import SCHEMA_VERSION, CausalEvent, EventControls, RejectedControl, Reports, ResultsV1
+from engine.results_schema import (
+    SCHEMA_VERSION,
+    CausalEvent,
+    ChannelFit,
+    Elasticity,
+    EventControls,
+    RejectedControl,
+    Reports,
+    ResultsV1,
+    Unidentified,
+)
 
 ROOT_KEYS = {
     "schema_version",
@@ -70,3 +80,14 @@ def test_event_controls_are_optional_and_round_trip():
     controls = EventControls(used=["a"], rejected=[RejectedControl(name="b", r=0.7)])
     event = CausalEvent(id="e", channels=["A"], status="published", controls=controls)
     assert CausalEvent.model_validate_json(event.model_dump_json()).controls == controls
+
+
+def test_identifiability_fields_are_optional_and_round_trip():
+    bare = ChannelFit(name="A")
+    assert bare.reasons == [] and Elasticity(status="ok").unidentified is None
+    section = Elasticity(
+        status="ok",
+        channels=[ChannelFit(name="A", identifiable=False, reasons=["ci_crosses_zero"], coef_ci=(0.0, 1.0))],
+        unidentified=Unidentified(channels=["A"], contribution_pct=12.5),
+    )
+    assert Elasticity.model_validate_json(section.model_dump_json()) == section

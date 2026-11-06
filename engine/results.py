@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from engine.grouping import group_name
+from engine.identifiability import hidden_channels, pool
 from engine.results_schema import (
     AccuracyPoint,
     Baseline,
@@ -32,6 +33,7 @@ from engine.results_schema import (
     ResponseRow,
     ResultsV1,
     Scenario,
+    Unidentified,
 )
 
 if TYPE_CHECKING:
@@ -172,6 +174,7 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
     if frame is None or frame.empty:
         return []
     spend_cols = computed.mmm["spend_cols"]
+    hidden = hidden_channels(computed.identifiability)
     revenue_mode = _revenue_mode(computed.effective_config)  # outside it revenue and ROAS are 0 by construction
     rows = []
     for record in frame.to_dict("records"):
@@ -188,7 +191,7 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
                 incremental_investment=_num(record.get("Incremental_Investment")),
                 incremental_kpi=_num(record.get("Incremental_KPI")),
                 mix={
-                    variant: {ch: _num(record.get(f"Spend_{ch}_{suffix}")) for ch in spend_cols}
+                    variant: pool({ch: _num(record.get(f"Spend_{ch}_{suffix}")) for ch in spend_cols}, hidden)
                     for variant, suffix in MIX_VARIANTS.items()
                 },
             )
@@ -219,20 +222,26 @@ def _channel_fits(computed: "Computed") -> list[ChannelFit]:
     mmm = computed.mmm
     params, frame = mmm["optimal_params"], mmm["dataframe"]
     curves = computed.individual_curves_df
+    verdicts = computed.identifiability or {}
     fits = []
     for i, name in enumerate(mmm["spend_cols"]):
+        verdict = verdicts.get(name)
+        published = verdict is None or verdict["identifiable"]  # what the data cannot support is not published
         curve = []
-        if curves is not None and not curves.empty:
+        if published and curves is not None and not curves.empty:
             own = curves[curves["Channel"] == name]
             curve = [CurvePoint(x=_num(r.Channel_Spend), y=_num(r.Projected_Total_KPIs)) for r in own.itertuples()]
         fits.append(
             ChannelFit(
                 name=name,
-                contribution_pct=_num(mmm["contribution_pct"].get(name)),
-                hill=Hill(K=_num(params["ks"][i]), n=_num(params["ss"][i])),
-                adstock=_num(params["alphas"][i]),
+                contribution_pct=_num(mmm["contribution_pct"].get(name)) if published else None,
+                identifiable=None if verdict is None else verdict["identifiable"],
+                coef_ci=None if verdict is None else (_num(verdict["coef_ci"][0]), _num(verdict["coef_ci"][1])),
+                hill=Hill(K=_num(params["ks"][i]), n=_num(params["ss"][i])) if published else None,
+                adstock=_num(params["alphas"][i]) if published else None,
                 observed_spend_range=(_num(frame[name].min()), _num(frame[name].max())),
                 curve=curve,
+                reasons=[] if verdict is None else list(verdict["reasons"]),
             )
         )
     return fits
@@ -246,8 +255,18 @@ def _elasticity(computed: "Computed") -> Elasticity:
         Group(name=group_name(members), members=[m.strip().upper() for m in members])
         for members in computed.effective_config.get("channel_groups") or []
     ]
+    hidden = [name for name in mmm["spend_cols"] if name in hidden_channels(computed.identifiability)]
+    unidentified = None
+    reasons = []
+    if hidden:
+        unidentified = Unidentified(
+            channels=hidden, contribution_pct=_num(sum(mmm["contribution_pct"].get(name, 0.0) for name in hidden))
+        )
+    if computed.identifiability and len(hidden) == len(mmm["spend_cols"]):
+        reasons = ["no_identifiable_channel"]  # informative: the total curve and scenarios are still published
     return Elasticity(
         status="ok",
+        reasons=reasons,
         metrics=ElasticityMetrics(
             cv_r2=_num(mmm["cv_r_squared"]),
             r2=_num(mmm["r_squared"]),
@@ -255,6 +274,7 @@ def _elasticity(computed: "Computed") -> Elasticity:
         ),
         channels=_channel_fits(computed),
         groups=groups,
+        unidentified=unidentified,
         response_curve=_response_rows(computed),
         scenarios=_scenarios(computed),
     )

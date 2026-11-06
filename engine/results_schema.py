@@ -199,6 +199,9 @@ class ChannelFit(_Model):
     adstock: float | None = None
     observed_spend_range: tuple[float | None, float | None] | None = None
     curve: list[CurvePoint] = Field(default_factory=list)
+    reasons: list[str] = Field(
+        default_factory=list
+    )  # why identifiable is false: ci_crosses_zero, ci_too_wide, collinearity
 
 
 class Group(_Model):
@@ -235,12 +238,20 @@ class Scenario(_Model):
     ramp: list[dict[str, Any]] | None = None
 
 
+class Unidentified(_Model):
+    """The channels the data cannot tell apart from zero (or from each other): only their total is published."""
+
+    channels: list[str] = Field(default_factory=list)
+    contribution_pct: float | None = None
+
+
 class Elasticity(_Model):
     status: SectionStatus
     reasons: list[str] = Field(default_factory=list)
     metrics: ElasticityMetrics | None = None
     channels: list[ChannelFit] = Field(default_factory=list)
     groups: list[Group] = Field(default_factory=list)
+    unidentified: Unidentified | None = None
     response_curve: list[ResponseRow] = Field(default_factory=list)
     scenarios: list[Scenario] = Field(default_factory=list)
 

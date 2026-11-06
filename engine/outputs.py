@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from engine import presentation, recommendations, reports
+from engine.identifiability import hidden_channels, pool
 from llm.base import LLM, LLMUnavailable
 
 if TYPE_CHECKING:
@@ -77,7 +78,9 @@ def _write_event(computed: "Computed", outcome, out_dir: Path, written: Written)
 
 def _scenario(title, description, point, factor, computed: "Computed", strategic_ratio: dict, total=None) -> dict:
     total = point["Daily_Investment"] * factor if total is None else total
+    hidden = hidden_channels(computed.identifiability)  # what the data cannot support is not named to the LLM
     mixes = (computed.current_split, computed.optimized_mix, strategic_ratio)
+    mixes = tuple(pool(mix, hidden) for mix in mixes)
     return {
         "title": title,
         "description": description,
