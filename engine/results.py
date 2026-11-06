@@ -214,18 +214,23 @@ def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
             continue
         investment = _num(point.get("Daily_Investment"))
         changes = current is not None and investment is not None and not math.isclose(investment, current)
+        kpi, kpi_lo, kpi_hi = (_num(point.get(k)) for k in ("Projected_Total_KPIs", "KPI_Lo", "KPI_Hi"))
+        steps = ramp(current, investment, cfg["max_budget_step"], curve) if changes else None
+        if steps:
+            # the curve uses the strategic mix; the scenario may not (max_efficiency), so the landing step is its own
+            steps[-1].update(kpi=kpi, kpi_lo=kpi_lo, kpi_hi=kpi_hi)
         scenarios.append(
             Scenario(
                 name=name,
                 investment=investment,
-                kpi=_num(point.get("Projected_Total_KPIs")),
-                kpi_lo=_num(point.get("KPI_Lo")),
-                kpi_hi=_num(point.get("KPI_Hi")),
+                kpi=kpi,
+                kpi_lo=kpi_lo,
+                kpi_hi=kpi_hi,
                 icpa=_icpa(point),
                 incremental_investment=_num(point.get("Incremental_Investment")),
                 incremental_kpi=_num(point.get("Incremental_KPI")),
                 extrapolated=_flag(point.get("Extrapolated")),
-                ramp=ramp(current, investment, cfg["max_budget_step"], curve) if changes else None,
+                ramp=steps,
                 notes=[note] if changes else [],
             )
         )

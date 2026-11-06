@@ -119,6 +119,8 @@ def test_results_publish_band_flag_ramp_and_notes(identifiable_computed):
         assert s["kpi_lo"] is not None and s["kpi_hi"] is not None and s["extrapolated"] in (True, False)
         assert (s["ramp"] is not None) == (abs(s["investment"] / current - 1) > 0.2 + 1e-9)
         assert bool(s["notes"]) == (not math.isclose(s["investment"], current))
+        if s["ramp"]:
+            assert (s["ramp"][-1]["kpi"], s["ramp"][-1]["kpi_lo"]) == (s["kpi"], s["kpi_lo"])
 
     published = [c for c in elasticity["channels"] if c["identifiable"]]
     assert published and all(
