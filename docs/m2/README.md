@@ -112,9 +112,10 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
                "series":{"line":[…],"accuracy":[…],"investment":[…],"kpi":[…]}}]},
  "elasticity": {
    "metrics": {"cv_r2":…, "r2":…, "media_contribution_pct":…, "low_confidence":false, "reallocation_suppressed":false},
-   "channels": [{"name":"YOUTUBE","identifiable":true,"coef_ci":[…,…],"hill":{"K":…,"n":…},"adstock":…,
+   "channels": [{"name":"YOUTUBE","identifiable":true,"reasons":[],"coef_ci":[…,…],"hill":{"K":…,"n":…},"adstock":…,
                  "observed_spend_range":[…,…],"curve":[{"x":…,"y":…,"lo":…,"hi":…,"extrapolated":false}]}],
    "groups": [{"name":"PMAX + SEARCH","members":["PMAX","SEARCH"]}],
+   "unidentified": {"channels":["DISPLAY"],"contribution_pct":4.2},
    "response_curve": [{"investment":…,"kpi":…,"kpi_lo":…,"kpi_hi":…,"revenue":…,"icpa":…,"iroas":…,
                        "extrapolated":false,"mix":{"YOUTUBE":…}}],
    "scenarios": [{"name":"current|recommended|saturation","investment":…,"kpi":…,"kpi_lo":…,"kpi_hi":…,

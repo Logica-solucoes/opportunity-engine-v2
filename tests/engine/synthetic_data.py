@@ -115,3 +115,38 @@ def dataset_config() -> dict:
             "generic_trends_file": {"date_col": "Day", "trends_col": "Ad Opportunities"},
         },
     }
+
+
+STRONG, NULL = "STRONG", "NULL_CHANNEL"
+
+
+def make_strong_effect_dataset(out_dir: Path, *, seed: int = 11, n_days: int = DAYS) -> dict[str, Path | None]:
+    """Two channels with independent, wide spend swings: STRONG drives the KPI hard, NULL_CHANNEL does nothing."""
+    rng = np.random.default_rng(seed)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    days = pd.date_range(START, periods=n_days, freq="D")
+    spend = {
+        STRONG: 1000.0 * rng.lognormal(0.0, 0.45, n_days),
+        NULL: 800.0 * rng.lognormal(0.0, 0.45, n_days),
+    }
+    weekday = days.dayofweek.to_numpy()
+    kpi = 5000.0 * np.where(weekday >= 5, 0.9, 1.0) + 4.0 * spend[STRONG] * (1 - np.exp(-spend[STRONG] / 1500.0))
+    kpi *= rng.lognormal(0.0, 0.01, n_days)
+    trends = 50 + 10 * np.sin(np.arange(n_days) / 30.0) + rng.normal(0, 2, n_days)
+
+    frame = pd.DataFrame({"date": days, "Sessions": kpi, "Ad Opportunities": trends})
+    investment = pd.DataFrame({"dates": np.tile(days, 2), "product_group": np.repeat(list(spend), n_days)})
+    investment["total_revenue"] = np.concatenate([spend[name] for name in spend])
+    paths: dict[str, Path | None] = {
+        "investment_file": out_dir / "investment.csv",
+        "performance_file": out_dir / "performance.csv",
+        "generic_trends_file": out_dir / "trends.csv",
+    }
+    investment.sort_values(["dates", "product_group"]).to_csv(
+        paths["investment_file"], index=False, date_format="%Y-%m-%d"
+    )
+    frame[["date", "Sessions"]].to_csv(paths["performance_file"], index=False, date_format="%Y-%m-%d")
+    frame[["date", "Ad Opportunities"]].rename(columns={"date": "Day"}).to_csv(
+        paths["generic_trends_file"], index=False, date_format="%Y-%m-%d"
+    )
+    return paths

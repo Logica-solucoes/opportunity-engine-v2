@@ -83,6 +83,7 @@ def test_fixtures_only_use_anonymous_channel_names(name):
     channels |= {ch for e in data["causal"]["events"] for ch in e["channels"]}
     channels |= {ch for row in data["elasticity"]["response_curve"][:1] for mix in row["mix"].values() for ch in mix}
     channels |= {ch for m in data["baseline"]["monthly"] for ch in m["by_channel"]}
+    channels -= {"nao_identificavel"}  # the pool for channels the data cannot support (A5), not a channel name
     assert channels and all(ANONYMOUS.match(c) for c in channels)
     for text in _strings(data):
         assert "exemplo_csv" not in text and "/" not in text

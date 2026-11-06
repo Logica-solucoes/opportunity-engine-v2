@@ -14,7 +14,7 @@ from engine import pipeline
 from engine.errors import EngineError
 from llm.base import LLMBadOutput, LLMUnavailable
 from tests.engine.csv_factory import with_twin
-from tests.engine.synthetic_data import dataset_config, make_dataset
+from tests.engine.synthetic_data import NULL, STRONG, dataset_config, make_dataset, make_strong_effect_dataset
 from tests.fakes.llm import EVENT_NARRATIVE, GLOBAL_NARRATIVE, FakeLLM
 
 SHORT = 364
@@ -226,3 +226,45 @@ def test_rejected_control_reaches_results_json_without_failing_the_event(monkeyp
     for event in events:
         assert [c["name"] for c in event["controls"]["rejected"]] == ["Like_YT"]
         assert not any("control" in reason for reason in event["reasons"])
+
+
+# --- A5: identifiability ---------------------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def strong_run(tmp_path_factory):
+    mp = pytest.MonkeyPatch()
+    mp.setenv("LLM_PROVIDER", "none")
+    work = tmp_path_factory.mktemp("strong")
+    run = _run_once(work, dataset_config(), make_strong_effect_dataset(work / "data"))
+    mp.undo()
+    return run
+
+
+def test_strong_effect_channel_is_identifiable_and_null_channel_is_not(strong_run):
+    channels = {c["name"]: c for c in strong_run.result["elasticity"]["channels"]}
+    strong, null = channels[STRONG], channels[NULL]
+    assert strong["identifiable"] is True and strong["reasons"] == []
+    assert strong["hill"] is not None and strong["adstock"] is not None and strong["curve"]
+    assert null["identifiable"] is False and null["reasons"] == ["ci_crosses_zero"]
+    assert null["hill"] is None and null["adstock"] is None and null["curve"] == []
+    assert null["contribution_pct"] is None and null["coef_ci"] is not None
+
+
+def test_a_hidden_channel_has_no_curve_or_mix_in_the_results(strong_run):
+    elasticity = strong_run.result["elasticity"]
+    assert elasticity["unidentified"]["channels"] == [NULL]
+    assert elasticity["status"] == "ok" and "no_identifiable_channel" not in elasticity["reasons"]
+    for row in elasticity["response_curve"]:
+        for variant, mix in row["mix"].items():
+            assert NULL not in mix and set(mix) == {STRONG, "nao_identificavel"}, variant
+        assert sum(row["mix"]["historical"].values()) == pytest.approx(row["investment"], rel=1e-6)
+
+
+def test_block_per_channel_marks_collinear_channels_as_not_identifiable(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLM_PROVIDER", "none")
+    inputs = with_twin(make_dataset(tmp_path / "data", n_days=SHORT))
+    run = _run_once(tmp_path, {**dataset_config(), "block_per_channel": True}, inputs)
+    channels = {c["name"]: c for c in run.result["elasticity"]["channels"]}
+    for name in ("SEARCH", "SEARCH2"):
+        assert channels[name]["identifiable"] is False and "collinearity" in channels[name]["reasons"]
