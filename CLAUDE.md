@@ -43,7 +43,7 @@ web/              Vite + React 19 + TypeScript + TanStack Router/Query (bun)
   src/components/ ui/ é do shadcn (gerado por `bunx shadcn@latest add`); o resto é nosso
   e2e/            Playwright contra a app real (banco app_e2e)
 engine/           Trilha A: motor estatístico (A0, 04/nov/2026)
-  __init__.py     exporta run, EngineConfig, EngineError
+  __init__.py     exporta run, validate, scenario, ScenarioFilters, EngineConfig, EngineError
   __main__.py     python -m engine --config run.json --out DIR
   config.py       EngineConfig (pydantic) e to_legacy_dict(); única fonte dos defaults
   pipeline.py     run() e os estágios em memória (load_inputs, detect_events, analyze_events, run_elasticity, compute)
@@ -53,6 +53,7 @@ engine/           Trilha A: motor estatístico (A0, 04/nov/2026)
   analysis.py, elasticity_analysis.py, data_preprocessor.py, presentation.py, recommendations.py, reports.py   cópias do protótipo
   logmessages.py  tradução pt-BR dos logs e a ponte para o on_log
   errors.py       EngineError (mensagem pt-BR segura para a tela)
+  scenario.py     `ramp`, notas tCPA/tROAS e `scenario()` (A8): filtros do planner sobre o results.json, mensal
 llm/              acesso plugável a LLM (get_llm, LLM, LLMUnavailable…); só o adaptador Gemini existe
 tests/            pytest; tests/api/ plataforma, tests/engine/ motor (inclui paridade), tests/llm/, tests/fakes/ e tests/fixtures/parity/
 docs/m2/          plano do M2 · docs/superpowers/ specs e planos · docs/decisoes/ porquês

@@ -120,7 +120,7 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
    "response_curve": [{"investment":…,"kpi":…,"kpi_lo":…,"kpi_hi":…,"revenue":…,"icpa":…,"iroas":…,
                        "extrapolated":false,"mix":{"YOUTUBE":…}}],
    "scenarios": [{"name":"current|recommended|saturation","investment":…,"kpi":…,"kpi_lo":…,"kpi_hi":…,
-                  "cpa":…,"roas":…,"extrapolated":false,"ramp":[{"step":1,"investment":…}],"notes":["…"]}]},
+                  "extrapolated":false,"ramp":[{"step":1,"investment":…}],"notes":["…"]}]},
  "experiment_design": null,
  "reports": {"events": {"<event id>": {…narrativa…}}, "global": {…},
              "grounding": {"status":"passed|regenerated|blocked","issues":[…]}}}
@@ -138,7 +138,7 @@ Em aberto: `incremental_investment` do evento hoje é o investimento total do p�
 `on_log` (proposto pelo B4, a confirmar no spec do A0): `on_log(level: str, message: str)`, com `level` em `info|warning|error` e `message` já em pt-BR, pronta para a tela; o worker grava cada chamada em `run_logs`. `inputs` tem as mesmas chaves do `validate`. **Decidido no A0/A2:** `on_log` como proposto. O motor levanta `EngineError` (`engine/errors.py`), com mensagem pt-BR segura para a tela e `check_id` quando é um check do `validate`; o `run` valida antes e para no primeiro erro. Qualquer outra exceção sobe como está. A API usa o motor real desde 05/nov/2026: o worker mostra a mensagem do `EngineError` na tela e trata qualquer outra exceção como erro genérico (passo 7 do swap em `docs/decisoes/engine.md`).
 
 ### 4. `engine.scenario(results, filters, max_budget_step) -> dict` (dono: A, item A8)
-Recalcula ponto ótimo, ponto de saturação e tabela de cenários quando o usuário mexe em slider ou filtro (target CPA/ROAS/iCPA/iROAS, faixa de orçamento). Substitui a lógica que hoje mora em `streamlit_app.py:2208-2366` e `dashboard_charts.py:15-78`. Filtros e saída mensais; devolve `{unit, revenue_mode, current, recommended, saturation, curve}`. A API exposta como `GET /api/w/{slug}/runs/{run_id}/scenario?...`.
+Recalcula ponto ótimo, ponto de saturação e tabela de cenários quando o usuário mexe em slider ou filtro (target CPA/ROAS/iCPA/iROAS, faixa de orçamento). Substitui a lógica que hoje mora em `streamlit_app.py:2208-2366` e `dashboard_charts.py:15-78`. Filtros e saída mensais; devolve `{unit, revenue_mode, current, recommended, saturation, curve}`. A API expõe como `GET /api/w/{slug}/runs/{run_id}/scenario?...`.
 
 ---
 

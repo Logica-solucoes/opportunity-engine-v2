@@ -10,7 +10,7 @@ Real-shaped `results.json` documents (schema v1, `engine/results_schema.py`) for
 
 What a screen can assume
 - Read `status` and `reasons` (run level, per section, per event); never recompute a gate.
-- `null` means "not produced": `validation`, `sufficiency`, `experiment_design`, `reports` (A2, A5-A9), plus `placebo`, `identifiable`, `coef_ci`, curve intervals, `extrapolated`, `ramp` and `notes` until the fixtures are regenerated with the Gol (A8 fills them on a new run).
+- `null` means "not produced": `sufficiency`, `experiment_design`, `reports` (A2, A5-A9), plus `placebo`, `identifiable`, `coef_ci`, curve intervals, `extrapolated` and `ramp` (and no `notes` key) until the fixtures are regenerated with the Gol (A8 fills them on a new run).
 - No `NaN`/`Infinity` anywhere; a missing number is `null`.
 
 Anonymization (`anonymize_gol.py`): channels become `CANAL_01..NN`; investment and KPI are multiplied by two private factors
