@@ -262,6 +262,74 @@ def _select_variance_threshold_features(pre_data_for_model, potential_exog_vars,
     return [var for i, var in enumerate(potential_exog_vars) if support[i]]
 
 
+def cumulative_p_value(abs_lift, forecast):
+    """(p_value, cumulative standard error) of a cumulative impact against the forecast's own uncertainty.
+
+    Shared by the real event and the placebo so both are judged by the same rule. Without a usable standard
+    error the effect cannot be told from noise: p is 1 and the error 0.
+    """
+    se = np.asarray(forecast.se_mean, dtype=float)
+    se = se[np.isfinite(se)]
+    cum_se = float(np.sqrt(np.sum(se**2))) if se.size else 0.0
+    if cum_se > 0:
+        return float(2 * stats.norm.sf(abs(abs_lift / cum_se))), cum_se
+    return 1.0, 0.0
+
+
+def _fit_state_space(data, features):
+    return sm.tsa.UnobservedComponents(data["kpi"], "llevel", trend=True, seasonal=7, exog=data[features]).fit(
+        disp=False
+    )
+
+
+def placebo_p_value(pre_data, selected_features, post_len, min_pre_periods):
+    """p-value of a fake intervention at the middle of the pre-period, or None when it cannot run.
+
+    Fits the event's model on the first half of the pre-period and forecasts the next `post_len` rows, then tests
+    the cumulative "impact" like the real event. A real model should find nothing there. The features were chosen
+    on the whole pre-period, a slight selection leak (docs/decisoes/engine.md).
+    """
+    n = len(pre_data)
+    fit_rows = n // 2
+    if fit_rows < min_pre_periods or n - fit_rows < post_len or post_len < 1:
+        return None
+    try:
+        fit_part, window = pre_data.iloc[:fit_rows], pre_data.iloc[fit_rows : fit_rows + post_len]
+        forecast = _fit_state_space(fit_part, selected_features).get_forecast(
+            steps=len(window), exog=window[selected_features]
+        )
+        impact = float((window["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
+        return cumulative_p_value(impact, forecast)[0]
+    except Exception as e:
+        log.warning(f"   - Placebo could not be computed: {e}")
+        return None
+
+
+HOLDOUT_FRACTION = 0.2
+
+
+def oos_wmape(pre_data, selected_features, min_pre_periods, holdout=HOLDOUT_FRACTION):
+    """WMAPE of the model on the last `holdout` of the pre-period it was not fitted on, or None."""
+    n = len(pre_data)
+    hold_rows = int(round(n * holdout))
+    train_rows = n - hold_rows
+    if train_rows < min_pre_periods or hold_rows < 7:
+        return None
+    try:
+        train, hold = pre_data.iloc[:train_rows], pre_data.iloc[train_rows:]
+        forecast = _fit_state_space(train, selected_features).get_forecast(
+            steps=len(hold), exog=hold[selected_features]
+        )
+        actual = hold["kpi"].to_numpy()
+        denominator = float(np.abs(actual).sum())
+        if denominator == 0:
+            return None
+        return float(np.abs(actual - np.asarray(forecast.predicted_mean)).sum() / denominator)
+    except Exception as e:
+        log.warning(f"   - Out-of-sample WMAPE could not be computed: {e}")
+        return None
+
+
 def run_causal_impact_analysis(
     kpi_df,
     daily_investment_df,
@@ -397,6 +465,8 @@ def run_causal_impact_analysis(
         ss_tot = np.sum((pre_data_for_model["kpi"] - np.mean(pre_data_for_model["kpi"])) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
+        placebo_p = placebo_p_value(pre_data_for_model, selected_features, len(post_data), min_pre_periods)
+        oos = oos_wmape(pre_data_for_model, selected_features, min_pre_periods)
 
         accuracy_df = pre_data_for_model.copy()
         accuracy_df["Predicted"] = in_sample_preds
@@ -422,17 +492,9 @@ def run_causal_impact_analysis(
         # error (se_mean grows with horizon), which is the counterfactual's real
         # noise band. Cumulative SE ~ sqrt(sum se_t^2) treats the per-step errors
         # as independent -- an approximation, but far sounder than the t-test.
-        se = np.asarray(forecast.se_mean, dtype=float)
-        se = se[np.isfinite(se)]
-        cum_se = float(np.sqrt(np.sum(se**2))) if se.size else 0.0
-        if cum_se > 0:
-            z_stat = abs_lift / cum_se
-            p_value = float(2 * stats.norm.sf(abs(z_stat)))
-            impact_ci_lower = abs_lift - 1.96 * cum_se
-            impact_ci_upper = abs_lift + 1.96 * cum_se
-        else:
-            p_value = 1.0
-            impact_ci_lower = impact_ci_upper = abs_lift
+        p_value, cum_se = cumulative_p_value(abs_lift, forecast)
+        impact_ci_lower = abs_lift - 1.96 * cum_se
+        impact_ci_upper = abs_lift + 1.96 * cum_se
 
         event_investment_agg = event_investment_series.reset_index().rename(columns={0: "investment"})
         event_investment_agg["Date"] = pd.to_datetime(event_investment_agg["Date"])
@@ -545,6 +607,9 @@ def run_causal_impact_analysis(
             "mape": mape,
             "model_r_squared": r_squared,
             "event_period_avg_investment": event_period_avg_investment,
+            "placebo_ran": placebo_p is not None,
+            "placebo_p_value": placebo_p,
+            "oos_wmape": oos,
             "controls_used": accepted_controls,
             "controls_rejected": rejected_controls,
         }

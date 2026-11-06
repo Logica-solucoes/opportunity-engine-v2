@@ -581,3 +581,78 @@ def test_calendar_columns_keep_the_order_of_the_model_data(monkeypatch):
     _causal(_causal_setup(), "A")
     calendar = [c for c in seen[0] if c.startswith(("day_", "is_"))]
     assert calendar == sorted(calendar, key=lambda c: (not c.startswith("is_"), c))  # is_* first, then day_0..day_6
+
+
+# --- A6: placebo and out-of-sample WMAPE ---
+
+
+def _pre_frame(n=120, seed=0, step_at=None, step=0.0, noise=1.0):
+    """kpi = level + weekly seasonality + noise (+ an optional step); one exogenous column."""
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range("2024-01-01", periods=n, freq="D")
+    kpi = 100 + 5 * np.sin(2 * np.pi * np.arange(n) / 7) + rng.normal(0, noise, n)
+    if step_at is not None:
+        kpi[step_at:] += step
+    return pd.DataFrame({"kpi": kpi, "x": rng.normal(0, 1, n)}, index=dates)
+
+
+def test_cumulative_p_value_tests_the_lift_against_the_accumulated_forecast_error():
+    from types import SimpleNamespace
+
+    from scipy import stats
+
+    from engine.analysis import cumulative_p_value
+
+    p, cum_se = cumulative_p_value(10.0, SimpleNamespace(se_mean=np.array([3.0, 4.0])))
+    assert cum_se == 5.0 and p == pytest.approx(2 * stats.norm.sf(2.0))
+    assert cumulative_p_value(10.0, SimpleNamespace(se_mean=np.array([]))) == (1.0, 0.0)
+
+
+def test_placebo_rejects_an_effect_injected_in_the_pre_period():
+    from engine.analysis import placebo_p_value
+
+    pre = _pre_frame(step_at=60, step=40.0)  # a 40-unit step at the midpoint, noise sd 1
+    assert placebo_p_value(pre, ["x"], 14, 8) < 0.05
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_placebo_does_not_reject_a_clean_pre_period(seed):
+    from engine.analysis import placebo_p_value
+
+    assert placebo_p_value(_pre_frame(seed=seed), ["x"], 14, 8) > 0.01
+
+
+def test_placebo_does_not_run_on_a_short_pre_period_or_a_window_larger_than_the_second_half():
+    from engine.analysis import placebo_p_value
+
+    assert placebo_p_value(_pre_frame(n=14), ["x"], 7, 8) is None  # n // 2 < min_pre_periods
+    assert placebo_p_value(_pre_frame(n=40), ["x"], 25, 8) is None  # window 25 > second half 20
+
+
+def test_oos_wmape_is_small_for_a_predictable_series_and_none_when_it_cannot_be_computed():
+    from engine.analysis import oos_wmape
+
+    assert oos_wmape(_pre_frame(noise=0.1), ["x"], 8) < 0.05
+    assert oos_wmape(_pre_frame(n=20), ["x"], 8) is None  # holdout of 4 rows < 7
+    zeros = _pre_frame()
+    zeros["kpi"] = 0.0
+    assert oos_wmape(zeros, ["x"], 8) is None  # sum |y| == 0
+
+
+def test_the_ols_failures_of_placebo_and_wmape_become_none(monkeypatch):
+    import statsmodels.api as sm
+
+    from engine.analysis import oos_wmape, placebo_p_value
+
+    def boom(*a, **k):
+        raise RuntimeError("fit failed")
+
+    monkeypatch.setattr(sm.tsa, "UnobservedComponents", boom)
+    assert placebo_p_value(_pre_frame(), ["x"], 14, 8) is None
+    assert oos_wmape(_pre_frame(), ["x"], 8) is None
+
+
+def test_causal_analysis_reports_the_placebo_and_the_oos_wmape():
+    results = _causal(_causal_setup())
+    assert results["placebo_ran"] is True and 0 <= results["placebo_p_value"] <= 1
+    assert results["oos_wmape"] is not None and results["oos_wmape"] >= 0

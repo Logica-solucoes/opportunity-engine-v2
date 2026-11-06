@@ -461,3 +461,21 @@ def test_reallocation_is_suppressed_while_any_channel_is_hidden(synthetic_comput
         "strategic_reallocation" in [s.name for s in all_ok.scenarios]
         and all_ok.metrics.reallocation_suppressed is None
     )
+
+
+def test_event_carries_the_placebo_and_the_oos_wmape(synthetic_computed):
+    data = {**_result_data(), "placebo_ran": True, "placebo_p_value": 0.62, "placebo_passed": True, "oos_wmape": 0.08}
+    event = results._causal(with_events(synthetic_computed, [outcome(data=data)])).events[0]
+    assert event.placebo.p_value == 0.62 and event.placebo.passed is True and event.fit.wmape == 0.08
+
+
+def test_a_placebo_that_did_not_run_is_published_as_null(synthetic_computed):
+    data = {**_result_data(), "placebo_ran": False, "placebo_p_value": None, "placebo_passed": None, "oos_wmape": None}
+    event = results._causal(with_events(synthetic_computed, [outcome(data=data)])).events[0]
+    assert event.placebo.p_value is None and event.placebo.passed is None and event.fit.wmape is None
+
+
+def test_a_failed_placebo_is_published_as_not_passed(synthetic_computed):
+    data = {**_result_data(), "placebo_ran": True, "placebo_p_value": 0.01, "placebo_passed": False, "oos_wmape": 0.1}
+    event = results._causal(with_events(synthetic_computed, [outcome(data=data)])).events[0]
+    assert event.placebo.passed is False

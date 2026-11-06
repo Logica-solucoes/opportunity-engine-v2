@@ -1,12 +1,12 @@
 from engine import pipeline
 from engine.config import EngineConfig
-from tests.engine.synthetic_data import dataset_config, make_dataset
+from tests.engine.synthetic_data import DAYS, dataset_config, make_dataset
 
 SHORT = 364  # one year: keeps the stage tests fast while still holding the YOUTUBE spike
 
 
-def _prepared(tmp_path, *, config=None, **dataset):
-    files = make_dataset(tmp_path, n_days=SHORT, **dataset)
+def _prepared(tmp_path, *, config=None, n_days=SHORT, **dataset):
+    files = make_dataset(tmp_path, n_days=n_days, **dataset)
     cfg = EngineConfig.from_input({**dataset_config(), **(config or {})})
     prepared = pipeline.load_inputs(files, cfg)
     return cfg, prepared, {**cfg.to_legacy_dict(), "period_days": prepared.period_days}
@@ -38,7 +38,8 @@ def test_gates_record_their_reasons(tmp_path):
 
 
 def test_selected_is_capped_by_max_events_to_analyze(tmp_path):
-    _, prepared, legacy = _prepared(tmp_path, config={"max_events_to_analyze": 1})
+    # the full-length history: with the placebo gate (A6) the one-year slice keeps a single event
+    _, prepared, legacy = _prepared(tmp_path, config={"max_events_to_analyze": 1}, n_days=DAYS)
     events = pipeline.analyze_events(prepared, pipeline.detect_events(prepared, legacy), legacy)
     passed = [e for e in events if e.passed]
     assert len(passed) >= 2, "the synthetic spike should yield several passing events"
@@ -164,3 +165,32 @@ def test_compute_assesses_every_channel_and_keeps_the_bootstrap_matrix(tmp_path)
     assert set(computed.identifiability) == set(columns)
     assert computed.mmm["bootstrap_coefs"].shape == (200, len(columns))
     assert all({"identifiable", "reasons", "coef_ci", "point"} <= set(v) for v in computed.identifiability.values())
+
+
+def _gate_results(**over):
+    base = {"p_value": 0.01, "investment_change_pct": 50.0, "absolute_lift": 10.0, "model_r_squared": 0.9}
+    return {**base, **over}
+
+
+def _gate_cfg():
+    from tests.engine.helpers import full_config
+
+    return full_config({})
+
+
+def test_a_failed_placebo_adds_placebo_failed():
+    from engine.pipeline import _gate_reasons
+
+    cfg = _gate_cfg()
+    assert _gate_reasons(_gate_results(placebo_ran=True, placebo_p_value=0.01, placebo_passed=False), cfg) == [
+        "placebo_failed"
+    ]
+    assert _gate_reasons(_gate_results(placebo_ran=True, placebo_p_value=0.6, placebo_passed=True), cfg) == []
+
+
+def test_a_placebo_that_did_not_run_does_not_reject():
+    from engine.pipeline import _gate_reasons
+
+    cfg = _gate_cfg()
+    assert _gate_reasons(_gate_results(placebo_ran=False, placebo_p_value=None, placebo_passed=None), cfg) == []
+    assert _gate_reasons(_gate_results(), cfg) == []  # results without the keys (older callers)

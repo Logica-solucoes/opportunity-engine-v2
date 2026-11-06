@@ -29,6 +29,7 @@ from engine.results_schema import (
     Lift,
     LinePoint,
     MonthlyBaseline,
+    Placebo,
     RejectedControl,
     ResponseRow,
     ResultsV1,
@@ -111,7 +112,18 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
     event.investment_change_pct = _num(data["investment_change_pct"])
     event.incremental_investment = _num(data["total_investment_post_period"])
     event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
-    event.fit = Fit(r2=_num(data["model_r_squared"]), mae=_num(data["mae"]), mape=_num(data["mape"]))
+    event.fit = Fit(
+        r2=_num(data["model_r_squared"]),
+        mae=_num(data["mae"]),
+        mape=_num(data["mape"]),
+        wmape=_num(data.get("oos_wmape")),
+    )
+    if "placebo_ran" in data:
+        ran = data["placebo_ran"]
+        event.placebo = Placebo(
+            p_value=_num(data["placebo_p_value"]) if ran else None,
+            passed=data["placebo_passed"] if ran else None,
+        )
     if "controls_used" in data:
         event.controls = EventControls(
             used=list(data["controls_used"]),

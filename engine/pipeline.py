@@ -34,7 +34,9 @@ class EventOutcome:
     sessions_bar_df: pd.DataFrame | None = None
     accuracy_df: pd.DataFrame | None = None
     passed: bool = False
-    reasons: list[str] = field(default_factory=list)  # not_significant, illogical_direction, poor_fit, analysis_failed
+    reasons: list[str] = field(
+        default_factory=list
+    )  # not_significant, illogical_direction, poor_fit, placebo_failed, analysis_failed
     selected: bool = False  # among the max_events_to_analyze best passing events
 
 
@@ -124,6 +126,8 @@ def _gate_reasons(results: dict, cfg: dict) -> list[str]:
         reasons.append("illogical_direction")
     if cfg["require_model_fit"] and not results.get("model_r_squared", 0) >= cfg["r_squared_threshold"]:
         reasons.append("poor_fit")
+    if results.get("placebo_passed") is False:
+        reasons.append("placebo_failed")  # the model "finds" an effect where nothing happened
     return reasons
 
 
@@ -171,6 +175,8 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
             outcome.results_data = results
             outcome.line_df, outcome.inv_bar_df = line_df, inv_bar_df
             outcome.sessions_bar_df, outcome.accuracy_df = sessions_bar_df, accuracy_df
+            p_placebo = results.get("placebo_p_value")
+            results["placebo_passed"] = None if p_placebo is None else p_placebo >= cfg["p_value_threshold"]
             outcome.reasons = _gate_reasons(results, cfg)
             outcome.passed = not outcome.reasons
             if not outcome.passed:

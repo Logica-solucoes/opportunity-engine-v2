@@ -20,14 +20,20 @@
    "mape": 3.905266786858251,
    "model_r_squared": -2.4847520459251045,
    "event_period_avg_investment": 1264.4451992296708,
+   "placebo_ran": true,
+   "placebo_p_value": 0.08632786456096153,
+   "oos_wmape": 0.02779654226856814,
    "controls_used": [
     "Generic Searches"
    ],
-   "controls_rejected": []
+   "controls_rejected": [],
+   "placebo_passed": false
   },
-  "passed": true,
-  "reasons": [],
-  "selected": true
+  "passed": false,
+  "reasons": [
+   "placebo_failed"
+  ],
+  "selected": false
  },
  {
   "event_id": "synthetic_YOUTUBE_2024-11-04",
@@ -50,10 +56,14 @@
    "mape": 3.9044011596875907,
    "model_r_squared": -2.3655572109447776,
    "event_period_avg_investment": 1201.6140252296912,
+   "placebo_ran": true,
+   "placebo_p_value": 0.15574767971800393,
+   "oos_wmape": 0.02933087824656104,
    "controls_used": [
     "Generic Searches"
    ],
-   "controls_rejected": []
+   "controls_rejected": [],
+   "placebo_passed": true
   },
   "passed": true,
   "reasons": [],
@@ -80,10 +90,14 @@
    "mape": 3.8945217084652666,
    "model_r_squared": -2.2822979855431846,
    "event_period_avg_investment": 849.3035825643237,
+   "placebo_ran": true,
+   "placebo_p_value": 0.5397970279199582,
+   "oos_wmape": 0.0317365156267795,
    "controls_used": [
     "Generic Searches"
    ],
-   "controls_rejected": []
+   "controls_rejected": [],
+   "placebo_passed": true
   },
   "passed": false,
   "reasons": [
@@ -113,10 +127,14 @@
    "mape": 3.2941471645795466,
    "model_r_squared": -1.1730127370299668,
    "event_period_avg_investment": 385.41549275375786,
+   "placebo_ran": true,
+   "placebo_p_value": 0.8142198982296093,
+   "oos_wmape": 0.02514319540985819,
    "controls_used": [
     "Generic Searches"
    ],
-   "controls_rejected": []
+   "controls_rejected": [],
+   "placebo_passed": true
   },
   "passed": true,
   "reasons": [],
@@ -143,10 +161,14 @@
    "mape": 3.304489926899644,
    "model_r_squared": -1.1436410404519233,
    "event_period_avg_investment": 279.3461838337795,
+   "placebo_ran": true,
+   "placebo_p_value": 0.239518117505499,
+   "oos_wmape": 0.02654990566124452,
    "controls_used": [
     "Generic Searches"
    ],
-   "controls_rejected": []
+   "controls_rejected": [],
+   "placebo_passed": true
   },
   "passed": true,
   "reasons": [],
@@ -173,10 +195,14 @@
    "mape": 3.342207844383302,
    "model_r_squared": -1.0956109856216059,
    "event_period_avg_investment": 458.728795393448,
+   "placebo_ran": true,
+   "placebo_p_value": 0.3382271166373848,
+   "oos_wmape": 0.02969504317886318,
    "controls_used": [
     "Generic Searches"
    ],
-   "controls_rejected": []
+   "controls_rejected": [],
+   "placebo_passed": true
   },
   "passed": false,
   "reasons": [
