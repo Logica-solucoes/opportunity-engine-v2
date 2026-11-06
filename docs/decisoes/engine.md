@@ -142,3 +142,14 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - `ruff`: o código copiado tem exceções por arquivo em `pyproject.toml` (`# legacy prototype style`); revisar na A10.
 - Duas versões de `hill_transform`, de `create_calendar_features` e três convenções de adstock continuam (achado F10, decisão da A10).
 - `period_days` ainda tem `config.get("period_days", 1)` nos helpers (chave de runtime).
+
+## A4 · Controles causais (06/nov/2026)
+
+- Leads/Clicks/Impressions do arquivo de performance não entram mais no causal; o `PreparedData.performance_df` virou `controls_df`.
+- Controles candidatos: Trends (sempre que houver o arquivo) e `config.controls` (`bcb_ipca` = SGS 433, `bcb_selic` = 432, `bcb_ibc_br` = 24364, dessazonalizado porque o modelo só tem sazonalidade semanal). Triagem por evento: |r| com o spend dos canais do evento no pré-período > `gate_thresholds.control_spend_corr` (0.5) → descartado, `controls[].accepted=false` e `control_rejected` no `reasons` do evento, sem mudar o status. r indefinido (série constante) → aceito.
+- O motor lê `config["controls"]` e `config["control_spend_corr"]` sem default inline; o default fica em `GATE_DEFAULTS`. A regra antiga (`"generic" in col.lower()`) também podia puxar para o causal a coluna de spend bruta de um canal cujo nome contém "generic"; a lista nova (Trends + `config.controls`) remove esse vazamento junto.
+- Quem busca: a API, ao criar o run (`api/bcb.py`), grava `bcb.csv` no snapshot; o motor não acessa a rede. SGS fora do ar → 502, nenhum run. "Rodar de novo" busca de novo.
+- Mensal → cadência do run: `merge_asof`, o último valor publicado até a data (não interpola; cobre os dias depois da última publicação).
+- `LassoCV(cv=TimeSeriesSplit(max(2, min(5, n // 4))))`.
+- Paridade: `test_events_and_gates_match` compara com o protótipo só a detecção e a aritmética de investimento (`MODEL_FREE`); os números do modelo causal mudaram de propósito. MMM e curva seguem idênticos. Diferença medida no Linux: pendente. Sai do job `py` do CI (Ubuntu), que roda o teste de paridade; no Windows ele é pulado e `mise run parity` (só Linux) não foi rodado nesta mudança. Pendente para a A10: calibrar o 0.5.
+- Limite conhecido: dado com mais de 10 anos (a busca do BCB é de 3650 dias) deixa NaN nas datas mais antigas, em que a série do BCB não tem valor antes da primeira data da janela. É o mesmo limite de 10 anos, registrado uma vez aqui.

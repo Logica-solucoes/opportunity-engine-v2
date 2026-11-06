@@ -114,6 +114,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 - **BRD:** Technical Details §7; Improvement Requests › Causal controls.
 - **Depende de:** A0.
+- **Status:** ✅ feito em 06/nov/2026. Covariáveis da mídia (Leads/Clicks/Impressions) fora do causal; controles exógenos (Trends e, marcadas pelo analista, IPCA/Selic/IBC-Br da SGS, buscadas pela API ao criar o run e gravadas no snapshot) triados por evento com `control_spend_corr` = 0.5 e publicados em `events[].controls`; `LassoCV` com `TimeSeriesSplit`. Verificado: `tests/engine/test_controls.py` (performance com Clicks/Impressions dá o mesmo lift; controle = spend + ruído descartado; controle independente e série do BCB aceitos; forward-fill por `merge_asof`; folds curtos), `tests/api/test_bcb.py`, `tests/api/test_runs.py` (snapshot, 502, sem controles não busca), `web/e2e/simulations.spec.ts` (sem clicar Rodar). A paridade compara com o protótipo só detecção e investimento (`MODEL_FREE`, registrado para a A10). Fora: séries além das três, cache da SGS, calibrar o 0.5 (A10). Spec: `docs/superpowers/specs/2026-11-06-a4-controles-causais-design.md`.
 - **Hoje:**
   - Covariáveis hardcoded `Leads`, `Clicks`, `Impressions` (`analysis.py:307-320`), com case exato e fora do `column_mapping`.
   - `.replace(".", "")` em string (`:328`) quebra decimal US.
