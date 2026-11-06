@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
 
 from engine.elasticity_analysis import (
-    bootstrap_average_coefficients,
+    bootstrap_coefficients,
     cap_channel_mix_share,
     cap_channel_share_per_channel,
     create_calendar_features,
@@ -124,7 +124,7 @@ class TestOptimizeWithRestarts(unittest.TestCase):
         self.assertEqual(result_a.fun, result_b.fun)
 
 
-class TestBootstrapAverageCoefficients(unittest.TestCase):
+class TestBootstrapCoefficients(unittest.TestCase):
     def test_recovers_a_zeroed_channels_true_contribution(self):
         # Two highly correlated columns (corr ~0.99) that BOTH truly drive y
         # (70/30 split). A single positive-constrained Ridge fit on the full
@@ -140,7 +140,7 @@ class TestBootstrapAverageCoefficients(unittest.TestCase):
         single_fit = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X, y)
         self.assertEqual(single_fit.coef_[1], 0.0)
 
-        boot_coef = bootstrap_average_coefficients(X, y, n_bootstrap=300, seed=42)
+        boot_coef = bootstrap_coefficients(X, y, n_bootstrap=300, seed=42).mean(axis=0)
         self.assertGreater(boot_coef[1], 0.0)
 
     def test_reproducible_with_a_fixed_seed(self):
@@ -148,9 +148,19 @@ class TestBootstrapAverageCoefficients(unittest.TestCase):
         X = rng.uniform(1, 10, (40, 2))
         y = X[:, 0] + X[:, 1] + rng.normal(0, 1.0, 40)
 
-        result_a = bootstrap_average_coefficients(X, y, n_bootstrap=50, seed=7)
-        result_b = bootstrap_average_coefficients(X, y, n_bootstrap=50, seed=7)
+        result_a = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
+        result_b = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
         np.testing.assert_array_equal(result_a, result_b)
+
+    def test_returns_one_row_per_resample(self):
+        rng = np.random.default_rng(2)
+        X = rng.uniform(1, 10, (30, 3))
+        y = X.sum(axis=1)
+
+        samples = bootstrap_coefficients(X, y, n_bootstrap=20, seed=1)
+
+        self.assertEqual(samples.shape, (20, 3))
+        self.assertTrue((samples >= 0).all())  # positive Ridge
 
 
 class FakeScaler:

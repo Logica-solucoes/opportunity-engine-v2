@@ -245,11 +245,11 @@ def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5
     return best_result
 
 
-def bootstrap_average_coefficients(X, y, n_bootstrap=200, seed=42):
+def bootstrap_coefficients(X, y, n_bootstrap=200, seed=42):
     """
     Refits Ridge(alpha=1.0, positive=True, fit_intercept=False) on n_bootstrap
-    resamples of the rows (with replacement) and returns the mean coefficient
-    vector across resamples.
+    resamples of the rows (with replacement) and returns the (n_bootstrap, n_columns)
+    matrix of coefficients. The model uses its mean; A5 uses its percentiles.
 
     A single fit of a positive-constrained Ridge on correlated columns tends to
     hand all the credit to one column and zero the other (a stable but fragile
@@ -267,7 +267,7 @@ def bootstrap_average_coefficients(X, y, n_bootstrap=200, seed=42):
         idx = rng.integers(0, n_rows, n_rows)
         model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y_arr[idx])
         coefs[b] = model.coef_
-    return coefs.mean(axis=0)
+    return coefs
 
 
 def run_mmm_engine(config, prepared):
@@ -416,7 +416,8 @@ def run_mmm_engine(config, prepared):
     mkt_scaler = MinMaxScaler()
     X_mkt_scaled = mkt_scaler.fit_transform(transformed_mkt)
     mkt_model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X_mkt_scaled, y_lift)
-    mkt_model.coef_ = bootstrap_average_coefficients(X_mkt_scaled, y_lift)
+    coef_samples = bootstrap_coefficients(X_mkt_scaled, y_lift)
+    mkt_model.coef_ = coef_samples.mean(axis=0)
 
     y_mkt_pred = mkt_model.predict(X_mkt_scaled)
     final_r2 = r2_score(y_lift, y_mkt_pred)
@@ -481,6 +482,8 @@ def run_mmm_engine(config, prepared):
         "cv_r_squared": cv_r2,
         "marketing_contribution_of_kpi_pct": marketing_contribution_of_kpi_pct,
         "model": mkt_model,
+        "coef_samples": coef_samples,  # (n_bootstrap, channels), scaled space: A5 CIs, A8 bands
+        "channel_totals": X_mkt_scaled.sum(axis=0),  # coef × total = the channel's contribution over the period
         "scaler": mkt_scaler,
         "optimal_params": {"alphas": final_alphas, "ks": final_ks, "ss": final_ss},
         "spend_cols": active_spend_cols,
