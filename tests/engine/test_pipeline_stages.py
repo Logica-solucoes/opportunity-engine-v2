@@ -90,7 +90,16 @@ def test_individual_curves_function_returns_the_frame(synthetic_computed):
     frame = elasticity_analysis.generate_individual_response_curves(
         synthetic_computed.mmm, synthetic_computed.effective_config, output_dir=None
     )
-    assert list(frame.columns) == ["Channel", "Channel_Spend", "Projected_Total_KPIs", "Historical_Avg", "Recommended"]
+    assert list(frame.columns) == [
+        "Channel",
+        "Channel_Spend",
+        "Projected_Total_KPIs",
+        "Historical_Avg",
+        "Recommended",
+        "KPI_Lo",
+        "KPI_Hi",
+        "Extrapolated",
+    ]
 
 
 def test_product_filter_naming_a_member_keeps_the_grouped_events(tmp_path):
