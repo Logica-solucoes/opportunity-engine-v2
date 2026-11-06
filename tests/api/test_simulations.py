@@ -233,14 +233,20 @@ def test_duplicate_date_channel_blocks_the_run(logged, analyst, ws, make_simulat
     validation = put_mapping(logged, simulation.id, MAPPING).json()["validation"]
 
     assert validation["ok"] is False
-    assert [c for c in validation["checks"] if c["level"] != "info"] == [
+    assert validation["checks"] == [
         {
             "id": "duplicate_date_channel",
             "level": "error",
             "message": "Há 1 linha(s) repetida(s) para a mesma data e o mesmo canal no arquivo de investimento. "
             "Remova ou consolide as duplicatas e envie o arquivo novamente.",
             "details": {"count": 1, "examples": [{"date": "2024-01-01", "channel": "SEARCH"}]},
-        }
+        },
+        {
+            "id": "collinearity_not_assessed",
+            "level": "info",
+            "message": "A colinearidade entre canais não foi avaliada: o histórico tem 2 período(s), e o mínimo é 30.",
+            "details": {"periods": 2},
+        },
     ]
 
 
