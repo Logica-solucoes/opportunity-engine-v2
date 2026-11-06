@@ -13,7 +13,7 @@ O planner de hoje projeta um número seco por ponto, deixa a curva individual pa
 - Curvas individuais respeitando o cap por canal (`per_channel_investment_limit_factor`).
 - `ramp` em todo cenário cujo investimento difere do atual por mais de `max_budget_step`.
 - `notes` com o texto fixo de tCPA/tROAS em todo cenário que muda o investimento.
-- `engine.scenario(results, filters) -> dict`, puro sobre o `results.json`, com a semântica de filtro do Streamlit e saída mensal.
+- `engine.scenario(results, filters, max_budget_step) -> dict`, puro sobre o `results.json`, com a semântica de filtro do Streamlit e saída mensal.
 - Rota `GET /api/w/{slug}/runs/{run_id}/scenario`.
 
 ## Não-objetivos
@@ -32,8 +32,8 @@ O planner de hoje projeta um número seco por ponto, deixa a curva individual pa
 | Que incerteza a banda carrega | p5/p95 das 200 reamostragens dos coeficientes da Ridge, com Hill, adstock e scaler fixos (o modelo não tem intercepto) | É o que o bootstrap do A5 já guarda (`coef_samples`). Sai otimista (não propaga a incerteza de K, n e α); registrado para a A10. |
 | Mix de cada banda | O mix que o ponto usa: estratégico na curva agregada, histórico no `current`, `optimized_mix` no `max_efficiency`, realocado no `strategic_reallocation`, demais canais na média nas curvas individuais | A banda é do mesmo número que o ponto publica. |
 | O que é `extrapolated` | Total por período fora do `[min, max]` histórico do total, ou spend de algum canal (no mix daquele ponto) fora do `[min, max]` histórico do canal | "Fora da faixa histórica de spend (por canal e total)" da trilha; abaixo do mínimo também é extrapolação. |
-| Curva individual com o cap | Sai o bypass do `rec_spend * 1.2` (`elasticity_analysis.py:976-981`); a curva vai até `min(média × investment_limit_factor, máx histórico × per_channel_investment_limit_factor)` | A trilha pede que as curvas individuais respeitem o cap. |
-| Forma do `ramp` | Degraus compostos de no máximo `max_budget_step` a partir do `current`: +50% com 20% → 1,2 → 1,44 → 1,5 (3 degraus); vale para baixo (−50% → 0,8 → 0,64 → 0,5) | "Uma lista de degraus de no máximo 20%" medida contra o degrau anterior, que é o que o Smart Bidding vê. |
+| Curva individual com o cap | Sai o bypass do `rec_spend * 1.2` (`elasticity_analysis.py:976-981`); o alcance de hoje (`max(média × investment_limit_factor, recomendado × 1,2)`) passa a ser sempre cortado em `máx histórico × per_channel_investment_limit_factor` | A trilha pede que as curvas individuais respeitem o cap. |
+| Forma do `ramp` | Degraus compostos de no máximo `max_budget_step` a partir do `current`: +50% com 20% → 1,2 → 1,44 → 1,5 (3 degraus); vale para baixo (−50% → 0,8 → 0,64 → 0,512 → 0,5, 4 degraus: 0,64 → 0,5 seria −22%) | "Uma lista de degraus de no máximo 20%" medida contra o degrau anterior, que é o que o Smart Bidding vê. |
 | Conteúdo do degrau | `{step, investment, kpi, kpi_lo, kpi_hi}`, com KPI e banda interpolados (linear) na `response_curve` | O B5 mostra os degraus na tabela de cenários; a curva já tem os números. |
 | Texto das notas | Fixo em pt-BR, um por modo: tCPA (conversões) ou tROAS (receita), dizendo que a mudança de verba pode pedir ajuste do alvo e que é preciso esperar o período de aprendizado antes de ler o resultado ou dar o próximo degrau | BRD › Technical Review §5 ("bid-strategy notes"). Sem número de dias: o período depende da campanha. |
 | Unidade do `scenario` | Filtros e saída mensais (× 30 / `validation.period_days`); o `results.json` continua por período | Decidido com o dono em 06/nov/2026: o Streamlit e os filtros são mensais, os fixtures do A1 não mudam e o front não faz conta. |
@@ -41,6 +41,9 @@ O planner de hoje projeta um número seco por ponto, deixa a curva individual pa
 | Ponto de saturação | Regra do `find_saturation_point` (`dashboard_charts.py:15-62`) sobre a curva inteira, a partir do investimento atual, com fallback no recomendado (ou no último ponto, se não houver recomendado) | Mesma regra do Streamlit. O fallback do Streamlit é o recomendado; sem recomendado ele nem mostra a tabela. |
 | Base dos incrementais no `scenario` | O cenário `current` do `results.json` | É a média histórica simulada com o mix histórico, o mesmo baseline da curva. O Streamlit usa um baseline recalculado dos CSV; a diferença é registrada no teste de paridade. |
 | Paridade do motor com o protótipo | O teste compara só as colunas e chaves do protótipo; as novas da A8 (`KPI_Lo`, `KPI_Hi`, `Extrapolated`) saem antes do `assert_close` | Os números do protótipo não mudam; só ganham colunas. Mudança intencional, registrada para a A10. |
+| ROAS do filtro | `revenue / investment` no mesmo período | O Streamlit divide a receita **por período** pelo investimento **mensal** (`streamlit_app.py:2017`), o que deixa o ROAS 30× menor em dado diário. Bug do protótipo, corrigido; a paridade de ROAS é contra a fórmula certa. |
+| iCPA do `scenario` | `incremental_investment / incremental_kpi` quando o KPI incremental > 0, senão `null` (regra do `compute_incremental_cpa` do Streamlit) | O filtro de iCPA precisa da mesma regra para dar o mesmo ponto. Difere do `icpa` do `results.json`, que é `null` também quando o investimento incremental é 0. |
+| `max_budget_step` no `scenario` | Terceiro argumento, `scenario(results, filters, max_budget_step)`; a API passa o do `run.config` (default do `EngineConfig` se faltar) | O `results.json` não guarda config. |
 | Cache do `results.json` na rota | Nenhum: lê do storage a cada request | O fixture da Gol tem 870 KB; o parse cabe nos 500 ms do slider. Cache entra se o tempo medido pedir. |
 
 ## Abordagens consideradas
@@ -84,7 +87,7 @@ def bid_note(revenue_mode: bool) -> str
 
 O `results.py` usa as duas para preencher `Scenario.ramp` e `Scenario.notes` dos 6 cenários (em unidade por período), e o `scenario` usa as mesmas na saída mensal. `Scenario` ganha `notes: list[str] = []`. `Scenario.kpi_lo/kpi_hi/extrapolated`, `ResponseRow.kpi_lo/kpi_hi/extrapolated` e `CurvePoint.lo/hi/extrapolated` já existem no schema: o `results.py` passa a preenchê-los. Campo opcional novo não muda `schema_version`.
 
-### Motor: `engine.scenario(results, filters) -> dict`
+### Motor: `engine.scenario(results, filters, max_budget_step) -> dict`
 
 Exportado em `engine/__init__.py`. Entrada: o dict do `results.json` e um `ScenarioFilters` (pydantic, `extra=forbid`, todos opcionais e mensais):
 
@@ -132,7 +135,7 @@ Sem `NaN`/`Infinity`: o que não tem valor sai `null`, como no `results.json`.
 
 - **Paridade com o Streamlit (aceite da trilha):** o filtro e o `find_saturation_point` do Streamlit copiados no teste como oráculo (pandas, como lá), rodados sobre a `response_curve` do `gol_anonimizada.json` em 6–8 combinações de filtro (nenhum, só orçamento, CPA, iCPA, ROAS/iROAS num fixture em modo receita se houver, KPI mínimo, % incrementalidade, combinação que esvazia). Mesmo investimento recomendado e de saturação.
 - Testes do `find_saturation_point` portados de `opportunity-engine/tests/test_dashboard_charts.py`.
-- `ramp`: +50% com 20% → 3 degraus, o último no alvo; −50% → 3 degraus para baixo; +15% → `None`; KPI do degrau interpolado.
+- `ramp`: +50% com 20% → 3 degraus, o último no alvo; −50% → 4 degraus para baixo; +15% → `None`; KPI do degrau interpolado.
 - Filtro que esvazia → `recommended` nulo, `saturation` com fallback.
 - Banda nula no fixture → `kpi_lo`/`kpi_hi` nulos, sem erro.
 - `scenario` < 300 ms no `gol_anonimizada.json` (tempo medido no teste, com folga para CI).
