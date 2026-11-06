@@ -183,6 +183,17 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
     return outcomes
 
 
+def _log_contribution_split(mmm: dict, verdicts: dict) -> None:
+    """Only identifiable channels: the log reaches the user live, and a share of the others is not published."""
+    log.info("   --- Historical Contribution Split (Elasticity) ---")
+    shares = sorted(mmm["contribution_pct"].items(), key=lambda item: item[1], reverse=True)
+    shown = [(channel, pct) for channel, pct in shares if verdicts[channel]["identifiable"]]
+    for channel, pct in shown:
+        log.info(f"     - {channel}: {pct:.2f}%")
+    if hidden := len(shares) - len(shown):
+        log.info(f"     - {hidden} channel(s) not identifiable, contribution not published")
+
+
 def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None = None) -> dict:
     """MMM, aggregated response curve and, when `global_dir` is given, the curve functions' own exports there."""
     log.info("Starting Global Elasticity Analysis...")
@@ -192,6 +203,7 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
         return result
 
     result["identifiability"] = identifiability.assess(mmm)
+    _log_contribution_split(mmm, result["identifiability"])
     pivot = prepared.investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
     totals = pivot.sum()
     result["current_split"] = (totals / totals.sum()).to_dict()

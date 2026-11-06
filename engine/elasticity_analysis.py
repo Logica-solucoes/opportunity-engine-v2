@@ -466,10 +466,6 @@ def run_mmm_engine(config, prepared):
     else:
         contribution_pct = {k: 0.0 for k in contributions}
 
-    log.info("   --- Historical Contribution Split (Elasticity) ---")
-    for channel, pct in sorted(contribution_pct.items(), key=lambda item: item[1], reverse=True):
-        log.info(f"     - {channel}: {pct:.2f}%")
-
     log.info(
         f"   - Total Marketing Contribution: {total_marketing_contribution:,.2f} ({(total_marketing_contribution / y_total.sum()) * 100:.2f}% of Total)"
     )

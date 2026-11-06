@@ -91,3 +91,17 @@ def test_a_strong_channel_is_identifiable_and_a_no_effect_one_is_not(identifiabl
     assert verdicts["STRONG"]["identifiable"] is True
     assert verdicts["NOEFFECT"]["identifiable"] is False
     assert "coef_ci_includes_zero" in verdicts["NOEFFECT"]["reasons"]
+
+
+def test_the_contribution_log_leaves_out_channels_that_are_not_identifiable(caplog):
+    from engine.pipeline import _log_contribution_split
+
+    mmm = {"contribution_pct": {"STRONG": 80.0, "NOEFFECT": 20.0}}
+    verdicts = {"STRONG": {"identifiable": True}, "NOEFFECT": {"identifiable": False}}
+    with caplog.at_level("INFO", logger="engine.pipeline"):
+        _log_contribution_split(mmm, verdicts)
+
+    text = caplog.text
+    assert "STRONG: 80.00%" in text
+    assert "NOEFFECT" not in text and "20.00" not in text
+    assert "1 channel(s) not identifiable" in text

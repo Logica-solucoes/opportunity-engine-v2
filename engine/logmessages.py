@@ -277,6 +277,10 @@ _RULES = [
         "   - Combinação ótima histórica encontrada a partir das melhores {0}",
     ),
     (
+        r"(\d+) channel\(s\) not identifiable, contribution not published",
+        "     - {0} canal(is) não identificável(is), sem contribuição publicada",
+    ),
+    (
         r"Individual simulation data exported for UI:",
         "   - Dados de simulação exportados com sucesso.",
     ),
