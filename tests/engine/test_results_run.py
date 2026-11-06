@@ -57,7 +57,7 @@ def test_run_result_validates_against_the_schema(ran):
     results = ResultsV1.model_validate(ran["returned"])
     assert results.status == "inconclusive" and results.causal.status == "ok"
     assert results.elasticity.status == "inconclusive" and results.elasticity.reasons == ["no_identifiable_channel"]
-    assert results.sufficiency is results.experiment_design is results.reports is None
+    assert results.experiment_design is results.reports is None and results.sufficiency is not None
     assert results.validation is not None
 
 
@@ -68,7 +68,7 @@ def test_running_twice_gives_identical_files(ran):
 def test_numbers_in_results_match_compute(ran):
     computed, data = ran["computed"], ran["returned"]
     for outcome, event in zip(computed.events, data["causal"]["events"], strict=True):
-        if outcome.results_data:
+        if outcome.results_data and event["lift"]:
             assert event["lift"]["abs"] == pytest.approx(outcome.results_data["absolute_lift"], rel=1e-9)
             assert event["p_value"] == pytest.approx(outcome.results_data["p_value"], rel=1e-9)
     assert data["elasticity"]["metrics"]["cv_r2"] == pytest.approx(computed.mmm["cv_r_squared"], rel=1e-9)

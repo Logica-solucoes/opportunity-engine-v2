@@ -184,6 +184,46 @@ def test_causal_status_reasons(synthetic_computed):
     assert (ok.status, ok.reasons) == ("ok", [])
 
 
+def _sufficiency(*reasons):
+    return Sufficiency(passed=not reasons, validated_events=1, reasons=list(reasons))
+
+
+def test_an_insufficient_run_publishes_its_events_without_their_numbers(synthetic_computed):
+    data = _result_data(oos_wmape=0.4, placebo_p_value=0.5)
+    demoted = outcome(passed=False, selected=False, reasons=["insufficient_run"], data=data)
+    computed = dataclasses.replace(
+        with_events(synthetic_computed, [demoted]), sufficiency=_sufficiency("high_oos_wmape")
+    )
+
+    causal = results._causal(computed)
+
+    event = causal.events[0]
+    assert event.status == "rejected" and event.reasons == ["insufficient_run"]
+    assert event.lift is None and event.p_value is None and event.cpa_incremental is None and event.series is None
+    assert event.fit.wmape == 0.4 and event.placebo.passed is True and event.investment_change_pct == 80.0
+    assert causal.status == "inconclusive" and causal.reasons == ["high_oos_wmape", "no_event_passed_gates"]
+
+
+def test_the_placebo_is_published_from_the_gate(synthetic_computed):
+    failed = outcome(passed=False, selected=False, reasons=["placebo_failed"], data=_result_data(placebo_p_value=0.01))
+    skipped = outcome("YOUTUBE_2024-06-10", data=_result_data(placebo_p_value=None))
+
+    events = results._causal(with_events(synthetic_computed, [failed, skipped])).events
+
+    assert (events[0].placebo.p_value, events[0].placebo.passed) == (0.01, False)
+    assert (events[1].placebo.p_value, events[1].placebo.passed) == (None, None)
+
+
+def test_an_in_sample_cv_makes_the_elasticity_inconclusive(synthetic_computed):
+    computed = dataclasses.replace(_with_verdicts(synthetic_computed), sufficiency=_sufficiency("cv_in_sample"))
+
+    built = results.build_results(computed, "v")
+
+    assert built.elasticity.status == "inconclusive" and built.elasticity.reasons == ["cv_in_sample"]
+    assert built.elasticity.response_curve and built.sufficiency.reasons == ["cv_in_sample"]
+    assert built.status == "inconclusive"
+
+
 # --- elasticity, baseline and status ---
 
 import json
@@ -194,7 +234,7 @@ from threadpoolctl import threadpool_limits
 
 from engine.config import EngineConfig
 from engine.pipeline import compute
-from engine.results_schema import Causal, Elasticity, ResultsV1
+from engine.results_schema import Causal, Elasticity, ResultsV1, Sufficiency
 from tests.engine.synthetic_data import dataset_config, make_dataset
 
 
@@ -343,7 +383,7 @@ def test_failed_model_yields_a_failed_elasticity_section(synthetic_computed):
 def test_build_results_validates_and_leaves_the_future_sections_null(synthetic_computed):
     built = results.build_results(synthetic_computed, "abc123")
     assert built.engine_version == "abc123" and built.schema_version == 1
-    assert built.validation is built.sufficiency is built.experiment_design is built.reports is None
+    assert built.validation is built.experiment_design is built.reports is None and built.sufficiency is not None
     ResultsV1.model_validate(_dump(built))
     json.dumps(_dump(built), allow_nan=False)
 

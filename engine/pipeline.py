@@ -3,18 +3,18 @@
 import logging
 import warnings
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
 
-from engine import analysis, elasticity_analysis, identifiability, outputs, results
+from engine import analysis, elasticity_analysis, identifiability, outputs, results, sufficiency
 from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
 from engine.logmessages import forward_logs
-from engine.results_schema import ValidationReport
+from engine.results_schema import Sufficiency, ValidationReport
 from engine.validation import validate
 from engine.version import engine_version
 from llm import get_llm
@@ -33,7 +33,8 @@ class EventOutcome:
     sessions_bar_df: pd.DataFrame | None = None
     accuracy_df: pd.DataFrame | None = None
     passed: bool = False
-    reasons: list[str] = field(default_factory=list)  # not_significant, illogical_direction, poor_fit, analysis_failed
+    # not_significant, illogical_direction, poor_fit, placebo_failed, analysis_failed; insufficient_run (judge_sufficiency)
+    reasons: list[str] = field(default_factory=list)
     selected: bool = False  # among the max_events_to_analyze best passing events
 
 
@@ -56,6 +57,7 @@ class Computed:
     individual_curves_df: pd.DataFrame | None = None  # per-channel curves (Channel, Channel_Spend, ...)
     validation: ValidationReport | None = None  # what validate reported for these inputs (set by run)
     identifiability: dict = field(default_factory=dict)  # channel -> identifiability.assess verdict; {} without a model
+    sufficiency: Sufficiency | None = None  # A6: do the data support publishing a lift (set by compute)
 
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
@@ -124,6 +126,9 @@ def _gate_reasons(results: dict, cfg: dict) -> list[str]:
         reasons.append("illogical_direction")
     if cfg["require_model_fit"] and not results.get("model_r_squared", 0) >= cfg["r_squared_threshold"]:
         reasons.append("poor_fit")
+    placebo = results.get("placebo_p_value")
+    if placebo is not None and placebo < cfg["p_value_threshold"]:
+        reasons.append("placebo_failed")  # the model finds an "effect" where nothing happened
     return reasons
 
 
@@ -194,6 +199,33 @@ def _log_contribution_split(mmm: dict, verdicts: dict) -> None:
         log.info(f"     - {hidden} channel(s) not identifiable, contribution not published")
 
 
+def judge_sufficiency(
+    prepared: PreparedData, events: list[EventOutcome], mmm: dict | None, cfg: dict
+) -> tuple[list[EventOutcome], Sufficiency]:
+    """The run-level verdict (A6). A causal reason demotes every passing event to insufficient_run, as new outcomes:
+    the analysed ones stay as they were."""
+    validated = [
+        {"channels": [c for c in e.product_group.split(", ") if c], "oos_wmape": e.results_data.get("oos_wmape")}
+        for e in events
+        if e.passed
+    ]
+    cv_out_of_sample = mmm["cv_out_of_sample"] if mmm else None
+    verdict = sufficiency.assess(
+        validated, prepared.investment_df, cv_out_of_sample, cfg["spend_cv_min"], cfg["oos_wmape_max"]
+    )
+    if verdict.passed:
+        log.info(f"Dados suficientes: {verdict.validated_events} evento(s) validado(s).")
+        return events, verdict
+    log.warning("Dados insuficientes para publicar o resultado: " + ", ".join(verdict.reasons))
+    if not sufficiency.CAUSAL_REASONS & set(verdict.reasons):
+        return events, verdict
+    demoted = [
+        replace(e, passed=False, selected=False, reasons=[*e.reasons, "insufficient_run"]) if e.passed else e
+        for e in events
+    ]
+    return demoted, verdict
+
+
 def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None = None) -> dict:
     """MMM, aggregated response curve and, when `global_dir` is given, the curve functions' own exports there."""
     log.info("Starting Global Elasticity Analysis...")
@@ -236,6 +268,7 @@ def compute(
     candidates = detect_events(prepared, cfg)
     events = analyze_events(prepared, candidates, cfg)
     elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
+    events, verdict = judge_sufficiency(prepared, events, elasticity["mmm"], cfg)
     verdicts = {}
     if elasticity["mmm"]:
         collinearity = validation.collinearity if validation else None
@@ -248,6 +281,7 @@ def compute(
         candidates=candidates,
         validation=validation,
         identifiability=verdicts,
+        sufficiency=verdict,
         **elasticity,
     )
 

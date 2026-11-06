@@ -28,11 +28,13 @@ from engine.results_schema import (
     Lift,
     LinePoint,
     MonthlyBaseline,
+    Placebo,
     ResponseRow,
     ResultsV1,
     Scenario,
 )
 from engine.scenario import bid_note, ramp
+from engine.sufficiency import CAUSAL_REASONS
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed, EventOutcome
@@ -102,21 +104,31 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
     data = outcome.results_data
     if not data:
         return event
-    lift = data["absolute_lift"]
     event.start, event.end = data["start_date"], data["end_date"]
+    event.investment_change_pct = _num(data["investment_change_pct"])
+    event.fit = Fit(
+        r2=_num(data["model_r_squared"]),
+        mae=_num(data["mae"]),
+        mape=_num(data["mape"]),
+        wmape=_num(data.get("oos_wmape")),
+    )
+    if "placebo_p_value" in data:  # None: the pre-period was too short to run it
+        p = data["placebo_p_value"]
+        event.placebo = Placebo(p_value=_num(p), passed=None if p is None else "placebo_failed" not in outcome.reasons)
+    event.controls = [CausalControl(**control) for control in data.get("controls", [])]
+    if any(not control.accepted for control in event.controls):
+        event.reasons.append("control_rejected")  # the control left the model; the event still stands
+    if "insufficient_run" in outcome.reasons:
+        return event  # the run's data do not support a lift: its numbers stay out of the document
+    lift = data["absolute_lift"]
     event.lift = Lift(
         abs=_num(lift),
         ci=(_num(data["absolute_lift_ci_lower"]), _num(data["absolute_lift_ci_upper"])),
         rel_pct=_num(data["relative_lift_pct"]),
     )
     event.p_value = _num(data["p_value"])
-    event.investment_change_pct = _num(data["investment_change_pct"])
     event.incremental_investment = _num(data["total_investment_post_period"])
     event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
-    event.fit = Fit(r2=_num(data["model_r_squared"]), mae=_num(data["mae"]), mape=_num(data["mape"]))
-    event.controls = [CausalControl(**control) for control in data.get("controls", [])]
-    if any(not control.accepted for control in event.controls):
-        event.reasons.append("control_rejected")  # the control left the model; the event still stands
     event.series = _series(outcome)
     return event
 
@@ -141,6 +153,10 @@ def _causal(computed: "Computed") -> Causal:
         status, reasons = "inconclusive", ["no_eligible_events"]
     else:
         status, reasons = "inconclusive", ["no_event_passed_gates"]
+    if status != "ok" and computed.sufficiency:
+        # why the data fall short comes first; no_validated_event says what the reason below already says
+        causes = CAUSAL_REASONS - {"no_validated_event"}
+        reasons = [r for r in computed.sufficiency.reasons if r in causes] + reasons
     return Causal(status=status, reasons=reasons, events_detected=detected, events=events)
 
 
@@ -287,10 +303,13 @@ def _elasticity(computed: "Computed") -> Elasticity:
         for members in computed.effective_config.get("channel_groups") or []
     ]
     none_identifiable = identifiability.none_identifiable(computed.identifiability)
+    reasons = ["no_identifiable_channel"] if none_identifiable else []
+    if computed.sufficiency and "cv_in_sample" in computed.sufficiency.reasons:
+        reasons.append("cv_in_sample")  # under 40 rows the CV scored in-sample: the fit is not validated (A6)
     rows = _response_rows(computed)
     return Elasticity(
-        status="inconclusive" if none_identifiable else "ok",
-        reasons=["no_identifiable_channel"] if none_identifiable else [],
+        status="inconclusive" if reasons else "ok",
+        reasons=reasons,
         metrics=ElasticityMetrics(
             cv_r2=_num(mmm["cv_r_squared"]),
             r2=_num(mmm["r_squared"]),
@@ -345,6 +364,7 @@ def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
         elasticity=elasticity,
         baseline=_baseline(computed),
         validation=computed.validation,
+        sufficiency=computed.sufficiency,
     )
 
 
