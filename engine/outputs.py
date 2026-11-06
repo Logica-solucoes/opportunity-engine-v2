@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from engine import presentation, recommendations, reports
+from engine import identifiability, presentation, recommendations, reports
 from llm.base import LLM, LLMUnavailable
 
 if TYPE_CHECKING:
@@ -83,11 +83,15 @@ def _write_event(computed: "Computed", outcome, out_dir: Path, written: Written)
 def _scenario(title, description, point, factor, computed: "Computed", strategic_ratio: dict, total=None) -> dict:
     total = point["Daily_Investment"] * factor if total is None else total
     mixes = (computed.current_split, computed.optimized_mix, strategic_ratio)
+    hidden = identifiability.unidentified(computed.identifiability)  # keeps them out of the .md, HTML and Gemini
     return {
         "title": title,
         "description": description,
         "total_investment": total,
-        "splits": {label: {k: v * total for k, v in mix.items()} for label, mix in zip(MIX_LABELS, mixes, strict=True)},
+        "splits": {
+            label: identifiability.fold_mix({k: v * total for k, v in mix.items()}, hidden)
+            for label, mix in zip(MIX_LABELS, mixes, strict=True)
+        },
         "projected_kpis": {mix: kpi * factor for mix, kpi in point.get("projected_kpis", {}).items()},
     }
 

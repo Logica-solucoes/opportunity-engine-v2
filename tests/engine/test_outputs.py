@@ -1,8 +1,9 @@
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
-from engine import outputs
+from engine import identifiability, outputs
 
 
 def test_channel_and_advertiser_names_never_leave_out_dir(tmp_path, monkeypatch):
@@ -33,3 +34,17 @@ def test_channel_and_advertiser_names_never_leave_out_dir(tmp_path, monkeypatch)
 
     assert written.event_dirs["e1"].resolve().is_relative_to(out_dir.resolve())
     assert [p.parent for p in tmp_path.rglob("*.csv")] == [written.event_dirs["e1"]]
+
+
+def test_scenario_splits_fold_the_unidentified_channels():
+    computed = SimpleNamespace(
+        current_split={"A": 0.5, "B": 0.3, "C": 0.2},
+        optimized_mix={"A": 0.6, "B": 0.2, "C": 0.2},
+        identifiability={"A": {"identifiable": True}, "B": {"identifiable": False}, "C": {"identifiable": False}},
+    )
+
+    scenario = outputs._scenario("t", "d", {"Daily_Investment": 10.0}, 3.0, computed, {"A": 0.7, "B": 0.1, "C": 0.2})
+
+    for split in scenario["splits"].values():
+        assert set(split) == {"A", identifiability.UNIDENTIFIED}
+        assert sum(split.values()) == pytest.approx(30.0)
