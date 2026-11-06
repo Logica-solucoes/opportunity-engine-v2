@@ -171,7 +171,15 @@ def _transform_channels(df, spend_cols, alphas, ks, ss):
     return transformed_df
 
 
-def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=3):
+CV_SPLITS = 3
+
+
+def cv_folds(n_rows: int, n_splits: int = CV_SPLITS) -> int:
+    """Folds walk_forward_cv_score uses: one per 20 rows, at most n_splits. Under 2 it scores in-sample (A6 says so)."""
+    return min(n_splits, max(1, n_rows // 20))
+
+
+def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=CV_SPLITS):
     """
     Walk-forward (expanding-window) CV for the Stage-2 marketing fit. Returns
     (mean_out_of_sample_mse, pooled_out_of_fold_r2).
@@ -187,7 +195,7 @@ def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=3):
     X = np.asarray(transformed_df.values, dtype=float)
     y = np.asarray(kpi_lift, dtype=float)
     n = len(y)
-    usable_splits = min(n_splits, max(1, n // 20))
+    usable_splits = cv_folds(n, n_splits)
     if usable_splits < 2:
         scaler = MinMaxScaler()
         Xs = scaler.fit_transform(X)
@@ -485,6 +493,7 @@ def run_mmm_engine(config, prepared):
         "contribution_pct": contribution_pct,
         "r_squared": final_r2,
         "cv_r_squared": cv_r2,
+        "cv_out_of_sample": cv_folds(len(y_lift)) >= 2,  # False: the CV above fell back to in-sample (A6)
         "marketing_contribution_of_kpi_pct": marketing_contribution_of_kpi_pct,
         "model": mkt_model,
         "coef_samples": coef_samples,  # (n_bootstrap, channels), scaled space: A5 CIs, A8 bands
