@@ -36,7 +36,9 @@ def _at(investment: float, curve: list[dict], key: str) -> float | None:
 def ramp(current: float | None, target: float, max_step: float, curve: list[dict]) -> list[dict] | None:
     """Compounding steps of at most `max_step` from `current` to `target` (the last one lands on it), with KPI and
     band interpolated on `curve` (ascending investment). None when a single move is within the step."""
-    if not current or current <= 0 or abs(target / current - 1) <= max_step + _TOLERANCE:
+    if not current or not (0 < current < math.inf and 0 <= target < math.inf):
+        return None
+    if abs(target / current - 1) <= max_step + _TOLERANCE:
         return None
     up = target > current
     factor = 1 + max_step if up else 1 - max_step
