@@ -156,7 +156,8 @@ def predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_featur
 def kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features) -> tuple[float, float]:
     """p5/p95 of the KPI over the bootstrap resamples of the Ridge (A8). Hill, adstock and scaler stay fixed, so the
     band is optimistic: it carries the uncertainty of the split, not of the curve shapes."""
-    scaled = np.clip(mkt_scaler.transform([mkt_features]), 0.0, None)[0]
+    features = pd.DataFrame([mkt_features], columns=getattr(mkt_scaler, "feature_names_in_", None))
+    scaled = np.clip(mkt_scaler.transform(features), 0.0, None)[0]
     lo, hi = np.percentile(organic_baseline_mean + np.asarray(coef_samples) @ scaled, [5, 95])
     return float(lo), float(hi)
 
