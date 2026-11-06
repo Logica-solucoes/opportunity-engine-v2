@@ -33,7 +33,7 @@ class EventOutcome:
     sessions_bar_df: pd.DataFrame | None = None
     accuracy_df: pd.DataFrame | None = None
     passed: bool = False
-    # not_significant, illogical_direction, poor_fit, placebo_failed, analysis_failed; insufficient_run (judge_sufficiency)
+    # not_significant, illogical_direction, poor_fit, placebo_failed, model_dependent, analysis_failed; insufficient_run (judge_sufficiency)
     reasons: list[str] = field(default_factory=list)
     selected: bool = False  # among the max_events_to_analyze best passing events
 
@@ -129,6 +129,12 @@ def _gate_reasons(results: dict, cfg: dict) -> list[str]:
     placebo = results.get("placebo_p_value")
     if placebo is not None and placebo < cfg["p_value_threshold"]:
         reasons.append("placebo_failed")  # the model finds an "effect" where nothing happened
+    robust_p, threshold = results.get("robust_p_value"), cfg["p_value_threshold"]
+    holds = (
+        robust_p is not None and robust_p < threshold and (results["absolute_lift"] > 0) == (results["robust_lift"] > 0)
+    )
+    if robust_p is not None and results["p_value"] < threshold and not holds:
+        reasons.append("model_dependent")  # significant only through the media features' extrapolation
     return reasons
 
 

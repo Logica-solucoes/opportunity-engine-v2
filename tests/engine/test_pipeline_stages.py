@@ -155,3 +155,12 @@ def test_an_in_sample_cv_fails_the_run_but_keeps_the_events(synthetic_prepared):
 def test_compute_judges_the_sufficiency(synthetic_computed):
     verdict = synthetic_computed.sufficiency
     assert verdict is not None and verdict.validated_events == sum(e.passed for e in synthetic_computed.events)
+
+
+def test_a_lift_significant_only_with_the_media_features_is_model_dependent():
+    robust = {"robust_p_value": 0.01, "robust_lift": 8.0}
+    assert pipeline._gate_reasons({**SIGNIFICANT, **robust}, GATES) == []
+    assert pipeline._gate_reasons({**SIGNIFICANT, **robust, "robust_p_value": 0.4}, GATES) == ["model_dependent"]
+    assert pipeline._gate_reasons({**SIGNIFICANT, **robust, "robust_lift": -8.0}, GATES) == ["model_dependent"]
+    not_significant = {**SIGNIFICANT, "p_value": 0.4, "robust_p_value": 0.4, "robust_lift": 1.0}
+    assert "model_dependent" not in pipeline._gate_reasons(not_significant, GATES)

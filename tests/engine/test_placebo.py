@@ -6,7 +6,7 @@ import pytest
 import statsmodels.api as sm
 from scipy import stats
 
-from engine.analysis import cumulative_p_value, oos_wmape, placebo_p_value
+from engine.analysis import baseline_only_test, cumulative_p_value, oos_wmape, placebo_p_value
 from tests.engine.test_controls import _event
 
 
@@ -64,3 +64,22 @@ def test_the_event_reports_its_placebo_and_out_of_sample_wmape():
 
     assert 0 <= results["placebo_p_value"] <= 1
     assert results["oos_wmape"] is not None and results["oos_wmape"] >= 0
+
+
+def _split(frame, n_post=14):
+    return frame.iloc[:-n_post], frame.iloc[-n_post:]
+
+
+def test_the_baseline_only_test_sees_a_real_step_and_ignores_noise():
+    pre, post = _split(_pre(n=134, step_at=120, step=40.0))
+    p, impact = baseline_only_test(pre, post, [])
+    assert p < 0.05 and impact > 0
+    for seed in (0, 1, 2):
+        pre, post = _split(_pre(n=134, seed=seed))
+        assert baseline_only_test(pre, post, [])[0] > 0.01
+        assert baseline_only_test(pre, post, ["x"])[0] > 0.01
+
+
+def test_the_event_reports_its_robustness():
+    results = _event(lambda spend, rng: 50 + rng.normal(0, 5, len(spend)))
+    assert 0 <= results["robust_p_value"] <= 1 and results["robust_lift"] is not None

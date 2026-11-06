@@ -8,17 +8,7 @@ from threadpoolctl import threadpool_limits
 import engine
 from tests.engine.synthetic_data import DAYS, START, dataset_config, make_dataset
 
-NOISE_SEEDS = (
-    pytest.param(
-        1,
-        marks=pytest.mark.xfail(
-            strict=True,
-            reason="placebo alone lets white noise publish; robustness gate pending (plan, open decision 3)",
-        ),
-    ),
-    2,
-    3,
-)
+NOISE_SEEDS = (1, 2, 3)
 YOUTUBE_EVENT = "synthetic_YOUTUBE_2024-10-28"  # pre-period of 300 days: its placebo reads days 150-163
 
 

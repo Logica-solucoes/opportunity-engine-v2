@@ -339,6 +339,18 @@ def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int) -> f
     return float(np.abs(actual - np.asarray(forecast.predicted_mean)).sum() / total) if total else None
 
 
+def baseline_only_test(pre: pd.DataFrame, post: pd.DataFrame, baseline_features: list[str]) -> tuple[float, float]:
+    """(p-value, signed cumulative impact) of the event under the same model without the media features.
+
+    A lift that is significant only with them is the model extrapolating its own coefficients onto a spend spike
+    (they can be pure noise), not a response seen in the KPI.
+    """
+    exog = post[baseline_features] if baseline_features else None
+    forecast = _fit_state_space(pre, baseline_features).get_forecast(steps=len(post), exog=exog)
+    impact = float((post["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
+    return cumulative_p_value(impact, forecast)[0], impact
+
+
 def run_causal_impact_analysis(
     kpi_df,
     daily_investment_df,
@@ -472,6 +484,8 @@ def run_causal_impact_analysis(
         if placebo_p is None:
             log.warning("   - Placebo não rodou: o pré-período é curto demais para a intervenção falsa.")
         wmape = oos_wmape(pre_data_for_model, selected_features, min_pre_periods)
+        baseline_features = [f for f in selected_features if f not in transformed_features]
+        robust_p, robust_lift = baseline_only_test(pre_data_for_model, post_data, baseline_features)
 
         accuracy_df = pre_data_for_model.copy()
         accuracy_df["Predicted"] = in_sample_preds
@@ -613,6 +627,8 @@ def run_causal_impact_analysis(
             "model_r_squared": r_squared,
             "event_period_avg_investment": event_period_avg_investment,
             "controls": controls,
+            "robust_p_value": robust_p,
+            "robust_lift": robust_lift,
             "placebo_p_value": placebo_p,  # None: the pre-period is too short for a placebo
             "oos_wmape": wmape,
         }

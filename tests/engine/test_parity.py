@@ -23,8 +23,8 @@ RTOL, ATOL = 1e-9, 1e-12
 
 # results_data keys and gate reasons the prototype does not have: A4's control screening and A6's placebo,
 # out-of-sample WMAPE and run-level demotion. `passed` and `selected` follow from the reasons and the selection.
-ENGINE_KEYS = {"controls", "placebo_p_value", "oos_wmape"}
-ENGINE_REASONS = {"placebo_failed", "insufficient_run"}
+ENGINE_KEYS = {"controls", "placebo_p_value", "oos_wmape", "robust_p_value", "robust_lift"}
+ENGINE_REASONS = {"placebo_failed", "insufficient_run", "model_dependent"}
 
 
 def prototype_view(events: list[dict]) -> list[dict]:

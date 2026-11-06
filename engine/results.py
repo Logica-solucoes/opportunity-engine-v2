@@ -31,6 +31,7 @@ from engine.results_schema import (
     Placebo,
     ResponseRow,
     ResultsV1,
+    Robustness,
     Scenario,
 )
 from engine.scenario import bid_note, ramp
@@ -115,6 +116,10 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
     if "placebo_p_value" in data:  # None: the pre-period was too short to run it
         p = data["placebo_p_value"]
         event.placebo = Placebo(p_value=_num(p), passed=None if p is None else "placebo_failed" not in outcome.reasons)
+    if "robust_p_value" in data:
+        event.robustness = Robustness(
+            p_value=_num(data["robust_p_value"]), passed="model_dependent" not in outcome.reasons
+        )
     event.controls = [CausalControl(**control) for control in data.get("controls", [])]
     if any(not control.accepted for control in event.controls):
         event.reasons.append("control_rejected")  # the control left the model; the event still stands

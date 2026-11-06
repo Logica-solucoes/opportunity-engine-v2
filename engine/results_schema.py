@@ -105,6 +105,11 @@ class Placebo(_Model):
     passed: bool | None = None  # None: the pre-period is too short for a placebo (A6)
 
 
+class Robustness(_Model):
+    p_value: float | None = None  # the lift's p-value under the model without the media features
+    passed: bool | None = None  # False: significant only with them (model_dependent)
+
+
 class LinePoint(_Model):
     date: str
     actual_kpi: float | None = None
@@ -157,6 +162,7 @@ class CausalEvent(_Model):
     cpa_incremental: float | None = None
     fit: Fit | None = None
     placebo: Placebo | None = None
+    robustness: Robustness | None = None
     controls: list[CausalControl] = Field(default_factory=list)
     series: EventSeries | None = None
 
