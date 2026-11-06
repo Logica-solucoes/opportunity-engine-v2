@@ -138,6 +138,22 @@ def test_a_failing_sgs_blocks_the_run_with_502(logged, ready, db, monkeypatch):
     assert db.scalar(select(func.count()).select_from(Run)) == 0
 
 
+def test_controls_saved_during_the_sgs_calls_block_the_run(logged, ready, db, monkeypatch):
+    simulation = ready()
+    simulations.save_params(db, simulation, {**PARAMS, "controls": ["bcb_ipca"]})
+
+    def fetch_while_the_analyst_saves(controls):
+        simulations.save_params(db, simulation, {**PARAMS, "controls": ["bcb_selic"]})
+        return BCB_CSV
+
+    monkeypatch.setattr(bcb, "fetch", fetch_while_the_analyst_saves)
+
+    r = post_run(logged, simulation)
+
+    assert r.status_code == 409 and "mudaram" in r.json()["detail"]
+    assert db.scalar(select(func.count()).select_from(Run)) == 0
+
+
 def test_without_controls_the_sgs_is_not_called(logged, ready, monkeypatch):
     monkeypatch.setattr(bcb, "fetch", lambda controls: pytest.fail("fetched without controls"))
 

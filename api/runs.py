@@ -77,12 +77,15 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
     reason = block_reason(simulation, confirmed)
     if reason:
         raise Blocked(reason)
+    fetched_controls = list(simulation.config.get("controls") or [])
     bcb_file = snapshot_bcb(simulation)  # before the lock: no row lock held during the HTTP calls
     fail_stale(db, Run.simulation_id == simulation.id)
     simulations.lock(db, simulation)
     reason = block_reason(simulation, confirmed)
     if reason:
         raise Blocked(reason)
+    if (simulation.config.get("controls") or []) != fetched_controls:
+        raise Blocked("Os parâmetros mudaram enquanto as séries do Banco Central eram buscadas. Rode de novo.")
 
     files = {f.kind: f for f in simulation.files}
     warning_ids = {c["id"] for c in simulation.validation["checks"] if c["level"] == "warning"}
