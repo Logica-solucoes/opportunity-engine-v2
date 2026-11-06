@@ -32,7 +32,6 @@ def test_translate_line_report_messages():
 
 
 def test_translate_line_additional_patterns():
-    assert translate_line("   - No additional performance covariates found. Proceeding without them.") is None
     assert translate_line("   - Running automated feature selection for causal model...") == (
         "   - Analisando variáveis de contexto para o modelo causal..."
     )

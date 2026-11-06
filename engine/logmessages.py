@@ -225,6 +225,10 @@ _RULES = [
         "   - Variáveis adicionais selecionadas: {0}",
     ),
     (
+        r"Control (\S+) rejected: correlation (\S+) with the event's spend",
+        "   - Controle {0} descartado: correlação {1} com o investimento do evento.",
+    ),
+    (
         r"Causal model R-squared \(in-sample\):\s*(.*)",
         "   - Precisão do modelo causal (R²): {0}",
     ),
@@ -315,7 +319,6 @@ _RULES = [
         r"Running automated feature selection for causal model\.\.\.",
         "   - Analisando variáveis de contexto para o modelo causal...",
     ),
-    (r"No additional performance covariates found\. Proceeding without them\.", None),
     (r"Warning\b", None),
     (r"site-packages", None),
     (r"^\s*warn\(", None),

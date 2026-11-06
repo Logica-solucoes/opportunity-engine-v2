@@ -332,7 +332,13 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
         "TestEvent",
         "TestChannel",
         model_params,
-        {"period_days": period_days, "country_code": "BR", "min_pre_period_days": 14},
+        {
+            "period_days": period_days,
+            "country_code": "BR",
+            "min_pre_period_days": 14,
+            "controls": [],
+            "control_spend_corr": 0.5,
+        },
     )
     assert results_dict is not None, (
         "run_causal_impact_analysis returned None -- check stdout above for the swallowed exception"

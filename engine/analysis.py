@@ -18,6 +18,7 @@ from scipy.optimize import OptimizeWarning, curve_fit
 from scipy.signal import lfilter
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.linear_model import LassoCV
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import MinMaxScaler
 
 warnings.filterwarnings("ignore", category=OptimizeWarning)
@@ -251,11 +252,40 @@ def _select_variance_threshold_features(pre_data_for_model, potential_exog_vars,
     return [var for i, var in enumerate(potential_exog_vars) if support[i]]
 
 
+TRENDS_COLUMN = "Generic Searches"
+CALENDAR_FEATURES = ("is_weekend", "is_payday_period", "is_holiday")
+
+
+def with_controls(model_data: pd.DataFrame, controls_df: pd.DataFrame) -> pd.DataFrame:
+    """Each date takes the last value published on or before it: a monthly series holds until its next release."""
+    if controls_df.empty:
+        return model_data
+    controls = controls_df.assign(Date=controls_df["Date"].astype(model_data["Date"].dtype)).sort_values("Date")
+    return pd.merge_asof(model_data.sort_values("Date"), controls, on="Date")
+
+
+def screen_controls(pre: pd.DataFrame, spend: pd.Series, limit: float) -> list[dict]:
+    """A control that moves with the treated spend absorbs the effect being measured: |r| above `limit` rejects it.
+    An undefined r (a constant series) has nothing to absorb."""
+    screened = []
+    for column in pre.columns:
+        r = pre[column].corr(spend)
+        corr = None if pd.isna(r) else float(r)
+        name = "trends" if column == TRENDS_COLUMN else column
+        screened.append({"name": name, "corr": corr, "accepted": corr is None or abs(corr) <= limit})
+    return screened
+
+
+def lasso_folds(n_rows: int) -> TimeSeriesSplit:
+    """Folds in time order (a shuffled fold trains on the future); a short pre-period gets fewer of them."""
+    return TimeSeriesSplit(n_splits=max(2, min(5, n_rows // 4)))
+
+
 def run_causal_impact_analysis(
     kpi_df,
     daily_investment_df,
     market_trends_df,
-    performance_df,
+    controls_df,
     pre_period,
     post_period,
     event_name,
@@ -277,43 +307,7 @@ def run_causal_impact_analysis(
         model_data = pd.merge(data[["Date", "kpi"]], investment_pivot_df, on="Date", how="inner")
         model_data = pd.merge(model_data, market_trends_df, on="Date", how="left")
 
-        # --- Start of New Dynamic Code ---
-
-        # Rename columns for consistency
-        perf_df_renamed = performance_df.rename(
-            columns={
-                "date": "Date",
-                "leads": "Leads",
-                "Impressions": "Impressions",
-                "Clicks": "Clicks",
-            }
-        )
-
-        # Define potential covariates and find which ones actually exist in the data
-        possible_covariates = ["Leads", "Clicks", "Impressions"]
-        found_covariates = [col for col in possible_covariates if col in perf_df_renamed.columns]
-
-        if found_covariates:
-            log.info(f"   - Found additional covariates in performance data: {found_covariates}")
-            for col in found_covariates:
-                if perf_df_renamed[col].dtype == "object":
-                    perf_df_renamed[col] = perf_df_renamed[col].str.replace(".", "", regex=False)
-                perf_df_renamed[col] = pd.to_numeric(perf_df_renamed[col], errors="coerce")
-
-            perf_df_renamed["Date"] = pd.to_datetime(perf_df_renamed["Date"], errors="coerce")
-            perf_df_renamed.dropna(subset=["Date"] + found_covariates, inplace=True)
-
-            # Merge only the found and cleaned covariates
-            model_data = pd.merge(
-                model_data,
-                perf_df_renamed[["Date"] + found_covariates],
-                on="Date",
-                how="left",
-            )
-        else:
-            log.info("   - No additional performance covariates found. Proceeding without them.")
-
-        # --- End of New Dynamic Code ---
+        model_data = with_controls(model_data, controls_df)
 
         model_data.set_index("Date", inplace=True)
         model_data.sort_index(inplace=True)
@@ -370,15 +364,24 @@ def run_causal_impact_analysis(
             return None, None, None, None, None
 
         log.info("   - Running automated feature selection for causal model...")
-        potential_exog_vars = list(transformed_features.keys()) + [
-            col
-            for col in model_data.columns
-            if "generic" in col.lower() or "day_" in col or col in ["is_weekend", "is_payday_period", "is_holiday"]
-        ]
-
-        # --- Add the dynamically found covariates to the list ---
-        if found_covariates:
-            potential_exog_vars.extend(found_covariates)
+        candidates = [col for col in (TRENDS_COLUMN, *config["controls"]) if col in model_data.columns]
+        limit = config["control_spend_corr"]
+        pre_spend = pre_data_for_model[event_channels].sum(axis=1)
+        controls = screen_controls(pre_data_for_model[candidates], pre_spend, limit)
+        accepted = []
+        for column, control in zip(candidates, controls, strict=True):
+            if control["accepted"]:
+                accepted.append(column)
+            else:
+                log.warning(
+                    f"   - Control {control['name']} rejected: correlation {control['corr']:.2f} with the event's spend"
+                )
+        # controls before the calendar, where the "generic" match used to put the trends column
+        potential_exog_vars = (
+            list(transformed_features.keys())
+            + accepted
+            + [col for col in model_data.columns if "day_" in col or col in CALENDAR_FEATURES]
+        )
 
         varianced_features = _select_variance_threshold_features(pre_data_for_model, potential_exog_vars)
 
@@ -389,7 +392,8 @@ def run_causal_impact_analysis(
             scaler_lasso = MinMaxScaler()
             X_lasso_scaled = scaler_lasso.fit_transform(pre_data_for_model[varianced_features])
 
-            lasso = LassoCV(cv=5, random_state=0, max_iter=10000).fit(X_lasso_scaled, pre_data_for_model["kpi"])
+            folds = lasso_folds(len(pre_data_for_model))
+            lasso = LassoCV(cv=folds, random_state=0, max_iter=10000).fit(X_lasso_scaled, pre_data_for_model["kpi"])
             selected_features = [var for i, var in enumerate(varianced_features) if lasso.coef_[i] != 0]
             if not selected_features:
                 selected_features = list(transformed_features.keys())
@@ -558,6 +562,7 @@ def run_causal_impact_analysis(
             "mape": mape,
             "model_r_squared": r_squared,
             "event_period_avg_investment": event_period_avg_investment,
+            "controls": controls,
         }
 
         return (
