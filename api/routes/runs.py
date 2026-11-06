@@ -135,7 +135,8 @@ RESULTS_MISSING = "Esta execução não tem resultado."
 def get_results(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
     # the file as the worker wrote it: the engine owns the schema, the API only guards who reads it
     run = find_run(db, ctx, run_id)
-    if run.results_uri is None:
+    # a file gone from disk (storage restored older than the db) is a missing result, not a 500
+    if run.results_uri is None or not storage.path(run.results_uri).is_file():
         raise HTTPException(404, RESULTS_MISSING)
     return FileResponse(storage.path(run.results_uri), media_type="application/json")
 

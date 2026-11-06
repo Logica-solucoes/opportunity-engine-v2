@@ -85,3 +85,13 @@ def test_run_without_results_is_404_with_a_message(logged, finished, status):
 
     assert r.status_code == 404
     assert r.json()["detail"] == "Esta execução não tem resultado."
+
+
+def test_results_file_gone_from_disk_is_404(logged, finished):
+    run = finished()
+    storage.path(run.results_uri).unlink()
+
+    r = logged.get(f"/api/w/a/runs/{run.id}/results")
+
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Esta execução não tem resultado."
