@@ -91,14 +91,15 @@ export async function uploadTemplatesAndValidate(page: Page) {
   await expect(page.getByText('A colinearidade entre canais não foi avaliada', { exact: false })).toBeVisible()
 }
 
-// the fake engine takes ~5 s (FAKE_ENGINE_STEP_SECONDS=1 in env.ts); returns the run page's URL
+// the fake engine takes ~5 s (FAKE_ENGINE_STEP_SECONDS=1 in env.ts); returns the run page's URL (its Detalhes tab)
 export async function runToCompletion(page: Page, slug: string, name: string) {
   await createSimulation(page, slug, name)
   await uploadTemplatesAndValidate(page)
   await page.getByRole('button', { name: 'Salvar parâmetros' }).click()
   await expect(page.getByRole('button', { name: 'Rodar' })).toBeEnabled()
   await page.getByRole('button', { name: 'Rodar' }).click()
-  await expect(page).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+$`))
+  // a running run opens on Detalhes, where the log is; it stays there when the run ends
+  await expect(page).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+/detalhes$`))
   await expect(page.getByText('Concluída', { exact: true })).toBeVisible()
   return page.url()
 }

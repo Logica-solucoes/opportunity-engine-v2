@@ -24,6 +24,9 @@ import { Route as AuthWSlugExecucoesIndexRouteImport } from './routes/_auth/w/$s
 import { Route as AuthWSlugExecucoesRunIdRouteImport } from './routes/_auth/w/$slug/execucoes/$runId'
 import { Route as AuthWSlugSimulacoesIdRouteImport } from './routes/_auth/w/$slug/simulacoes/$id'
 import { Route as AuthWSlugSimulacoesNovaRouteImport } from './routes/_auth/w/$slug/simulacoes/nova'
+import { Route as AuthWSlugExecucoesRunIdIndexRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/index'
+import { Route as AuthWSlugExecucoesRunIdCausalRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/causal'
+import { Route as AuthWSlugExecucoesRunIdDetalhesRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/detalhes'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
@@ -99,6 +102,24 @@ const AuthWSlugSimulacoesNovaRoute = AuthWSlugSimulacoesNovaRouteImport.update({
   path: '/simulacoes/nova',
   getParentRoute: () => AuthWSlugRoute,
 } as any)
+const AuthWSlugExecucoesRunIdIndexRoute =
+  AuthWSlugExecucoesRunIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthWSlugExecucoesRunIdRoute,
+  } as any)
+const AuthWSlugExecucoesRunIdCausalRoute =
+  AuthWSlugExecucoesRunIdCausalRouteImport.update({
+    id: '/causal',
+    path: '/causal',
+    getParentRoute: () => AuthWSlugExecucoesRunIdRoute,
+  } as any)
+const AuthWSlugExecucoesRunIdDetalhesRoute =
+  AuthWSlugExecucoesRunIdDetalhesRouteImport.update({
+    id: '/detalhes',
+    path: '/detalhes',
+    getParentRoute: () => AuthWSlugExecucoesRunIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthIndexRoute
@@ -111,10 +132,13 @@ export interface FileRoutesByFullPath {
   '/w/$slug': typeof AuthWSlugRouteWithChildren
   '/w/$slug/membros': typeof AuthWSlugMembrosRoute
   '/w/$slug/': typeof AuthWSlugIndexRoute
-  '/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdRoute
+  '/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdRouteWithChildren
   '/w/$slug/simulacoes/$id': typeof AuthWSlugSimulacoesIdRoute
   '/w/$slug/simulacoes/nova': typeof AuthWSlugSimulacoesNovaRoute
   '/w/$slug/execucoes/': typeof AuthWSlugExecucoesIndexRoute
+  '/w/$slug/execucoes/$runId/causal': typeof AuthWSlugExecucoesRunIdCausalRoute
+  '/w/$slug/execucoes/$runId/detalhes': typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  '/w/$slug/execucoes/$runId/': typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -126,10 +150,12 @@ export interface FileRoutesByTo {
   '/admin/workspaces': typeof AuthAdminWorkspacesRoute
   '/w/$slug/membros': typeof AuthWSlugMembrosRoute
   '/w/$slug': typeof AuthWSlugIndexRoute
-  '/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdRoute
   '/w/$slug/simulacoes/$id': typeof AuthWSlugSimulacoesIdRoute
   '/w/$slug/simulacoes/nova': typeof AuthWSlugSimulacoesNovaRoute
   '/w/$slug/execucoes': typeof AuthWSlugExecucoesIndexRoute
+  '/w/$slug/execucoes/$runId/causal': typeof AuthWSlugExecucoesRunIdCausalRoute
+  '/w/$slug/execucoes/$runId/detalhes': typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  '/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,10 +170,13 @@ export interface FileRoutesById {
   '/_auth/w/$slug': typeof AuthWSlugRouteWithChildren
   '/_auth/w/$slug/membros': typeof AuthWSlugMembrosRoute
   '/_auth/w/$slug/': typeof AuthWSlugIndexRoute
-  '/_auth/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdRoute
+  '/_auth/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdRouteWithChildren
   '/_auth/w/$slug/simulacoes/$id': typeof AuthWSlugSimulacoesIdRoute
   '/_auth/w/$slug/simulacoes/nova': typeof AuthWSlugSimulacoesNovaRoute
   '/_auth/w/$slug/execucoes/': typeof AuthWSlugExecucoesIndexRoute
+  '/_auth/w/$slug/execucoes/$runId/causal': typeof AuthWSlugExecucoesRunIdCausalRoute
+  '/_auth/w/$slug/execucoes/$runId/detalhes': typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  '/_auth/w/$slug/execucoes/$runId/': typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -166,6 +195,9 @@ export interface FileRouteTypes {
     | '/w/$slug/simulacoes/$id'
     | '/w/$slug/simulacoes/nova'
     | '/w/$slug/execucoes/'
+    | '/w/$slug/execucoes/$runId/causal'
+    | '/w/$slug/execucoes/$runId/detalhes'
+    | '/w/$slug/execucoes/$runId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -177,10 +209,12 @@ export interface FileRouteTypes {
     | '/admin/workspaces'
     | '/w/$slug/membros'
     | '/w/$slug'
-    | '/w/$slug/execucoes/$runId'
     | '/w/$slug/simulacoes/$id'
     | '/w/$slug/simulacoes/nova'
     | '/w/$slug/execucoes'
+    | '/w/$slug/execucoes/$runId/causal'
+    | '/w/$slug/execucoes/$runId/detalhes'
+    | '/w/$slug/execucoes/$runId'
   id:
     | '__root__'
     | '/_auth'
@@ -198,6 +232,9 @@ export interface FileRouteTypes {
     | '/_auth/w/$slug/simulacoes/$id'
     | '/_auth/w/$slug/simulacoes/nova'
     | '/_auth/w/$slug/execucoes/'
+    | '/_auth/w/$slug/execucoes/$runId/causal'
+    | '/_auth/w/$slug/execucoes/$runId/detalhes'
+    | '/_auth/w/$slug/execucoes/$runId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -313,6 +350,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthWSlugSimulacoesNovaRouteImport
       parentRoute: typeof AuthWSlugRoute
     }
+    '/_auth/w/$slug/execucoes/$runId/': {
+      id: '/_auth/w/$slug/execucoes/$runId/'
+      path: '/'
+      fullPath: '/w/$slug/execucoes/$runId/'
+      preLoaderRoute: typeof AuthWSlugExecucoesRunIdIndexRouteImport
+      parentRoute: typeof AuthWSlugExecucoesRunIdRoute
+    }
+    '/_auth/w/$slug/execucoes/$runId/causal': {
+      id: '/_auth/w/$slug/execucoes/$runId/causal'
+      path: '/causal'
+      fullPath: '/w/$slug/execucoes/$runId/causal'
+      preLoaderRoute: typeof AuthWSlugExecucoesRunIdCausalRouteImport
+      parentRoute: typeof AuthWSlugExecucoesRunIdRoute
+    }
+    '/_auth/w/$slug/execucoes/$runId/detalhes': {
+      id: '/_auth/w/$slug/execucoes/$runId/detalhes'
+      path: '/detalhes'
+      fullPath: '/w/$slug/execucoes/$runId/detalhes'
+      preLoaderRoute: typeof AuthWSlugExecucoesRunIdDetalhesRouteImport
+      parentRoute: typeof AuthWSlugExecucoesRunIdRoute
+    }
   }
 }
 
@@ -332,10 +390,28 @@ const AuthAdminRouteWithChildren = AuthAdminRoute._addFileChildren(
   AuthAdminRouteChildren,
 )
 
+interface AuthWSlugExecucoesRunIdRouteChildren {
+  AuthWSlugExecucoesRunIdCausalRoute: typeof AuthWSlugExecucoesRunIdCausalRoute
+  AuthWSlugExecucoesRunIdDetalhesRoute: typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  AuthWSlugExecucoesRunIdIndexRoute: typeof AuthWSlugExecucoesRunIdIndexRoute
+}
+
+const AuthWSlugExecucoesRunIdRouteChildren: AuthWSlugExecucoesRunIdRouteChildren =
+  {
+    AuthWSlugExecucoesRunIdCausalRoute: AuthWSlugExecucoesRunIdCausalRoute,
+    AuthWSlugExecucoesRunIdDetalhesRoute: AuthWSlugExecucoesRunIdDetalhesRoute,
+    AuthWSlugExecucoesRunIdIndexRoute: AuthWSlugExecucoesRunIdIndexRoute,
+  }
+
+const AuthWSlugExecucoesRunIdRouteWithChildren =
+  AuthWSlugExecucoesRunIdRoute._addFileChildren(
+    AuthWSlugExecucoesRunIdRouteChildren,
+  )
+
 interface AuthWSlugRouteChildren {
   AuthWSlugMembrosRoute: typeof AuthWSlugMembrosRoute
   AuthWSlugIndexRoute: typeof AuthWSlugIndexRoute
-  AuthWSlugExecucoesRunIdRoute: typeof AuthWSlugExecucoesRunIdRoute
+  AuthWSlugExecucoesRunIdRoute: typeof AuthWSlugExecucoesRunIdRouteWithChildren
   AuthWSlugSimulacoesIdRoute: typeof AuthWSlugSimulacoesIdRoute
   AuthWSlugSimulacoesNovaRoute: typeof AuthWSlugSimulacoesNovaRoute
   AuthWSlugExecucoesIndexRoute: typeof AuthWSlugExecucoesIndexRoute
@@ -344,7 +420,7 @@ interface AuthWSlugRouteChildren {
 const AuthWSlugRouteChildren: AuthWSlugRouteChildren = {
   AuthWSlugMembrosRoute: AuthWSlugMembrosRoute,
   AuthWSlugIndexRoute: AuthWSlugIndexRoute,
-  AuthWSlugExecucoesRunIdRoute: AuthWSlugExecucoesRunIdRoute,
+  AuthWSlugExecucoesRunIdRoute: AuthWSlugExecucoesRunIdRouteWithChildren,
   AuthWSlugSimulacoesIdRoute: AuthWSlugSimulacoesIdRoute,
   AuthWSlugSimulacoesNovaRoute: AuthWSlugSimulacoesNovaRoute,
   AuthWSlugExecucoesIndexRoute: AuthWSlugExecucoesIndexRoute,
