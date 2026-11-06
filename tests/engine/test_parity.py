@@ -21,6 +21,31 @@ from tests.fixtures.parity.generate_legacy_snapshot import jsonable
 SNAPSHOT = Path(__file__).resolve().parents[1] / "fixtures" / "parity" / "snapshot.json"
 RTOL, ATOL = 1e-9, 1e-12
 
+# A4 (06/nov/2026) changed the causal model on purpose: TimeSeriesSplit in the Lasso and the control screening move
+# every model number (lift, p-value, fit, gates). Detection and the investment arithmetic still match the prototype.
+MODEL_FREE = (
+    "start_date",
+    "end_date",
+    "product_group",
+    "investment_change_pct",
+    "total_investment_post_period",
+    "total_investment_pre_period",
+    "event_period_avg_investment",
+)
+
+
+def model_free(events: list[dict]) -> list[dict]:
+    return [
+        {
+            "event_id": e["event_id"],
+            "product_group": e["product_group"],
+            "intervention_date": e["intervention_date"],
+            "results_data": {key: e["results_data"][key] for key in MODEL_FREE} if e["results_data"] else None,
+        }
+        for e in events
+    ]
+
+
 # The MMM optimum moves with the BLAS build: on Windows DISPLAY lands at 4.5% vs 7.0% in the Linux snapshot.
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="snapshot is Linux x86-64; see docs/decisoes/engine.md")
 
@@ -79,7 +104,7 @@ def test_events_and_gates_match(computed, snapshot):
         }
         for e in computed.events
     ]
-    assert_close(actual, snapshot["events"], "events")
+    assert_close(model_free(actual), model_free(snapshot["events"]), "events")
 
 
 def test_mmm_matches(computed, snapshot):

@@ -137,6 +137,24 @@ def test_zero_lift_gives_null_cpa(synthetic_computed):
     assert results._causal(with_events(synthetic_computed, [zero])).events[0].cpa_incremental is None
 
 
+def test_screened_controls_are_published_and_a_rejection_is_a_reason(synthetic_computed):
+    data = _result_data(
+        controls=[
+            {"name": "trends", "corr": 0.93, "accepted": False},
+            {"name": "bcb_ipca", "corr": 0.1, "accepted": True},
+        ]
+    )
+    event = results._causal(with_events(synthetic_computed, [outcome(data=data)])).events[0]
+
+    assert [(c.name, c.corr, c.accepted) for c in event.controls] == [("trends", 0.93, False), ("bcb_ipca", 0.1, True)]
+    assert event.status == "published" and event.reasons == ["control_rejected"]
+
+
+def test_an_event_without_controls_has_an_empty_list(synthetic_computed):
+    event = results._causal(with_events(synthetic_computed, [outcome()])).events[0]
+    assert event.controls == [] and event.reasons == []
+
+
 def test_events_detected_lists_every_candidate_including_ineligible(synthetic_computed):
     cands = candidates(("YOUTUBE", "2024-06-03", True, 80.0), ("SEARCH, PMAX", "2024-01-08", False, -35.5))
     detected = results._causal(with_events(synthetic_computed, [outcome()], cands)).events_detected

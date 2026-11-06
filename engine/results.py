@@ -12,6 +12,7 @@ from engine.results_schema import (
     AccuracyPoint,
     Baseline,
     Causal,
+    CausalControl,
     CausalEvent,
     ChannelFit,
     CurvePoint,
@@ -108,6 +109,9 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
     event.incremental_investment = _num(data["total_investment_post_period"])
     event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
     event.fit = Fit(r2=_num(data["model_r_squared"]), mae=_num(data["mae"]), mape=_num(data["mape"]))
+    event.controls = [CausalControl(**control) for control in data.get("controls", [])]
+    if any(not control.accepted for control in event.controls):
+        event.reasons.append("control_rejected")  # the control left the model; the event still stands
     event.series = _series(outcome)
     return event
 

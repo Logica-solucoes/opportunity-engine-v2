@@ -130,6 +130,12 @@ class EventSeries(_Model):
     kpi: list[KpiPoint] = Field(default_factory=list)
 
 
+class CausalControl(_Model):
+    name: str  # trends, bcb_ipca, bcb_selic, bcb_ibc_br
+    corr: float | None = None  # with the treated spend in the pre-period; None for a constant series
+    accepted: bool
+
+
 class CausalEvent(_Model):
     id: str
     channels: list[str]
@@ -145,6 +151,7 @@ class CausalEvent(_Model):
     cpa_incremental: float | None = None
     fit: Fit | None = None
     placebo: Placebo | None = None
+    controls: list[CausalControl] = Field(default_factory=list)
     series: EventSeries | None = None
 
 
