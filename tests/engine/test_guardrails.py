@@ -3,7 +3,12 @@ import pandas as pd
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import MinMaxScaler
 
-from engine.elasticity_analysis import generate_aggregated_response_curve, geometric_adstock, hill_transform
+from engine.elasticity_analysis import (
+    generate_aggregated_response_curve,
+    generate_individual_response_curves,
+    geometric_adstock,
+    hill_transform,
+)
 from tests.engine.helpers import full_config
 
 
@@ -70,3 +75,27 @@ def test_the_notable_points_carry_band_and_flag():
         assert point["KPI_Lo"] <= point["KPI_Hi"]
         assert point["Extrapolated"] in (True, False)
     assert bool(baseline["Extrapolated"]) is False
+
+
+def test_individual_curves_stay_within_the_channel_cap_even_past_the_recommended_spend():
+    mmm = _small_mmm()
+    cfg = full_config({"investment_limit_factor": 3.0, "per_channel_investment_limit_factor": 1.2})
+    cap = mmm["dataframe"]["A"].max() * 1.2
+    far_recommendation = {"Spend_A_Strategic": cap * 2, "Spend_B_Strategic": cap * 2}
+
+    curves = generate_individual_response_curves(mmm, cfg, strategic_limit_point=far_recommendation)
+
+    for channel in ("A", "B"):
+        own = curves[curves["Channel"] == channel]
+        assert own["Channel_Spend"].max() <= mmm["dataframe"][channel].max() * 1.2 + 1e-9
+
+
+def test_individual_curve_points_carry_band_and_flag():
+    mmm = _small_mmm()
+    curves = generate_individual_response_curves(mmm, full_config({}))
+
+    assert (curves["KPI_Lo"] <= curves["KPI_Hi"]).all()
+    own = curves[curves["Channel"] == "A"]
+    low, high = mmm["dataframe"]["A"].min(), mmm["dataframe"]["A"].max()
+    expected = (own["Channel_Spend"] < low) | (own["Channel_Spend"] > high)
+    assert (own["Extrapolated"] == expected).all()

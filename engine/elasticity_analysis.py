@@ -988,6 +988,8 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
     avg_daily_spend = {col: df[col].mean() for col in active_spend_cols}
     historical_max_daily_spend = {col: df[col].max() for col in active_spend_cols}
     per_channel_limit_factor = config["per_channel_investment_limit_factor"]
+    coef_samples = elasticity_results["coef_samples"]
+    historical_min_daily_spend = {col: df[col].min() for col in active_spend_cols}
 
     # Calculate steady-state adstock multipliers
     adstock_multipliers = {}
@@ -1009,17 +1011,10 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
             if rec_spend is not None:
                 max_spend = max(max_spend, rec_spend * 1.2)  # Give some padding
 
-        # Same reasoning as _capped_channel_spend in generate_aggregated_response_curve:
-        # don't let a channel's individual curve chart extrapolate the Hill fit past
-        # a range the model was actually calibrated against.
-        # However, if we have a recommended investment that exceeds the channel cap, we
-        # bypass the cap to show the curve up to the recommended point.
+        # A8: the curve never passes the range the Hill fit is trusted in, not even to reach the recommended spend
         channel_cap = historical_max_daily_spend.get(target_channel, 0) * per_channel_limit_factor
         if channel_cap > 0:
-            if rec_spend is not None and rec_spend * 1.2 > channel_cap:
-                max_spend = rec_spend * 1.2
-            else:
-                max_spend = min(max_spend, channel_cap)
+            max_spend = min(max_spend, channel_cap)
 
         spend_points = np.linspace(0, max_spend, 100)
 
@@ -1035,6 +1030,8 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
                 mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
 
             predicted_kpi = predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
+            kpi_lo, kpi_hi = kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features)
+            observed = historical_min_daily_spend[target_channel] <= spend <= historical_max_daily_spend[target_channel]
             individual_curves.append(
                 {
                     "Channel": target_channel,
@@ -1042,6 +1039,9 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
                     "Projected_Total_KPIs": predicted_kpi,
                     "Historical_Avg": target_avg_spend,
                     "Recommended": rec_spend,
+                    "KPI_Lo": kpi_lo,
+                    "KPI_Hi": kpi_hi,
+                    "Extrapolated": not observed,
                 }
             )
 
