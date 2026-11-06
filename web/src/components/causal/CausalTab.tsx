@@ -28,6 +28,12 @@ function CausalView({ causal }: { causal: Causal }) {
   const listed = showAll ? causal.events : published
   const selected = causal.events.find((e) => e.id === selectedId)
 
+  // a rejected event picked under "Todos" would stay open with no row highlighted
+  const showPublished = () => {
+    setShowAll(false)
+    if (selected?.status === 'rejected') setSelectedId(published[0]?.id ?? null)
+  }
+
   return (
     <div className="space-y-6">
       {causal.status !== 'ok' && (
@@ -54,7 +60,7 @@ function CausalView({ causal }: { causal: Causal }) {
         <div className="grid gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
           <section aria-label="Eventos" className="space-y-2">
             <div className="flex gap-2">
-              <Button size="sm" variant={showAll ? 'outline' : 'secondary'} aria-pressed={!showAll} onClick={() => setShowAll(false)}>
+              <Button size="sm" variant={showAll ? 'outline' : 'secondary'} aria-pressed={!showAll} onClick={showPublished}>
                 Publicados
               </Button>
               <Button size="sm" variant={showAll ? 'secondary' : 'outline'} aria-pressed={showAll} onClick={() => setShowAll(true)}>
