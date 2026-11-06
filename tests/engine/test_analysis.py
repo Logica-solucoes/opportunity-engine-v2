@@ -692,3 +692,13 @@ def test_baseline_only_p_value_is_none_when_the_fit_fails(monkeypatch):
 def test_causal_analysis_reports_the_robustness_p_value():
     results = _causal(_causal_setup())
     assert 0 <= results["robust_p_value"] <= 1
+
+
+def test_baseline_only_test_returns_the_p_value_and_the_signed_impact():
+    from engine.analysis import baseline_only_test
+
+    pre, post = _split(_pre_frame(n=134, step_at=120, step=40.0))
+    p, impact = baseline_only_test(pre, post, [])
+    assert p < 0.05 and impact > 0
+    pre, post = _split(_pre_frame(n=134, step_at=120, step=-40.0))
+    assert baseline_only_test(pre, post, [])[1] < 0

@@ -555,3 +555,19 @@ def test_event_carries_the_robustness(synthetic_computed):
 
 def test_event_without_the_robustness_keys_publishes_none(synthetic_computed):
     assert results._causal(with_events(synthetic_computed, [outcome()])).events[0].robustness is None
+
+
+def test_an_event_demoted_by_an_insufficient_run_publishes_no_lift(synthetic_computed):
+    data = {**_result_data(), "placebo_ran": True, "placebo_p_value": 0.5, "placebo_passed": True, "oos_wmape": 0.6}
+    demoted = outcome(data=data, passed=False, selected=False, reasons=["insufficient_run"])
+    event = results._causal(with_events(synthetic_computed, [demoted])).events[0]
+    assert event.status == "rejected" and event.reasons == ["insufficient_run"]
+    assert event.lift is None and event.p_value is None and event.cpa_incremental is None
+    assert event.incremental_investment is None and event.series is None
+    assert event.fit.wmape == 0.6 and event.placebo.passed is True  # the evidence of why stays
+
+
+def test_an_event_rejected_by_a_gate_keeps_its_numbers(synthetic_computed):
+    rejected = outcome(passed=False, selected=False, reasons=["not_significant"])
+    event = results._causal(with_events(synthetic_computed, [rejected])).events[0]
+    assert event.lift is not None and event.series is not None

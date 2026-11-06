@@ -106,15 +106,7 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
         return event
     lift = data["absolute_lift"]
     event.start, event.end = data["start_date"], data["end_date"]
-    event.lift = Lift(
-        abs=_num(lift),
-        ci=(_num(data["absolute_lift_ci_lower"]), _num(data["absolute_lift_ci_upper"])),
-        rel_pct=_num(data["relative_lift_pct"]),
-    )
-    event.p_value = _num(data["p_value"])
     event.investment_change_pct = _num(data["investment_change_pct"])
-    event.incremental_investment = _num(data["total_investment_post_period"])
-    event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
     event.fit = Fit(
         r2=_num(data["model_r_squared"]),
         mae=_num(data["mae"]),
@@ -134,6 +126,16 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
             used=list(data["controls_used"]),
             rejected=[RejectedControl(name=c["name"], r=_num(c["r"])) for c in data.get("controls_rejected", [])],
         )
+    if "insufficient_run" in outcome.reasons:
+        return event  # the run's data do not support publishing a lift: the numbers stay out of the document
+    event.lift = Lift(
+        abs=_num(lift),
+        ci=(_num(data["absolute_lift_ci_lower"]), _num(data["absolute_lift_ci_upper"])),
+        rel_pct=_num(data["relative_lift_pct"]),
+    )
+    event.p_value = _num(data["p_value"])
+    event.incremental_investment = _num(data["total_investment_post_period"])
+    event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
     event.series = _series(outcome)
     return event
 

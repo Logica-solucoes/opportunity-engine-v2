@@ -118,6 +118,15 @@ def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=columns)
 
 
+def robust_passed(p_value, robust_p_value, lift, robust_lift, threshold) -> bool | None:
+    """False when a significant lift does not hold without the media features: not significant there, or the other way."""
+    if robust_p_value is None or robust_lift is None:
+        return None
+    if not p_value < threshold:
+        return True  # nothing to protect
+    return bool(robust_p_value < threshold and (lift > 0) == (robust_lift > 0))
+
+
 def _gate_reasons(results: dict, cfg: dict) -> list[str]:
     reasons = []
     if cfg["require_statistical_significance"] and not results["p_value"] < cfg["p_value_threshold"]:
@@ -180,10 +189,12 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
             outcome.sessions_bar_df, outcome.accuracy_df = sessions_bar_df, accuracy_df
             p_placebo = results.get("placebo_p_value")
             results["placebo_passed"] = None if p_placebo is None else p_placebo >= cfg["p_value_threshold"]
-            p_robust = results.get("robust_p_value")
-            threshold = cfg["p_value_threshold"]
-            results["robust_passed"] = (
-                None if p_robust is None else not (results["p_value"] < threshold and p_robust >= threshold)
+            results["robust_passed"] = robust_passed(
+                results["p_value"],
+                results.get("robust_p_value"),
+                results["absolute_lift"],
+                results.get("robust_lift"),
+                cfg["p_value_threshold"],
             )
             outcome.reasons = _gate_reasons(results, cfg)
             outcome.passed = not outcome.reasons

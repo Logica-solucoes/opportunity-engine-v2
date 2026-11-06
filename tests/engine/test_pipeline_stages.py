@@ -286,12 +286,25 @@ def test_a_lift_that_needs_the_media_features_is_model_dependent():
     assert _gate_reasons(_gate_results(robust_p_value=None, robust_passed=None), cfg) == []
 
 
-def test_analyze_events_derives_robust_passed_from_both_p_values(tmp_path):
+def test_analyze_events_derives_robust_passed_from_both_tests(tmp_path):
     _, prepared, legacy = _prepared(tmp_path, config={"p_value_threshold": 0.1})
     events = pipeline.analyze_events(prepared, pipeline.detect_events(prepared, legacy), legacy)
     for e in (e for e in events if e.results_data):
-        data, thr = e.results_data, 0.1
-        expected = (
-            None if data["robust_p_value"] is None else not (data["p_value"] < thr and data["robust_p_value"] >= thr)
-        )
-        assert data["robust_passed"] is expected
+        d = e.results_data
+        if d["robust_p_value"] is None:
+            assert d["robust_passed"] is None
+        elif not d["p_value"] < 0.1:
+            assert d["robust_passed"] is True
+        else:
+            same_sign = (d["absolute_lift"] > 0) == (d["robust_lift"] > 0)
+            assert d["robust_passed"] is bool(d["robust_p_value"] < 0.1 and same_sign)
+
+
+def test_robustness_rejects_a_lift_whose_sign_only_exists_through_the_media_features():
+    from engine.pipeline import robust_passed
+
+    assert robust_passed(0.001, 0.5, 120.0, 90.0, 0.05) is False  # significant only with the media features
+    assert robust_passed(0.001, 0.01, 120.0, -90.0, 0.05) is False  # significant without them, but the other way
+    assert robust_passed(0.001, 0.01, 120.0, 90.0, 0.05) is True
+    assert robust_passed(0.4, 0.5, 120.0, -90.0, 0.05) is True  # not significant to begin with: nothing to protect
+    assert robust_passed(0.001, None, 120.0, None, 0.05) is None  # the refit failed
