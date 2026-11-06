@@ -375,3 +375,28 @@ class TestBootstrapMatrix(unittest.TestCase):
             idx = rng.integers(0, 40, 40)
             coefs[b] = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y[idx]).coef_
         np.testing.assert_array_equal(bootstrap_average_coefficients(X, y, n_bootstrap=30, seed=5), coefs.mean(axis=0))
+
+
+def test_cv_is_out_of_sample_from_forty_rows():
+    from engine.elasticity_analysis import cv_is_out_of_sample
+
+    assert cv_is_out_of_sample(39) is False and cv_is_out_of_sample(40) is True
+    assert cv_is_out_of_sample(728) is True and cv_is_out_of_sample(0) is False
+
+
+def test_mmm_records_that_a_long_history_was_cross_validated_out_of_sample(synthetic_computed):
+    assert synthetic_computed.mmm["cv_out_of_sample"] is True
+
+
+def test_mmm_records_the_in_sample_fallback_on_a_short_history(tmp_path):
+    from engine import pipeline
+    from engine.config import EngineConfig
+    from tests.engine.synthetic_data import dataset_config, make_dataset
+
+    files = make_dataset(tmp_path, n_days=35)
+    cfg = EngineConfig.from_input(dataset_config())
+    prepared = pipeline.load_inputs(files, cfg)
+    legacy = {**cfg.to_legacy_dict(), "period_days": prepared.period_days}
+    mmm = pipeline.run_elasticity(prepared, legacy)["mmm"]
+    assert mmm["cv_out_of_sample"] is False
+    assert np.isfinite(mmm["cv_r_squared"])

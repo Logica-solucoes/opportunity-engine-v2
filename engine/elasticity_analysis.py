@@ -162,7 +162,15 @@ def _transform_channels(df, spend_cols, alphas, ks, ss):
     return transformed_df
 
 
-def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=3):
+CV_SPLITS = 3
+
+
+def cv_is_out_of_sample(n_rows, n_splits=CV_SPLITS):
+    """True when walk_forward_cv_score has enough rows to split (>= 2 folds); otherwise it scores in-sample."""
+    return min(n_splits, max(1, n_rows // 20)) >= 2
+
+
+def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=CV_SPLITS):
     """
     Walk-forward (expanding-window) CV for the Stage-2 marketing fit. Returns
     (mean_out_of_sample_mse, pooled_out_of_fold_r2).
@@ -179,7 +187,7 @@ def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=3):
     y = np.asarray(kpi_lift, dtype=float)
     n = len(y)
     usable_splits = min(n_splits, max(1, n // 20))
-    if usable_splits < 2:
+    if not cv_is_out_of_sample(n, n_splits):
         scaler = MinMaxScaler()
         Xs = scaler.fit_transform(X)
         model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(Xs, y)
@@ -491,6 +499,7 @@ def run_mmm_engine(config, prepared):
         "contribution_pct": contribution_pct,
         "r_squared": final_r2,
         "cv_r_squared": cv_r2,
+        "cv_out_of_sample": cv_is_out_of_sample(len(y_lift)),
         "marketing_contribution_of_kpi_pct": marketing_contribution_of_kpi_pct,
         "model": mkt_model,
         "scaler": mkt_scaler,
