@@ -264,6 +264,17 @@ def test_an_overlap_pair_does_not_block_through_its_vif(tmp_path):
     assert "dv360_cm360_overlap" in ids and "collinearity_unresolved" not in ids
 
 
+def test_a_vif_only_channel_is_never_suggested_with_an_overlap_twin():
+    rng = np.random.default_rng(2)
+    c, d = rng.normal(100, 20, 300), rng.normal(100, 20, 300)
+    a = c + d + rng.normal(0, 0.5, 300)
+    frame = _frame({"A": a, "B": a * (1 + rng.normal(0, 0.001, 300)), "C": c, "D": d})
+
+    found = collinearity(spend_matrix(frame), EngineConfig(), {frozenset({"A", "B"})})
+
+    assert found.suggested_groups and not any({"A", "B"} <= set(group) for group in found.suggested_groups)
+
+
 def test_unresolved_lists_the_channels_still_collinear_as_modelled(tmp_path):
     blocked = validate(collinear_inputs(tmp_path / "a"), {**dataset_config(), "block_per_channel": True})
     grouped = validate(collinear_inputs(tmp_path / "b"), {**dataset_config(), "channel_groups": [["SEARCH", "PMAX"]]})

@@ -158,11 +158,14 @@ def high_vif(wide: pd.DataFrame, config: EngineConfig, overlapping: set[frozense
     return sorted(name for name, value in vif.items() if value is None or value > limit)
 
 
-def _suggested(wide: pd.DataFrame, pairs: list[dict], vif_channels: list[str]) -> list[list[str]]:
-    """Connected components of the pairs; a channel flagged only by its VIF joins the one it correlates with most."""
+def _suggested(
+    wide: pd.DataFrame, pairs: list[dict], vif_channels: list[str], overlapping: set[frozenset]
+) -> list[list[str]]:
+    """Connected components of the pairs; a channel flagged only by its VIF joins the one it correlates with most,
+    never an overlap twin (summing one source reported twice doubles it)."""
     edges = [(p["a"], p["b"]) for p in pairs]
     paired = {name for edge in edges for name in edge}
-    corr = wide.corr().abs()
+    corr = _without_twins(wide, overlapping).corr().abs()
     edges += [(name, str(corr[name].drop(name).idxmax())) for name in vif_channels if name not in paired]
     return _connected(edges)
 
@@ -178,7 +181,7 @@ def collinearity(wide: pd.DataFrame, config: EngineConfig, overlapping: set[froz
     return Collinearity(
         pairs=pairs,
         vif=channel_vif(wide),
-        suggested_groups=_suggested(wide, _not_overlap(pairs, overlapping), vif_channels),
+        suggested_groups=_suggested(wide, _not_overlap(pairs, overlapping), vif_channels, overlapping),
     )
 
 
@@ -262,7 +265,7 @@ def check_groups(
     members = {" + ".join(group): group for group in config.channel_groups}
     suggested_groups = sorted(
         sorted({m for name in group for m in members.get(name, [name])})
-        for group in _suggested(grouped, open_pairs, vif_channels)
+        for group in _suggested(grouped, open_pairs, vif_channels, overlapping)
     )
     suggested = "; ".join(" + ".join(group) for group in suggested_groups)
     vif_note = f" VIF acima de {config.gate_threshold('vif_max'):g}: {', '.join(vif_channels)}." if vif_channels else ""
