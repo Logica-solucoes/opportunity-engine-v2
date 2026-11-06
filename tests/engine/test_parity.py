@@ -97,8 +97,19 @@ def test_mmm_matches(computed, snapshot):
     assert_close(actual, snapshot["mmm"], "mmm")
 
 
+A8_KEYS = {"KPI_Lo", "KPI_Hi", "Extrapolated"}  # added by A8; the prototype has no such columns
+
+
+def without_a8(obj):
+    if isinstance(obj, dict):
+        return {key: without_a8(value) for key, value in obj.items() if key not in A8_KEYS}
+    if isinstance(obj, list):
+        return [without_a8(value) for value in obj]
+    return obj
+
+
 def test_response_curve_and_points_match(computed, snapshot):
-    assert_close(jsonable(computed.response_curve_df), snapshot["response_curve"], "response_curve")
+    assert_close(without_a8(jsonable(computed.response_curve_df)), snapshot["response_curve"], "response_curve")
     points = {
         "baseline": computed.baseline_point,
         "max_efficiency": computed.max_efficiency_point,
@@ -107,5 +118,5 @@ def test_response_curve_and_points_match(computed, snapshot):
         "saturation": computed.saturation_point,
         "strategic_reallocation": computed.strategic_reallocation_point,
     }
-    assert_close(jsonable(points), snapshot["points"], "points")
+    assert_close(without_a8(jsonable(points)), snapshot["points"], "points")
     assert_close(jsonable(computed.optimized_mix), snapshot["optimized_mix"], "optimized_mix")

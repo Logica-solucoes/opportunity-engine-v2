@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import timedelta
 
@@ -5,7 +6,8 @@ from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api import launcher, simulations
+import engine
+from api import launcher, simulations, storage
 from api.auth import Ctx
 from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, User
 
@@ -112,3 +114,18 @@ def unpublish(db: Session, run: Run, by: User) -> None:
     run.published_at, run.published_by = None, None
     db.commit()
     log.info("run.unpublished run_id=%s workspace_id=%s by=%s", run.id, run.workspace_id, by.id)
+
+
+NO_RESULTS = "Esta execução não tem resultado para simular cenários."
+
+
+def scenario(run: Run, filters: engine.ScenarioFilters) -> dict:
+    if run.results_uri is None:
+        raise Blocked(NO_RESULTS)
+    results = json.loads(storage.path(run.results_uri).read_text(encoding="utf-8"))
+    # ponytail: parses results.json on every slider move (~10 ms for 1 MB); cache by run id if it shows up in latency
+    step = run.config.get("max_budget_step", engine.EngineConfig().max_budget_step)
+    try:
+        return engine.scenario(results, filters, step)
+    except engine.EngineError as e:
+        raise Blocked(str(e)) from e

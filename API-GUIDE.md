@@ -45,6 +45,7 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | POST | `/api/w/{slug}/runs/{run_id}/publish` | Analyst+. → `RunOut`; só `succeeded`/`inconclusive`, senão 409 "Só execuções concluídas podem ser publicadas."; publicar de novo atualiza `published_at/by` |
 | POST | `/api/w/{slug}/runs/{run_id}/unpublish` | Analyst+. → `RunOut`; idempotente |
 | GET | `/api/w/{slug}/runs/{run_id}/inputs/{key}` | Analyst+. `key` ∈ `investment_file`, `performance_file`, `generic_trends_file` (outro → 422). CSV do snapshot do run, como anexo com o nome do upload; entrada ausente → 404 |
+| GET | `/api/w/{slug}/runs/{run_id}/scenario` | Viewer+ (viewer só vê publicados). Query com os filtros mensais opcionais (`min_budget`, `max_budget`, `target_cpa`, `target_icpa`, `min_roas`, `min_iroas`, `min_kpi`, `min_incrementality_pct`) → `{unit, revenue_mode, current, recommended, saturation, curve}` do `engine.scenario`; `recommended` é `null` quando nada passa; 409 se o run não tem curva; 422 em filtro inválido ou desconhecido |
 | GET | `/api/w/{slug}/runs/{run_id}/logs/stream` | Viewer+, mesma visibilidade. SSE: `id: <log id>` + `data: {ts, level, message}`; sem `Last-Event-ID` manda as 300 últimas, com ele as de id maior; `event: end` + `data: {status}` quando o run termina |
 | GET | `/api/admin/workspaces` | Platform admin. `[{id, name, slug, created_at, google: GoogleConfig \| null}]` |
 | POST | `/api/admin/workspaces` | Platform admin. `{name, slug}` (`^[a-z0-9-]{2,40}$`); 409 slug repetido |

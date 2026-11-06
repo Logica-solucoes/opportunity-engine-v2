@@ -31,6 +31,7 @@ from engine.results_schema import (
     ResultsV1,
     Scenario,
 )
+from engine.scenario import bid_note, ramp
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed, EventOutcome
@@ -50,6 +51,10 @@ def sanitize(obj: Any) -> Any:
 def _num(value: Any) -> float | None:
     """A plain float (numpy scalars included); None stays None. NaN survives here and is dropped by `sanitize`."""
     return None if value is None else float(value)
+
+
+def _flag(value: Any) -> bool | None:
+    return None if value is None else bool(value)
 
 
 def _day(value: Any) -> str:
@@ -173,6 +178,9 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
             ResponseRow(
                 investment=_num(record.get("Daily_Investment")),
                 kpi=_num(record.get("Projected_Total_KPIs")),
+                kpi_lo=_num(record.get("KPI_Lo")),
+                kpi_hi=_num(record.get("KPI_Hi")),
+                extrapolated=_flag(record.get("Extrapolated")),
                 revenue=_num(record.get("Projected_Revenue")) if revenue_mode else None,
                 icpa=_icpa(record),
                 # incremental revenue / incremental investment; the engine writes 0 for 0/0
@@ -192,7 +200,11 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
     return rows
 
 
-def _scenarios(computed: "Computed") -> list[Scenario]:
+def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
+    cfg = computed.effective_config
+    curve = [row.model_dump() for row in rows]
+    current = _num((computed.baseline_point or {}).get("Daily_Investment"))
+    note = bid_note(_revenue_mode(cfg))
     scenarios = []
     for name, attribute in SCENARIO_SOURCES.items():
         point = getattr(computed, attribute)
@@ -200,14 +212,21 @@ def _scenarios(computed: "Computed") -> list[Scenario]:
             name == "strategic_reallocation" and identifiability.none_identifiable(computed.identifiability)
         ):
             continue
+        investment = _num(point.get("Daily_Investment"))
+        changes = current is not None and investment is not None and not math.isclose(investment, current)
         scenarios.append(
             Scenario(
                 name=name,
-                investment=_num(point.get("Daily_Investment")),
+                investment=investment,
                 kpi=_num(point.get("Projected_Total_KPIs")),
+                kpi_lo=_num(point.get("KPI_Lo")),
+                kpi_hi=_num(point.get("KPI_Hi")),
                 icpa=_icpa(point),
                 incremental_investment=_num(point.get("Incremental_Investment")),
                 incremental_kpi=_num(point.get("Incremental_KPI")),
+                extrapolated=_flag(point.get("Extrapolated")),
+                ramp=ramp(current, investment, cfg["max_budget_step"], curve) if changes else None,
+                notes=[note] if changes else [],
             )
         )
     return scenarios
@@ -239,7 +258,14 @@ def _channel_fits(computed: "Computed") -> list[ChannelFit]:
             if curves is not None and not curves.empty:
                 own = curves[curves["Channel"] == name]
                 fit.curve = [
-                    CurvePoint(x=_num(r.Channel_Spend), y=_num(r.Projected_Total_KPIs)) for r in own.itertuples()
+                    CurvePoint(
+                        x=_num(r.Channel_Spend),
+                        y=_num(r.Projected_Total_KPIs),
+                        lo=_num(r.KPI_Lo),
+                        hi=_num(r.KPI_Hi),
+                        extrapolated=_flag(r.Extrapolated),
+                    )
+                    for r in own.itertuples()
                 ]
         fits.append(fit)
     return fits
@@ -254,6 +280,7 @@ def _elasticity(computed: "Computed") -> Elasticity:
         for members in computed.effective_config.get("channel_groups") or []
     ]
     none_identifiable = identifiability.none_identifiable(computed.identifiability)
+    rows = _response_rows(computed)
     return Elasticity(
         status="inconclusive" if none_identifiable else "ok",
         reasons=["no_identifiable_channel"] if none_identifiable else [],
@@ -264,8 +291,8 @@ def _elasticity(computed: "Computed") -> Elasticity:
         ),
         channels=_channel_fits(computed),
         groups=groups,
-        response_curve=_response_rows(computed),
-        scenarios=_scenarios(computed),
+        response_curve=rows,
+        scenarios=_scenarios(computed, rows),
     )
 
 

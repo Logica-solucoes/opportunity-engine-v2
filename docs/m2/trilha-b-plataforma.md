@@ -147,11 +147,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B5 · Dashboards Causal Impact e Elasticidade — semana 3
 
-- **Status:** ⛔ bloqueado em 28/out/2026. Faltam duas entregas da Trilha A:
-  - os fixtures do A1 em `tests/fixtures/results/`, previstos para 23/out e ainda não entregues (`engine/` também não existe);
-  - o `engine.scenario` do A8, previsto para a semana 3.
-
-  O schema do `results.json` só existe como esboço no README › contrato §3, e o `engine.run` falso devolve todas as seções `null`. Começar com um fixture feito à mão daria retrabalho quando o A1 fechar o schema e não permitiria conferir a paridade numérica com o Streamlit. Por isso a B6 foi adiantada.
+- **Status:** desbloqueado em 06/nov/2026. Os fixtures do A1 estão em `tests/fixtures/results/` (04/nov) e o `engine.scenario` do A8 está em `GET /api/w/{slug}/runs/{run_id}/scenario` (06/nov). Os fixtures ainda saem sem banda e sem `extrapolated` (`null`) até serem regenerados com a Gol. Antes de mostrar o `incremental_investment` dos eventos, ver a pendência em `docs/decisoes/engine.md`.
 - **BRD:** deliverables "Causal Impact dashboard" e "Elasticity dashboard"; Journeys 1 e 2; Wireframe 2; Capabilities › gates ("kept out of dashboards").
 - **Depende de:** A1 (fixtures servem desde a semana 1), A8 (`scenario`).
 - **Hoje:**
