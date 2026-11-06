@@ -253,7 +253,8 @@ def _select_variance_threshold_features(pre_data_for_model, potential_exog_vars,
 
 
 TRENDS_COLUMN = "Generic Searches"
-CALENDAR_FEATURES = ("is_weekend", "is_payday_period", "is_holiday")
+# exact names: a substring match ("day_" in col) would also take any other column that happens to contain it
+CALENDAR_COLUMNS = frozenset({"is_weekend", "is_payday_period", "is_holiday", *(f"day_{i}" for i in range(7))})
 
 
 def with_controls(model_data: pd.DataFrame, controls_df: pd.DataFrame) -> pd.DataFrame:
@@ -385,7 +386,7 @@ def run_causal_impact_analysis(
         potential_exog_vars = (
             list(transformed_features.keys())
             + accepted
-            + [col for col in model_data.columns if "day_" in col or col in CALENDAR_FEATURES]
+            + [col for col in model_data.columns if col in CALENDAR_COLUMNS]
         )
 
         varianced_features = _select_variance_threshold_features(pre_data_for_model, potential_exog_vars)

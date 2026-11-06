@@ -128,3 +128,24 @@ def test_ad_metrics_in_the_performance_file_do_not_change_the_causal_result(tmp_
     actual = [(o.event_id, o.results_data and o.results_data["absolute_lift"]) for o in _outcomes(with_ads)]
 
     assert actual == expected
+
+
+def test_only_the_calendar_columns_enter_by_name_and_in_the_model_order(monkeypatch):
+    from engine import analysis
+
+    seen = []
+    real = analysis._select_variance_threshold_features
+
+    def spy(pre, columns, *args, **kwargs):
+        seen.append(list(columns))
+        return real(pre, columns, *args, **kwargs)
+
+    monkeypatch.setattr(analysis, "_select_variance_threshold_features", spy)
+    leaky = pd.DataFrame({"Date": DAYS, "weekday_spend": np.arange(len(DAYS), dtype=float)})
+
+    _event(lambda spend, rng: 50 + rng.normal(0, 5, len(spend)), leaky)
+
+    columns = seen[-1]  # the causal model's call; the response model may call it before
+    assert "weekday_spend" not in columns
+    calendar = [c for c in columns if c.startswith(("day_", "is_"))]
+    assert calendar == ["is_weekend", "is_payday_period", "is_holiday", *(f"day_{i}" for i in range(7))]
