@@ -3,8 +3,9 @@ import re
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
-from engine.config import EngineConfig
+from engine.config import EngineConfig, GateThresholds
 from engine.errors import EngineError
 from tests.engine.synthetic_data import dataset_config
 
@@ -167,3 +168,12 @@ def test_identifiability_width_ratio_default_is_in_the_schema():
 def test_invalid_identifiability_width_ratio(bad):
     with pytest.raises(EngineError, match="gate_thresholds"):
         EngineConfig.from_input({"gate_thresholds": {"identifiability_width_ratio": bad}})
+
+
+def test_a6_gate_threshold_defaults_and_strictness():
+    gate = GateThresholds()
+    assert gate.spend_cv_min == 0.10 and gate.oos_wmape_max == 0.30
+    for field in ("spend_cv_min", "oos_wmape_max"):
+        for bad in (0, "0.3"):
+            with pytest.raises(ValidationError):
+                GateThresholds(**{field: bad})

@@ -91,3 +91,11 @@ def test_identifiability_fields_are_optional_and_round_trip():
         unidentified=Unidentified(channels=["A"], contribution_pct=12.5),
     )
     assert Elasticity.model_validate_json(section.model_dump_json()) == section
+
+
+def test_sufficiency_accepts_reasons_and_cv_flag():
+    from engine.results_schema import Sufficiency
+
+    s = Sufficiency(passed=False, reasons=["cv_in_sample"], cv_out_of_sample=False, spend_variation={"A": 0.4})
+    assert s.reasons == ["cv_in_sample"] and s.cv_out_of_sample is False
+    assert Sufficiency(passed=True).reasons == []

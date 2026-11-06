@@ -32,6 +32,12 @@ class GateThresholds(BaseModel):
     control_spend_corr: float = Field(
         default=0.5, gt=0, le=1, strict=True
     )  # a control above this |r| with the spend is out
+    spend_cv_min: float = Field(
+        default=0.10, gt=0, strict=True
+    )  # least spend variation (std/mean) of an analyzed channel
+    oos_wmape_max: float = Field(
+        default=0.30, gt=0, strict=True
+    )  # most median out-of-sample WMAPE of the counterfactual
 
 
 class EngineConfig(Strict):

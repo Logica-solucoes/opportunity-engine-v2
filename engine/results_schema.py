@@ -53,6 +53,8 @@ class Sufficiency(_Model):
     spend_variation: dict[str, Any] | None = None
     validated_events: int | None = None
     pre_wmape: float | None = None
+    reasons: list[str] = Field(default_factory=list)
+    cv_out_of_sample: bool | None = None
 
 
 ExperimentDesign = dict[str, Any]
