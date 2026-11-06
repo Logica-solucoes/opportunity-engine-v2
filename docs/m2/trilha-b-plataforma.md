@@ -82,7 +82,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
     4. a API chama `engine.validate` e devolve o `ValidationReport`;
     5. a tela mostra `error` (bloqueia), `warning` (checkbox de confirmação) e `info`;
     6. se houver colinearidade, a tela de agrupamento (A3) oferece agrupar ou bloquear por canal.
-  - Com o A3 pronto (05/nov/2026) a tela de agrupamento passa a ser obrigatória para rodar dataset colinear: o motor espera `channel_groups` (lista de listas de canal) e `block_per_channel` no config da simulação (hoje fora do `ParamsIn`), e o report traz `collinearity.suggested_groups` para pré-preencher.
+  - Com o A3 pronto (05/nov/2026) a tela de agrupamento passa a ser obrigatória para rodar dataset colinear: o motor espera `channel_groups` (lista de listas de canal) e `block_per_channel` no config da simulação (hoje fora do `ParamsIn`), e o report traz `collinearity.suggested_groups` para pré-preencher. Depois de um agrupamento, o que ainda falta agrupar está em `details.suggested_groups` do `collinearity_unresolved`, porque o gate roda sobre o spend agrupado. Salvar `channel_groups`/`block_per_channel` precisa revalidar: o `save_params` de hoje não revalida.
   - Para DV360/CM360 sobrepostos, o analista escolhe qual manter.
   - Templates CSV padrão disponíveis para download.
   - Upload do resultado de experimento (A7 › calibração).
