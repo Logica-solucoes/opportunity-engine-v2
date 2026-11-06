@@ -156,3 +156,27 @@ def test_control_spend_corr_defaults_to_half_and_reaches_the_legacy_dict():
     assert EngineConfig().to_legacy_dict()["control_spend_corr"] == 0.5
     tuned = EngineConfig(gate_thresholds={"control_spend_corr": 0.7})
     assert tuned.to_legacy_dict()["control_spend_corr"] == 0.7
+
+
+def test_the_new_gates_have_provisional_defaults_and_reach_the_legacy_dict():
+    config = EngineConfig()
+    assert config.gate_threshold("vif_max") == 10.0
+    legacy = config.to_legacy_dict()
+    assert legacy["spend_cv_min"] == 0.10 and legacy["oos_wmape_max"] == 0.30
+
+
+def test_the_vif_limit_must_be_above_one():
+    assert EngineConfig(gate_thresholds={"vif_max": 5.0}).gate_threshold("vif_max") == 5.0
+    for value in (1.0, 0.5):
+        with pytest.raises(EngineError) as raised:
+            EngineConfig.from_input({"gate_thresholds": {"vif_max": value}})
+        assert (
+            str(raised.value) == "Configuração inválida: campo 'gate_thresholds': limite deve ser maior que 1: vif_max"
+        )
+
+
+@pytest.mark.parametrize("name", ["spend_cv_min", "oos_wmape_max"])
+def test_the_a6_limits_are_in_zero_one(name):
+    with pytest.raises(EngineError) as raised:
+        EngineConfig.from_input({"gate_thresholds": {name: 1.5}})
+    assert str(raised.value) == f"Configuração inválida: campo 'gate_thresholds': limite fora de (0, 1): {name}"

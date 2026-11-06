@@ -210,7 +210,7 @@ def test_mapping_runs_the_validation(logged, analyst, ws, make_simulation):
                 "details": {"periods": 2},
             }
         ],
-        "collinearity": {"pairs": [], "vif": {}, "suggested_groups": []},
+        "collinearity": {"pairs": [], "vif": {}, "suggested_groups": [], "unresolved": []},
     }
 
 

@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from engine.results import sanitize
-from engine.results_schema import SCHEMA_VERSION, CausalEvent, Reports, ResultsV1
+from engine.results_schema import SCHEMA_VERSION, CausalEvent, Collinearity, Reports, ResultsV1, Sufficiency
 
 ROOT_KEYS = {
     "schema_version",
@@ -62,3 +62,9 @@ def test_sanitize_replaces_non_finite_at_any_depth():
     original = {"a": [float("nan"), {"b": float("inf")}], "c": -float("inf"), "d": 1.5, "e": True, "f": "x", "g": 2}
     assert sanitize(original) == {"a": [None, {"b": None}], "c": None, "d": 1.5, "e": True, "f": "x", "g": 2}
     assert original["c"] == -float("inf")  # input untouched
+
+
+def test_the_a3_and_a6_fields_are_optional():
+    assert Collinearity().unresolved == []
+    sufficiency = Sufficiency(passed=False)
+    assert sufficiency.reasons == [] and sufficiency.cv_out_of_sample is None

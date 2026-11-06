@@ -9,8 +9,14 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationErr
 
 from engine.errors import EngineError
 
-# gate thresholds: A3's collinearity and A4's control screening; A5's collinearity_vif when it uses it
-GATE_DEFAULTS = {"collinearity_r": 0.85, "control_spend_corr": 0.5}
+# gate thresholds: A3 collinearity (|r| and VIF), A4 control screening, A6 sufficiency. Provisional: A10 calibrates
+GATE_DEFAULTS = {
+    "collinearity_r": 0.85,
+    "vif_max": 10.0,
+    "control_spend_corr": 0.5,
+    "spend_cv_min": 0.10,
+    "oos_wmape_max": 0.30,
+}
 
 # Banco Central series the platform fetches for the causal model (api/bcb.py maps each to its SGS code)
 BcbControl = Literal["bcb_ipca", "bcb_selic", "bcb_ibc_br"]
@@ -57,7 +63,8 @@ class EngineConfig(Strict):
         default_factory=list
     )
     gate_thresholds: dict[str, float] = Field(default_factory=dict)
-    block_per_channel: bool = False  # the analyst accepts results only at the aggregate level (A3 gate; effect in A5)
+    block_per_channel: bool = False  # the analyst accepts results only at the aggregate level: collinear channels
+    # leave the per-channel results (A3 gate, A5 effect)
     product_group_filter: list[str] | None = None
     min_intervention_date: str | None = None
     country_code: str = "BR"
@@ -95,9 +102,11 @@ class EngineConfig(Strict):
         unknown = sorted(set(thresholds) - set(GATE_DEFAULTS))
         if unknown:
             raise ValueError(f"limite desconhecido: {', '.join(unknown)}")
-        # all gates are correlations; A5's VIF limit is above 1 and needs its own bound
         for name in sorted(thresholds):
-            if not 0 < thresholds[name] < 1:
+            if name == "vif_max":
+                if not thresholds[name] > 1:  # a VIF is never below 1
+                    raise ValueError(f"limite deve ser maior que 1: {name}")
+            elif not 0 < thresholds[name] < 1:  # the others are correlations, a variation and an error share
                 raise ValueError(f"limite fora de (0, 1): {name}")
         return thresholds
 
@@ -128,6 +137,8 @@ class EngineConfig(Strict):
         kpi_col = self.column_mapping.get("performance_file", {}).get("kpi_col")
         legacy["performance_kpi_column"] = kpi_col or "Sessions"
         legacy["control_spend_corr"] = self.gate_threshold("control_spend_corr")
+        legacy["spend_cv_min"] = self.gate_threshold("spend_cv_min")
+        legacy["oos_wmape_max"] = self.gate_threshold("oos_wmape_max")
         return legacy
 
     def gate_threshold(self, name: str) -> float:

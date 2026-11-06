@@ -36,6 +36,9 @@ class Collinearity(_Model):
     pairs: list[dict[str, Any]] = Field(default_factory=list)
     vif: dict[str, float | None] = Field(default_factory=dict)
     suggested_groups: list[list[str]] = Field(default_factory=list)
+    # channels as modelled (groups summed) still over a limit: the gate blocks on them, or with block_per_channel A5
+    # publishes them only in aggregate
+    unresolved: list[str] = Field(default_factory=list)
 
 
 class ValidationReport(_Model):
@@ -52,7 +55,10 @@ class Sufficiency(_Model):
     passed: bool
     spend_variation: dict[str, Any] | None = None
     validated_events: int | None = None
-    pre_wmape: float | None = None
+    pre_wmape: float | None = None  # median out-of-sample WMAPE of the validated events
+    # no_validated_event, low_spend_variation, high_oos_wmape, cv_in_sample
+    reasons: list[str] = Field(default_factory=list)
+    cv_out_of_sample: bool | None = None  # False: the elasticity CV fell back to in-sample (under 40 rows)
 
 
 ExperimentDesign = dict[str, Any]
@@ -96,7 +102,7 @@ class Fit(_Model):
 
 class Placebo(_Model):
     p_value: float | None = None
-    passed: bool | None = None
+    passed: bool | None = None  # None: the pre-period is too short for a placebo (A6)
 
 
 class LinePoint(_Model):
@@ -191,7 +197,7 @@ class ChannelFit(_Model):
     contribution_pct: float | None = None
     identifiable: bool | None = None
     coef_ci: tuple[float | None, float | None] | None = None
-    reasons: list[str] = Field(default_factory=list)  # coef_ci_includes_zero, coef_ci_too_wide (A5)
+    reasons: list[str] = Field(default_factory=list)  # coef_ci_includes_zero, coef_ci_too_wide, collinearity (A5)
     hill: Hill | None = None
     adstock: float | None = None
     observed_spend_range: tuple[float | None, float | None] | None = None
