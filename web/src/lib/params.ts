@@ -209,7 +209,10 @@ export function paramsBody(layout: FormGroup[], values: Record<string, FormValue
 }
 
 function changed(field: FormField, value: unknown, saved: unknown): boolean {
-  if (field.schema.type === 'array') return JSON.stringify(value) !== JSON.stringify(saved ?? [])
+  if (field.schema.type === 'array') {
+    const sorted = (list: unknown) => JSON.stringify([...(list as unknown[])].sort())
+    return sorted(value) !== sorted(saved ?? [])
+  }
   return value !== (saved ?? null)
 }
 
