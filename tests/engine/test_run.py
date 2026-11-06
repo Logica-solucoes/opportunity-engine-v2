@@ -14,7 +14,14 @@ from engine import pipeline
 from engine.errors import EngineError
 from llm.base import LLMBadOutput, LLMUnavailable
 from tests.engine.csv_factory import with_twin
-from tests.engine.synthetic_data import NULL, STRONG, dataset_config, make_dataset, make_strong_effect_dataset
+from tests.engine.synthetic_data import (
+    NULL,
+    STRONG,
+    dataset_config,
+    make_dataset,
+    make_noise_dataset,
+    make_strong_effect_dataset,
+)
 from tests.fakes.llm import EVENT_NARRATIVE, GLOBAL_NARRATIVE, FakeLLM
 
 SHORT = 364
@@ -276,3 +283,59 @@ def test_the_run_log_does_not_show_the_share_of_a_hidden_channel(strong_run):
     assert not any(NULL in line and "%" in line for line in lines)
     assert any("Identificabilidade" in line and "1 de 2" in line for line in lines)
     assert any(line.strip().startswith(f"- {STRONG}:") and "%" in line for line in lines)
+
+
+# --- A6: sufficiency and placebo -------------------------------------------------------------------------------
+
+
+NOISE_SEEDS = (1, 2, 3)  # the first three of the ten measured in docs/decisoes/engine.md (2 of the ten still publish)
+
+
+@pytest.fixture(scope="module", params=NOISE_SEEDS)
+def noise_run(request, tmp_path_factory):
+    mp = pytest.MonkeyPatch()
+    mp.setenv("LLM_PROVIDER", "none")
+    work = tmp_path_factory.mktemp(f"noise{request.param}")
+    run = _run_once(
+        work, {**dataset_config(), "p_value_threshold": 0.05}, make_noise_dataset(work / "data", seed=request.param)
+    )
+    mp.undo()
+    return run
+
+
+def test_white_noise_publishes_no_event_and_the_run_is_inconclusive(noise_run):
+    result = noise_run.result
+    assert [e for e in result["causal"]["events"] if e["status"] == "published"] == []
+    assert result["status"] == "inconclusive" and result["causal"]["status"] == "inconclusive"
+    assert result["sufficiency"]["passed"] is False and "no_validated_event" in result["sufficiency"]["reasons"]
+    assert all(e["lift"] is not None for e in result["causal"]["events"])  # rejected events keep their numbers, flagged
+
+
+def test_every_published_event_carries_its_placebo_and_robustness(ran):
+    published = [e for e in ran.result["causal"]["events"] if e["status"] == "published"]
+    assert published
+    for event in published:
+        assert event["placebo"]["passed"] is True and event["placebo"]["p_value"] is not None
+        assert event["robustness"]["passed"] is True and event["fit"]["wmape"] is not None
+
+
+@pytest.fixture(scope="module")
+def injected_run(tmp_path_factory):
+    """The default dataset with a +50% pulse in the KPI where the placebo of YOUTUBE 2024-10-28 looks (days 150-163)."""
+    mp = pytest.MonkeyPatch()
+    mp.setenv("LLM_PROVIDER", "none")
+    work = tmp_path_factory.mktemp("injected")
+    inputs = make_dataset(work / "data")
+    kpi = pd.read_csv(inputs["performance_file"])
+    kpi.loc[150:163, "Sessions"] *= 1.5
+    kpi.to_csv(inputs["performance_file"], index=False)
+    run = _run_once(work, dataset_config(), inputs)
+    mp.undo()
+    return run
+
+
+def test_an_effect_injected_in_the_pre_period_fails_the_placebo(injected_run):
+    events = {e["id"]: e for e in injected_run.result["causal"]["events"]}
+    event = events["synthetic_YOUTUBE_2024-10-28"]
+    assert event["status"] == "rejected" and "placebo_failed" in event["reasons"]
+    assert event["placebo"]["passed"] is False and event["placebo"]["p_value"] < 0.1

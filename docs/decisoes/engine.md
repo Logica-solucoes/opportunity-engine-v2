@@ -134,6 +134,18 @@ Spec: `docs/superpowers/specs/2026-11-05-a5-identificabilidade-design.md`. Um co
 - **Para o Dev B (swap):** `identifiability_width_ratio` em `api/engine_config.py`; a tela do B5 mostra `identifiable`, `reasons`, o balde `nao_identificavel` e `unidentified`.
 - **Fora do A5:** intervalos de curvas e cenários (A8), suficiência e placebo (A6), calibração do limiar com as Core (A10).
 
+## Suficiência e placebo (A6, 06/nov/2026)
+
+Spec: `docs/superpowers/specs/2026-11-05-a6-suficiencia-placebo-design.md` (com a emenda do gate de robustez).
+
+- **Placebo A (um, no ponto médio).** O mesmo `UnobservedComponents` e as mesmas features do evento, ajustado na 1ª metade do pré; prevê uma janela do tamanho do pós e usa o mesmo p-valor acumulado (`analysis.cumulative_p_value`, extraído sem mudar a conta). B (vários placebos) foi descartada: 5 ajustes por evento e o pré curto não comporta janelas sem sobreposição. Não roda com pré curto (`n // 2 < min_pre_periods` ou janela maior que a 2ª metade): `placebo.passed = null`, aviso, evento não rejeitado. As features vêm do Lasso no pré inteiro: vazamento leve de seleção, aceito.
+- **WMAPE fora da amostra** no nível do run: por evento é só `fit.wmape` (últimos 20% do pré); o gate usa a mediana dos eventos validados (`gate_thresholds.oos_wmape_max`, 0.30). Sem valor calculável não reprova.
+- **Suficiência (`engine/sufficiency.py`).** `validated_events` conta os eventos que passaram todos os gates antes do corte `max_events_to_analyze`; CV de spend (`spend_cv_min`, 0.10) só dos canais desses eventos; `cv_in_sample` (CV da elasticidade com < 40 linhas). Razões causais derrubam os eventos (`insufficient_run`, sem lift publicado); `cv_in_sample` só torna o run `inconclusive`.
+- **Emenda: gate de robustez (`model_dependent`).** A medição de aceite mostrou que o placebo não pega o ruído puro: em 10 sementes (`make_noise_dataset`, `p_value_threshold` 0.05) 6 publicavam evento. Causa: o Lasso mantém as cinco features de mídia mesmo sem sinal e extrapolar esses coeficientes sobre um pico de spend de 2.5× gera um "lift" de ~3% com p ≈ 0, algo que o placebo (meio do pré, sem pico) não vê. O ajuste sem as features de mídia (`baseline_only_p_value`) rejeita o evento quando o lift só é significativo com elas. Resultado: 2 de 10 sementes ainda publicam (6 eventos × 5% de nível nominal), os testes usam as sementes 1–3. Custo: um efeito pequeno que só o modelo com mídia enxerga também cai.
+- **Gol (06/nov/2026):** 52 eventos, 50 analisados, placebo rodou em 48, 11 `placebo_failed` (taxa acima do nominal: o erro-padrão acumulado subestima a incerteza, já anotado no código do p-valor), 0 `model_dependent`, 11 passam todos os gates (eram 12 depois do A4), WMAPE mediano 0.197, run `succeeded`. Números e limiares são medição para o A10 (`tests/engine/test_sufficiency_real.py`).
+- **Golden:** o do A4 (sintético e Gol) foi regenerado: o ajuste do evento real não mudou, mudou quem passa nos gates e os campos novos (`placebo_*`, `oos_wmape`, `robust_*`).
+- **Para o Dev B:** `spend_cv_min` e `oos_wmape_max` em `api/engine_config.py`; B5 mostra `sufficiency.reasons`, `placebo` (`passed = null` = não rodou), `robustness` e os motivos `placebo_failed`, `model_dependent`, `insufficient_run`.
+
 ## Passos do swap (Dev B)
 
 1. `pyproject.toml` já tem as dependências; o `Dockerfile` precisa de `COPY engine/ ./engine/` e `COPY llm/ ./llm/` (medir o tamanho da imagem antes/depois).

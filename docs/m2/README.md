@@ -100,14 +100,14 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
 ```json
 {"schema_version": 1, "engine_version": "<git sha>", "status": "succeeded|inconclusive|failed",
  "validation": { ...ValidationReport... },
- "sufficiency": {"passed": true, "spend_variation": {...}, "validated_events": 3, "pre_wmape": 0.08},
+ "sufficiency": {"passed": true, "spend_variation": {"YOUTUBE": 0.42}, "validated_events": 3, "pre_wmape": 0.08, "reasons": [], "cv_out_of_sample": true},
  "causal": {
    "events_detected": [{"date":"2025-08-18","channels":["YOUTUBE"],"investment_change_pct":89.7}],
    "events": [{"id":"YOUTUBE_2025-08-18","channels":["YOUTUBE"],"start":"…","end":"…",
                "status":"published|rejected","reasons":["placebo_failed"],
                "lift":{"abs":4640000,"ci":[…,…],"rel_pct":12.1},"p_value":0.01,
                "incremental_investment":3400000,"cpa_incremental":…,"fit":{"r2":…,"wmape":…},
-               "placebo":{"p_value":0.62,"passed":true},
+               "placebo":{"p_value":0.62,"passed":true}, "robustness":{"p_value":0.004,"passed":true},
                "controls":{"used":["Selic"],"rejected":[{"name":"Generic Searches","r":0.71}]},
                "series":{"line":[…],"accuracy":[…],"investment":[…],"kpi":[…]}}]},
  "elasticity": {
@@ -125,6 +125,8 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
              "grounding": {"status":"passed|regenerated|blocked","issues":[…]}}}
 ```
 **Identificabilidade (A5).** Um canal que os dados não sustentam (`reasons`: `ci_crosses_zero`, `ci_too_wide` ou `collinearity`) sai sem `hill`, `adstock`, `curve` e `contribution_pct`. O `coef_ci` está no espaço escalado do modelo e serve só para exibição (não é KPI por real investido). Em cada `mix` os canais ocultos somam na chave `nao_identificavel`, e `elasticity.unidentified` lista nomes e soma de contribuição. Enquanto houver canal oculto, `metrics.reallocation_suppressed` é `true` e o cenário `strategic_reallocation` não é publicado. `elasticity.reasons` pode trazer `no_identifiable_channel` mesmo com `status: "ok"` (informativo: o total e a curva agregada seguem publicados).
+
+**Suficiência e placebo (A6).** Cada evento passa por dois testes além dos gates antigos. O **placebo** ajusta o mesmo modelo na primeira metade do pré e mede o "efeito" numa janela do tamanho do pós logo depois do ponto médio: `p_value` abaixo de `p_value_threshold` rejeita o evento com `placebo_failed`; `placebo.passed = null` significa que não rodou (pré curto) e não rejeita. A **robustez** refaz o ajuste sem as features de mídia: lift significativo só com elas rejeita o evento com `model_dependent` (`robustness.passed = false`). `fit.wmape` é o erro fora da amostra (últimos 20% do pré); `fit.mape` continua in-sample. `sufficiency` julga o run: `reasons` pode trazer `no_validated_event`, `low_spend_variation` (CV de spend de um canal dos eventos validados abaixo de `gate_thresholds.spend_cv_min`), `high_oos_wmape` (mediana acima de `oos_wmape_max`) e `cv_in_sample` (menos de 40 linhas: o CV da elasticidade foi in-sample). Os três primeiros tornam `causal` `inconclusive` e os eventos que seriam publicados saem `rejected` com `insufficient_run` (sem lift publicado); `cv_in_sample` só deixa o run `inconclusive` (a elasticidade segue publicada, com `cv_in_sample` em `elasticity.reasons`). Run com `sufficiency.passed = false` nunca é `succeeded`.
 
 O formato exato de cada seção é fechado no spec do item dono, e os nomes acima são o ponto de partida. Até o fim da semana 1, A entrega **fixtures** reais em `tests/fixtures/results/` (gerados a partir de `exemplo_csv/`) para B construir telas sem esperar o motor.
 

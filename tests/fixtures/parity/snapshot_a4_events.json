@@ -23,11 +23,13 @@
    "placebo_ran": true,
    "placebo_p_value": 0.08632786456096153,
    "oos_wmape": 0.02779654226856814,
+   "robust_p_value": 1.9821957455041607e-07,
    "controls_used": [
     "Generic Searches"
    ],
    "controls_rejected": [],
-   "placebo_passed": false
+   "placebo_passed": false,
+   "robust_passed": true
   },
   "passed": false,
   "reasons": [
@@ -59,11 +61,13 @@
    "placebo_ran": true,
    "placebo_p_value": 0.15574767971800393,
    "oos_wmape": 0.02933087824656104,
+   "robust_p_value": 0.001178689684494819,
    "controls_used": [
     "Generic Searches"
    ],
    "controls_rejected": [],
-   "placebo_passed": true
+   "placebo_passed": true,
+   "robust_passed": true
   },
   "passed": true,
   "reasons": [],
@@ -93,11 +97,13 @@
    "placebo_ran": true,
    "placebo_p_value": 0.5397970279199582,
    "oos_wmape": 0.0317365156267795,
+   "robust_p_value": 0.19812428864832987,
    "controls_used": [
     "Generic Searches"
    ],
    "controls_rejected": [],
-   "placebo_passed": true
+   "placebo_passed": true,
+   "robust_passed": true
   },
   "passed": false,
   "reasons": [
@@ -130,11 +136,13 @@
    "placebo_ran": true,
    "placebo_p_value": 0.8142198982296093,
    "oos_wmape": 0.02514319540985819,
+   "robust_p_value": 1.6472970172944693e-10,
    "controls_used": [
     "Generic Searches"
    ],
    "controls_rejected": [],
-   "placebo_passed": true
+   "placebo_passed": true,
+   "robust_passed": true
   },
   "passed": true,
   "reasons": [],
@@ -164,11 +172,13 @@
    "placebo_ran": true,
    "placebo_p_value": 0.239518117505499,
    "oos_wmape": 0.02654990566124452,
+   "robust_p_value": 9.062899641564377e-12,
    "controls_used": [
     "Generic Searches"
    ],
    "controls_rejected": [],
-   "placebo_passed": true
+   "placebo_passed": true,
+   "robust_passed": true
   },
   "passed": true,
   "reasons": [],
@@ -198,11 +208,13 @@
    "placebo_ran": true,
    "placebo_p_value": 0.3382271166373848,
    "oos_wmape": 0.02969504317886318,
+   "robust_p_value": 0.515730952790358,
    "controls_used": [
     "Generic Searches"
    ],
    "controls_rejected": [],
-   "placebo_passed": true
+   "placebo_passed": true,
+   "robust_passed": true
   },
   "passed": false,
   "reasons": [
