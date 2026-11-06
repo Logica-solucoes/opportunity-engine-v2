@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from engine.config import EngineConfig
 from engine.errors import EngineError
@@ -142,3 +143,16 @@ def test_gate_threshold_outside_zero_one_is_an_invalid_config(value):
 
 def test_channel_group_members_are_deduplicated_in_order():
     assert EngineConfig(channel_groups=[["a", "A", "b"]]).channel_groups == [["A", "B"]]
+
+
+def test_controls_accept_only_the_bcb_series_and_drop_repeats():
+    assert EngineConfig(controls=["bcb_ipca", "bcb_ipca", "bcb_selic"]).controls == ["bcb_ipca", "bcb_selic"]
+    assert EngineConfig().controls == []
+    with pytest.raises(ValidationError):
+        EngineConfig(controls=["Clicks"])
+
+
+def test_control_spend_corr_defaults_to_half_and_reaches_the_legacy_dict():
+    assert EngineConfig().to_legacy_dict()["control_spend_corr"] == 0.5
+    tuned = EngineConfig(gate_thresholds={"control_spend_corr": 0.7})
+    assert tuned.to_legacy_dict()["control_spend_corr"] == 0.7

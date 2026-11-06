@@ -372,3 +372,10 @@ def test_422_keeps_the_limits_in_ctx_for_the_form(logged, mapped):
 
     assert r.status_code == 422
     assert r.json()["detail"][0]["ctx"] == {"gt": 1.0}
+
+
+def test_params_carry_the_bcb_controls():
+    assert ParamsIn().controls == []
+    assert ParamsIn(controls=["bcb_ipca", "bcb_ipca"]).controls == ["bcb_ipca"]
+    items = ParamsIn.model_json_schema()["properties"]["controls"]["items"]
+    assert items["enum"] == ["bcb_ipca", "bcb_selic", "bcb_ibc_br"]

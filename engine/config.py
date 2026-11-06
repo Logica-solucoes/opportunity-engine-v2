@@ -3,14 +3,17 @@
 The analytical modules still read a plain dict with `config.get(...)`; `to_legacy_dict()` builds it from this model.
 """
 
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from engine.errors import EngineError
 
-# gate thresholds (A3); A4 adds control_spend_corr and A5 collinearity_vif when they use them
-GATE_DEFAULTS = {"collinearity_r": 0.85}
+# gate thresholds: A3's collinearity and A4's control screening; A5's collinearity_vif when it uses it
+GATE_DEFAULTS = {"collinearity_r": 0.85, "control_spend_corr": 0.5}
+
+# Banco Central series the platform fetches for the causal model (api/bcb.py maps each to its SGS code)
+BcbControl = Literal["bcb_ipca", "bcb_selic", "bcb_ibc_br"]
 
 
 class Strict(BaseModel):
@@ -50,7 +53,9 @@ class EngineConfig(Strict):
     column_mapping: dict = Field(default_factory=dict)
     date_formats: dict = Field(default_factory=dict)
     channel_groups: list[list[str]] = Field(default_factory=list)
-    controls: list[str] = Field(default_factory=list)
+    controls: Annotated[list[BcbControl], AfterValidator(lambda names: list(dict.fromkeys(names)))] = Field(
+        default_factory=list
+    )
     gate_thresholds: dict[str, float] = Field(default_factory=dict)
     block_per_channel: bool = False  # the analyst accepts results only at the aggregate level (A3 gate; effect in A5)
     product_group_filter: list[str] | None = None
@@ -122,6 +127,7 @@ class EngineConfig(Strict):
         legacy["client_business_goal"] = self.client_business_goal or ""
         kpi_col = self.column_mapping.get("performance_file", {}).get("kpi_col")
         legacy["performance_kpi_column"] = kpi_col or "Sessions"
+        legacy["control_spend_corr"] = self.gate_threshold("control_spend_corr")
         return legacy
 
     def gate_threshold(self, name: str) -> float:

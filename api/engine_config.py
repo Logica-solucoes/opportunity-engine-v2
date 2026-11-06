@@ -24,6 +24,7 @@ ANALYST_FIELDS = (
     "require_statistical_significance",
     "require_logical_direction",
     "require_model_fit",
+    "controls",
 )
 
 ParamsIn = create_model(
