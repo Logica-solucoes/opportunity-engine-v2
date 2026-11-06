@@ -31,7 +31,7 @@ def _load(path: Path) -> tuple[dict, dict]:
         raise UsageError("O arquivo de configuração precisa de um objeto 'inputs' com os caminhos dos CSV.")
     inputs = {
         key: Path(raw["inputs"][key]) if raw["inputs"].get(key) else None
-        for key in ("investment_file", "performance_file", "generic_trends_file")
+        for key in ("investment_file", "performance_file", "generic_trends_file", "bcb_file")
     }
     return {k: v for k, v in raw.items() if k != "inputs"}, inputs
 

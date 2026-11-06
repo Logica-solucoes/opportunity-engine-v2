@@ -350,7 +350,7 @@ class TestRunMmmEngineDoesNotLoadData:
             trends_df=pd.DataFrame(
                 {"Date": pd.Series(dtype="datetime64[ns]"), "Generic Searches": pd.Series(dtype=float)}
             ),
-            performance_df=pd.DataFrame({"Date": dates}),
+            controls_df=pd.DataFrame({"Date": dates}),
             correlation_matrix=pd.DataFrame(),
             period_days=1,
         )

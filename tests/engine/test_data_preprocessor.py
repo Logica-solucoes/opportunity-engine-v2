@@ -1277,7 +1277,7 @@ def test_prepared_data_reports_period_days_and_does_not_mutate_config(tmp_path):
     assert list(prepared.kpi_df.columns) == ["Date", "kpi"]
 
 
-def test_performance_file_is_read_once_and_kept_for_covariates(tmp_path, monkeypatch):
+def test_performance_file_is_read_once(tmp_path, monkeypatch):
     import engine.inputs as module  # read_inputs owns the reads now
 
     config, paths = _daily_files(tmp_path, with_extra_column=True)
@@ -1288,8 +1288,18 @@ def test_performance_file_is_read_once_and_kept_for_covariates(tmp_path, monkeyp
     prepared = _prepare(config, paths)
 
     assert reads.count(paths["performance_file"]) == 1
-    assert {"Date", "Clicks", "kpi"} <= set(prepared.performance_df.columns)
-    assert len(prepared.performance_df) == 30
+    assert prepared.controls_df.empty  # no bcb control asked
+
+
+def test_bcb_controls_reach_the_prepared_data(tmp_path):
+    config, paths = _daily_files(tmp_path)
+    bcb = tmp_path / "bcb.csv"
+    bcb.write_text("Date,bcb_ipca\n2024-12-01,0.4\n2025-01-01,0.5\n", encoding="utf-8")
+
+    prepared = _prepare({**config, "controls": ["bcb_ipca"]}, {**paths, "bcb_file": bcb})
+
+    assert list(prepared.controls_df.columns) == ["Date", "bcb_ipca"]
+    assert prepared.controls_df["bcb_ipca"].tolist() == [0.4, 0.5]
 
 
 def test_trends_absent_gives_an_empty_trends_frame(tmp_path):

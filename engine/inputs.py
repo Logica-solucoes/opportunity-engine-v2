@@ -35,12 +35,23 @@ class RawInputs:
     kpi_df: pd.DataFrame  # Date, kpi
     investment_df: pd.DataFrame  # Date, Product Group, investment
     trends_df: pd.DataFrame  # Date, Generic Searches
-    performance_df: pd.DataFrame  # the performance file as sent (date column renamed to Date), kept for covariates
     checks: list[Check] = field(default_factory=list)
 
 
 def _empty_trends() -> pd.DataFrame:
     return pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]"), "Generic Searches": pd.Series(dtype="float64")})
+
+
+def read_controls(path: Path | None, controls: list[str]) -> pd.DataFrame:
+    """The platform's Banco Central file: Date plus one column per series, in a fixed format (not the user's, so no
+    column_mapping). Each column carries its last value forward, so every row holds the latest number published."""
+    if not controls:
+        return pd.DataFrame({"Date": pd.Series(dtype="datetime64[ns]")})
+    frame = pd.read_csv(path, parse_dates=["Date"]) if path else pd.DataFrame(columns=["Date"])
+    missing = [name for name in controls if name not in frame.columns]
+    if missing:
+        raise EngineError(f"Controle do Banco Central pedido sem a série: {', '.join(missing)}.")
+    return frame[["Date", *controls]].sort_values("Date").ffill().reset_index(drop=True)
 
 
 def _read(paths: dict, key: str) -> pd.DataFrame:
@@ -290,7 +301,6 @@ def _read_inputs(config: dict, paths: dict[str, Path | None]) -> RawInputs:
         kpi_df=kpi_df,
         investment_df=investment_df,
         trends_df=trends_df,
-        performance_df=performance_df,
         checks=checks,
     )
 

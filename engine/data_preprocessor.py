@@ -755,7 +755,7 @@ class PreparedData:
     kpi_df: pd.DataFrame
     investment_df: pd.DataFrame
     trends_df: pd.DataFrame
-    performance_df: pd.DataFrame  # raw performance file (date column renamed to Date), kept for covariates
+    controls_df: pd.DataFrame  # Date plus the bcb series asked in config["controls"] (empty without them)
     correlation_matrix: pd.DataFrame
     period_days: int  # detected cadence; a result of the data, never written back into the config
 
@@ -769,6 +769,7 @@ def load_and_prepare_data(config, paths):
     from engine.inputs import (  # inputs imports this module's helpers
         apply_channel_groups,
         cadence_check,
+        read_controls,
         read_inputs,
         sufficiency_check,
     )
@@ -782,7 +783,7 @@ def load_and_prepare_data(config, paths):
         kpi_df, trends_df = raw.kpi_df, raw.trends_df
         # before partial periods and the negative-correlation adstock: from here on a group is a plain channel
         daily_investment_df = apply_channel_groups(raw.investment_df, config["channel_groups"])
-        performance_df = raw.performance_df
+        controls_df = read_controls(paths.get("bcb_file"), config["controls"])
 
         # --- Cadence Detection & Partial-Period Pruning ---
         inv_cadence = detect_cadence(daily_investment_df["Date"])
@@ -877,7 +878,7 @@ def load_and_prepare_data(config, paths):
             kpi_df=kpi_df,
             investment_df=daily_investment_df,
             trends_df=trends_df,
-            performance_df=performance_df,
+            controls_df=controls_df,
             correlation_matrix=correlation_matrix,
             period_days=inv_cadence,
         )

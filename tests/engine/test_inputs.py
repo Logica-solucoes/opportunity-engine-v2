@@ -3,7 +3,7 @@ import pytest
 
 from engine.config import EngineConfig
 from engine.errors import EngineError
-from engine.inputs import apply_channel_groups, read_inputs
+from engine.inputs import apply_channel_groups, read_controls, read_inputs
 from engine.pipeline import load_inputs
 from tests.engine.csv_factory import clean_rows, legacy_config, write_inputs
 from tests.engine.synthetic_data import dataset_config, make_dataset
@@ -163,3 +163,32 @@ def test_load_turns_a_group_into_one_channel_before_any_analysis(tmp_path):
 
     channels = set(prepared.investment_df["Product Group"])
     assert "SEARCH + PMAX" in channels and not {"SEARCH", "PMAX"} & channels
+
+
+def test_read_controls_keeps_the_requested_series_sorted_and_carried_forward(tmp_path):
+    path = tmp_path / "bcb.csv"
+    path.write_text(
+        "Date,bcb_ipca,bcb_selic\n2024-02-01,0.8,\n2024-01-01,0.4,11.75\n2024-01-02,,11.75\n", encoding="utf-8"
+    )
+
+    frame = read_controls(path, ["bcb_ipca", "bcb_selic"])
+
+    assert list(frame.columns) == ["Date", "bcb_ipca", "bcb_selic"]
+    assert frame["Date"].is_monotonic_increasing
+    by_date = frame.set_index("Date")
+    assert by_date.loc["2024-01-02", "bcb_ipca"] == 0.4  # January's IPCA holds until February's
+    assert by_date.loc["2024-02-01", "bcb_selic"] == 11.75
+    assert list(read_controls(path, ["bcb_selic"]).columns) == ["Date", "bcb_selic"]
+
+
+def test_no_controls_need_no_file():
+    assert read_controls(None, []).empty
+
+
+def test_a_requested_control_without_its_series_is_an_engine_error(tmp_path):
+    with pytest.raises(EngineError, match="bcb_ipca"):
+        read_controls(None, ["bcb_ipca"])
+    path = tmp_path / "bcb.csv"
+    path.write_text("Date,bcb_selic\n2024-01-01,11.75\n", encoding="utf-8")
+    with pytest.raises(EngineError, match="bcb_ipca"):
+        read_controls(path, ["bcb_ipca"])

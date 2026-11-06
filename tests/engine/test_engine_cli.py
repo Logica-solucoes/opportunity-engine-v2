@@ -67,3 +67,14 @@ def test_cli_missing_or_unreadable_config_exits_two(tmp_path):
     (tmp_path / "noinputs.json").write_text("{}")
     done = _cli("--config", str(tmp_path / "noinputs.json"), "--out", str(tmp_path / "out"))
     assert done.returncode == 2 and "inputs" in done.stderr
+
+
+def test_cli_passes_the_bcb_file(tmp_path):
+    from engine.__main__ import _load
+
+    run_json = tmp_path / "run.json"
+    run_json.write_text('{"inputs": {"investment_file": "i.csv", "bcb_file": "bcb.csv"}}', encoding="utf-8")
+
+    _, inputs = _load(run_json)
+
+    assert inputs["bcb_file"] == Path("bcb.csv") and inputs["generic_trends_file"] is None
