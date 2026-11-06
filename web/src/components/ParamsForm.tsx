@@ -174,6 +174,43 @@ function ParamField({
   const note = origin?.reason ?? field.help
   const describedBy = [note && `${id}-note`, error && `${id}-error`].filter(Boolean).join(' ') || undefined
 
+  if (schema.type === 'array') {
+    const selected = Array.isArray(value) ? value : []
+    const options = schema.items?.enum ?? []
+    return (
+      <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+        <p id={id} className="text-sm font-medium">
+          {field.label}
+        </p>
+        <div role="group" aria-labelledby={id} aria-describedby={describedBy} className="flex flex-wrap gap-4">
+          {options.map((option) => (
+            <div key={option} className="flex items-center gap-2">
+              <Checkbox
+                id={`${id}-${option}`}
+                checked={selected.includes(option)}
+                disabled={disabled}
+                onCheckedChange={(on) =>
+                  onChange(on === true ? options.filter((o) => o === option || selected.includes(o)) : selected.filter((o) => o !== option))
+                }
+              />
+              <Label htmlFor={`${id}-${option}`}>{ENUM_LABELS[option] ?? option}</Label>
+            </div>
+          ))}
+        </div>
+        {note && (
+          <p id={`${id}-note`} className="text-xs text-muted-foreground">
+            {note}
+          </p>
+        )}
+        {error && (
+          <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center gap-2">

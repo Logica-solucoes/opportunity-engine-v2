@@ -8,7 +8,8 @@ export type GeminiAnswer = { available: boolean; suggestions: Suggestions }
 
 // the part of the JSON Schema pydantic emits for ParamsIn that the form reads
 export type FieldSchema = {
-  type?: 'number' | 'integer' | 'boolean' | 'string' | 'object' | 'null'
+  type?: 'number' | 'integer' | 'boolean' | 'string' | 'object' | 'null' | 'array'
+  items?: FieldSchema
   enum?: string[]
   anyOf?: FieldSchema[]
   default?: unknown
@@ -25,7 +26,7 @@ type FieldSpec = { path: string; label: string; help?: string }
 export type FormField = FieldSpec & { schema: FieldSchema; nullable: boolean }
 export type FormGroup = { title: string; fields: FormField[] }
 // numbers stay strings while typed ("1." and "0.0" are valid moments), and become numbers only in the PUT body
-export type FormValue = string | boolean
+export type FormValue = string | boolean | string[]
 export type FormState = { values: Record<string, FormValue>; origin: Suggestions; edited: Set<string> }
 
 // which fields show, in which group and with which pt-BR label; type, limits and defaults come from the schema
@@ -76,15 +77,27 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
         help: 'O efeito precisa ir na direção da mudança de investimento.',
       },
       { path: 'require_model_fit', label: 'Exigir bom ajuste' },
+      {
+        path: 'controls',
+        label: 'Controles macro (Banco Central)',
+        help: 'Buscados na hora de rodar. Um controle que anda junto com o investimento do evento é descartado.',
+      },
     ],
   },
 ]
 
-export const ENUM_LABELS: Record<string, string> = { REVENUE: 'Receita', CONVERSIONS: 'Conversões' }
+export const ENUM_LABELS: Record<string, string> = {
+  REVENUE: 'Receita',
+  CONVERSIONS: 'Conversões',
+  bcb_ipca: 'IPCA',
+  bcb_selic: 'Selic',
+  bcb_ibc_br: 'IBC-Br',
+}
 
 // read-only display of a saved value (run page); "—" for a field the run's config doesn't have
 export function displayValue(field: FormField, value: unknown): string {
   if (value == null) return '—'
+  if (Array.isArray(value)) return value.length ? value.map((v) => ENUM_LABELS[String(v)] ?? String(v)).join(', ') : 'Nenhum'
   if (field.schema.type === 'boolean') return value ? 'Sim' : 'Não'
   if (field.schema.enum) return ENUM_LABELS[String(value)] ?? String(value)
   // the default rounds to 3 decimals, and a p-value of 0.0001 would read "0"
@@ -133,11 +146,13 @@ export const getPath = (obj: unknown, path: string): unknown =>
     .split('.')
     .reduce<unknown>((node, key) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined), obj)
 
-const toForm = (field: FormField, value: unknown): FormValue =>
-  field.schema.type === 'boolean' ? value === true : value == null ? '' : String(value)
+const toForm = (field: FormField, value: unknown): FormValue => {
+  if (field.schema.type === 'array') return Array.isArray(value) ? value.map(String) : []
+  return field.schema.type === 'boolean' ? value === true : value == null ? '' : String(value)
+}
 
 function fromForm(field: FormField, value: FormValue): unknown {
-  if (field.schema.type === 'boolean' || field.schema.enum) return value
+  if (field.schema.type === 'boolean' || field.schema.enum || field.schema.type === 'array') return value
   return value === '' ? null : Number(value)
 }
 
@@ -193,9 +208,14 @@ export function paramsBody(layout: FormGroup[], values: Record<string, FormValue
   return body
 }
 
+function changed(field: FormField, value: unknown, saved: unknown): boolean {
+  if (field.schema.type === 'array') return JSON.stringify(value) !== JSON.stringify(saved ?? [])
+  return value !== (saved ?? null)
+}
+
 // compared as the PUT body would carry it, so "0.20" on screen equals a saved 0.2
 export const unsavedParams = (layout: FormGroup[], values: Record<string, FormValue>, config: Record<string, unknown>) =>
-  allFields(layout).some((field) => fromForm(field, values[field.path]) !== (getPath(config, field.path) ?? null))
+  allFields(layout).some((field) => changed(field, fromForm(field, values[field.path]), getPath(config, field.path)))
 
 type PydanticError = { type: string; loc: (string | number)[]; ctx?: Record<string, unknown> }
 

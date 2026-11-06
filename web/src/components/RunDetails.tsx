@@ -169,12 +169,15 @@ function Params({ run }: { run: Run }) {
   )
 }
 
+// the uploads plus what the platform fetched for the run (A4)
+const RUN_INPUTS = [...FILES, { key: 'bcb_file', label: 'Séries do Banco Central' }]
+
 function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boolean }) {
   return (
     <section className="space-y-2">
       <h2 className="text-lg font-medium">Entradas</h2>
       <ul className="space-y-1 text-sm">
-        {FILES.map((spec) => {
+        {RUN_INPUTS.map((spec) => {
           const input = run.inputs[spec.key]
           if (!input) return null
           return (

@@ -173,6 +173,22 @@ test('a mistyped optional target is refused instead of saved as no target', asyn
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 })
 
+test('macro controls are saved with the parameters', async ({ page, browser }) => {
+  const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
+  await createSimulation(analystPage, slug, 'Controles')
+  await uploadTemplatesAndValidate(analystPage)
+
+  await analystPage.getByLabel('IPCA').check()
+  await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
+  await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
+  await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
+
+  await analystPage.reload()
+  await expect(analystPage.getByLabel('IPCA')).toBeChecked()
+  await expect(analystPage.getByLabel('Selic')).not.toBeChecked()
+  await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
+})
+
 test('analyst runs a simulation and the log resumes after a reload', async ({ page, browser }) => {
   const { slug, analystPage } = await analystOnNewWorkspace(page, browser)
   await createSimulation(analystPage, slug, 'Rodada')
