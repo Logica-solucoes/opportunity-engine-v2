@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from engine import identifiability, scenario
+from engine import identifiability
 from engine.results_schema import (
     AccuracyPoint,
     Baseline,
@@ -31,6 +31,7 @@ from engine.results_schema import (
     ResultsV1,
     Scenario,
 )
+from engine.scenario import bid_note, ramp
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed, EventOutcome
@@ -203,7 +204,7 @@ def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
     cfg = computed.effective_config
     curve = [row.model_dump() for row in rows]
     current = _num((computed.baseline_point or {}).get("Daily_Investment"))
-    note = scenario.bid_note(_revenue_mode(cfg))
+    note = bid_note(_revenue_mode(cfg))
     scenarios = []
     for name, attribute in SCENARIO_SOURCES.items():
         point = getattr(computed, attribute)
@@ -224,7 +225,7 @@ def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
                 incremental_investment=_num(point.get("Incremental_Investment")),
                 incremental_kpi=_num(point.get("Incremental_KPI")),
                 extrapolated=_flag(point.get("Extrapolated")),
-                ramp=scenario.ramp(current, investment, cfg["max_budget_step"], curve) if changes else None,
+                ramp=ramp(current, investment, cfg["max_budget_step"], curve) if changes else None,
                 notes=[note] if changes else [],
             )
         )

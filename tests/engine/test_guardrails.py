@@ -12,6 +12,7 @@ from engine.elasticity_analysis import (
     geometric_adstock,
     hill_transform,
 )
+from engine.scenario import ScenarioFilters, scenario
 from tests.engine.helpers import full_config
 
 
@@ -123,3 +124,15 @@ def test_results_publish_band_flag_ramp_and_notes(identifiable_computed):
     assert published and all(
         p["lo"] is not None and p["extrapolated"] is not None for c in published for p in c["curve"]
     )
+
+
+def test_the_scenario_reads_what_a_real_run_publishes(identifiable_computed):
+    doc = results.dump_results(results.build_results(identifiable_computed, "test"))
+    # the fixture skips validate(); run() hands its report to compute(), which is where period_days comes from
+    doc["validation"] = {"period_days": identifiable_computed.prepared.period_days}
+
+    out = scenario(doc, ScenarioFilters(), 0.2)
+
+    assert all(r["kpi_lo"] is not None and r["kpi_hi"] is not None for r in out["curve"])
+    assert out["recommended"]["kpi_lo"] <= out["recommended"]["kpi"] <= out["recommended"]["kpi_hi"]
+    assert out["recommended"]["ramp"] and out["recommended"]["notes"]
