@@ -35,7 +35,7 @@ def ran(tmp_path_factory):
     mp = pytest.MonkeyPatch()
     mp.setenv("LLM_PROVIDER", "none")
     work = tmp_path_factory.mktemp("run")
-    inputs = make_dataset(work / "data", n_days=SHORT)
+    inputs = make_dataset(work / "data")  # the full history: with the placebo gate (A6) one year keeps a single event
     config = dataset_config()
     snapshot = json.dumps(config, sort_keys=True)
     captured = {}
@@ -61,8 +61,9 @@ def test_run_returns_the_contract_dict(ran):
     r = ran.result
     assert r["schema_version"] == 1 and r["status"] == "succeeded"
     assert isinstance(r["engine_version"], str) and r["engine_version"]
-    for section in ("sufficiency", "experiment_design", "reports"):
-        assert r[section] is None  # owned by A5-A9
+    for section in ("experiment_design", "reports"):
+        assert r[section] is None  # owned by A7-A9
+    assert r["sufficiency"]["passed"] is True and r["sufficiency"]["validated_events"] >= 1
     assert r["validation"]["ok"] is True
     assert r["causal"]["status"] == "ok" and r["elasticity"]["status"] == "ok"
 

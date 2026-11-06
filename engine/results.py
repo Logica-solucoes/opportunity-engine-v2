@@ -34,8 +34,10 @@ from engine.results_schema import (
     ResponseRow,
     ResultsV1,
     Scenario,
+    Sufficiency,
     Unidentified,
 )
+from engine.sufficiency import CAUSAL_REASONS
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed, EventOutcome
@@ -153,6 +155,10 @@ def _causal(computed: "Computed") -> Causal:
         status, reasons = "inconclusive", ["no_eligible_events"]
     else:
         status, reasons = "inconclusive", ["no_event_passed_gates"]
+    if status != "ok" and computed.sufficiency:
+        # why the run is not sufficient comes first; "no_validated_event" is what no_event_passed_gates already says
+        causes = [r for r in computed.sufficiency.reasons if r in CAUSAL_REASONS and r != "no_validated_event"]
+        reasons = causes + reasons
     return Causal(status=status, reasons=reasons, events_detected=detected, events=events)
 
 
@@ -277,6 +283,10 @@ def _elasticity(computed: "Computed") -> Elasticity:
         )
     if computed.identifiability and len(hidden) == len(mmm["spend_cols"]):
         reasons = ["no_identifiable_channel"]  # informative: the total curve and scenarios are still published
+    if computed.sufficiency and "cv_in_sample" in computed.sufficiency.reasons:
+        reasons.append(
+            "cv_in_sample"
+        )  # informative: too few rows for an out-of-sample cv, the fit was scored in-sample
     return Elasticity(
         status="ok",
         reasons=reasons,
@@ -313,17 +323,23 @@ def _baseline(computed: "Computed") -> Baseline:
     return Baseline(monthly=monthly)
 
 
-def run_status(causal: Causal, elasticity: Elasticity | None) -> str:
-    """succeeded when both analyses produced something, failed when neither did, inconclusive otherwise."""
+def run_status(causal: Causal, elasticity: Elasticity | None, sufficiency: Sufficiency | None = None) -> str:
+    """succeeded when both analyses produced something, failed when neither did, inconclusive otherwise.
+
+    A run whose data are not sufficient (A6) is never `succeeded`.
+    """
     ok = [causal.status == "ok", elasticity is not None and elasticity.status == "ok"]
-    return "succeeded" if all(ok) else "inconclusive" if any(ok) else "failed"
+    if all(ok):
+        return "inconclusive" if sufficiency is not None and not sufficiency.passed else "succeeded"
+    return "inconclusive" if any(ok) else "failed"
 
 
 def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
     causal, elasticity = _causal(computed), _elasticity(computed)
     return ResultsV1(
         engine_version=engine_version,
-        status=run_status(causal, elasticity),
+        status=run_status(causal, elasticity, computed.sufficiency),
+        sufficiency=computed.sufficiency,
         causal=causal,
         elasticity=elasticity,
         baseline=_baseline(computed),

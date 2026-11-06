@@ -56,7 +56,8 @@ def test_results_json_has_no_non_finite_numbers(ran):
 def test_run_result_validates_against_the_schema(ran):
     results = ResultsV1.model_validate(ran["returned"])
     assert results.status == "succeeded" and results.causal.status == "ok" and results.elasticity.status == "ok"
-    assert results.sufficiency is results.experiment_design is results.reports is None
+    assert results.experiment_design is results.reports is None
+    assert results.sufficiency is not None and results.sufficiency.validated_events >= 1
     assert results.validation is not None
 
 

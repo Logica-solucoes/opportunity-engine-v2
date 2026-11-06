@@ -1,3 +1,5 @@
+import pytest
+
 from engine import pipeline
 from engine.config import EngineConfig
 from tests.engine.synthetic_data import DAYS, dataset_config, make_dataset
@@ -194,3 +196,82 @@ def test_a_placebo_that_did_not_run_does_not_reject():
     cfg = _gate_cfg()
     assert _gate_reasons(_gate_results(placebo_ran=False, placebo_p_value=None, placebo_passed=None), cfg) == []
     assert _gate_reasons(_gate_results(), cfg) == []  # results without the keys (older callers)
+
+
+# --- A6: judging the run ---
+
+
+def _outcome(group="A", *, passed=True, selected=True, wmape=0.1, reasons=None):
+    from engine.pipeline import EventOutcome
+
+    data = {"absolute_lift": 10.0, "oos_wmape": wmape}
+    return EventOutcome(
+        f"E_{group}", group, "2025-01-10", data, passed=passed, selected=selected, reasons=reasons or []
+    )
+
+
+def _investment(**channels):
+    import numpy as np
+    import pandas as pd
+
+    days = pd.date_range("2025-01-01", periods=60)
+    rows = [
+        {"Date": d, "Product Group": name, "investment": v}
+        for name, series in channels.items()
+        for d, v in zip(days, series, strict=True)
+    ]
+    return pd.DataFrame(rows).assign(
+        investment=lambda df: df["investment"].astype(float)
+    ) if rows else pd.DataFrame(), np
+
+
+def _prepared_stub(**channels):
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    series = {
+        name: np.tile([50.0, 150.0], 30) if flag == "varying" else np.full(60, 100.0) for name, flag in channels.items()
+    }
+    return SimpleNamespace(investment_df=_investment(**series)[0])
+
+
+def test_a_sound_run_keeps_its_events():
+    events = [_outcome("A", wmape=0.1), _outcome("B", wmape=0.2)]
+    out = pipeline.judge_sufficiency(_prepared_stub(A="varying", B="varying"), events, {"cv_out_of_sample": True}, {})
+    assert out.passed is True and out.validated_events == 2
+    assert all(e.passed and e.selected and e.reasons == [] for e in events)
+
+
+def test_an_insufficient_run_demotes_the_events_that_passed():
+    events = [_outcome("A", wmape=0.6), _outcome("B", wmape=0.7), _outcome("A", passed=False, selected=False)]
+    out = pipeline.judge_sufficiency(_prepared_stub(A="varying", B="varying"), events, {"cv_out_of_sample": True}, {})
+    assert out.reasons == ["high_oos_wmape"] and out.pre_wmape == pytest.approx(0.65)
+    assert [(e.passed, e.selected, e.reasons) for e in events[:2]] == [(False, False, ["insufficient_run"])] * 2
+    assert events[2].reasons == []  # an event that already failed a gate keeps only its own reasons
+
+
+def test_an_in_sample_cv_alone_keeps_the_events():
+    events = [_outcome("A")]
+    out = pipeline.judge_sufficiency(_prepared_stub(A="varying"), events, {"cv_out_of_sample": False}, {})
+    assert out.reasons == ["cv_in_sample"] and events[0].passed and events[0].selected
+
+
+def test_without_a_model_only_the_causal_parts_count():
+    out = pipeline.judge_sufficiency(_prepared_stub(A="varying"), [_outcome("A")], None, {})
+    assert out.passed is True and out.cv_out_of_sample is None
+
+
+def test_failed_analyses_are_not_validated_events():
+    from engine.pipeline import EventOutcome
+
+    failed = EventOutcome("E_X", "A", "2025-01-10", None, reasons=["analysis_failed"])
+    out = pipeline.judge_sufficiency(_prepared_stub(A="varying"), [failed], {"cv_out_of_sample": True}, {})
+    assert out.reasons == ["no_validated_event"] and out.validated_events == 0
+
+
+def test_the_thresholds_come_from_the_gate_thresholds_config():
+    events = [_outcome("A", wmape=0.2)]
+    cfg = {"gate_thresholds": {"oos_wmape_max": 0.1}}
+    out = pipeline.judge_sufficiency(_prepared_stub(A="varying"), events, {"cv_out_of_sample": True}, cfg)
+    assert out.reasons == ["high_oos_wmape"]

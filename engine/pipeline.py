@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from engine import analysis, elasticity_analysis, outputs, results
+from engine import analysis, elasticity_analysis, outputs, results, sufficiency
 from engine.config import EngineConfig, GateThresholds
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
 from engine.identifiability import UNIDENTIFIED_KEY, assess, collinear_channels, hidden_channels, pool
 from engine.logmessages import forward_logs
-from engine.results_schema import ValidationReport
+from engine.results_schema import Sufficiency, ValidationReport
 from engine.validation import validate
 from engine.version import engine_version
 from llm import get_llm
@@ -59,6 +59,7 @@ class Computed:
     individual_curves_df: pd.DataFrame | None = None  # per-channel curves (Channel, Channel_Spend, ...)
     validation: ValidationReport | None = None  # what validate reported for these inputs (set by run)
     identifiability: dict[str, dict] | None = None  # per MMM channel: identifiable, reasons, coef_ci, point (A5)
+    sufficiency: Sufficiency | None = None  # do the data support publishing a lift at all (A6)
 
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
@@ -218,6 +219,28 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
     return result
 
 
+def judge_sufficiency(prepared: PreparedData, events: list[EventOutcome], mmm: dict | None, cfg: dict) -> Sufficiency:
+    """The run-level verdict (A6). When it fails on the causal side, every event that passed becomes `insufficient_run`."""
+    gate = GateThresholds.model_validate(cfg.get("gate_thresholds") or {})
+    validated = [
+        {"product_group": e.product_group, "oos_wmape": e.results_data.get("oos_wmape")}
+        for e in events
+        if e.passed and e.results_data
+    ]
+    cv_out_of_sample = mmm["cv_out_of_sample"] if mmm else None
+    verdict = sufficiency.assess(validated, prepared.investment_df, cv_out_of_sample, gate)
+    if verdict.passed:
+        log.info(f"Dados suficientes: {verdict.validated_events} evento(s) validado(s).")
+        return verdict
+    log.warning("Dados insuficientes para publicar o resultado: " + ", ".join(verdict.reasons))
+    if any(reason in sufficiency.CAUSAL_REASONS for reason in verdict.reasons):
+        for event in events:
+            if event.passed:
+                event.reasons.append("insufficient_run")
+                event.passed = event.selected = False
+    return verdict
+
+
 def _log_published_split(mmm: dict, identifiability: dict[str, dict]) -> None:
     """The contribution split the run log shows: identifiable channels on their own, the rest together."""
     channels = list(mmm["spend_cols"])
@@ -260,6 +283,7 @@ def compute(
         candidates=candidates,
         validation=validation,
         identifiability=identifiability,
+        sufficiency=judge_sufficiency(prepared, events, elasticity.get("mmm"), cfg),
         **elasticity,
     )
 

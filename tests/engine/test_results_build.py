@@ -274,7 +274,8 @@ def test_failed_model_yields_a_failed_elasticity_section(synthetic_computed):
 def test_build_results_validates_and_leaves_the_future_sections_null(synthetic_computed):
     built = results.build_results(synthetic_computed, "abc123")
     assert built.engine_version == "abc123" and built.schema_version == 1
-    assert built.validation is built.sufficiency is built.experiment_design is built.reports is None
+    assert built.validation is built.experiment_design is built.reports is None
+    assert built.sufficiency is synthetic_computed.sufficiency and built.sufficiency is not None
     ResultsV1.model_validate(_dump(built))
     json.dumps(_dump(built), allow_nan=False)
 
@@ -479,3 +480,66 @@ def test_a_failed_placebo_is_published_as_not_passed(synthetic_computed):
     data = {**_result_data(), "placebo_ran": True, "placebo_p_value": 0.01, "placebo_passed": False, "oos_wmape": 0.1}
     event = results._causal(with_events(synthetic_computed, [outcome(data=data)])).events[0]
     assert event.placebo.passed is False
+
+
+# --- A6: sufficiency in the document ---
+
+
+def _with_sufficiency(computed, events, **kw):
+    from engine.results_schema import Sufficiency
+
+    return dataclasses.replace(with_events(computed, events), sufficiency=Sufficiency(**kw))
+
+
+def test_the_document_carries_the_sufficiency(synthetic_computed):
+    computed = _with_sufficiency(
+        synthetic_computed,
+        [outcome()],
+        passed=True,
+        validated_events=1,
+        pre_wmape=0.1,
+        spend_variation={"YOUTUBE": 0.4},
+    )
+    doc = results.build_results(computed, "x")
+    assert doc.sufficiency.passed is True and doc.sufficiency.validated_events == 1
+
+
+def test_an_insufficient_run_is_inconclusive_with_the_reason_and_no_published_event(synthetic_computed):
+    demoted = outcome(passed=False, selected=False, reasons=["insufficient_run"])
+    computed = _with_sufficiency(
+        synthetic_computed, [demoted], passed=False, reasons=["high_oos_wmape"], validated_events=1, pre_wmape=0.6
+    )
+    doc = results.build_results(computed, "x")
+    assert doc.status == "inconclusive" and doc.causal.status == "inconclusive"
+    assert doc.causal.reasons == ["high_oos_wmape", "no_event_passed_gates"]
+    assert [e.status for e in doc.causal.events] == ["rejected"] and doc.causal.events[0].reasons == [
+        "insufficient_run"
+    ]
+
+
+def test_no_validated_event_does_not_repeat_the_causal_reason(synthetic_computed):
+    computed = _with_sufficiency(
+        synthetic_computed, [outcome(passed=False, selected=False)], passed=False, reasons=["no_validated_event"]
+    )
+    assert results.build_results(computed, "x").causal.reasons == ["no_event_passed_gates"]
+
+
+def test_an_in_sample_cv_makes_the_run_inconclusive_but_keeps_the_elasticity(synthetic_computed):
+    computed = _with_sufficiency(
+        synthetic_computed, [outcome()], passed=False, reasons=["cv_in_sample"], cv_out_of_sample=False
+    )
+    doc = results.build_results(computed, "x")
+    assert doc.causal.status == "ok" and doc.status == "inconclusive"
+    assert doc.elasticity.status == "ok" and "cv_in_sample" in doc.elasticity.reasons and doc.elasticity.response_curve
+
+
+def test_run_status_never_succeeds_with_a_failed_sufficiency():
+    from engine.results_schema import Causal, Elasticity, Sufficiency
+
+    ok_c, ok_e = Causal(status="ok"), Elasticity(status="ok")
+    assert results.run_status(ok_c, ok_e, Sufficiency(passed=False)) == "inconclusive"
+    assert results.run_status(ok_c, ok_e, Sufficiency(passed=True)) == "succeeded"
+    assert (
+        results.run_status(Causal(status="inconclusive"), Elasticity(status="failed"), Sufficiency(passed=False))
+        == "failed"
+    )
