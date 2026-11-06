@@ -286,6 +286,59 @@ def lasso_folds(n_rows: int) -> TimeSeriesSplit:
     return TimeSeriesSplit(n_splits=max(2, min(5, n_rows // 4)))
 
 
+HOLDOUT_FRACTION = 0.2  # the last 20% of the pre-period, out of the fit (A6)
+MIN_HOLDOUT_ROWS = 7
+
+
+def cumulative_p_value(abs_lift: float, forecast) -> tuple[float, float]:
+    """(p-value, cumulative standard error) of a cumulative impact against the forecast's own uncertainty.
+
+    Shared by the event and its placebo, so both are judged by the same rule. Without a usable standard error the
+    effect cannot be told from noise: p is 1 and the error 0.
+    """
+    se = np.asarray(forecast.se_mean, dtype=float)
+    se = se[np.isfinite(se)]
+    cum_se = float(np.sqrt(np.sum(se**2))) if se.size else 0.0
+    if cum_se > 0:
+        return float(2 * stats.norm.sf(abs(abs_lift / cum_se))), cum_se
+    return 1.0, 0.0
+
+
+def _fit_state_space(data: pd.DataFrame, features: list[str]):
+    return sm.tsa.UnobservedComponents(
+        data["kpi"], "llevel", trend=True, seasonal=7, exog=data[features] if features else None
+    ).fit(disp=False)
+
+
+def placebo_p_value(pre: pd.DataFrame, features: list[str], post_len: int, min_pre_periods: int) -> float | None:
+    """p-value of a fake intervention halfway through the pre-period; None when the pre-period is too short for it.
+
+    The event's model fitted on the first half and read over the next `post_len` rows: a sound counterfactual finds
+    nothing there. The features were chosen on the whole pre-period, a slight leak (for the A10). A fit that raises is
+    not caught here: the event fails as analysis_failed instead of passing a placebo that never ran.
+    """
+    half = len(pre) // 2
+    if half < min_pre_periods or len(pre) - half < post_len:
+        return None
+    fit_part, window = pre.iloc[:half], pre.iloc[half : half + post_len]
+    forecast = _fit_state_space(fit_part, features).get_forecast(steps=len(window), exog=window[features])
+    impact = float((window["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
+    return cumulative_p_value(impact, forecast)[0]
+
+
+def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int) -> float | None:
+    """Σ|y − ŷ| / Σ|y| of the event's model on the last HOLDOUT_FRACTION of the pre-period, left out of the fit."""
+    held = int(round(len(pre) * HOLDOUT_FRACTION))
+    train = len(pre) - held
+    if train < min_pre_periods or held < MIN_HOLDOUT_ROWS:
+        return None
+    fit_part, holdout = pre.iloc[:train], pre.iloc[train:]
+    forecast = _fit_state_space(fit_part, features).get_forecast(steps=held, exog=holdout[features])
+    actual = holdout["kpi"].to_numpy()
+    total = float(np.abs(actual).sum())
+    return float(np.abs(actual - np.asarray(forecast.predicted_mean)).sum() / total) if total else None
+
+
 def run_causal_impact_analysis(
     kpi_df,
     daily_investment_df,
@@ -405,13 +458,7 @@ def run_causal_impact_analysis(
                 selected_features = list(transformed_features.keys())
 
         log.info(f"   - Selected features for causal model: {selected_features}")
-        model = sm.tsa.UnobservedComponents(
-            pre_data_for_model["kpi"],
-            "llevel",
-            trend=True,
-            seasonal=7,
-            exog=pre_data_for_model[selected_features],
-        ).fit(disp=False)
+        model = _fit_state_space(pre_data_for_model, selected_features)
 
         in_sample_preds = model.get_prediction(exog=pre_data_for_model[selected_features]).predicted_mean
         mae = np.mean(np.abs(pre_data_for_model["kpi"] - in_sample_preds))
@@ -420,6 +467,11 @@ def run_causal_impact_analysis(
         ss_tot = np.sum((pre_data_for_model["kpi"] - np.mean(pre_data_for_model["kpi"])) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
+
+        placebo_p = placebo_p_value(pre_data_for_model, selected_features, len(post_data), min_pre_periods)
+        if placebo_p is None:
+            log.warning("   - Placebo não rodou: o pré-período é curto demais para a intervenção falsa.")
+        wmape = oos_wmape(pre_data_for_model, selected_features, min_pre_periods)
 
         accuracy_df = pre_data_for_model.copy()
         accuracy_df["Predicted"] = in_sample_preds
@@ -445,17 +497,9 @@ def run_causal_impact_analysis(
         # error (se_mean grows with horizon), which is the counterfactual's real
         # noise band. Cumulative SE ~ sqrt(sum se_t^2) treats the per-step errors
         # as independent -- an approximation, but far sounder than the t-test.
-        se = np.asarray(forecast.se_mean, dtype=float)
-        se = se[np.isfinite(se)]
-        cum_se = float(np.sqrt(np.sum(se**2))) if se.size else 0.0
-        if cum_se > 0:
-            z_stat = abs_lift / cum_se
-            p_value = float(2 * stats.norm.sf(abs(z_stat)))
-            impact_ci_lower = abs_lift - 1.96 * cum_se
-            impact_ci_upper = abs_lift + 1.96 * cum_se
-        else:
-            p_value = 1.0
-            impact_ci_lower = impact_ci_upper = abs_lift
+        p_value, cum_se = cumulative_p_value(abs_lift, forecast)
+        impact_ci_lower = abs_lift - 1.96 * cum_se
+        impact_ci_upper = abs_lift + 1.96 * cum_se
 
         event_investment_agg = event_investment_series.reset_index().rename(columns={0: "investment"})
         event_investment_agg["Date"] = pd.to_datetime(event_investment_agg["Date"])
@@ -569,6 +613,8 @@ def run_causal_impact_analysis(
             "model_r_squared": r_squared,
             "event_period_avg_investment": event_period_avg_investment,
             "controls": controls,
+            "placebo_p_value": placebo_p,  # None: the pre-period is too short for a placebo
+            "oos_wmape": wmape,
         }
 
         return (
