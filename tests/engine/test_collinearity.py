@@ -144,7 +144,7 @@ def test_run_with_a_group_reports_only_the_group(tmp_path, no_llm):
         result = engine.run(collinear_inputs(tmp_path / "data"), config, tmp_path / "out", lambda level, msg: None)
 
     elasticity = result["elasticity"]
-    assert elasticity["status"] == "ok", elasticity["reasons"]
+    assert elasticity["status"] == "inconclusive" and elasticity["reasons"] == ["no_identifiable_channel"]
     names = {c["name"] for c in elasticity["channels"]}
     assert "SEARCH + PMAX" in names and not {"SEARCH", "PMAX"} & names
     assert elasticity["groups"] == [{"name": "SEARCH + PMAX", "members": ["SEARCH", "PMAX"]}]

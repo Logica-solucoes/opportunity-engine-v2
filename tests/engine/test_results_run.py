@@ -55,7 +55,8 @@ def test_results_json_has_no_non_finite_numbers(ran):
 
 def test_run_result_validates_against_the_schema(ran):
     results = ResultsV1.model_validate(ran["returned"])
-    assert results.status == "succeeded" and results.causal.status == "ok" and results.elasticity.status == "ok"
+    assert results.status == "inconclusive" and results.causal.status == "ok"
+    assert results.elasticity.status == "inconclusive" and results.elasticity.reasons == ["no_identifiable_channel"]
     assert results.sufficiency is results.experiment_design is results.reports is None
     assert results.validation is not None
 
@@ -86,7 +87,7 @@ def test_status_inconclusive_when_no_event_is_eligible(monkeypatch, tmp_path):
         result = engine.run(inputs, config, tmp_path / "out", lambda level, message: None)
     assert result["status"] == "inconclusive"
     assert result["causal"]["status"] == "inconclusive" and result["causal"]["reasons"] == ["no_eligible_events"]
-    assert result["elasticity"]["status"] == "ok"
+    assert result["elasticity"]["status"] == "inconclusive"
     assert (tmp_path / "out" / "results.json").exists() and os.path.getsize(tmp_path / "out" / "results.json") > 0
 
 

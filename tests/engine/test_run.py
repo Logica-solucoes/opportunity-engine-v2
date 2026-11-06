@@ -58,12 +58,12 @@ def ran(tmp_path_factory):
 
 def test_run_returns_the_contract_dict(ran):
     r = ran.result
-    assert r["schema_version"] == 1 and r["status"] == "succeeded"
+    assert r["schema_version"] == 1 and r["status"] == "inconclusive"
     assert isinstance(r["engine_version"], str) and r["engine_version"]
     for section in ("sufficiency", "experiment_design", "reports"):
         assert r[section] is None  # owned by A5-A9
     assert r["validation"]["ok"] is True
-    assert r["causal"]["status"] == "ok" and r["elasticity"]["status"] == "ok"
+    assert r["causal"]["status"] == "ok" and r["elasticity"]["reasons"] == ["no_identifiable_channel"]
 
 
 def test_writes_only_inside_out_dir(ran):
@@ -106,7 +106,7 @@ def test_llm_unavailable_stops_further_calls(monkeypatch, ran, tmp_path):
     fake = FakeLLM([LLMUnavailable("timeout")])
     run = _with_llm(monkeypatch, ran, tmp_path, fake)
     assert len(fake.calls) == 1
-    assert run.result["status"] == "succeeded"
+    assert run.result["status"] == "inconclusive"
     assert len(list(run.out_dir.rglob("RECOMMENDATIONS.md"))) == sum(e.selected for e in ran.computed.events)
     assert not list(run.out_dir.rglob("global_report.html"))
     assert any(level == "warning" for level, _ in run.calls)
@@ -130,7 +130,7 @@ def test_weekly_cadence_run_completes(monkeypatch, tmp_path):
     monkeypatch.setenv("LLM_PROVIDER", "none")
     inputs = make_dataset(tmp_path / "data", cadence_days=7)
     run = _run_once(tmp_path, dataset_config(), inputs)
-    assert run.result["status"] == "succeeded"
+    assert run.result["status"] == "inconclusive"
 
 
 def test_failed_when_mmm_fails_and_no_event_passes(monkeypatch, tmp_path):
