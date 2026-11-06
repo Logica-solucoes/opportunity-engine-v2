@@ -1,11 +1,14 @@
+import hashlib
 import logging
+import tempfile
 from datetime import timedelta
+from pathlib import Path
 
 from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api import launcher, simulations
+from api import bcb, launcher, simulations, storage
 from api.auth import Ctx
 from api.models import ACTIVE_RUN_STATUSES, Run, Simulation, User
 
@@ -55,7 +58,26 @@ def block_reason(simulation: Simulation, confirmed: set[str]) -> str | None:
     return None
 
 
+def snapshot_bcb(simulation: Simulation) -> dict | None:
+    """The Banco Central series the analyst asked for, stored like an upload; raises bcb.Unavailable."""
+    controls = simulation.config.get("controls") or []
+    if not controls:
+        return None
+    content = bcb.fetch(controls)
+    sha256 = hashlib.sha256(content).hexdigest()
+    with tempfile.TemporaryDirectory() as tmp:
+        local = Path(tmp) / "bcb.csv"
+        local.write_bytes(content)
+        storage.put(simulations.input_key(simulation.workspace_id, simulation.id, sha256), local)
+    return {"sha256": sha256, "filename": "bcb.csv"}
+
+
 def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -> Run:
+    # checked once before the network call so a blocked run never waits on the SGS, and again under the lock
+    reason = block_reason(simulation, confirmed)
+    if reason:
+        raise Blocked(reason)
+    bcb_file = snapshot_bcb(simulation)  # before the lock: no row lock held during the HTTP calls
     fail_stale(db, Run.simulation_id == simulation.id)
     simulations.lock(db, simulation)
     reason = block_reason(simulation, confirmed)
@@ -76,6 +98,8 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
         confirmed_warnings=sorted(confirmed & warning_ids),
         created_by=by.id,
     )
+    if bcb_file:
+        run.inputs = {**run.inputs, "bcb_file": bcb_file}
     db.add(run)
     try:
         db.commit()

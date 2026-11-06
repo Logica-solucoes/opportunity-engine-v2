@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import func, select, update
 
-from api import engine_run, launcher, runs, simulations, storage, worker
+from api import bcb, engine_run, launcher, runs, simulations, storage, worker
 from api.engine_config import ParamsIn
 from api.models import Membership, Run, RunLog
 from api.routes import runs as runs_routes
@@ -100,6 +100,57 @@ def test_create_run_snapshots_config_and_inputs_and_launches(logged, ready, laun
     simulations.save_params(db, simulation, {**PARAMS, "investment_limit_factor": 3})
     db.refresh(run)
     assert run.config["investment_limit_factor"] == 1.5
+
+
+BCB_CSV = b"Date,bcb_ipca\n2024-01-01,0.42\n"
+
+
+def test_a_run_with_bcb_controls_snapshots_the_series(logged, ready, db, monkeypatch):
+    asked = []
+    monkeypatch.setattr(bcb, "fetch", lambda controls: asked.append(controls) or BCB_CSV)
+    simulation = ready()
+    simulations.save_params(db, simulation, {**PARAMS, "controls": ["bcb_ipca"]})
+
+    r = post_run(logged, simulation)
+
+    assert r.status_code == 201, r.text
+    assert asked == [["bcb_ipca"]]
+    run = db.get(Run, r.json()["id"])
+    entry = run.inputs["bcb_file"]
+    assert entry["filename"] == "bcb.csv"
+    stored = storage.path(simulations.input_key(simulation.workspace_id, simulation.id, entry["sha256"]))
+    assert stored.read_bytes() == BCB_CSV
+    download = logged.get(f"/api/w/a/runs/{run.id}/inputs/bcb_file")
+    assert download.status_code == 200 and download.content == BCB_CSV
+
+
+def test_a_failing_sgs_blocks_the_run_with_502(logged, ready, db, monkeypatch):
+    def fail(controls):
+        raise bcb.Unavailable("bcb_ipca")
+
+    monkeypatch.setattr(bcb, "fetch", fail)
+    simulation = ready()
+    simulations.save_params(db, simulation, {**PARAMS, "controls": ["bcb_ipca"]})
+
+    r = post_run(logged, simulation)
+
+    assert r.status_code == 502 and r.json()["detail"] == bcb.ERROR
+    assert db.scalar(select(func.count()).select_from(Run)) == 0
+
+
+def test_without_controls_the_sgs_is_not_called(logged, ready, monkeypatch):
+    monkeypatch.setattr(bcb, "fetch", lambda controls: pytest.fail("fetched without controls"))
+
+    r = post_run(logged, ready())
+
+    assert r.status_code == 201 and "bcb_file" not in r.json()["inputs"]
+
+
+def test_a_blocked_run_does_not_fetch(logged, ready, monkeypatch):
+    monkeypatch.setattr(bcb, "fetch", lambda controls: pytest.fail("fetched for a blocked run"))
+    simulation = ready(params=False)
+
+    assert post_run(logged, simulation).status_code == 409
 
 
 def test_run_out_carries_the_snapshot_and_the_publication(logged, ready, db, analyst):

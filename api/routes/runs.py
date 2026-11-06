@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from api import logs, runs, simulations, storage
+from api import bcb, logs, runs, simulations, storage
 from api.auth import Ctx, require_role
 from api.db import SessionLocal, get_db
 from api.models import Run, RunLog
@@ -29,7 +29,7 @@ BATCH = 500
 # ponytail: the history filters run in the browser over the newest 500; past that, move them to query params
 HISTORY_LIMIT = 500
 
-InputKey = Literal["investment_file", "performance_file", "generic_trends_file"]
+InputKey = Literal["investment_file", "performance_file", "generic_trends_file", "bcb_file"]
 
 
 class RunIn(BaseModel):
@@ -93,6 +93,8 @@ def create_run(simulation_id: SimulationId, body: RunIn, ctx: Ctx = Depends(anal
         run = runs.create(db, simulation, set(body.confirmed_warnings), by=ctx.user)
     except runs.Blocked as e:
         raise HTTPException(409, str(e))
+    except bcb.Unavailable:
+        raise HTTPException(502, bcb.ERROR)
     return run_out(run)
 
 
