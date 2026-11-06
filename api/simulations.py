@@ -186,7 +186,8 @@ def save_mapping(db: Session, simulation: Simulation, mapping: dict) -> None:
 def save_params(db: Session, simulation: Simulation, params: dict) -> None:
     lock(db, simulation)
     require_mapping(simulation)
-    # the parameters never touch the report: engine.validate reads only the mapping and date formats
+    # ParamsIn carries none of the fields engine.validate reads (mapping, date formats, channel_groups,
+    # block_per_channel, gate_thresholds); B2 must revalidate when it adds them
     simulation.config = {**simulation.config, **params}
     simulation.updated_at = func.now()
     db.commit()
