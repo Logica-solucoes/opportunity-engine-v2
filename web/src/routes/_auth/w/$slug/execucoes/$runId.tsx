@@ -15,7 +15,7 @@ function RunRoute() {
   return <RunLayout key={Route.useParams().runId} />
 }
 
-const TAB = '-mb-px border-b-2 border-transparent pb-2 text-muted-foreground hover:text-foreground'
+const TAB = '-mb-px border-b-2 pb-2 hover:text-foreground'
 
 function RunLayout() {
   const { slug, runId } = Route.useParams()
@@ -27,7 +27,14 @@ function RunLayout() {
   if (!run) return isError ? <p>Execução não encontrada.</p> : null
 
   const tab = (to: '/w/$slug/execucoes/$runId/causal' | '/w/$slug/execucoes/$runId/detalhes', label: ReactNode) => (
-    <Link to={to} params={{ slug, runId }} className={TAB} activeProps={{ className: 'border-primary text-foreground' }}>
+    // active and inactive colors in separate props: two border-color classes on one element let the CSS order pick
+    <Link
+      to={to}
+      params={{ slug, runId }}
+      className={TAB}
+      activeProps={{ className: 'border-primary text-foreground' }}
+      inactiveProps={{ className: 'border-transparent text-muted-foreground' }}
+    >
       {label}
     </Link>
   )
