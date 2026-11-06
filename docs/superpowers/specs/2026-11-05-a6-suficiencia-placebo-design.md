@@ -14,6 +14,15 @@ Hoje o motor publica lift de um evento sempre que o p-valor, a direção e o R²
 - Falha de suficiência → `status: "inconclusive"` no run, sem evento publicado.
 - CV da elasticidade com poucas linhas deixa de cair calado para in-sample: o fato é registrado e reprova a suficiência.
 
+## Emenda (06/nov/2026, aprovada pelo dono): gate de robustez
+
+A medição de aceite mostrou que o placebo no ponto médio **não** pega o caso do ruído: com KPI de ruído puro (10 sementes, `p_value_threshold` 0.05), 6 sementes ainda publicavam evento. A causa está no ajuste do evento: o Lasso mantém as cinco features de mídia mesmo sem sinal, e extrapolar esses coeficientes espúrios para um pico de spend (2.5×) produz um "lift" de ~3% com p ≈ 0. O placebo roda no meio do pré, onde o spend não tem pico, então não vê isso.
+
+- **Gate novo `model_dependent`:** por evento, refaz o ajuste sem as features de mídia (`*_transformed`): só tendência, sazonalidade, controles e calendário que o Lasso escolheu. Mesmo teste de p-valor acumulado sobre o pós. O evento é rejeitado quando o lift é significativo com a mídia (`p < p_value_threshold`) e **não** é significativo sem ela.
+- Resultado em `CausalEvent.robustness = {p_value, passed}`; `passed = null` quando o ajuste falhou (não rejeita).
+- Custo: mais um ajuste por evento. Custo no efeito real: um efeito pequeno que só o modelo com mídia enxerga também é rejeitado (conservador, a calibrar no A10).
+- Aceite adicional: nas mesmas 10 sementes de ruído, registrar quantas ainda publicam; efeito forte (`make_strong_effect_dataset` e o pico de YOUTUBE/PMAX com efeito) segue passando.
+
 ## Não-objetivos
 
 - Experiment designer (A7): `experiment_design` continua `null`.

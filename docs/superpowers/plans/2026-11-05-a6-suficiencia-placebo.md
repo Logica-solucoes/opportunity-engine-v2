@@ -101,6 +101,16 @@
 - [ ] **Step 4: Rodar** os três arquivos. Esperado: PASS.
 - [ ] **Step 5: Commit** `feat(engine): publish sufficiency and demote events of an insufficient run (a6)`.
 
+### Task 4b: Gate de robustez (emenda ao spec de 06/nov/2026)
+
+**Files:** `engine/analysis.py`, `engine/pipeline.py` (`_gate_reasons`, `analyze_events`), `engine/results.py` (`_event`), `engine/results_schema.py` (`Robustness`, `CausalEvent.robustness`); testes em `tests/engine/test_analysis.py`, `test_pipeline_stages.py`, `test_results_build.py`, `test_results_schema.py`.
+
+**Interfaces:**
+- Produces: `analysis.baseline_only_p_value(pre_data, post_data, baseline_features) -> float | None` (ajusta o mesmo `UnobservedComponents` só com `baseline_features`, sem exógenos se vazio; `None` + aviso em exceção); `results_data["robust_p_value"]`; `results_data["robust_passed"]` (`None` se não rodou; `False` quando `p_value < threshold` e `robust_p_value >= threshold`), calculado em `analyze_events` como o `placebo_passed`; `_gate_reasons` ganha `model_dependent`; `Robustness(p_value, passed)` em `CausalEvent.robustness`.
+- `baseline_features` = `selected_features` sem as chaves de `transformed_features`.
+
+- [ ] Testes que falham, RED, implementação, GREEN, commit `feat(engine): robustness gate against media-feature extrapolation (a6)`.
+
 ### Task 5: Aceite sintético, golden, fixtures, medição e docs
 
 **Files:**
