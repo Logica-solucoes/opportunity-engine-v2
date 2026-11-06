@@ -1,11 +1,14 @@
+from pathlib import Path
+
 import pytest
 from sqlalchemy import func
 
-from api import runs, simulations
+from api import runs, simulations, storage
 from api.auth import RANK
 from api.engine_config import ParamsIn
 from tests.samples import GOOGLE_CONFIG, GOOGLE_PERIOD, INVESTMENT, MAPPING, PERFORMANCE
 
+GOL = Path(__file__).resolve().parents[1] / "fixtures" / "results" / "gol_anonimizada.json"
 PUBLIC, SESSION, PLATFORM = "public", "session", "platform"
 ACTORS = ["anon", "viewer", "analyst", "admin", "platform"]
 
@@ -37,6 +40,7 @@ ROUTES = {
     ("GET", "/api/w/{slug}/simulations/{simulation_id}/runs"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs/{run_id}"): ("viewer", 200, None),
+    ("GET", "/api/w/{slug}/runs/{run_id}/results"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs/{run_id}/logs/stream"): ("viewer", 200, None),
     ("POST", "/api/w/{slug}/runs/{run_id}/publish"): ("analyst", 200, None),
     ("POST", "/api/w/{slug}/runs/{run_id}/unpublish"): ("analyst", 200, None),
@@ -85,6 +89,8 @@ def env(db, stream_db, make_user, make_workspace, make_simulation, password, fak
     simulations.save_params(db, simulation, ParamsIn().model_dump(mode="json"))
     run = runs.create(db, simulation, set(), by=users["analyst"])
     run.status, run.published_at = "succeeded", func.now()
+    run.results_uri = f"ws/{run.workspace_id}/sim/{run.simulation_id}/runs/{run.id}/results.json"
+    storage.put(run.results_uri, GOL)
     db.commit()
     return {
         "users": users,

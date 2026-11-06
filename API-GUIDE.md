@@ -41,6 +41,7 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | GET | `/api/w/{slug}/simulations/{simulation_id}/runs` | Viewer+ (viewer só vê publicados). Até 20 `RunOut`, mais recente primeiro |
 | GET | `/api/w/{slug}/runs` | Viewer+ (viewer só vê publicados). Até 500 `RunOut` do workspace, mais recente primeiro; os filtros do histórico rodam no front |
 | GET | `/api/w/{slug}/runs/{run_id}` | Viewer+ (viewer só vê publicado; senão 404). `RunOut`: `{id, status, simulation: {id, name}, created_by_name, created_at, started_at, finished_at, error, summary, engine_version, config, inputs: {investment_file\|performance_file\|generic_trends_file: {filename, sha256} \| null}, published_at, published_by_name}` |
+| GET | `/api/w/{slug}/runs/{run_id}/results` | Viewer+, mesma visibilidade do run. O `results.json` v1 gravado pelo worker, como está (`application/json`); run sem resultado (rodando, falhou) → 404 "Esta execução não tem resultado." |
 | POST | `/api/w/{slug}/runs/{run_id}/publish` | Analyst+. → `RunOut`; só `succeeded`/`inconclusive`, senão 409 "Só execuções concluídas podem ser publicadas."; publicar de novo atualiza `published_at/by` |
 | POST | `/api/w/{slug}/runs/{run_id}/unpublish` | Analyst+. → `RunOut`; idempotente |
 | GET | `/api/w/{slug}/runs/{run_id}/inputs/{key}` | Analyst+. `key` ∈ `investment_file`, `performance_file`, `generic_trends_file` (outro → 422). CSV do snapshot do run, como anexo com o nome do upload; entrada ausente → 404 |
