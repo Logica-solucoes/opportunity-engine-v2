@@ -36,7 +36,8 @@ def _at(investment: float, curve: list[dict], key: str) -> float | None:
 def ramp(current: float | None, target: float, max_step: float, curve: list[dict]) -> list[dict] | None:
     """Compounding steps of at most `max_step` from `current` to `target` (the last one lands on it), with KPI and
     band interpolated on `curve` (ascending investment). None when a single move is within the step."""
-    if not current or not (0 < current < math.inf and 0 <= target < math.inf):
+    # cutting to 0 is a pause, not a bid change: nothing to ramp (and compounding cuts never reach 0)
+    if not current or not (0 < current < math.inf and 0 < target < math.inf):
         return None
     if abs(target / current - 1) <= max_step + _TOLERANCE:
         return None
@@ -172,7 +173,7 @@ def _table_row(point: dict, base: dict, max_step: float, curve: list[dict], note
         "incremental_investment": incremental_investment,
         "incremental_kpi": incremental_kpi,
         "icpa": _icpa(incremental_investment, incremental_kpi),
-        "iroas": _ratio(incremental_revenue, incremental_investment),
+        "iroas": _ratio(incremental_revenue, incremental_investment) if incremental_kpi > 0 else None,
         "extrapolated": point["extrapolated"],
         "ramp": ramp(base["investment"], point["investment"], max_step, curve) if changes else None,
         "notes": [note] if changes else [],
@@ -188,7 +189,8 @@ def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) ->
     rows = elasticity.get("response_curve") or []
     current = next((s for s in elasticity.get("scenarios") or [] if s["name"] == "current"), None)
     period_days = (results.get("validation") or {}).get("period_days")
-    if not rows or current is None or not period_days:
+    usable = rows and all(row["investment"] is not None and row["kpi"] is not None for row in rows)
+    if not usable or current is None or current.get("kpi") is None or not period_days:
         raise EngineError(NO_CURVE)
 
     factor = DAYS_PER_MONTH / period_days

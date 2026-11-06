@@ -40,9 +40,16 @@ def test_no_ramp_without_a_current_investment():
 
 @pytest.mark.parametrize(
     ("current", "target"),
-    [(float("nan"), 150.0), (100.0, float("nan")), (float("inf"), 150.0), (100.0, float("inf")), (100.0, -1.0)],
+    [
+        (float("nan"), 150.0),
+        (100.0, float("nan")),
+        (float("inf"), 150.0),
+        (100.0, float("inf")),
+        (100.0, -1.0),
+        (100.0, 0.0),
+    ],
 )
-def test_a_non_finite_or_negative_investment_gives_no_ramp_instead_of_looping(current, target):
+def test_a_pause_or_a_non_finite_investment_gives_no_ramp_instead_of_looping(current, target):
     assert ramp(current, target, 0.2, CURVE) is None
 
 

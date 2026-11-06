@@ -224,11 +224,35 @@ def test_roas_filters_apply_only_in_revenue_mode():
     assert got["recommended"]["investment"] == pytest.approx(40.0 * 30)  # no revenue: ROAS filter ignored
 
 
+def test_a_budget_cut_has_no_incremental_return():
+    revenue = [_row(10.0, 10.0, revenue=50.0), _row(20.0, 20.0, revenue=80.0)]
+
+    got = scenario(_doc(revenue, current_kpi=20.0), ScenarioFilters(max_budget=10.0 * 30), 0.2)
+
+    assert got["recommended"]["incremental_kpi"] < 0
+    assert got["recommended"]["icpa"] is None and got["recommended"]["iroas"] is None
+
+
 def test_a_run_without_curve_is_an_engine_error():
     with pytest.raises(EngineError):
         scenario({"validation": {"period_days": 1}, "elasticity": None}, ScenarioFilters(), 0.2)
     with pytest.raises(EngineError):
         scenario(_doc([]), ScenarioFilters(), 0.2)
+
+
+@pytest.mark.parametrize("key", ["investment", "kpi"])
+def test_a_null_number_on_the_curve_is_an_engine_error(key):
+    rows = [dict(row) for row in CONVERSIONS]
+    rows[2][key] = None
+    with pytest.raises(EngineError):
+        scenario(_doc(rows), ScenarioFilters(), 0.2)
+
+
+def test_a_null_current_kpi_is_an_engine_error():
+    doc = _doc(CONVERSIONS)
+    doc["elasticity"]["scenarios"][0]["kpi"] = None
+    with pytest.raises(EngineError):
+        scenario(doc, ScenarioFilters(), 0.2)
 
 
 def test_filters_reject_bad_values():
