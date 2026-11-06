@@ -239,6 +239,20 @@ def check_groups(
                 details={"channels": unknown},
             )
         )
+    grouped_members = {member for group in config.channel_groups for member in group}
+    taken = sorted({" + ".join(group) for group in config.channel_groups} & (channels - grouped_members))
+    if taken:
+        checks.append(
+            Check(
+                id="channel_group_name_taken",
+                level="error",
+                message=(
+                    "O nome do grupo coincide com um canal que já está no arquivo de investimento: "
+                    f"{', '.join(taken)}. Renomeie esse canal no arquivo."
+                ),
+                details={"channels": taken},
+            )
+        )
     grouped = spend_matrix(apply_channel_groups(kept_inv, config.channel_groups))
     open_pairs = _not_overlap(_pairs_over(grouped, config), overlapping)
     vif_channels = high_vif(grouped, config, overlapping)

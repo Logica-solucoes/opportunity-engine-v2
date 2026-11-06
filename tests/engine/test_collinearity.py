@@ -279,3 +279,14 @@ def test_the_gate_works_on_weekly_data(tmp_path):
 
     assert report.period_days == 7 and "collinearity_unresolved" in {c.id for c in report.checks}
     assert validate(paths, {**dataset_config(), "channel_groups": [["SEARCH", "PMAX"]]}).ok
+
+
+def test_a_group_named_like_a_channel_already_in_the_file_is_an_error(tmp_path):
+    ds = days(10)
+    investment = [(d, name, 100 + i) for name in ("A", "B", "A + B") for i, d in enumerate(ds)]
+    paths = write_inputs(tmp_path, investment, [(d, 1000 + i) for i, d in enumerate(ds)])
+
+    report = validate(paths, {**dataset_config(), "channel_groups": [["A", "B"]]})
+
+    check = next(c for c in report.checks if c.id == "channel_group_name_taken")
+    assert not report.ok and check.level == "error" and check.details == {"channels": ["A + B"]}
