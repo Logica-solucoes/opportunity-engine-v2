@@ -3,13 +3,14 @@ import json
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+import engine
 from api import logs, runs, simulations, storage
 from api.auth import Ctx, require_role
 from api.db import SessionLocal, get_db
@@ -154,6 +155,20 @@ def download_input(run_id: RunId, key: InputKey, ctx: Ctx = Depends(analyst), db
         raise HTTPException(404)
     path = storage.path(simulations.input_key(run.workspace_id, run.simulation_id, entry["sha256"]))
     return FileResponse(path, media_type="text/csv", filename=entry["filename"])
+
+
+@router.get("/runs/{run_id}/scenario")
+def get_scenario(
+    run_id: RunId,
+    filters: Annotated[engine.ScenarioFilters, Query()],
+    ctx: Ctx = Depends(viewer),
+    db: Session = Depends(get_db),
+):
+    run = find_run(db, ctx, run_id)
+    try:
+        return runs.scenario(run, filters)
+    except runs.Blocked as e:
+        raise HTTPException(409, str(e))
 
 
 def poll(run_id: int, after: int | None, sweep: bool = False) -> tuple[str | None, str, int | None]:
