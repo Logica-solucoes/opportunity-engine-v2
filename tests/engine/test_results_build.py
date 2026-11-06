@@ -306,6 +306,8 @@ def test_run_status_matrix():
     assert results.run_status(causal("inconclusive"), elasticity("ok")) == "inconclusive"
     assert results.run_status(causal("ok"), elasticity("failed")) == "inconclusive"
     assert results.run_status(causal("inconclusive"), elasticity("failed")) == "failed"
+    assert results.run_status(causal("ok"), elasticity("inconclusive")) == "inconclusive"
+    assert results.run_status(causal("inconclusive"), elasticity("inconclusive")) == "inconclusive"
 
 
 def test_failed_model_yields_a_failed_elasticity_section(synthetic_computed):
