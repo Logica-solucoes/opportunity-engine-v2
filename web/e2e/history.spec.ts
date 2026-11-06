@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 import { addMember, createWorkspace, loggedInAdmin, newSession, runToCompletion } from './helpers'
 
 test('analyst filters the history, publishes a run and the viewer sees only that one', async ({ page, browser }) => {
+  // two fake engine runs take ~50 s alone; the default 60 s timed out with the rest of the suite running
+  test.setTimeout(120_000)
   await loggedInAdmin(page)
   const slug = await createWorkspace(page)
   const analyst = await addMember(page, slug, 'analyst')
