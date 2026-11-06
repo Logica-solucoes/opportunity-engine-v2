@@ -345,7 +345,8 @@ def test_scenario_icpa_is_null_without_incremental_investment(synthetic_computed
         "Incremental_KPI": 0,
         "iCPA": 0,
     }
-    built = results.build_results(dataclasses.replace(synthetic_computed, strategic_reallocation_point=point), "v")
+    computed = dataclasses.replace(synthetic_computed, strategic_reallocation_point=point, identifiability=None)
+    built = results.build_results(computed, "v")  # unfiltered: the scenario is withheld while a channel is hidden
     scenario = next(s for s in built.elasticity.scenarios if s.name == "strategic_reallocation")
     assert scenario.icpa is None and scenario.incremental_investment == 0.0
 
@@ -441,3 +442,22 @@ def test_without_identifiability_nothing_is_filtered(synthetic_computed):
     elasticity = results.build_results(dataclasses.replace(synthetic_computed, identifiability=None), "v").elasticity
     assert elasticity.unidentified is None and all(c.reasons == [] for c in elasticity.channels)
     assert all("nao_identificavel" not in row.mix["historical"] for row in elasticity.response_curve)
+
+
+def test_reallocation_is_suppressed_while_any_channel_is_hidden(synthetic_computed):
+    spend_cols = list(synthetic_computed.mmm["spend_cols"])
+    plain = results.build_results(dataclasses.replace(synthetic_computed, identifiability=None), "v").elasticity
+    assert (
+        "strategic_reallocation" in [s.name for s in plain.scenarios] and plain.metrics.reallocation_suppressed is None
+    )
+
+    hidden = results.build_results(_assessed(synthetic_computed, set(spend_cols[:-1])), "v").elasticity
+    assert "strategic_reallocation" not in [s.name for s in hidden.scenarios]
+    assert hidden.metrics.reallocation_suppressed is True
+    assert {"current", "max_efficiency"} <= {s.name for s in hidden.scenarios}  # the other scenarios stay
+
+    all_ok = results.build_results(_assessed(synthetic_computed, set(spend_cols)), "v").elasticity
+    assert (
+        "strategic_reallocation" in [s.name for s in all_ok.scenarios]
+        and all_ok.metrics.reallocation_suppressed is None
+    )

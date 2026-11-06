@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from engine.grouping import group_name
-from engine.identifiability import hidden_channels, pool
+from engine.identifiability import hidden_channels, pool, reallocation_suppressed
 from engine.results_schema import (
     AccuracyPoint,
     Baseline,
@@ -201,9 +201,10 @@ def _response_rows(computed: "Computed") -> list[ResponseRow]:
 
 def _scenarios(computed: "Computed") -> list[Scenario]:
     scenarios = []
+    suppressed = reallocation_suppressed(computed.identifiability)
     for name, attribute in SCENARIO_SOURCES.items():
         point = getattr(computed, attribute)
-        if not point:
+        if not point or (suppressed and name == "strategic_reallocation"):
             continue
         scenarios.append(
             Scenario(
@@ -271,6 +272,7 @@ def _elasticity(computed: "Computed") -> Elasticity:
             cv_r2=_num(mmm["cv_r_squared"]),
             r2=_num(mmm["r_squared"]),
             media_contribution_pct=_num(mmm["marketing_contribution_of_kpi_pct"]),
+            reallocation_suppressed=True if reallocation_suppressed(computed.identifiability) else None,
         ),
         channels=_channel_fits(computed),
         groups=groups,

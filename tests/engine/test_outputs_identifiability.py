@@ -55,3 +55,29 @@ def test_without_identifiability_the_payload_is_unchanged(synthetic_computed, tm
     written = outputs.write_legacy_outputs(computed, tmp_path)
     markdown = (written.global_dir / "SATURATION_CURVE.md").read_text(encoding="utf-8")
     assert all(name in markdown for name in computed.mmm["spend_cols"]) and UNIDENTIFIED_KEY not in markdown
+
+
+def test_reallocation_gain_is_not_sent_to_the_llm_while_a_channel_is_hidden(synthetic_computed, tmp_path):
+    spend_cols = list(synthetic_computed.mmm["spend_cols"])
+    plain = outputs.write_legacy_outputs(dataclasses.replace(synthetic_computed, identifiability=None), tmp_path / "a")
+    hidden = outputs.write_legacy_outputs(_assessed(synthetic_computed, set(spend_cols[:-1])), tmp_path / "b")
+    assert plain.kpi_projections["reallocation"] and hidden.kpi_projections["reallocation"] is None
+    assert "Realocação Estratégica" in (plain.global_dir / "SATURATION_CURVE.md").read_text(encoding="utf-8")
+    assert "Realocação Estratégica" not in (hidden.global_dir / "SATURATION_CURVE.md").read_text(encoding="utf-8")
+
+
+def test_global_prompt_does_not_ask_for_the_reallocation_scenario_while_a_channel_is_hidden(
+    synthetic_computed, tmp_path
+):
+    spend_cols = list(synthetic_computed.mmm["spend_cols"])
+    prompts = {}
+    for label, computed in (
+        ("plain", dataclasses.replace(synthetic_computed, identifiability=None)),
+        ("hidden", _assessed(synthetic_computed, set(spend_cols[:-1]))),
+    ):
+        written = outputs.write_legacy_outputs(computed, tmp_path / label)
+        llm = FakeLLM([json.dumps(GLOBAL_NARRATIVE)])
+        outputs.generate_reports(computed, _only_global(written), llm)
+        prompts[label] = llm.calls[0]
+    assert "Realocação Estratégica" in prompts["plain"]
+    assert "Realocação" not in prompts["hidden"]

@@ -432,7 +432,8 @@ def create_comparative_saturation_md(scenarios, output_filename, kpi_projections
         markdown_content += "- **Cenário Atual (Média Histórica):** Mantém o nível de investimento e o mix idênticos às médias observadas.\n"
         markdown_content += "- **Cenário Otimizado (Pico de Eficiência):** Escala o investimento total para o ponto de maior eficiência detectado e usa o mix dos melhores períodos.\n"
         markdown_content += "- **Cenário Estratégico (Modelo de Elasticidade):** Expande o orçamento até o limite ótimo de saturação calculado pelo modelo iterativo.\n"
-        markdown_content += "- **Realocação Estratégica (Mesmo Orçamento):** Mantém o investimento atual, mas redistribui a verba segundo o Modelo de Elasticidade para ganho puro de eficiência.\n\n"
+        if kpi_projections.get("reallocation"):  # not offered while a channel is not identifiable (A5)
+            markdown_content += "- **Realocação Estratégica (Mesmo Orçamento):** Mantém o investimento atual, mas redistribui a verba segundo o Modelo de Elasticidade para ganho puro de eficiência.\n\n"
         markdown_content += f"| Cenário | Investimento Mensal | Projeção de {kpi_name} | Custo por {kpi_name} (CPA) | Investimento Incremental | {kpi_name} Incrementais | iCPA |\n"
         markdown_content += "|:---|:---|:---|:---|:---|:---|:---|\n"
 

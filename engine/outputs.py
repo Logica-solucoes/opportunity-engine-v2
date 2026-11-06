@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from engine import presentation, recommendations, reports
-from engine.identifiability import hidden_channels, pool
+from engine.identifiability import hidden_channels, pool, reallocation_suppressed
 from llm.base import LLM, LLMUnavailable
 
 if TYPE_CHECKING:
@@ -147,7 +147,9 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
         "current": baseline,
         "optimized": computed.max_efficiency_point,
         "strategic": computed.strategic_limit_point,
-        "reallocation": computed.strategic_reallocation_point,
+        "reallocation": None
+        if reallocation_suppressed(computed.identifiability)
+        else computed.strategic_reallocation_point,
     }
     presentation.create_comparative_saturation_md(
         written.scenarios,

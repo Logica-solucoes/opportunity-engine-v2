@@ -478,6 +478,13 @@ def generate_html_report(
         log.warning(f"   - WARNING: Could not write narrative JSON. Details: {e}")
 
 
+def _without_reallocation(json_schema: str) -> str:
+    """The output schema asked of the LLM, minus the reallocation scenario (it is not published; see A5)."""
+    start = json_schema.index(',\n          {{\n            "scenario_name": "Realocação')
+    end = json_schema.index("\n        ]", start)
+    return json_schema[:start] + json_schema[end:]
+
+
 def generate_global_report(
     llm, config, scenarios=None, total_investment=None, kpi_projections=None, *, global_output_dir
 ):
@@ -538,6 +545,8 @@ def generate_global_report(
       ]
     }}
     """
+    if not (kpi_projections or {}).get("reallocation"):
+        json_schema = _without_reallocation(json_schema)
 
     # --- 3. Construct the prompt ---
     prompt = f"""
@@ -715,7 +724,8 @@ def generate_global_report(
         summary_table_html += "<li><strong>Cenário Atual (Média Histórica):</strong> Mantém o nível de investimento e o mix idênticos às médias observadas.</li>"
         summary_table_html += "<li><strong>Cenário Otimizado (Pico de Eficiência):</strong> Escala o investimento total para o ponto de maior eficiência detectado e usa o mix dos melhores períodos.</li>"
         summary_table_html += "<li><strong>Cenário Estratégico (Modelo de Elasticidade):</strong> Expande o orçamento até o limite ótimo de saturação calculado pelo modelo iterativo.</li>"
-        summary_table_html += "<li><strong>Realocação Estratégica (Mesmo Orçamento):</strong> Mantém o investimento atual, mas redistribui a verba segundo o Modelo de Elasticidade para ganho puro de eficiência.</li>"
+        if (kpi_projections or {}).get("reallocation"):  # not offered while a channel is not identifiable (A5)
+            summary_table_html += "<li><strong>Realocação Estratégica (Mesmo Orçamento):</strong> Mantém o investimento atual, mas redistribui a verba segundo o Modelo de Elasticidade para ganho puro de eficiência.</li>"
         summary_table_html += "</ul>"
         summary_table_html += '<table class="scenarios-table">'
 

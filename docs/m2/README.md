@@ -124,6 +124,8 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
  "reports": {"events": {"<event id>": {…narrativa…}}, "global": {…},
              "grounding": {"status":"passed|regenerated|blocked","issues":[…]}}}
 ```
+**Identificabilidade (A5).** Um canal que os dados não sustentam (`reasons`: `ci_crosses_zero`, `ci_too_wide` ou `collinearity`) sai sem `hill`, `adstock`, `curve` e `contribution_pct`. O `coef_ci` está no espaço escalado do modelo e serve só para exibição (não é KPI por real investido). Em cada `mix` os canais ocultos somam na chave `nao_identificavel`, e `elasticity.unidentified` lista nomes e soma de contribuição. Enquanto houver canal oculto, `metrics.reallocation_suppressed` é `true` e o cenário `strategic_reallocation` não é publicado. `elasticity.reasons` pode trazer `no_identifiable_channel` mesmo com `status: "ok"` (informativo: o total e a curva agregada seguem publicados).
+
 O formato exato de cada seção é fechado no spec do item dono, e os nomes acima são o ponto de partida. Até o fim da semana 1, A entrega **fixtures** reais em `tests/fixtures/results/` (gerados a partir de `exemplo_csv/`) para B construir telas sem esperar o motor.
 
 `on_log` (proposto pelo B4, a confirmar no spec do A0): `on_log(level: str, message: str)`, com `level` em `info|warning|error` e `message` já em pt-BR, pronta para a tela; o worker grava cada chamada em `run_logs`. `inputs` tem as mesmas chaves do `validate`. Em aberto para o A0: o motor levanta uma exceção própria com mensagem pt-BR para a tela? Até lá, toda exceção vira uma mensagem genérica e o traceback fica só no Cloud Logging.

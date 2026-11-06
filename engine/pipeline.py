@@ -13,7 +13,7 @@ from engine import analysis, elasticity_analysis, outputs, results
 from engine.config import EngineConfig, GateThresholds
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
-from engine.identifiability import assess, collinear_channels
+from engine.identifiability import UNIDENTIFIED_KEY, assess, collinear_channels, hidden_channels, pool
 from engine.logmessages import forward_logs
 from engine.results_schema import ValidationReport
 from engine.validation import validate
@@ -212,6 +212,21 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
     return result
 
 
+def _log_published_split(mmm: dict, identifiability: dict[str, dict]) -> None:
+    """The contribution split the run log shows: identifiable channels on their own, the rest together."""
+    channels = list(mmm["spend_cols"])
+    hidden = hidden_channels(identifiability)
+    shown = len(channels) - len(hidden)
+    log.info(
+        f"   - Identificabilidade: {shown} de {len(channels)} canais têm efeito separável de zero; "
+        "os demais aparecem juntos como não identificáveis."
+    )
+    split = pool({name: mmm["contribution_pct"].get(name, 0.0) for name in channels}, hidden)
+    for name, pct in sorted(split.items(), key=lambda item: item[1] or 0.0, reverse=True):
+        label = "não identificáveis (juntos)" if name == UNIDENTIFIED_KEY else name
+        log.info(f"     - {label}: {pct:.2f}%")
+
+
 def compute(
     inputs: dict[str, Path | None],
     config: EngineConfig,
@@ -231,6 +246,7 @@ def compute(
         flagged = collinear_channels(validation, gate.vif_max)
         mmm = elasticity["mmm"]
         identifiability = assess(mmm["bootstrap_coefs"], mmm["spend_cols"], gate.identifiability_width_ratio, flagged)
+        _log_published_split(mmm, identifiability)
     return Computed(
         prepared=prepared,
         effective_config=cfg,

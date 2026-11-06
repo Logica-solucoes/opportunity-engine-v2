@@ -268,3 +268,10 @@ def test_block_per_channel_marks_collinear_channels_as_not_identifiable(monkeypa
     channels = {c["name"]: c for c in run.result["elasticity"]["channels"]}
     for name in ("SEARCH", "SEARCH2"):
         assert channels[name]["identifiable"] is False and "collinearity" in channels[name]["reasons"]
+
+
+def test_the_run_log_does_not_show_the_share_of_a_hidden_channel(strong_run):
+    lines = [message for _, message in strong_run.calls]
+    assert not any(NULL in line and "%" in line for line in lines)
+    assert any("Identificabilidade" in line and "1 de 2" in line for line in lines)
+    assert any(line.strip().startswith(f"- {STRONG}:") and "%" in line for line in lines)

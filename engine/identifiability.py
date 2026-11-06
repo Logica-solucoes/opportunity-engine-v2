@@ -55,3 +55,9 @@ def pool(values: dict[str, float | None], hidden: set[str]) -> dict[str, float |
     if pooled:
         kept[UNIDENTIFIED_KEY] = None if any(v is None for v in pooled) else sum(pooled)
     return kept
+
+
+def reallocation_suppressed(identifiability: dict[str, dict] | None) -> bool:
+    """The gain of moving budget between channels rests on every channel's coefficient: it is not published (nor
+    narrated by the LLM) while any channel is not identifiable."""
+    return bool(hidden_channels(identifiability))
