@@ -32,7 +32,7 @@ Os três entram em `docs/decisoes/dashboards.md` (arquivo novo, com linha no ín
 |---|---|---|
 | GET | `/api/w/{slug}/runs/{run_id}/results` | Viewer+ (viewer só vê publicado, pelo `find_run` que já existe). Devolve o `results.json` gravado como está, `FileResponse` com `media_type="application/json"`, sem parsear. Run sem `results_uri` (rodando, falhou, morto) → 404 "Esta execução não tem resultado." |
 
-Outro workspace ou run não publicado para o viewer → 404, como as outras rotas do run. A regra fica em `api/runs.py` (função pequena que devolve o caminho ou levanta), e a rota só traduz. O A8 adiciona `scenario` nos mesmos dois arquivos; as duas mudanças só acrescentam código.
+Outro workspace ou run não publicado para o viewer → 404, como as outras rotas do run. A checagem é uma linha e fica na rota, como a do `download_input`; `api/runs.py` não muda (o A8 acrescenta lá o `scenario` e um `NO_RESULTS` próprio, então a constante daqui se chama `RESULTS_MISSING`).
 
 ### Motor falso
 
@@ -43,8 +43,9 @@ Outro workspace ou run não publicado para o viewer → 404, como as outras rota
 - Analyst recebe o arquivo byte a byte igual ao gravado.
 - Viewer: 404 em run não publicado, 200 depois de publicar.
 - Outro workspace → 404.
-- Run sem resultado (`queued`, `failed`) → 404.
-- `fake_run` com `FAKE_ENGINE_RESULTS` devolve o fixture.
+- Run sem resultado (`queued`, `running`, `failed`) → 404.
+- A rota entra na matriz de `tests/api/test_rbac.py`.
+- `fake_run` com `FAKE_ENGINE_RESULTS` devolve o fixture (em `tests/api/test_runs.py`, junto dos outros testes do motor falso).
 
 ---
 
