@@ -28,7 +28,7 @@ O MMM reparte o efeito de mídia entre os canais, mas nem toda divisão tem sust
 |---|---|---|
 | O que "sai de curva, mix e cenários" significa | Só publicação: modelo e otimizador iguais, o canal some do JSON e do Gemini, o spend dele vai para `"Não identificados"` | Mantém a paridade e os totais da curva agregada; congelar ou tirar do modelo muda números que a A10 ainda vai auditar. Decidido com o dono em 05/nov/2026. |
 | Unidade do `coef_ci` | Contribuição total no período, em unidade do KPI: `coef_b × Σ X_scaled[:, i]` por reamostragem | O coeficiente da Ridge vive no espaço MinMax e não significa nada fora do modelo; a contribuição o analista lê. Decidido com o dono. |
-| "IC cruza zero" | `p2.5 <= 0` | A Ridge tem `positive=True`: coeficiente nunca é negativo. Cruzar zero é ≥ 2,5% das reamostragens zerarem o canal. |
+| "IC cruza zero" | `p2.5 <= 0` | A Ridge tem `positive=True`: coeficiente nunca é negativo. Cruzar zero é 6 ou mais das 200 reamostragens (3%) zerarem o canal: o `np.percentile` interpola, e com 5 o p2.5 ainda sai positivo. |
 | "Largura maior que o ponto" | `p97.5 − p2.5 > ponto`, com ponto = contribuição com o coeficiente médio (a de hoje) | O ponto é o que já é publicado. |
 | Limites configuráveis | Não. Regra fixa | É a regra da trilha; nenhum valor a calibrar. A A10 revê se precisar. |
 | Nenhum canal identificável | `elasticity.status = "inconclusive"`, `reasons = ["no_identifiable_channel"]`; curva agregada e cenários publicados, sem mix por canal | O total investimento × KPI continua medido; só a divisão não. Decidido com o dono. |

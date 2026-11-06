@@ -108,7 +108,7 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 
 - **Só publicação.** O canal não identificável continua no ajuste e no otimizador; o `results.json` e o payload do Gemini é que o escondem. **Por quê:** congelar ou tirar do modelo muda números que a A10 ainda audita, e a paridade fica intacta.
 - **IC em unidade do KPI.** `coef_b × Σ X_scaled` por reamostragem, p2.5/p97.5. O coeficiente da Ridge vive no espaço MinMax e não significa nada fora do modelo.
-- **"Cruza zero" é p2.5 ≤ 0.** A Ridge tem `positive=True`; zero exato é o canal zerado em ≥ 2,5% das reamostragens. Largura > ponto também reprova. Regra fixa, sem `gate_thresholds`.
+- **"Cruza zero" é p2.5 ≤ 0.** A Ridge tem `positive=True`; o p2.5 do `np.percentile` (interpolação linear) sobre 200 reamostragens só dá 0 com 6 ou mais delas zerando o canal (3%; com 5 ainda sai positivo). Largura > ponto também reprova. Regra fixa, sem `gate_thresholds`.
 - **Bucket `"Não identificados"`.** O spend dos canais escondidos é somado nessa chave no mix da curva, dos cenários e do `.md`/HTML global; os totais não mudam.
 - **Nenhum identificável → `inconclusive`, não `failed`.** A curva total e os cenários saem; o `run_status` conta elasticidade `inconclusive` como "publicou algo".
 - **Estrito nos dados atuais.** No sintético da paridade (spend com ~3% de ruído) todo canal reprova; com spend lognormal σ = 0,5 o canal forte passa. A Gol deve reprovar toda. Calibrar com a Data Science na A10.

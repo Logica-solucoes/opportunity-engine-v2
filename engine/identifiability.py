@@ -2,7 +2,7 @@
 
 import numpy as np
 
-UNIDENTIFIED = "Não identificados"
+UNIDENTIFIED = "Não identificados"  # no channel collides: names are upper-cased on load (data_preprocessor)
 
 
 def assess(mmm: dict) -> dict[str, dict]:
