@@ -104,6 +104,16 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - **Consequência:** a API não manda `channel_groups` nem `block_per_channel` (não estão em `ParamsIn`), então dataset colinear com 30+ períodos não roda pela plataforma até a tela do B2 existir. Quando o B2 mandar esses campos, salvar os parâmetros precisa revalidar (hoje `save_params` não revalida, porque nada do que ele grava muda o relatório).
 - **Verificado:** `tests/engine/test_collinearity.py`; o dataset da paridade não dispara o gate (|r| máximo 0.066) e, sem `channel_groups`, a leitura não muda; o teste de paridade em si só roda no Linux.
 
+## Identificabilidade (A5, 05/nov/2026)
+
+- **Só publicação.** O canal não identificável continua no ajuste e no otimizador; o `results.json` e o payload do Gemini é que o escondem. **Por quê:** congelar ou tirar do modelo muda números que a A10 ainda audita, e a paridade fica intacta.
+- **IC em unidade do KPI.** `coef_b × Σ X_scaled` por reamostragem, p2.5/p97.5. O coeficiente da Ridge vive no espaço MinMax e não significa nada fora do modelo.
+- **"Cruza zero" é p2.5 ≤ 0.** A Ridge tem `positive=True`; zero exato é o canal zerado em ≥ 2,5% das reamostragens. Largura > ponto também reprova. Regra fixa, sem `gate_thresholds`.
+- **Bucket `"Não identificados"`.** O spend dos canais escondidos é somado nessa chave no mix da curva, dos cenários e do `.md`/HTML global; os totais não mudam.
+- **Nenhum identificável → `inconclusive`, não `failed`.** A curva total e os cenários saem; o `run_status` conta elasticidade `inconclusive` como "publicou algo".
+- **Estrito nos dados atuais.** No sintético da paridade (spend com ~3% de ruído) todo canal reprova; com spend lognormal σ = 0,5 o canal forte passa. A Gol deve reprovar toda. Calibrar com a Data Science na A10.
+- **O IC é condicional aos hiperparâmetros** (adstock, Hill) do ajuste final: o bootstrap só reamostra a Ridge, então é mais estreito que o verdadeiro. Para a A10.
+
 ## Passos do swap (Dev B)
 
 1. Feito: o `pyproject.toml` tem as dependências e o `Dockerfile` copia `engine/` e `llm/` e recebe `ENGINE_VERSION` (`docs/decisoes/infra-e-operacao.md`). Falta medir o tamanho da imagem.

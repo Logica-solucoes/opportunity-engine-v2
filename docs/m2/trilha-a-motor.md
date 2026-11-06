@@ -131,6 +131,8 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 ## A5 · Identificabilidade por canal — semana 3
 
+- **Status:** ✅ feito em 05/nov/2026. `channels[].coef_ci` é o p2.5/p97.5 da contribuição do canal no período (unidade do KPI) sobre as 200 reamostragens; `identifiable=false` quando p2.5 ≤ 0 (a Ridge é positiva) ou a largura passa do ponto; o canal sai sem contribuição, Hill, adstock e curva, e o spend dele entra em `"Não identificados"` no mix da curva, dos cenários e do payload do Gemini. Só publicação: modelo e otimizador iguais, paridade intacta. Nenhum canal identificável → `elasticity` `inconclusive` (`no_identifiable_channel`), com a curva total publicada. Verificado: `tests/engine/test_identifiability.py` (sintético com `STRONG` identificável e `NOEFFECT` não), `test_results_build.py`, `test_outputs.py`; suíte inteira 827 passed, 21 skipped no Windows; a matriz fica em `mmm["coef_samples"]` para o A8. **Medido:** no sintético da paridade todo canal sai não identificável (spend quase constante), então os runs dele ficam `inconclusive`. Falta: rodar na Gol e nas Core, regenerar os fixtures do A1 (precisa da Gol) e a paridade no Linux. Spec: `docs/superpowers/specs/2026-11-05-a5-identificabilidade-design.md`.
+
 - **BRD:** Technical Details §2 (segunda metade); Capabilities › gates.
 - **Depende de:** A3.
 - **Hoje:** o bootstrap (n=200, seed 42, `elasticity_analysis.py:256-280`) calcula a matriz de coeficientes, mas **só a média sobrevive** (`:439`). Não há intervalo em lugar nenhum.
