@@ -31,7 +31,9 @@ O MMM reparte o efeito de mídia entre os canais, mas nem toda divisão tem sust
 | "IC cruza zero" | `p2.5 <= 0` | A Ridge tem `positive=True`: coeficiente nunca é negativo. Cruzar zero é ≥ 2,5% das reamostragens zerarem o canal. |
 | "Largura maior que o ponto" | `p97.5 − p2.5 > ponto`, com ponto = contribuição com o coeficiente médio (a de hoje) | O ponto é o que já é publicado. |
 | Limites configuráveis | Não. Regra fixa | É a regra da trilha; nenhum valor a calibrar. A A10 revê se precisar. |
-| Nenhum canal identificável | `elasticity.status = "inconclusive"`, `reasons = ["no_identifiable_channel"]`; curva agregada e cenários publicados, sem mix por canal | O total investimento × KPI continua medido; só a divisão não. O run segue o `run_status` atual (elasticidade não-`ok` → run `inconclusive` se o causal for `ok`). Decidido com o dono. |
+| Nenhum canal identificável | `elasticity.status = "inconclusive"`, `reasons = ["no_identifiable_channel"]`; curva agregada e cenários publicados, sem mix por canal | O total investimento × KPI continua medido; só a divisão não. Decidido com o dono. |
+| `run_status` com elasticidade inconclusiva | Conta como "publicou algo": causal `inconclusive` + elasticidade `inconclusive` → run `inconclusive`, não `failed` | A curva total sai publicada; `failed` diria que nada saiu. `failed` continua sendo causal sem evento + elasticidade `failed`. |
+| Regra estrita demais para os dados atuais? | Fica a regra da trilha | Medido em 05/nov/2026: no sintético da paridade (spend com ~3% de ruído fora de dois picos), nos 728 dias, no semanal e no colinear agrupado, **todo canal sai não identificável** (`p2.5 = 0`, 35–96% das reamostragens zeram o canal). Com spend que varia de verdade (σ = 0,5) o canal forte passa e o sem efeito reprova. A Gol provavelmente fica toda não identificável. Decidido com o dono: a regra é honesta; a A10 calibra com a Data Science. |
 | Grupo do A3 | Avaliado como um canal | O grupo já é uma coluna só no modelo (somado na leitura). |
 | Chave do bucket | `"Não identificados"` (constante em `engine/identifiability.py`) | Rótulo direto na tela pt-BR; colisão com nome real de canal é desprezível. |
 
@@ -75,7 +77,7 @@ Motivos: `coef_ci_includes_zero` e `coef_ci_too_wide` (os dois podem vir juntos)
 
 - `assess` com matriz feita à mão: canal com todas as reamostragens > 0 e estreitas → `true`; canal com 10% de zeros → `false` com `coef_ci_includes_zero`; canal largo → `coef_ci_too_wide`.
 - `fold_mix` preserva o total e não tem chave do canal removido; sem canal removido devolve o mesmo dict.
-- **Sintético (aceite da trilha):** dois canais, um com efeito forte no KPI e um sem efeito; o forte sai `identifiable=true` e o sem efeito `false`. Usa `tests/engine/synthetic_data.py`/`csv_factory.py` e o `compute`.
+- **Sintético (aceite da trilha):** dataset novo `make_identifiable_dataset` (dois canais com spend lognormal σ = 0,5: `STRONG` move o KPI, `NOEFFECT` não); `STRONG` sai `identifiable=true` e `NOEFFECT` `false`. O sintético atual vira o caso "nenhum identificável", e os testes que esperavam elasticidade `ok` nele passam a esperar `inconclusive`.
 - **JSON (aceite da trilha):** o `results.json` de um run com canal não identificável não tem curva, Hill, adstock nem chave de mix desse canal, e tem `"Não identificados"`.
 - Nenhum canal identificável → `elasticity.status == "inconclusive"` e run `inconclusive` quando o causal é `ok`.
 - `test_parity.py` (Linux, `mise run parity`) intacto: a média do bootstrap não muda. No Windows, `tests/engine` verde.
