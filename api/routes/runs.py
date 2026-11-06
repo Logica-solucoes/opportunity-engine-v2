@@ -129,6 +129,20 @@ def get_run(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get
     return run_out(find_run(db, ctx, run_id))
 
 
+RESULTS_MISSING = "Esta execução não tem resultado."
+
+
+@router.get("/runs/{run_id}/results")
+def get_results(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
+    # the file as the worker wrote it: the engine owns the schema, the API only guards who reads it
+    run = find_run(db, ctx, run_id)
+    path = storage.path(run.results_uri) if run.results_uri else None
+    # a file gone from disk (storage restored older than the db) is a missing result, not a 500
+    if path is None or not path.is_file():
+        raise HTTPException(404, RESULTS_MISSING)
+    return FileResponse(path, media_type="application/json")
+
+
 @router.post("/runs/{run_id}/publish", response_model=RunOut)
 def publish_run(run_id: RunId, ctx: Ctx = Depends(analyst), db: Session = Depends(get_db)):
     run = find_run(db, ctx, run_id)

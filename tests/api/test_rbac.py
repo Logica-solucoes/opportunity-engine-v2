@@ -40,6 +40,7 @@ ROUTES = {
     ("GET", "/api/w/{slug}/simulations/{simulation_id}/runs"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs/{run_id}"): ("viewer", 200, None),
+    ("GET", "/api/w/{slug}/runs/{run_id}/results"): ("viewer", 200, None),
     ("GET", "/api/w/{slug}/runs/{run_id}/logs/stream"): ("viewer", 200, None),
     ("POST", "/api/w/{slug}/runs/{run_id}/publish"): ("analyst", 200, None),
     ("POST", "/api/w/{slug}/runs/{run_id}/unpublish"): ("analyst", 200, None),

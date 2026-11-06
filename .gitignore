@@ -19,3 +19,5 @@ outputs/
 exemplo_csv/
 tests/fixtures/parity/real/
 tests/fixtures/results/.private/
+
+.superpowers/

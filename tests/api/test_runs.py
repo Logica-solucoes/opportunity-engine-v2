@@ -32,6 +32,15 @@ def test_fake_engine_fails_on_request(tmp_path, monkeypatch):
         engine_run.run({}, {}, tmp_path, lambda level, message: None)
 
 
+def test_fake_engine_returns_the_results_file_on_request(tmp_path, monkeypatch):
+    doc = {"schema_version": 1, "engine_version": "fake", "status": "inconclusive", "causal": None}
+    file = tmp_path / "results.json"
+    file.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setenv("FAKE_ENGINE_RESULTS", str(file))
+
+    assert engine_run.run({}, {}, tmp_path, lambda level, message: None) == doc
+
+
 def test_without_engine_fake_the_real_engine_runs(tmp_path, monkeypatch):
     import engine
 
