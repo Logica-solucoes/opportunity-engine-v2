@@ -49,10 +49,23 @@ const REASON_LABELS: Record<string, string> = {
   no_events_detected: 'Nenhum evento de investimento detectado',
   no_eligible_events: 'Nenhum evento com dados suficientes para análise',
   no_event_passed_gates: 'Nenhum evento passou nos critérios de publicação',
+  placebo_failed: 'Reprovado no placebo: o modelo acha efeito numa data sem intervenção',
+  insufficient_run: 'Os dados desta execução não sustentam publicar lift',
+  model_dependent: 'O efeito só aparece com as variáveis de mídia do modelo',
+  control_rejected: 'Um controle foi descartado por acompanhar o investimento do canal',
+  no_validated_event: 'Nenhum evento validado',
+  low_spend_variation: 'O investimento varia pouco para medir efeito',
+  high_oos_wmape: 'O contrafactual erra demais fora da amostra',
+  cv_in_sample: 'Histórico curto: o modelo de elasticidade não foi validado fora da amostra',
 }
 
 // a reason the engine adds later shows as its code instead of breaking the screen
 export const reasonLabel = (reason: string) => REASON_LABELS[reason] ?? reason
+
+// reasons that annotate an event without being why it was rejected
+const NOTE_REASONS = new Set(['control_rejected'])
+export const rejectionReasons = (e: CausalEvent) => e.reasons.filter((r) => !NOTE_REASONS.has(r))
+export const eventNotes = (e: CausalEvent) => e.reasons.filter((r) => NOTE_REASONS.has(r))
 
 // the engine's English series labels
 const SERIES_LABELS: Record<string, string> = {

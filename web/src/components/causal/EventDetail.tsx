@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   type CausalEvent,
+  eventNotes,
   eventPeriod,
   formatDecimal,
   formatInteger,
@@ -11,6 +12,7 @@ import {
   formatSigned,
   formatSignedPct,
   reasonLabel,
+  rejectionReasons,
 } from '@/lib/results'
 import { AccuracyChart, ImpactChart, InvestmentBars, KpiBars } from './EventCharts'
 
@@ -24,6 +26,11 @@ export function EventDetail({ event }: { event: CausalEvent }) {
           <Badge variant={published ? 'default' : 'outline'}>{published ? 'Publicado' : 'Rejeitado'}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">{eventPeriod(event)}</p>
+        {eventNotes(event).map((r) => (
+          <p key={r} className="text-sm text-muted-foreground">
+            {reasonLabel(r)}.
+          </p>
+        ))}
       </div>
       {published ? <Published event={event} /> : <Rejected event={event} />}
     </section>
@@ -36,7 +43,7 @@ function Rejected({ event }: { event: CausalEvent }) {
     <div className="space-y-2 text-sm">
       <p>Este evento não foi publicado:</p>
       <ul className="list-disc space-y-1 pl-5">
-        {event.reasons.map((r) => (
+        {rejectionReasons(event).map((r) => (
           <li key={r}>{reasonLabel(r)}</li>
         ))}
       </ul>
