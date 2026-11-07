@@ -5,13 +5,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from engine.identifiability import UNIDENTIFIED
 from engine.results_schema import ResultsV1
 from tests.engine.real_data import GOL_CONFIG, GOL_DIR
 from tests.engine.synthetic_data import dataset_config, make_dataset
 from tests.fixtures.results.anonymize_gol import anonymize, load_factors
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "results"
-NAMES = ("gol_anonimizada.json", "gol_inconclusiva.json", "falha.json")
+NAMES = ("gol_anonimizada.json", "gol_inconclusiva.json", "falha.json", "identificavel.json")
 ANONYMOUS = re.compile(r"^CANAL_\d{2}$")
 
 
@@ -67,12 +68,19 @@ def test_fixtures_validate_and_have_no_non_finite_numbers(name):
     json.loads(text, parse_constant=lambda token: pytest.fail(f"{token} in {name}"))
 
 
-def test_fixtures_cover_the_three_statuses():
-    assert [_load(n)["status"] for n in NAMES] == ["succeeded", "inconclusive", "failed"]
-    events = _load("gol_anonimizada.json")["causal"]["events"]
+def test_fixtures_cover_what_the_screens_must_show():
+    # no dataset reaches succeeded since A5/A6: the Gol has no identifiable channel, the synthetic one no event
+    assert [_load(n)["status"] for n in NAMES] == ["inconclusive", "inconclusive", "failed", "inconclusive"]
+    gol = _load("gol_anonimizada.json")
+    events = gol["causal"]["events"]
     assert any(e["status"] == "published" for e in events) and any(e["status"] == "rejected" for e in events)
+    assert gol["elasticity"]["reasons"] == ["no_identifiable_channel"]
+    assert any("collinearity" in c["reasons"] for c in gol["elasticity"]["channels"])  # block_per_channel
     assert _load("gol_inconclusiva.json")["causal"]["reasons"] == ["no_eligible_events"]
     assert _load("falha.json")["elasticity"]["reasons"] == ["model_failed"]
+    channels = {c["name"]: c for c in _load("identificavel.json")["elasticity"]["channels"]}
+    assert channels["STRONG"]["identifiable"] and channels["STRONG"]["curve"]
+    assert not channels["NOEFFECT"]["identifiable"]
 
 
 @pytest.mark.parametrize("name", NAMES[:2])
@@ -83,7 +91,7 @@ def test_fixtures_only_use_anonymous_channel_names(name):
     channels |= {ch for e in data["causal"]["events"] for ch in e["channels"]}
     channels |= {ch for row in data["elasticity"]["response_curve"][:1] for mix in row["mix"].values() for ch in mix}
     channels |= {ch for m in data["baseline"]["monthly"] for ch in m["by_channel"]}
-    assert channels and all(ANONYMOUS.match(c) for c in channels)
+    assert channels and all(ANONYMOUS.match(c) or c == UNIDENTIFIED for c in channels)  # A5 pools hidden channels
     for text in _strings(data):
         assert "exemplo_csv" not in text and "/" not in text
 

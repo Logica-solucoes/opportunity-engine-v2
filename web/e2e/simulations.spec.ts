@@ -205,14 +205,14 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
 
   await analystPage.reload()
 
-  await expect(analystPage.getByText('Concluída', { exact: true })).toBeVisible()
+  await expect(analystPage.getByText('Inconclusiva', { exact: true })).toBeVisible()
   await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
   await expect(log.getByText('Montando o resultado')).toBeVisible()
   await expect(analystPage.getByRole('link', { name: 'Causal' })).toBeVisible()
 
   await analystPage.getByRole('link', { name: '← Rodada' }).click()
   await expect(analystPage.getByRole('heading', { name: 'Execuções' })).toBeVisible()
-  await expect(analystPage.getByRole('cell', { name: 'Concluída' })).toBeVisible()
+  await expect(analystPage.getByRole('cell', { name: 'Inconclusiva' })).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
 })
 

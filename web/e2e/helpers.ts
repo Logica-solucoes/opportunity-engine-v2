@@ -100,7 +100,8 @@ export async function runToCompletion(page: Page, slug: string, name: string) {
   await page.getByRole('button', { name: 'Rodar' }).click()
   // a running run opens on Detalhes, where the log is; it stays there when the run ends
   await expect(page).toHaveURL(new RegExp(`/w/${slug}/execucoes/\\d+/detalhes$`))
-  await expect(page.getByText('Concluída', { exact: true })).toBeVisible()
+  // FAKE_ENGINE_RESULTS is the Gol fixture, which is inconclusive since A5 (no identifiable channel)
+  await expect(page.getByText('Inconclusiva', { exact: true })).toBeVisible()
   return page.url()
 }
 

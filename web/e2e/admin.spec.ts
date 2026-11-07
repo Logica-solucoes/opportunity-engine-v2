@@ -41,9 +41,9 @@ test('platform admin sees a finished run in the usage and exports it', async ({ 
   await page.goto('/admin/workspaces')
   await page.getByRole('link', { name: 'Uso' }).click()
   const row = page.getByRole('row').filter({ hasText: `Marca ${slug}` })
-  // columns: Mês, Workspace, Usuário, Concluídas, …, Total
+  // columns: Mês, Workspace, Usuário, Concluídas, Inconclusivas, …, Total (the Gol fixture is inconclusive)
   await expect(row.getByRole('cell').nth(2)).toHaveText('E2E')
-  await expect(row.getByRole('cell').nth(3)).toHaveText('1')
+  await expect(row.getByRole('cell').nth(4)).toHaveText('1')
   await expect(row.getByRole('cell').nth(7)).toHaveText('1')
 
   const download = page.waitForEvent('download')

@@ -4,19 +4,30 @@ Real-shaped `results.json` documents (schema v1, `engine/results_schema.py`) for
 
 | File | `status` | What it is |
 |---|---|---|
-| `gol_anonimizada.json` | `succeeded` | Gol example data, anonymized: 53 candidate events, 5 `published` and the rest `rejected` (with `reasons`), 12 channels |
-| `gol_inconclusiva.json` | `inconclusive` | Same data with no eligible event (`causal.reasons == ["no_eligible_events"]`), elasticity still `ok` |
+| `gol_anonimizada.json` | `inconclusive` | Gol example data, anonymized, run with `block_per_channel` (`GOL_RUN_CONFIG`: the A3 gate blocks the Gol on one pair, r = 0.8501): 52 candidate events, 5 `published` and the rest `rejected` (with `reasons`, `placebo_failed` among them), 12 channels, none identifiable (`elasticity.reasons == ["no_identifiable_channel"]`, two of them also `collinearity`) |
+| `gol_inconclusiva.json` | `inconclusive` | Same data with no eligible event (`causal.reasons == ["no_eligible_events"]`) |
 | `falha.json` | `failed` | Nothing worked: `elasticity.reasons == ["model_failed"]`, no events |
+| `identificavel.json` | `inconclusive` | Synthetic (`make_identifiable_dataset`, not anonymized): `STRONG` identifiable with its curve, `NOEFFECT` not; the one event fails the placebo |
+
+No fixture is `succeeded`: since A5/A6 no dataset we have reaches it (the Gol has no identifiable channel, the
+identifiable synthetic no event). Add one when a dataset gets there.
 
 What a screen can assume
 - Read `status` and `reasons` (run level, per section, per event); never recompute a gate.
-- `null` means "not produced": `sufficiency`, `experiment_design`, `reports` (A2, A5-A9), plus `placebo`, `identifiable`, `coef_ci`, curve intervals, `extrapolated` and `ramp` (and no `notes` key) until the fixtures are regenerated with the Gol (A8 fills them on a new run).
+- `null` means "not produced": `experiment_design` and `reports` (A7, A9); `placebo.passed` is `null` when the
+  pre-period was too short to run it.
+- A hidden channel's spend is pooled under `"Não identificados"` in every mix.
 - No `NaN`/`Infinity` anywhere; a missing number is `null`.
 
 Anonymization (`anonymize_gol.py`): channels become `CANAL_01..NN`; investment and KPI are multiplied by two private factors
 (`.private/factors.json`, git-ignored); **dates are the real ones** (accepted risk: the shape of the series is still
-recognizable to someone who knows the client) and trends are untouched.
+recognizable to someone who knows the client) and trends are untouched. The factors were drawn again on 06/nov/2026
+(the first file was lost), so absolute numbers changed scale then; relative ones (lift %) do not depend on them.
 
-Regenerate (needs `exemplo_csv/Gol` and the same `.private/factors.json`; ~6 min, one BLAS thread):
+Regenerate (needs `exemplo_csv/Gol` and the same `.private/factors.json`; ~6 min, one BLAS thread; run it on Linux,
+where the parity holds):
 
     uv run python tests/fixtures/results/generate_fixtures.py
+
+The E2E serves `gol_anonimizada.json` through the fake engine (`FAKE_ENGINE_RESULTS`), so `web/e2e/` checks its
+numbers: update those specs when the fixture changes.
