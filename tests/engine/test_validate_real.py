@@ -3,7 +3,7 @@
 import pytest
 
 from engine.validation import validate
-from tests.engine.real_data import GOL_CONFIG, REPO_ROOT, gol_files, gol_original_files
+from tests.engine.real_data import GOL_CONFIG, GOL_RUN_CONFIG, REPO_ROOT, gol_files, gol_original_files
 
 EXEMPLOS = REPO_ROOT / "exemplo_csv"
 pytestmark = pytest.mark.skipif(not EXEMPLOS.exists(), reason="needs exemplo_csv/")
@@ -28,9 +28,18 @@ def test_gol_as_sent_is_rejected_for_its_repeated_google_rows():
     assert _ids(report)["duplicate_date_channel"] == "error"
 
 
-def test_gol_with_the_google_rows_averaged_is_accepted():
+def test_gol_with_the_google_rows_averaged_is_blocked_by_one_collinear_pair():
     report = validate(gol_files(), GOL_CONFIG)
+
+    assert [c.id for c in report.checks if c.level == "error"] == ["collinearity_unresolved"]
+    assert report.collinearity.unresolved == ["GOOGLE DISPLAY/VIDEO", "KAYAK"]
+
+
+def test_gol_runs_with_results_only_in_aggregate():
+    report = validate(gol_files(), GOL_RUN_CONFIG)
+
     assert report.ok, report.checks
+    assert report.collinearity.unresolved == ["GOOGLE DISPLAY/VIDEO", "KAYAK"]
 
 
 def test_tcross_leads_by_channel_is_not_a_single_source():

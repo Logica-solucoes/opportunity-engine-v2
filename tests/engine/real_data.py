@@ -28,6 +28,10 @@ GOL_CONFIG = {
     },
 }
 
+# r(GOOGLE DISPLAY/VIDEO, KAYAK) = 0.8501 trips the A3 gate (0.85): a run on the Gol needs the analyst's answer, and
+# the aggregate-only one is the natural one for a client file. compute() never validates, so parity keeps GOL_CONFIG.
+GOL_RUN_CONFIG = {**GOL_CONFIG, "block_per_channel": True}
+
 
 GOL_CONSOLIDATED = REPO_ROOT / "tests" / "fixtures" / "parity" / "real" / "gol_investment_mean.csv"
 
