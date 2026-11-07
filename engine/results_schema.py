@@ -103,6 +103,7 @@ class Fit(_Model):
 class Placebo(_Model):
     p_value: float | None = None
     passed: bool | None = None  # None: the pre-period is too short for a placebo (A6)
+    # the whole placebo, robustness and fit.wmape are null for an event the primary gates already rejected
 
 
 class Robustness(_Model):

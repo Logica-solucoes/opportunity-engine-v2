@@ -176,3 +176,14 @@ def test_the_spend_variation_is_measured_before_the_adstock(synthetic_prepared):
     _, verdict = pipeline.judge_sufficiency(prepared, [_passing("e1")], {"cv_out_of_sample": True}, limits)
 
     assert verdict.spend_variation["YOUTUBE"] > 0.1 and verdict.reasons == []
+
+
+def test_the_extra_a6_fits_run_only_for_events_the_primary_gates_kept(synthetic_computed):
+    later = {"placebo_failed", "model_dependent", "insufficient_run"}  # reasons decided by or after those fits
+    analysed = [e for e in synthetic_computed.events if e.results_data]
+    kept = [e for e in analysed if not set(e.reasons) - later]
+
+    assert kept and len(kept) < len(analysed)
+    for event in analysed:
+        diagnosed = {"placebo_p_value", "oos_wmape", "robust_p_value"} <= event.results_data.keys()
+        assert diagnosed == (event in kept), event.event_id

@@ -351,6 +351,20 @@ def baseline_only_test(pre: pd.DataFrame, post: pd.DataFrame, baseline_features:
     return cumulative_p_value(impact, forecast)[0], impact
 
 
+def _diagnostics(pre: pd.DataFrame, post: pd.DataFrame, features: list[str], media: set[str], min_pre_periods: int):
+    """A6's three extra fits: the placebo, the out-of-sample WMAPE and the test without the media features."""
+    placebo = placebo_p_value(pre, features, len(post), min_pre_periods)
+    if placebo is None:
+        log.warning("   - Placebo não rodou: o pré-período é curto demais para a intervenção falsa.")
+    robust_p, robust_lift = baseline_only_test(pre, post, [f for f in features if f not in media])
+    return {
+        "placebo_p_value": placebo,  # None: the pre-period is too short for a placebo
+        "oos_wmape": oos_wmape(pre, features, min_pre_periods),
+        "robust_p_value": robust_p,
+        "robust_lift": robust_lift,
+    }
+
+
 def run_causal_impact_analysis(
     kpi_df,
     daily_investment_df,
@@ -362,7 +376,10 @@ def run_causal_impact_analysis(
     product_group,
     model_params,
     config,
+    contested=None,
 ):
+    """`contested(results)` says whether the primary gates left the event standing; only then do A6's three extra
+    fits run (each one costs as much as the event's own). Without it they always run."""
     try:
         data = kpi_df.copy()
         data["Date"] = pd.to_datetime(data["Date"])
@@ -479,13 +496,6 @@ def run_causal_impact_analysis(
         ss_tot = np.sum((pre_data_for_model["kpi"] - np.mean(pre_data_for_model["kpi"])) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
-
-        placebo_p = placebo_p_value(pre_data_for_model, selected_features, len(post_data), min_pre_periods)
-        if placebo_p is None:
-            log.warning("   - Placebo não rodou: o pré-período é curto demais para a intervenção falsa.")
-        wmape = oos_wmape(pre_data_for_model, selected_features, min_pre_periods)
-        baseline_features = [f for f in selected_features if f not in transformed_features]
-        robust_p, robust_lift = baseline_only_test(pre_data_for_model, post_data, baseline_features)
 
         accuracy_df = pre_data_for_model.copy()
         accuracy_df["Predicted"] = in_sample_preds
@@ -627,11 +637,11 @@ def run_causal_impact_analysis(
             "model_r_squared": r_squared,
             "event_period_avg_investment": event_period_avg_investment,
             "controls": controls,
-            "robust_p_value": robust_p,
-            "robust_lift": robust_lift,
-            "placebo_p_value": placebo_p,  # None: the pre-period is too short for a placebo
-            "oos_wmape": wmape,
         }
+        if contested is None or contested(results_dict):
+            results_dict |= _diagnostics(
+                pre_data_for_model, post_data, selected_features, set(transformed_features), min_pre_periods
+            )
 
         return (
             results_dict,

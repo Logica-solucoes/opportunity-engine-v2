@@ -171,6 +171,7 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
                 event["product_group"],
                 model_params,
                 cfg,
+                contested=lambda primary: not _gate_reasons(primary, cfg),  # no A6 fits for an event already out
             )
         except Exception:
             log.exception("Causal impact analysis failed for %s", event["event_id"])
