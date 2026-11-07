@@ -111,6 +111,7 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
                "lift":{"abs":4640000,"ci":[…,…],"rel_pct":12.1},"p_value":0.01,
                "incremental_investment":3400000,"cpa_incremental":…,"fit":{"r2":…,"wmape":…},
                "placebo":{"p_value":0.62,"passed":true},
+               "robustness":{"p_value":0.41,"passed":true},
                "series":{"line":[…],"accuracy":[…],"investment":[…],"kpi":[…]}}]},
  "elasticity": {
    "metrics": {"cv_r2":…, "r2":…, "media_contribution_pct":…, "low_confidence":false, "reallocation_suppressed":false},
@@ -128,7 +129,7 @@ Cada seção abaixo traz `status` e motivos. **Publicar é decisão do motor**: 
 O formato exato de cada seção é fechado no spec do item dono, e os nomes acima são o ponto de partida. **Entregue pelo A1 (04/nov/2026):** o tipo exato do documento inteiro é `engine/results_schema.py` (`schema_version=1`); ele vence o exemplo acima. As diferenças em relação ao exemplo são estas:
 - `elasticity` ganhou `baseline`.
 - Canal com `identifiable=false` sai sem `contribution_pct`, `hill`, `adstock` e `curve`, com `reasons` (`coef_ci_includes_zero`, `coef_ci_too_wide`); no `mix`, o spend dele entra somado na chave `"Não identificados"`. Nenhum identificável → `elasticity.status="inconclusive"` com `no_identifiable_channel`. Qualquer canal escondido → sem o cenário `strategic_reallocation` e `metrics.reallocation_suppressed=true`. Canal de `collinearity.unresolved` sai com o motivo `collinearity` (A5).
-- `sufficiency` preenchida (A6), com `reasons` (`no_validated_event`, `low_spend_variation`, `high_oos_wmape`, `cv_in_sample`) e `cv_out_of_sample`; `placebo.passed=null` quer dizer que não rodou; `fit.wmape` é fora da amostra. Evento `insufficient_run` sai `rejected` e sem lift; `cv_in_sample` deixa a elasticidade `inconclusive`. Motivos novos do evento: `placebo_failed`, `insufficient_run`.
+- `sufficiency` preenchida (A6), com `reasons` (`no_validated_event`, `low_spend_variation`, `high_oos_wmape`, `cv_in_sample`) e `cv_out_of_sample`; `placebo.passed=null` quer dizer que não rodou; `fit.wmape` é fora da amostra. Evento `insufficient_run` sai `rejected` e sem lift; `cv_in_sample` deixa a elasticidade `inconclusive`. `events[].robustness = {p_value, passed}` é o gate de robustez: o evento é reajustado sem as features de mídia e, se o lift só aparece com elas (ou troca de sinal), sai `rejected` com `model_dependent`. Motivos novos do evento: `placebo_failed`, `insufficient_run`, `model_dependent`.
 - `scenarios[].name` é `current|max_efficiency|strategic_limit|diminishing_return|saturation|strategic_reallocation` (o A8 redefine).
 - `response_curve[].mix` tem três variantes (`historical|optimized|strategic`).
 - Os eventos têm `selected` e `fit` com `mae`/`mape`.
