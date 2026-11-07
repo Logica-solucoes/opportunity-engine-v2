@@ -233,9 +233,7 @@ def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
     scenarios = []
     for name, attribute in SCENARIO_SOURCES.items():
         point = getattr(computed, attribute)
-        if not point or (
-            name == "strategic_reallocation" and identifiability.reallocation_suppressed(computed.identifiability)
-        ):
+        if not point or (name == "strategic_reallocation" and computed.reallocation_suppressed):
             continue
         investment = _num(point.get("Daily_Investment"))
         changes = current is not None and investment is not None and not math.isclose(investment, current)
@@ -319,7 +317,8 @@ def _elasticity(computed: "Computed") -> Elasticity:
             cv_r2=_num(mmm["cv_r_squared"]),
             r2=_num(mmm["r_squared"]),
             media_contribution_pct=_num(mmm["marketing_contribution_of_kpi_pct"]),
-            reallocation_suppressed=identifiability.reallocation_suppressed(computed.identifiability),
+            low_confidence=computed.low_confidence,
+            reallocation_suppressed=computed.reallocation_suppressed,
         ),
         channels=_channel_fits(computed),
         groups=groups,

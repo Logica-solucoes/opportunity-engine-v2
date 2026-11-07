@@ -59,6 +59,18 @@ class Computed:
     identifiability: dict = field(default_factory=dict)  # channel -> identifiability.assess verdict; {} without a model
     sufficiency: Sufficiency | None = None  # A6: do the data support publishing a lift (set by compute)
 
+    @property
+    def low_confidence(self) -> bool:
+        """The MMM's CV is under reallocation_min_cv_r2: the curve already kept the historical mix."""
+        return bool(self.mmm) and not elasticity_analysis.trusts_reallocation(
+            self.mmm["cv_r_squared"], self.effective_config
+        )
+
+    @property
+    def reallocation_suppressed(self) -> bool:
+        """No reallocation while a channel is hidden (A5) or the fit is too weak to trust a reshuffle."""
+        return identifiability.reallocation_suppressed(self.identifiability) or self.low_confidence
+
 
 def load_inputs(inputs: dict[str, Path | None], config: EngineConfig) -> PreparedData:
     log.info("Loading, Cleaning, and Preparing Data...")

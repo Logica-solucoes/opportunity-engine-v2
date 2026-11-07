@@ -242,8 +242,13 @@ def _dump(model) -> dict:
     return results.sanitize(model.model_dump(mode="json", by_alias=True))
 
 
+# the synthetic MMM's CV R2 is ~0, so no reshuffle would be trusted: the helpers also lower that bar
+TRUSTED = {"reallocation_min_cv_r2": -1.0}
+
+
 def _with_verdicts(computed, hidden=frozenset()):
-    """The computed with every channel identifiable except `hidden` (the synthetic itself has none identifiable)."""
+    """The computed with every channel identifiable except `hidden` (the synthetic itself has none identifiable) and
+    a fit trusted to reallocate."""
     verdicts = {
         ch: {
             "ci": (1.0, 2.0),
@@ -252,7 +257,8 @@ def _with_verdicts(computed, hidden=frozenset()):
         }
         for ch in computed.mmm["spend_cols"]
     }
-    return dataclasses.replace(computed, identifiability=verdicts)
+    config = {**computed.effective_config, **TRUSTED}
+    return dataclasses.replace(computed, identifiability=verdicts, effective_config=config)
 
 
 def test_elasticity_metrics_and_channels(synthetic_computed):
@@ -458,6 +464,28 @@ def test_scenario_icpa_is_null_without_incremental_investment(synthetic_computed
     built = results.build_results(computed, "v")
     scenario = next(s for s in built.elasticity.scenarios if s.name == "strategic_reallocation")
     assert scenario.icpa is None and scenario.incremental_investment == 0.0
+
+
+def test_a_cv_too_low_to_trust_a_reshuffle_drops_the_reallocation_scenario_and_says_so(synthetic_computed):
+    point = {"Daily_Investment": 10.0, "Projected_Total_KPIs": 5.0, "Incremental_Investment": 0, "Incremental_KPI": 0}
+    limit = synthetic_computed.effective_config["reallocation_min_cv_r2"]
+
+    def with_cv(cv_r2):
+        mmm = {**synthetic_computed.mmm, "cv_r_squared": cv_r2}
+        computed = dataclasses.replace(
+            _with_verdicts(synthetic_computed),
+            mmm=mmm,
+            effective_config=synthetic_computed.effective_config,  # the engine's own bar
+            strategic_reallocation_point=point,
+        )
+        return results.build_results(computed, "v").elasticity
+
+    trusted, untrusted = with_cv(limit), with_cv(limit - 0.01)
+
+    assert "strategic_reallocation" in [s.name for s in trusted.scenarios]
+    assert trusted.metrics.reallocation_suppressed is False and trusted.metrics.low_confidence is False
+    assert "strategic_reallocation" not in [s.name for s in untrusted.scenarios]
+    assert untrusted.metrics.reallocation_suppressed is True and untrusted.metrics.low_confidence is True
 
 
 def test_one_hidden_channel_drops_the_reallocation_scenario_and_says_so(synthetic_computed):

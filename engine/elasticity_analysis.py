@@ -174,6 +174,11 @@ def _transform_channels(df, spend_cols, alphas, ks, ss):
 CV_SPLITS = 3
 
 
+def trusts_reallocation(cv_r2: float, config: dict) -> bool:
+    """Whether the MMM's out-of-sample fit is good enough to move budget between channels (see run_response_curve)."""
+    return cv_r2 >= config["reallocation_min_cv_r2"]
+
+
 def cv_folds(n_rows: int, n_splits: int = CV_SPLITS) -> int:
     """Folds walk_forward_cv_score uses: one per 20 rows, at most n_splits. Under 2 it scores in-sample (A6 says so)."""
     return min(n_splits, max(1, n_rows // 20))
@@ -628,8 +633,7 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     # channels aren't identified), and a ">0" test would flip the recommendation
     # on and off on noise. Require the model to explain a real share of held-out
     # variance before trusting it to move budget between channels.
-    min_cv_r2 = config["reallocation_min_cv_r2"]
-    trust_reallocation = cv_r2 >= min_cv_r2
+    trust_reallocation = trusts_reallocation(cv_r2, config)
 
     limit_factor = config["investment_limit_factor"]
     multipliers = np.linspace(0, limit_factor, 100)

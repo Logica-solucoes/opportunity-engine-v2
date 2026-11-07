@@ -16,7 +16,9 @@ def _hide(computed, hidden: set[str]):
         }
         for name in computed.mmm["spend_cols"]
     }
-    return dataclasses.replace(computed, identifiability=verdicts)
+    # the synthetic MMM's CV R2 is ~0: lower the reallocation bar so only the hidden channels decide
+    config = {**computed.effective_config, "reallocation_min_cv_r2": -1.0}
+    return dataclasses.replace(computed, identifiability=verdicts, effective_config=config)
 
 
 def _global_prompt(computed, out_dir):
