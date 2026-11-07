@@ -130,12 +130,12 @@ def test_scenario_is_fast_enough_for_the_slider():
     assert (time.perf_counter() - start) / 10 < 0.3
 
 
-def test_a_fixture_without_band_gives_rows_without_band():
+def test_the_gol_fixture_gives_monthly_rows_with_its_band():
     got = scenario(GOL, ScenarioFilters(), 0.2)
 
     assert got["unit"] == "month" and got["revenue_mode"] is False
     assert len(got["curve"]) == len(GOL["elasticity"]["response_curve"])
-    assert got["current"]["kpi_lo"] is None and got["curve"][0]["kpi_lo"] is None
+    assert got["current"]["kpi_lo"] is not None and got["curve"][-1]["kpi_lo"] is not None
 
 
 # --- hand-made documents ---
@@ -186,6 +186,15 @@ def test_values_are_monthly_for_the_cadence():
     assert got["curve"][1]["kpi"] == pytest.approx(25.0 * factor)
     assert got["curve"][1]["cpa"] == pytest.approx(10.0 / 25.0)
     assert got["current"]["investment"] == pytest.approx(20.0 * factor)
+
+
+def test_a_document_without_band_gives_rows_without_band():
+    doc = _doc([{**row, "kpi_lo": None, "kpi_hi": None} for row in CONVERSIONS])  # written before A8
+    doc["elasticity"]["scenarios"][0].update(kpi_lo=None, kpi_hi=None)
+
+    got = scenario(doc, ScenarioFilters(), 0.2)
+
+    assert got["current"]["kpi_lo"] is None and got["curve"][1]["kpi_lo"] is None
 
 
 def test_the_table_rows_compare_against_the_current_scenario():
