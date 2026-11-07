@@ -753,7 +753,8 @@ def guess_kpi_col(file_path, user_kpi):
 @dataclass
 class PreparedData:
     kpi_df: pd.DataFrame
-    investment_df: pd.DataFrame
+    investment_df: pd.DataFrame  # the adstock already applied to channels that move against the KPI
+    spend_df: pd.DataFrame  # the same spend before that adstock: what was actually spent (A6 measures its variation)
     trends_df: pd.DataFrame
     controls_df: pd.DataFrame  # Date plus the bcb series asked in config["controls"] (empty without them)
     correlation_matrix: pd.DataFrame
@@ -839,6 +840,7 @@ def load_and_prepare_data(config, paths):
             daily_investment_df[["Date", "Product Group", "investment"]].sort_values(by="Date").reset_index(drop=True)
         )
 
+        spend_df = daily_investment_df.copy()
         log.info("   - Data loaded and columns renamed successfully.")
 
         kpi_col = "kpi"
@@ -877,6 +879,7 @@ def load_and_prepare_data(config, paths):
         return PreparedData(
             kpi_df=kpi_df,
             investment_df=daily_investment_df,
+            spend_df=spend_df,
             trends_df=trends_df,
             controls_df=controls_df,
             correlation_matrix=correlation_matrix,

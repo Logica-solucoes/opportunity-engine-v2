@@ -1,3 +1,5 @@
+import dataclasses
+
 from engine import pipeline
 from engine.config import EngineConfig
 from tests.engine.synthetic_data import dataset_config, make_dataset
@@ -164,3 +166,13 @@ def test_a_lift_significant_only_with_the_media_features_is_model_dependent():
     assert pipeline._gate_reasons({**SIGNIFICANT, **robust, "robust_lift": -8.0}, GATES) == ["model_dependent"]
     not_significant = {**SIGNIFICANT, "p_value": 0.4, "robust_p_value": 0.4, "robust_lift": 1.0}
     assert "model_dependent" not in pipeline._gate_reasons(not_significant, GATES)
+
+
+def test_the_spend_variation_is_measured_before_the_adstock(synthetic_prepared):
+    smoothed = synthetic_prepared.investment_df.assign(investment=1.0)  # what the adstock can flatten a channel to
+    prepared = dataclasses.replace(synthetic_prepared, investment_df=smoothed)
+    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3}
+
+    _, verdict = pipeline.judge_sufficiency(prepared, [_passing("e1")], {"cv_out_of_sample": True}, limits)
+
+    assert verdict.spend_variation["YOUTUBE"] > 0.1 and verdict.reasons == []

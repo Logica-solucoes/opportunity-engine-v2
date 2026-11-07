@@ -362,6 +362,7 @@ class TestRunMmmEngineDoesNotLoadData:
         prepared = PreparedData(
             kpi_df=pd.DataFrame({"Date": dates, "kpi": np.arange(40, dtype=float)}),
             investment_df=pd.DataFrame({"Date": dates, "Product Group": "A", "investment": 0.0}),
+            spend_df=pd.DataFrame({"Date": dates, "Product Group": "A", "investment": 0.0}),
             trends_df=pd.DataFrame(
                 {"Date": pd.Series(dtype="datetime64[ns]"), "Generic Searches": pd.Series(dtype=float)}
             ),

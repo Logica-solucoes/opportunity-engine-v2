@@ -217,7 +217,7 @@ def judge_sufficiency(
     ]
     cv_out_of_sample = mmm["cv_out_of_sample"] if mmm else None
     verdict = sufficiency.assess(
-        validated, prepared.investment_df, cv_out_of_sample, cfg["spend_cv_min"], cfg["oos_wmape_max"]
+        validated, prepared.spend_df, cv_out_of_sample, cfg["spend_cv_min"], cfg["oos_wmape_max"]
     )
     if verdict.passed:
         log.info(f"Dados suficientes: {verdict.validated_events} evento(s) validado(s).")
