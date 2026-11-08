@@ -33,9 +33,12 @@ export type CurveRow = {
   icpa: Num
   roas: Num
   iroas: Num
+  incremental_investment: Num
+  incremental_kpi: Num
   pct_incrementality: number
   extrapolated: boolean | null
   in_filter: boolean
+  mix: Partial<Mix> | null
 }
 export type ChannelPoint = { investment: number; kpi: number; kpi_lo: Num; kpi_hi: Num; extrapolated: boolean | null }
 export type ChannelCurve = {
