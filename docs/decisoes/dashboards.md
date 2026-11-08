@@ -14,6 +14,26 @@ O `results.json` traz `series` também dos eventos rejeitados, e a tela ignora. 
 
 `/execucoes/$runId` virou layout com `causal`, `detalhes` e, no futuro, `elasticidade`. O índice redireciona: run concluído ou inconclusivo abre na Causal, o resto em Detalhes (onde está o log). Quando o run termina com a pessoa em Detalhes, a aba Causal aparece, mas a tela não troca sozinha: quem está lendo o log não perde o lugar.
 
+## Elasticidade não conclusiva não mostra número (07/nov/2026)
+
+Com `elasticity.status` diferente de `ok`, o `engine.scenario` recusa (`NOT_CONCLUSIVE`, 409 na rota) e a aba mostra só o alerta com os motivos. A Gol sai `inconclusive` por `no_identifiable_channel`, e a curva dela, com recomendado e saturação, vinha inteira de canais que o motor não identificou. É a regra do evento rejeitado aplicada à elasticidade, e o gate mora no motor para nenhum outro consumidor (export do B7) escapar dele.
+
+## Tudo mensal, escalado no motor (07/nov/2026)
+
+As curvas por canal, a faixa observada e o mix estão no `results.json` em valores diários do período. O `scenario` devolve tudo já em valores mensais, pelo mesmo `30 / period_days` do agregado; o gasto atual de cada canal é a participação histórica (constante ao longo da curva) × o investimento atual.
+
+## Mix com as três séries mesmo com a realocação suprimida (07/nov/2026)
+
+Com `metrics.reallocation_suppressed`, o gráfico de mix mostra histórico, otimizado e estratégico sob um aviso de que o motor não confia na redistribuição, em vez de esconder o otimizado. Decisão do time em 07/nov/2026: o analista prefere ver a hipótese marcada a perder a comparação.
+
+## Filtros num painel à esquerda (07/nov/2026)
+
+Como a sidebar do Streamlit e a lista de eventos da aba Causal: os filtros ficam sempre ao lado do que mudam. Ficam no estado do componente, não na URL, até alguém precisar de link com filtro.
+
+## Eixo Y das curvas começa no dado (08/nov/2026)
+
+A curva de saturação e as curvas por canal usam o domínio do dado no eixo Y, não o zero: o KPI incremental é pequeno perto do total (no sintético, +897 sobre ~197 mil) e, a partir do zero, a curva vira uma reta sem leitura. Os gráficos de barras (mix, atual × saturação) seguem a partir do zero.
+
 ## O front não calcula
 
 Lift, IC, `rel_pct`, CPA, investimento pré × evento e KPI previsto × real vêm prontos do motor. O front formata (`Intl` pt-BR), compara sinal (aumento × queda) e conta status. Se um número novo for preciso na tela, ele entra no `results.json`, não no TypeScript.
