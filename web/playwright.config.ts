@@ -5,7 +5,8 @@ export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
-  // parallel logins queue on api.passwords.SLOTS and one scrypt takes ~1.5 s on a slow laptop
+  // parallel logins queue on api.passwords.SLOTS and one scrypt takes ~1.5 s on a slow laptop; more workers time out
+  workers: 2,
   expect: { timeout: 15_000 },
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
