@@ -58,8 +58,12 @@ def test_run_returns_the_contract_dict(ran):
     r = ran.result
     assert r["schema_version"] == 1 and r["status"] == "inconclusive"
     assert isinstance(r["engine_version"], str) and r["engine_version"]
-    for section in ("experiment_design", "reports"):
-        assert r[section] is None  # owned by A7-A9
+    assert r["experiment_design"] is None  # A7
+    reports = r["reports"]
+    published = [e["id"] for e in r["causal"]["events"] if e["status"] == "published"]
+    assert published and set(reports["events"]) == set(published)
+    assert all(rep["source"] == "deterministic" and rep["grounding"] is None for rep in reports["events"].values())
+    assert reports["global"]["source"] == "deterministic" and reports["grounding"] is None
     assert r["sufficiency"] is not None
     assert r["validation"]["ok"] is True
     assert r["causal"]["status"] == "ok" and r["elasticity"]["reasons"] == ["no_identifiable_channel"]
@@ -107,22 +111,27 @@ def test_llm_unavailable_stops_further_calls(monkeypatch, ran, tmp_path):
     assert len(fake.calls) == 1
     assert run.result["status"] == "inconclusive"
     assert len(list(run.out_dir.rglob("RECOMMENDATIONS.md"))) == sum(e.selected for e in ran.computed.events)
-    assert not list(run.out_dir.rglob("global_report.html"))
+    assert not list(run.out_dir.rglob("*.html"))
+    assert run.result["reports"]["grounding"] is None
     assert any(level == "warning" for level, _ in run.calls)
 
 
-def test_other_llm_error_only_fails_that_report(monkeypatch, ran, tmp_path):
+def test_a_report_that_fails_twice_is_blocked_and_the_others_pass(monkeypatch, ran, tmp_path):
     selected = sum(e.selected for e in ran.computed.events)
     assert selected >= 2
     fake = FakeLLM(
-        [LLMBadOutput("invalid_json")] + [json.dumps(EVENT_NARRATIVE)] * (selected - 1) + [json.dumps(GLOBAL_NARRATIVE)]
+        [LLMBadOutput("invalid_json")] * 2
+        + [json.dumps(EVENT_NARRATIVE)] * (selected - 1)
+        + [json.dumps(GLOBAL_NARRATIVE)]
     )
     run = _with_llm(monkeypatch, ran, tmp_path, fake)
-    assert len(fake.calls) == selected + 1
-    # every selected event has its RECOMMENDATIONS.md (narrative-based, or the deterministic fallback)
+    assert len(fake.calls) == selected + 2
+    reports = run.result["reports"]
+    statuses = [rep["grounding"]["status"] for rep in reports["events"].values()]
+    assert statuses.count("blocked") == 1 and statuses.count("passed") == selected - 1
+    assert reports["global"]["source"] == "llm" and reports["grounding"]["status"] == "blocked"
     assert len(list(run.out_dir.rglob("RECOMMENDATIONS.md"))) == selected
-    assert len(list(run.out_dir.rglob("report_*.html"))) == selected - 1  # only the failed one has no narrative
-    assert (run.out_dir / "global_saturation_analysis" / "global_report.html").exists()
+    assert not list(run.out_dir.rglob("*.html"))
 
 
 def test_weekly_cadence_run_completes(monkeypatch, tmp_path):
@@ -178,3 +187,13 @@ def test_unexpected_analysis_error_becomes_an_engine_error_without_the_details(m
     assert "Erro inesperado" in str(raised.value)
     assert "/srv/data" not in str(raised.value) and "event channels" not in str(raised.value)
     assert isinstance(raised.value.__cause__, ValueError)  # the detail stays in the chain for the server log
+
+
+def test_a_bug_in_the_narratives_never_fails_the_run(monkeypatch, ran, tmp_path):
+    def explode(*args, **kwargs):
+        raise KeyError("lift")
+
+    monkeypatch.setattr(pipeline.narratives, "build", explode)
+    run = _with_llm(monkeypatch, ran, tmp_path, None)
+    assert run.result["status"] == "inconclusive" and run.result["reports"] is None
+    assert any(level == "error" for level, _ in run.calls)

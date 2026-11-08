@@ -1,19 +1,12 @@
-"""Files the prototype always wrote (PNG, CSV, Markdown, HTML), now rooted at `out_dir`, and the LLM reports.
-
-Everything here only consumes a `Computed`; A1 replaces this module's role with a results.json builder.
-"""
+"""Files the prototype always wrote (PNG, CSV, Markdown), now rooted at `out_dir`. The narratives live in results.json (engine/narratives.py)."""
 
 import logging
-import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pandas as pd
-
-from engine import identifiability, presentation, recommendations, reports
-from llm.base import LLM, LLMUnavailable
+from engine import identifiability, presentation
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed
@@ -187,56 +180,12 @@ def write_legacy_outputs(computed: "Computed", out_dir: Path) -> Written:
     return written
 
 
-def generate_reports(computed: "Computed", written: Written, llm: LLM | None) -> None:
-    """LLM narrative per selected event and one global; without an LLM, or once it is unavailable, the deterministic
-    recommendations file is written instead. Only LLMUnavailable stops further LLM calls."""
-    cfg = computed.effective_config
-    prepared = computed.prepared
-    market = pd.merge(
-        prepared.kpi_df.rename(columns={"Sessions": cfg["advertiser_name"]}), prepared.trends_df, on="Date", how="left"
-    ).fillna(0)
-    available = llm is not None
-
-    for outcome in (e for e in computed.events if e.selected and e.event_id in written.event_dirs):
-        event_dir = written.event_dirs[outcome.event_id]
-        done = False
-        if available:
-            log.info("   - Generating Strategic Narrative with Gemini...")
-            try:
-                reports.generate_html_report(
-                    llm,
-                    outcome.results_data,
-                    cfg,
-                    written.image_paths[outcome.event_id],
-                    os.path.join(event_dir, f"report_{event_dir.parent.name}_{event_dir.name}.html"),
-                    market,
-                    outcome.line_df,
-                    csv_output_filename=written.csv_paths[outcome.event_id],
-                    correlation_matrix=prepared.correlation_matrix,
-                )
-                done = True
-            except LLMUnavailable as e:
-                available = False
-                log.warning(
-                    f"AVISO: o serviço de IA está indisponível ({e.reason}); os próximos relatórios usarão o texto padrão."
-                )
-            except Exception:
-                log.error(f"Could not generate the narrative for event {outcome.event_id}", exc_info=True)
-        if not done:
-            recommendations.generate_basic_recommendations_file(outcome.results_data, cfg, str(event_dir))
-
-    if available and written.global_dir is not None:
-        log.info("   - Generating Global Strategic Narrative with Gemini...")
-        try:
-            reports.generate_global_report(
-                llm,
-                cfg,
-                written.scenarios,
-                total_investment=written.total_monthly_investment,
-                kpi_projections=written.kpi_projections,
-                global_output_dir=written.global_dir,
-            )
-        except LLMUnavailable as e:
-            log.warning(f"AVISO: o serviço de IA está indisponível ({e.reason}); a narrativa global foi pulada.")
-        except Exception:
-            log.error("Could not generate the global narrative", exc_info=True)
+def write_recommendations(written: Written, reports: dict | None) -> None:
+    """RECOMMENDATIONS.md of each published event, with the same text the screen shows."""
+    for event_id, report in ((reports or {}).get("events") or {}).items():
+        event_dir = written.event_dirs.get(event_id)
+        if event_dir is None:
+            continue
+        lines = [f"# {report['title']}", "", report["verdict"], "", report["analysis"]]
+        lines += [f"- {step}" for step in report["next_steps"]]
+        (event_dir / "RECOMMENDATIONS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

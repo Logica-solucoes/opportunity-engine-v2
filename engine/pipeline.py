@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from engine import analysis, elasticity_analysis, identifiability, outputs, results, sufficiency
+from engine import analysis, elasticity_analysis, identifiability, narratives, outputs, results, sufficiency
 from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
 from engine.logmessages import forward_logs
-from engine.results_schema import Sufficiency, ValidationReport
+from engine.results_schema import ResultsV1, Sufficiency, ValidationReport
 from engine.validation import validate
 from engine.version import engine_version
 from llm import get_llm
@@ -311,7 +311,7 @@ def run(
     out_dir: Path,
     on_log: Callable[[str, str], None],
 ) -> dict:
-    """The contract entry point: compute, write the legacy outputs and the LLM reports under `out_dir`.
+    """The contract entry point: compute, write the legacy outputs and results.json (with the grounded reports) under `out_dir`.
 
     Never mutates `config`, never changes the working directory, never leaves warning filters changed.
     """
@@ -344,8 +344,13 @@ def run(
                 "Erro inesperado durante a análise. Os detalhes técnicos ficam no log do servidor."
             ) from e
         written = outputs.write_legacy_outputs(computed, out_dir)
-        outputs.generate_reports(computed, written, llm)
-    document = results.dump_results(results.build_results(computed, engine_version()))
+        document = results.dump_results(results.build_results(computed, engine_version()))
+        try:
+            document["reports"] = narratives.build(document, engine_config, llm)
+        except Exception:  # a narrative never fails the run: the screen just shows no text
+            log.error("Não foi possível montar os relatórios da execução", exc_info=True)
+        document = results.dump_results(ResultsV1.model_validate(document))
+        outputs.write_recommendations(written, document["reports"])
     results.write_results(document, out_dir / "results.json")
     if document["status"] == "failed":
         log.error("A análise não produziu resultados: o modelo de elasticidade falhou e nenhum evento foi aprovado.")
