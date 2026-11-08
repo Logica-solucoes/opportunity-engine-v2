@@ -1,10 +1,11 @@
 """A9: narratives built from the published results.json, checked, regenerated once, or replaced."""
 
+import itertools
 import json
 
 from engine import grounding, narratives
 from engine.config import EngineConfig
-from llm.base import LLMBadOutput, LLMUnavailable
+from llm.base import LLMBadOutput, LLMError, LLMUnavailable
 from tests.fakes.llm import EVENT_NARRATIVE, GLOBAL_NARRATIVE, FakeLLM
 
 EVENT = {
@@ -128,7 +129,8 @@ def test_the_prompts_never_name_a_hidden_channel_nor_the_client():
     assert "ClienteSecreto" not in event_prompt + global_prompt
     assert "CANAL_02" not in event_prompt  # rejected event
     assert "CANAL_01" not in global_prompt and "CANAL_03" not in global_prompt  # not identifiable
-    assert '"unidentified_count": 2' in global_prompt
+    assert '"channels_without_identifiable_effect": 2' in global_prompt
+    assert "nenhum canal tem efeito identificável" in global_prompt  # the reason arrives translated
 
 
 def test_a_failed_elasticity_gets_no_llm_call():
@@ -142,3 +144,51 @@ def test_a_failed_elasticity_gets_no_llm_call():
 
 def test_no_elasticity_section_means_no_global_report():
     assert _build(_document(None), None)["global"] is None
+
+
+def test_a_published_group_lets_its_members_be_cited():
+    elasticity = {
+        "status": "ok",
+        "reasons": [],
+        "channels": [{"name": "A + B", "identifiable": True, "contribution_pct": 12.0}],
+        "groups": [{"name": "A + B", "members": ["A", "B"]}],
+    }
+    document = _document(elasticity, events=())
+    document["validation"]["channels"] = ["A", "B"]
+    answer = {**GLOBAL_NARRATIVE, "summary": "O grupo A + B responde, com A e B juntos."}
+    reports = _build(document, FakeLLM([json.dumps(answer)]))
+    assert reports["global"]["source"] == "llm"
+    assert reports["global"]["grounding"] == {"status": "passed", "issues": []}
+
+
+def test_an_llm_error_that_is_not_about_the_output_stops_the_calls():
+    llm = FakeLLM([LLMError("http_400")])
+    reports = _build(_document(INCONCLUSIVE), llm)
+    assert len(llm.calls) == 1
+    assert reports["events"][EVENT["id"]]["grounding"] is None
+    assert reports["global"]["source"] == "deterministic" and reports["global"]["grounding"] is None
+
+
+def test_once_the_time_budget_is_spent_the_rest_skips_the_llm(monkeypatch):
+    clock = itertools.chain([0, 0], itertools.repeat(narratives.LLM_BUDGET_S + 1))
+    monkeypatch.setattr(narratives.time, "monotonic", lambda: next(clock))
+    llm = FakeLLM([json.dumps(EVENT_NARRATIVE)])
+    reports = _build(_document(INCONCLUSIVE), llm)
+    assert len(llm.calls) == 1
+    assert reports["events"][EVENT["id"]]["source"] == "llm"
+    assert reports["global"]["source"] == "deterministic" and reports["global"]["grounding"] is None
+
+
+def test_payload_floats_are_rounded_to_four_significant_digits():
+    event = {**EVENT, "lift": {"abs": -1234.5678, "ci": [-2010.123456, -458.7], "rel_pct": 238.99107106472343}}
+    payload = narratives.event_payload(event, "Pedidos", 0.05, [])
+    assert payload["lift"] == {"abs": -1235.0, "ci": [-2010.0, -458.7], "rel_pct": 239.0}
+    assert payload["post_period_investment"] == 3_412_000.0
+    assert "incremental_investment" not in payload
+
+
+def test_the_deterministic_text_calls_the_spend_post_period():
+    payload = narratives.event_payload(EVENT, "Pedidos", 0.05, [])
+    assert (
+        "investimento no pós-período de r$ 3.412.000,00" in narratives.deterministic_event(payload)["analysis"].lower()
+    )

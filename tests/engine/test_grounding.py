@@ -76,3 +76,9 @@ def test_a_channel_name_inside_another_word_is_not_a_mention():
 
 def test_numbers_inside_channel_names_are_not_numbers():
     assert check("O CANAL_06 subiu.", {}, {"CANAL_06"}, {"CANAL_06"}) == []
+
+
+def test_a_single_digit_date_is_compared_by_its_day():
+    payload = {"start": "2024-03-15"}
+    assert check("Em 15/3/2024 houve alta.", payload, set(), set()) == []
+    assert check("Em 5/3/2024 houve alta.", payload, set(), set()) == [{"kind": "number", "value": "5/3/2024"}]

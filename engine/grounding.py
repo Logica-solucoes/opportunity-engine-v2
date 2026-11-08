@@ -26,7 +26,7 @@ NUMBER = re.compile(
     r"(?P<int>\d{1,3}(?:\.\d{3})+(?!\d)|\d+)(?:[,.](?P<dec>\d+))?"
     r"(?:\s?(?P<unit>%|x\b|(?i:milh(?:ões|ão|oes|ao)|bilh(?:ões|ão|oes|ao)|mil|mi|bi|k|m)\b))?"
 )
-DATE = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b|\b\d{4}-\d{2}-\d{2}\b")
+DATE = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b|\b\d{4}-\d{2}-\d{2}\b")
 MONTHS = [
     "janeiro",
     "fevereiro",
@@ -79,7 +79,7 @@ def check(text: str, payload: Any, published: set[str], universe: set[str]) -> l
     issues: list[dict] = []
 
     def drop_date(m: re.Match) -> str:
-        day = f"{m[3]}-{m[2]}-{m[1]}" if m[1] else m[0]
+        day = f"{m[3]}-{int(m[2]):02d}-{int(m[1]):02d}" if m[1] else m[0]
         if day not in days:
             issues.append({"kind": "number", "value": m[0]})
         return " "
