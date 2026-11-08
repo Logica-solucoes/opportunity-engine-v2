@@ -45,14 +45,24 @@ Toda narrativa que chega à tela passa por `engine/grounding.py` antes de ser pu
 - **Payload restrito.** O prompt recebe só o que o motor já publicou: lift, IC, p-valores, R², WMAPE, placebo e robustez do evento; status, motivos e curva mensal (`engine.scenario`, sem filtros) da elasticidade; a lista de canais que podem ser citados. Nada de CSV bruto nem dado de linha.
 - **Números.** Todo número do texto (formato pt-BR: `R$ 3,4M`, `89,7%`, `-0,17x`, `1.234`, `3,41 milhões`) tem que casar com um valor do payload, arredondado com a mesma quantidade de casas escrita. Percentual casa também com a fração (`0,897` ↔ `89,7%`).
 - **Datas.** `DD/MM/AAAA` (o prompt pede esse formato) ou por extenso (`20 de janeiro de 2025`): com ano, tem que ser um dia publicado; sem ano, qualquer dia publicado com o mesmo dia e mês. Data ISO no payload conta como publicada.
-- **Canais.** Só canais publicados. Um canal conhecido pelo run mas não publicado (não identificado, evento rejeitado) é reprovado.
+- **Canais.** Só canais publicados. Membro de grupo publicado conta como publicado. Um canal conhecido pelo run mas não publicado (não identificado, evento rejeitado) é reprovado.
 - **Limites aceitos:** inteiro até 12 sem unidade nem casa decimal passa sem conferência (contagens como "3 canais"); um número derivado que não está no payload, como "28 dias" (duração do período, que o payload não traz), é reprovado; e um canal inventado que o run não conhece (ex.: "Meta" quando o run só tem "META") não é pego.
 - **Regeneração.** Reprovado → uma nova chamada com a lista dos problemas no prompt. Reprovado de novo → `grounding.status = "blocked"` e o texto determinístico (`narratives.deterministic_event` / `deterministic_global`, montado só com números do payload, então passa no checador por construção).
+- **Erro do LLM que não é resposta ruim nem recusa** (ex.: `http_400`) para as chamadas como indisponível: não vira `blocked`.
 - **`temperature=0`** no `generate_json` (ver adaptador acima).
 - **Sem chave** (`LLM_PROVIDER=none` ou sem `GEMINI_API_KEY`): `get_llm()` devolve `None`, nenhuma chamada, `grounding: null` e texto determinístico.
-- **Worker liga o LLM.** O `api/launcher.py` não força mais `LLM_PROVIDER=none`. Com a chave no `.env` do servidor, o run chama o Gemini: até 2 chamadas por narrativa (uma por evento publicado e uma global), de até 60 s cada.
+- **Worker liga o LLM.** O `api/launcher.py` não força mais `LLM_PROVIDER=none`. Com a chave no `.env` do servidor, o run chama o Gemini: até 2 chamadas por narrativa (uma por evento publicado e uma global), de até 60 s cada, e um orçamento total de `LLM_BUDGET_S` = 300 s, checado entre relatórios (pior caso ~420 s, dentro do watchdog de 20 min). Passado o orçamento, os relatórios restantes saem determinísticos.
+- **Payload.** Floats arredondados a 4 algarismos significativos (sem `238.99107106472343%`), e o prompt traz a regra de formato pt-BR.
 
-Ainda pendente: `api/gemini.py` → `llm/` (abaixo). A chave real e a qualidade do texto com o Gemini de verdade não foram verificadas: só o fake e os textos fabricados passaram.
+**Ceilings abertos (não corrigidos):**
+- `abs()` deixa passar sinal invertido: "aumento de 31,1%" numa queda de mesmo módulo passa.
+- Um percentual pode vir de uma razão não relacionada no payload e passar.
+- Com `cv_in_sample`, o texto diz "não conclusiva" mesmo com a aba mostrando o planner (texto, não número).
+- P-valor "0,0000" é cosmético, não reprovado.
+
+**Verificado com chave real** (08/nov/2026, fixtures `gol_anonimizada` e `identificavel`, `narratives.build` com Gemini): antes das correções, 159 s, os 5 eventos inventaram números na primeira tentativa (ex.: "1,44") e só passaram na regeneração, com floats crus, e a global leu "12" como "12 registros não mapeados". Depois, 63 s, os 7 relatórios passaram na primeira tentativa, sem float cru e com "12 canais sem efeito identificável" correto.
+
+Ainda pendente: `api/gemini.py` → `llm/` (abaixo). Qualidade do texto em outros datasets não foi medida.
 
 ## Como adicionar um provedor
 
