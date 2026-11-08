@@ -8,11 +8,14 @@ import pytest
 from pydantic import ValidationError
 
 from engine import EngineError
-from engine.scenario import TCPA_NOTE, ScenarioFilters, _saturation_index, scenario
+from engine.scenario import NO_CURVE, NOT_CONCLUSIVE, TCPA_NOTE, ScenarioFilters, _saturation_index, scenario
 
 GOL = json.loads(
     (Path(__file__).resolve().parents[1] / "fixtures" / "results" / "gol_anonimizada.json").read_text(encoding="utf-8")
 )
+# the Gol has no identifiable channel, so its elasticity is inconclusive and scenario() refuses it; the parity tests
+# below check the arithmetic against the Streamlit, not the gate, so they run on a copy marked ok
+GOL_OK = {**GOL, "elasticity": {**GOL["elasticity"], "status": "ok", "reasons": []}}
 
 
 # --- oracle: the prototype's filter and saturation, copied as they are (frozen repo opportunity-engine) ---
@@ -80,7 +83,7 @@ def streamlit_pick(doc, filters):
 
 
 def _gol_filters():
-    curve = scenario(GOL, ScenarioFilters(), 0.2)["curve"]
+    curve = scenario(GOL_OK, ScenarioFilters(), 0.2)["curve"]
     # thresholds between two values: the CPA here and in the oracle may differ in the last bit
     cpas = sorted(r["cpa"] for r in curve if r["cpa"] is not None)
     icpas = sorted(r["icpa"] for r in curve if r["icpa"])  # target_icpa must be > 0
@@ -103,9 +106,9 @@ def _gol_filters():
 @pytest.mark.parametrize("index", range(8))
 def test_same_recommended_and_saturation_as_the_streamlit(index):
     filters = _gol_filters()[index]
-    expected_recommended, expected_saturation = streamlit_pick(GOL, filters)
+    expected_recommended, expected_saturation = streamlit_pick(GOL_OK, filters)
 
-    got = scenario(GOL, ScenarioFilters(**filters), 0.2)
+    got = scenario(GOL_OK, ScenarioFilters(**filters), 0.2)
 
     if expected_recommended is None:
         assert got["recommended"] is None
@@ -115,7 +118,7 @@ def test_same_recommended_and_saturation_as_the_streamlit(index):
 
 
 def test_the_filter_that_empties_the_curve_still_answers():
-    got = scenario(GOL, ScenarioFilters(min_budget=1e12), 0.2)
+    got = scenario(GOL_OK, ScenarioFilters(min_budget=1e12), 0.2)
 
     assert got["recommended"] is None
     assert not any(r["in_filter"] for r in got["curve"])
@@ -126,15 +129,15 @@ def test_scenario_is_fast_enough_for_the_slider():
     filters = ScenarioFilters(target_icpa=50.0)
     start = time.perf_counter()
     for _ in range(10):
-        scenario(GOL, filters, 0.2)
+        scenario(GOL_OK, filters, 0.2)
     assert (time.perf_counter() - start) / 10 < 0.3
 
 
 def test_the_gol_fixture_gives_monthly_rows_with_its_band():
-    got = scenario(GOL, ScenarioFilters(), 0.2)
+    got = scenario(GOL_OK, ScenarioFilters(), 0.2)
 
     assert got["unit"] == "month" and got["revenue_mode"] is False
-    assert len(got["curve"]) == len(GOL["elasticity"]["response_curve"])
+    assert len(got["curve"]) == len(GOL_OK["elasticity"]["response_curve"])
     assert got["current"]["kpi_lo"] is not None and got["curve"][-1]["kpi_lo"] is not None
 
 
@@ -166,7 +169,10 @@ def _doc(rows, current_investment=20.0, current_kpi=40.0, period_days=1):
         "kpi_hi": current_kpi * 1.1,
         "extrapolated": False,
     }
-    return {"validation": {"period_days": period_days}, "elasticity": {"response_curve": rows, "scenarios": [current]}}
+    return {
+        "validation": {"period_days": period_days},
+        "elasticity": {"status": "ok", "response_curve": rows, "scenarios": [current]},
+    }
 
 
 CONVERSIONS = [
@@ -242,11 +248,28 @@ def test_a_budget_cut_has_no_incremental_return():
     assert got["recommended"]["icpa"] is None and got["recommended"]["iroas"] is None
 
 
+@pytest.mark.parametrize("status", ["inconclusive", "failed"])
+def test_an_elasticity_that_is_not_ok_is_refused(status):
+    doc = _doc(CONVERSIONS)
+    doc["elasticity"]["status"] = status
+
+    with pytest.raises(EngineError, match=NOT_CONCLUSIVE):
+        scenario(doc, ScenarioFilters(), 0.2)
+
+
+def test_the_gol_is_refused_because_no_channel_is_identifiable():
+    with pytest.raises(EngineError, match=NOT_CONCLUSIVE):
+        scenario(GOL, ScenarioFilters(), 0.2)
+
+
+def test_an_ok_elasticity_without_curve_is_still_no_curve():
+    with pytest.raises(EngineError, match=NO_CURVE):
+        scenario(_doc([]), ScenarioFilters(), 0.2)
+
+
 def test_a_run_without_curve_is_an_engine_error():
     with pytest.raises(EngineError):
         scenario({"validation": {"period_days": 1}, "elasticity": None}, ScenarioFilters(), 0.2)
-    with pytest.raises(EngineError):
-        scenario(_doc([]), ScenarioFilters(), 0.2)
 
 
 @pytest.mark.parametrize("key", ["investment", "kpi"])

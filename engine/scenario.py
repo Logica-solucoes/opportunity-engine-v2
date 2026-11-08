@@ -10,6 +10,7 @@ from engine.errors import EngineError
 
 DAYS_PER_MONTH = 30
 NO_CURVE = "Esta execução não tem curva de resposta para simular cenários."
+NOT_CONCLUSIVE = "A análise de elasticidade desta execução não é conclusiva; não há cenário para simular."
 
 TCPA_NOTE = (
     "Campanhas com CPA desejado (tCPA): mudar a verba pode pedir ajuste do CPA desejado. Espere o período de "
@@ -186,6 +187,9 @@ def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) ->
     Pure over the results.json dict: the curve is the one the run simulated; filters only pick points of it.
     """
     elasticity = results.get("elasticity") or {}
+    # an inconclusive curve comes from channels the engine could not identify: no number of it reaches a screen
+    if elasticity and elasticity.get("status") != "ok":
+        raise EngineError(NOT_CONCLUSIVE)
     rows = elasticity.get("response_curve") or []
     current = next((s for s in elasticity.get("scenarios") or [] if s["name"] == "current"), None)
     period_days = (results.get("validation") or {}).get("period_days")
