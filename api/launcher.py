@@ -7,8 +7,6 @@ WORKER_ENV = {
     "OMP_NUM_THREADS": "1",
     "OPENBLAS_NUM_THREADS": "1",
     "MKL_NUM_THREADS": "1",
-    # until A9 the engine's LLM reports are written to a temp dir and thrown away: no cost, no client data out
-    "LLM_PROVIDER": "none",
 }
 
 
