@@ -1,6 +1,6 @@
 # Dashboards
 
-Por que a tela de resultado é do jeito que é. Itens do M2: B5.
+Por que a tela de resultado é do jeito que é. Itens do M2: B5 e B7.
 
 ## Recharts, não plotly.js (06/nov/2026)
 
@@ -33,6 +33,18 @@ Como a sidebar do Streamlit e a lista de eventos da aba Causal: os filtros ficam
 ## Eixo Y das curvas começa no dado (08/nov/2026)
 
 A curva de saturação e as curvas por canal usam o domínio do dado no eixo Y, não o zero: o KPI incremental é pequeno perto do total (no sintético, +897 sobre ~197 mil) e, a partir do zero, a curva vira uma reta sem leitura. Os gráficos de barras (mix, atual × saturação) seguem a partir do zero.
+
+## Export pela API, com os filtros da tela (08/nov/2026)
+
+Os CSVs saem da API, não do navegador: `events.csv` do `results.json`, `scenario.csv` e `curve.csv` do `engine.scenario` com os mesmos filtros da tela, levados na query do link (`<a href download>`, sem fetch nem Blob). O arquivo bate com a tabela, o gate da elasticidade (409) vale sem código novo e o front segue sem conta. Evento rejeitado entra com veredito e motivos e os números vazios, pela mesma regra da tela. Os rótulos dos motivos de evento existem também em `api/exports.py`; como o motor não tem lista desses códigos, um teste prende a tabela ao `REASON_LABELS` de `web/src/lib/results.ts` e às fixtures reais. Números com vírgula decimal e sem separador de milhar, para o Excel pt-BR ler como número; só texto passa pelo `safe()`, porque um número negativo também começa com `-`. Um botão por arquivo, sem zip.
+
+## PDF é a impressão da aba (08/nov/2026)
+
+`window.print()` e `@media print`, sem biblioteca nem PDF no servidor: sai a aba aberta, em A4 com 12 mm de margem, sempre no tema claro (o `dark` só vale na tela), sem a navegação e com um cabeçalho de impressão (workspace, simulação, execução, data, status, motor). No lugar do painel de filtros da Elasticidade sai uma linha com os filtros aplicados. A aba Causal imprime a lista e o evento selecionado; imprimir o detalhe de todos exigiria renderizar gráficos escondidos, que o Recharts não mede. Na impressão o `main` tem a largura útil do A4 (186 mm): a impressão emulada (o E2E, o `page.pdf`) redesenha os gráficos nessa largura, e a do navegador, que não redesenha o Recharts, recebe os gráficos da tela, que já cabem (~664 px numa coluna do `max-w-5xl`, contra ~703 px úteis).
+
+## Grounding no cabeçalho só quando existir (08/nov/2026)
+
+O cabeçalho impresso mostra o grounding só quando o `results.json` traz `reports.grounding` (A9). Com `null`, que é o caso de todo run hoje, a linha não aparece: o PDF não afirma um grounding que ninguém avaliou.
 
 ## O front não calcula
 

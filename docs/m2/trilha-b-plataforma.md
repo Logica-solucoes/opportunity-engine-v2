@@ -195,6 +195,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B7 · Export CSV/PDF — semana 3
 
+- **Status:** ✅ feito em 08/nov/2026. CSV de eventos, cenários (com os degraus) e curva pela API (`events.csv`, `scenario.csv`, `curve.csv`; os dois da Elasticidade com os filtros da tela e o gate do `engine.scenario`), com `;`, vírgula decimal e BOM; evento rejeitado só com veredito e motivos. PDF pela impressão da aba aberta: `@page` A4, tema claro, cabeçalho com workspace, simulação, execução, data, status e motor (grounding só quando existir), resumo dos filtros no lugar do painel. Verificado: `tests/api/test_exports.py`, `tests/api/test_usage.py`, `tests/api/test_rbac.py`, `web/e2e/export.spec.ts` (download real do CSV de eventos da Gol, links da Elasticidade com os filtros, impressão emulada sem gráfico passando da borda e `page.pdf` A4 conferido a olho), E2E completo verde e screenshots da impressão nos dois temas. A aba Causal imprime a lista e o evento selecionado, não o detalhe de todos. Desvios em `docs/decisoes/dashboards.md`. O selo de grounding entra com o A9.
 - **BRD:** Capabilities › Dashboards ("export to PDF/CSV"); Journey 2 passo 3; Figure 3 passo 14.
 - **Depende de:** B5.
 - **Hoje:** nenhum botão de download no Streamlit. Os HTMLs existem em disco, mas não são oferecidos.

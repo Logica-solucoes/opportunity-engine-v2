@@ -46,6 +46,9 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | POST | `/api/w/{slug}/runs/{run_id}/unpublish` | Analyst+. → `RunOut`; idempotente |
 | GET | `/api/w/{slug}/runs/{run_id}/inputs/{key}` | Analyst+. `key` ∈ `investment_file`, `performance_file`, `generic_trends_file`, `bcb_file` (outro → 422). CSV do snapshot do run, como anexo com o nome do upload; entrada ausente → 404 |
 | GET | `/api/w/{slug}/runs/{run_id}/scenario` | Viewer+ (viewer só vê publicados). Query com os filtros mensais opcionais (`min_budget`, `max_budget`, `target_cpa`, `target_icpa`, `min_roas`, `min_iroas`, `min_kpi`, `min_incrementality_pct`) → `{unit, revenue_mode, current, recommended, saturation, curve, channels}` do `engine.scenario` (as linhas da tabela trazem `mix`; `channels` só os identificáveis, mensais); `recommended` é `null` quando nada passa; 409 se o run não tem curva ou se a elasticidade falhou ou não tem canal identificável (só `cv_in_sample` responde); 422 em filtro inválido ou desconhecido |
+| GET | `/api/w/{slug}/runs/{run_id}/events.csv` | Viewer+, mesma visibilidade do run. Um evento de `causal.events` por linha, como anexo `execucao-{run_id}-eventos.csv` (`;`, vírgula decimal, BOM; texto do cliente escapado contra fórmula); evento rejeitado só com veredito e motivos, números vazios. 404 "Esta execução não tem resultado." sem `results.json`; 404 "Esta execução não tem análise causal." sem a seção |
+| GET | `/api/w/{slug}/runs/{run_id}/scenario.csv` | Viewer+, mesma visibilidade. Os filtros do `scenario` na query → a tabela Atual/Recomendado/Saturação em valores mensais e, depois de uma linha em branco, os degraus, como anexo `execucao-{run_id}-cenarios.csv`; Recomendado some quando nada passa; Receita, ROAS e iROAS só em modo receita. 404 sem `results.json`; 409 e 422 como o `scenario` |
+| GET | `/api/w/{slug}/runs/{run_id}/curve.csv` | Viewer+, mesma visibilidade. Mesmos filtros → um ponto da curva por linha, com `Extrapolado` e `No filtro` (`sim`/`não`), anexo `execucao-{run_id}-curva.csv`. 404, 409 e 422 como o `scenario.csv` |
 | GET | `/api/w/{slug}/runs/{run_id}/logs/stream` | Viewer+, mesma visibilidade. SSE: `id: <log id>` + `data: {ts, level, message}`; sem `Last-Event-ID` manda as 300 últimas, com ele as de id maior; `event: end` + `data: {status}` quando o run termina |
 | GET | `/api/admin/workspaces` | Platform admin. `[{id, name, slug, created_at, google: GoogleConfig \| null}]` |
 | POST | `/api/admin/workspaces` | Platform admin. `{name, slug}` (`^[a-z0-9-]{2,40}$`); 409 slug repetido |
@@ -57,7 +60,7 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | GET | `/api/admin/usage` | Platform admin. `?month=YYYY-MM` opcional (fora do formato → 422). `[{month, workspace_id, workspace_name, user_id, user_name, user_email, succeeded, inconclusive, failed, active, total, run_seconds}]`, mês mais recente primeiro; mês no fuso de São Paulo |
 | GET | `/api/admin/usage.csv` | Platform admin. Mesmo filtro. CSV como anexo `uso-YYYY-MM.csv` (ou `uso.csv`), `;` e vírgula decimal, com BOM, minutos com uma casa |
 
-Os demais entram com B5–B7. Cada rota nova ganha uma linha aqui **e** uma entrada em `ROUTES` de `tests/api/test_rbac.py` no mesmo commit; o teste falha se uma rota `/api/*` ficar de fora.
+Cada rota nova ganha uma linha aqui **e** uma entrada em `ROUTES` de `tests/api/test_rbac.py` no mesmo commit; o teste falha se uma rota `/api/*` ficar de fora.
 
 ## Nova rota REST
 
