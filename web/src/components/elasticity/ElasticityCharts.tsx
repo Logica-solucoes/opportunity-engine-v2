@@ -57,7 +57,7 @@ export function SaturationChart({ scenario }: { scenario: Scenario }) {
       <ComposedChart data={data} margin={{ left: 4, right: 4 }}>
         <CartesianGrid vertical={false} />
         {investmentAxis}
-        <YAxis tickFormatter={formatCompact} width={56} />
+        <YAxis domain={['auto', 'auto']} tickFormatter={formatCompact} width={56} />
         <Area dataKey="band" stroke="none" fill="var(--color-band)" fillOpacity={0.2} isAnimationActive={false} />
         <Line dataKey="observed" stroke="var(--color-observed)" strokeWidth={2} dot={false} isAnimationActive={false} />
         <Line

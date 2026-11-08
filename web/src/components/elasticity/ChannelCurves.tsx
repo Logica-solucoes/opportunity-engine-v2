@@ -23,7 +23,7 @@ function ChannelChart({ channel }: { channel: ChannelCurve }) {
         <ComposedChart data={data}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="investment" type="number" domain={['dataMin', 'dataMax']} tickFormatter={formatCompact} minTickGap={24} />
-          <YAxis tickFormatter={formatCompact} width={48} />
+          <YAxis domain={['auto', 'auto']} tickFormatter={formatCompact} width={56} />
           {channel.observed_range && (
             <ReferenceArea x1={channel.observed_range[0]} x2={channel.observed_range[1]} fill="var(--muted-foreground)" fillOpacity={0.08} />
           )}

@@ -104,7 +104,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
           <h2 className="text-lg font-semibold">Curva de saturação</h2>
           <SaturationChart scenario={scenario} />
         </section>
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className={scenario.revenue_mode ? 'grid gap-6 lg:grid-cols-2' : undefined}>
           <section aria-label="iCPA" className="space-y-2">
             <h2 className="text-lg font-semibold">iCPA</h2>
             <IcpaChart curve={scenario.curve} />
