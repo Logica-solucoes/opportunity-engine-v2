@@ -250,6 +250,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
 
 ## B11 · Deploy no servidor próprio, QA e performance — semana 4
 
+- **Status:** 🟡 parte sem servidor feita em 08/nov/2026: `deploy/` (compose, `.env.example`, `backup.sh`, `restore.sh`), `docs/deploy.md` com o trecho do nginx e rate limit por IP no login. Verificado: `tests/api/test_auth.py` (rate limit), `docker compose config`, `bash -n`. Falta: acesso ao servidor, teste de carga, restauração e rollback testados, homologação das 4 jornadas.
 - **Revisto em 04/nov/2026:** hospedagem num servidor próprio x86-64 com Docker, **sem GCP** (sem Cloud Run, Cloud SQL, GCS, Secret Manager). O porquê em `docs/decisoes/infra-e-operacao.md`.
 - **BRD:** Phase 2 Week 4; deliverable "Tests & QA"; Process ownership (era Cloud Run, BigQuery, GCS).
 - **Depende de:** acesso ao servidor (SSH, Docker, DNS e TLS).
@@ -266,7 +267,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
   - Ambientes staging e prod. Migrações Alembic rodam antes de subir a API.
   - Teste de carga: 10 runs simultâneos e 30 usuários navegando, e anotar os tempos.
   - Memória da instância: cada scrypt de login usa ~128 MB e até `passwords.SLOTS` (4) rodam juntos.
-  - Rate limit por IP no login. Até lá, quem sabe o e-mail do platform admin consegue mantê-lo bloqueado (5 requests a cada 15 min); o `create-admin` pelo CLI recupera.
+  - ~~Rate limit por IP no login~~: feito em 08/nov/2026 (`auth.check_login_rate`). Antes, quem sabe o e-mail do platform admin consegue mantê-lo bloqueado (5 requests a cada 15 min); o `create-admin` pelo CLI recupera.
   - Homologação com o Metrics: checklist das 4 jornadas do BRD.
   - **Remover o Streamlit**: `scripts/streamlit_app.py`, `scripts/db.py`, o CSS e as deps `streamlit*`.
   - Guia do usuário v1, com a parte de interpretação vinda da trilha A.
