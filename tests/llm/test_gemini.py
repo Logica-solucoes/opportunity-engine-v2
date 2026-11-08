@@ -53,6 +53,7 @@ def test_generate_json_parses_and_strips_code_fence(install):
     config = client.requests[0]["config"]
     assert config.response_mime_type == "application/json"
     assert config.response_json_schema == {"type": "object"}
+    assert config.temperature == 0  # structured output is meant to be reproducible (A9)
 
 
 @pytest.mark.parametrize("code", [429, 500, 503, 504])

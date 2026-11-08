@@ -52,7 +52,9 @@ class GeminiLLM:
     def generate_json(self, prompt: str, schema: dict, *, timeout_s: float | None = None) -> Any:
         from google.genai import types
 
-        config = types.GenerateContentConfig(response_mime_type="application/json", response_json_schema=schema)
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json", response_json_schema=schema, temperature=0
+        )
         return _loads(self._generate(prompt, timeout_s, config))
 
     def _generate(self, prompt: str, timeout_s: float | None, config: Any) -> str:
