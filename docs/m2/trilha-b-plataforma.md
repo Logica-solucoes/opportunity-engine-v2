@@ -267,7 +267,7 @@ Para cada item: **BRD** · **Hoje** · **Fazer** · **Aceite** · **Em aberto**.
   - Ambientes staging e prod. Migrações Alembic rodam antes de subir a API.
   - Teste de carga: 10 runs simultâneos e 30 usuários navegando, e anotar os tempos.
   - Memória da instância: cada scrypt de login usa ~128 MB e até `passwords.SLOTS` (4) rodam juntos.
-  - ~~Rate limit por IP no login~~: feito em 08/nov/2026 (`auth.check_login_rate`). Antes, quem sabe o e-mail do platform admin consegue mantê-lo bloqueado (5 requests a cada 15 min); o `create-admin` pelo CLI recupera.
+  - ~~Rate limit por IP no login~~: feito em 08/nov/2026 (`auth.check_login_rate`, 20 falhas por 15 min por IP), cobre força bruta de um IP. **Segue em aberto** travar uma conta de propósito (5 falhas por conta, de qualquer IP). Antes, quem sabe o e-mail do platform admin consegue mantê-lo bloqueado (5 requests a cada 15 min); o `create-admin` pelo CLI recupera.
   - Homologação com o Metrics: checklist das 4 jornadas do BRD.
   - **Remover o Streamlit**: `scripts/streamlit_app.py`, `scripts/db.py`, o CSS e as deps `streamlit*`.
   - Guia do usuário v1, com a parte de interpretação vinda da trilha A.
