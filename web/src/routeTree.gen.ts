@@ -27,6 +27,7 @@ import { Route as AuthWSlugSimulacoesNovaRouteImport } from './routes/_auth/w/$s
 import { Route as AuthWSlugExecucoesRunIdIndexRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/index'
 import { Route as AuthWSlugExecucoesRunIdCausalRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/causal'
 import { Route as AuthWSlugExecucoesRunIdDetalhesRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/detalhes'
+import { Route as AuthWSlugExecucoesRunIdElasticidadeRouteImport } from './routes/_auth/w/$slug/execucoes/$runId/elasticidade'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
@@ -120,6 +121,12 @@ const AuthWSlugExecucoesRunIdDetalhesRoute =
     path: '/detalhes',
     getParentRoute: () => AuthWSlugExecucoesRunIdRoute,
   } as any)
+const AuthWSlugExecucoesRunIdElasticidadeRoute =
+  AuthWSlugExecucoesRunIdElasticidadeRouteImport.update({
+    id: '/elasticidade',
+    path: '/elasticidade',
+    getParentRoute: () => AuthWSlugExecucoesRunIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthIndexRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/w/$slug/execucoes/': typeof AuthWSlugExecucoesIndexRoute
   '/w/$slug/execucoes/$runId/causal': typeof AuthWSlugExecucoesRunIdCausalRoute
   '/w/$slug/execucoes/$runId/detalhes': typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  '/w/$slug/execucoes/$runId/elasticidade': typeof AuthWSlugExecucoesRunIdElasticidadeRoute
   '/w/$slug/execucoes/$runId/': typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -155,6 +163,7 @@ export interface FileRoutesByTo {
   '/w/$slug/execucoes': typeof AuthWSlugExecucoesIndexRoute
   '/w/$slug/execucoes/$runId/causal': typeof AuthWSlugExecucoesRunIdCausalRoute
   '/w/$slug/execucoes/$runId/detalhes': typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  '/w/$slug/execucoes/$runId/elasticidade': typeof AuthWSlugExecucoesRunIdElasticidadeRoute
   '/w/$slug/execucoes/$runId': typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 export interface FileRoutesById {
@@ -176,6 +185,7 @@ export interface FileRoutesById {
   '/_auth/w/$slug/execucoes/': typeof AuthWSlugExecucoesIndexRoute
   '/_auth/w/$slug/execucoes/$runId/causal': typeof AuthWSlugExecucoesRunIdCausalRoute
   '/_auth/w/$slug/execucoes/$runId/detalhes': typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  '/_auth/w/$slug/execucoes/$runId/elasticidade': typeof AuthWSlugExecucoesRunIdElasticidadeRoute
   '/_auth/w/$slug/execucoes/$runId/': typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/w/$slug/execucoes/'
     | '/w/$slug/execucoes/$runId/causal'
     | '/w/$slug/execucoes/$runId/detalhes'
+    | '/w/$slug/execucoes/$runId/elasticidade'
     | '/w/$slug/execucoes/$runId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/w/$slug/execucoes'
     | '/w/$slug/execucoes/$runId/causal'
     | '/w/$slug/execucoes/$runId/detalhes'
+    | '/w/$slug/execucoes/$runId/elasticidade'
     | '/w/$slug/execucoes/$runId'
   id:
     | '__root__'
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
     | '/_auth/w/$slug/execucoes/'
     | '/_auth/w/$slug/execucoes/$runId/causal'
     | '/_auth/w/$slug/execucoes/$runId/detalhes'
+    | '/_auth/w/$slug/execucoes/$runId/elasticidade'
     | '/_auth/w/$slug/execucoes/$runId/'
   fileRoutesById: FileRoutesById
 }
@@ -371,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthWSlugExecucoesRunIdDetalhesRouteImport
       parentRoute: typeof AuthWSlugExecucoesRunIdRoute
     }
+    '/_auth/w/$slug/execucoes/$runId/elasticidade': {
+      id: '/_auth/w/$slug/execucoes/$runId/elasticidade'
+      path: '/elasticidade'
+      fullPath: '/w/$slug/execucoes/$runId/elasticidade'
+      preLoaderRoute: typeof AuthWSlugExecucoesRunIdElasticidadeRouteImport
+      parentRoute: typeof AuthWSlugExecucoesRunIdRoute
+    }
   }
 }
 
@@ -393,6 +413,7 @@ const AuthAdminRouteWithChildren = AuthAdminRoute._addFileChildren(
 interface AuthWSlugExecucoesRunIdRouteChildren {
   AuthWSlugExecucoesRunIdCausalRoute: typeof AuthWSlugExecucoesRunIdCausalRoute
   AuthWSlugExecucoesRunIdDetalhesRoute: typeof AuthWSlugExecucoesRunIdDetalhesRoute
+  AuthWSlugExecucoesRunIdElasticidadeRoute: typeof AuthWSlugExecucoesRunIdElasticidadeRoute
   AuthWSlugExecucoesRunIdIndexRoute: typeof AuthWSlugExecucoesRunIdIndexRoute
 }
 
@@ -400,6 +421,8 @@ const AuthWSlugExecucoesRunIdRouteChildren: AuthWSlugExecucoesRunIdRouteChildren
   {
     AuthWSlugExecucoesRunIdCausalRoute: AuthWSlugExecucoesRunIdCausalRoute,
     AuthWSlugExecucoesRunIdDetalhesRoute: AuthWSlugExecucoesRunIdDetalhesRoute,
+    AuthWSlugExecucoesRunIdElasticidadeRoute:
+      AuthWSlugExecucoesRunIdElasticidadeRoute,
     AuthWSlugExecucoesRunIdIndexRoute: AuthWSlugExecucoesRunIdIndexRoute,
   }
 

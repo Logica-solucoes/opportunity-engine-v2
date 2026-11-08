@@ -26,7 +26,13 @@ function RunLayout() {
   // 404 covers another workspace, a run a viewer can't see yet and a non-numeric id
   if (!run) return isError ? <p>Execução não encontrada.</p> : null
 
-  const tab = (to: '/w/$slug/execucoes/$runId/causal' | '/w/$slug/execucoes/$runId/detalhes', label: ReactNode) => (
+  const tab = (
+    to:
+      | '/w/$slug/execucoes/$runId/causal'
+      | '/w/$slug/execucoes/$runId/elasticidade'
+      | '/w/$slug/execucoes/$runId/detalhes',
+    label: ReactNode,
+  ) => (
     // active and inactive colors in separate props: two border-color classes on one element let the CSS order pick
     <Link
       to={to}
@@ -75,9 +81,7 @@ function RunLayout() {
 
       <nav aria-label="Seções da execução" className="flex gap-6 border-b text-sm">
         {isPublishable(run.status) && tab('/w/$slug/execucoes/$runId/causal', 'Causal')}
-        <span aria-disabled="true" className="-mb-px pb-2 text-muted-foreground/60">
-          Elasticidade (em breve)
-        </span>
+        {isPublishable(run.status) && tab('/w/$slug/execucoes/$runId/elasticidade', 'Elasticidade')}
         {tab('/w/$slug/execucoes/$runId/detalhes', 'Detalhes')}
       </nav>
 
