@@ -41,7 +41,7 @@ server {
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;   # o check de Origin compara com o Host
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;   # IP do rate limit do login
+        proxy_set_header X-Forwarded-For $remote_addr;   # IP do rate limit do login; tem de sobrescrever, não acrescentar (o uvicorn confia no primeiro item)
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
@@ -49,12 +49,14 @@ server {
     location ~ ^/api/w/[^/]+/runs/[0-9]+/logs/stream$ {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_buffering off;
         proxy_read_timeout 1h;
     }
 }
 ```
+
+O `X-Forwarded-For` é sobrescrito com `$remote_addr` de propósito: com `$proxy_add_x_forwarded_for` o cliente forjaria o cabeçalho e burlaria o rate limit do login. Se houver outro proxy na frente do nginx, configure `real_ip` (`set_real_ip_from`) para o `$remote_addr` continuar sendo o IP do cliente.
 
 ## Backup e restauração
 - Cron do dono: `0 3 * * * /opt/gem/deploy/backup.sh >> /var/log/gem-backup.log 2>&1`. Grava `db.dump` e `storage.tgz` em `/var/backups/gem/AAAA-MM-DD/` (ou `BACKUP_DIR`) e guarda 7 dias.
