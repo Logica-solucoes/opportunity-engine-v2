@@ -7,6 +7,13 @@ on:
 jobs:
   py:
     runs-on: ubuntu-latest
+    # keep in sync with api/launcher.py WORKER_ENV: parity needs the same BLAS kernel and SIMD path on every CPU
+    env:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_CORETYPE: Haswell
+      NPY_DISABLE_CPU_FEATURES: "AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR"
     services:
       postgres:
         image: postgres:16

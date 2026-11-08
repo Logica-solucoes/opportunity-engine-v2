@@ -7,6 +7,10 @@ WORKER_ENV = {
     "OMP_NUM_THREADS": "1",
     "OPENBLAS_NUM_THREADS": "1",
     "MKL_NUM_THREADS": "1",
+    # the MMM fit is ill-conditioned: the BLAS kernel and numpy's SIMD path move the optimum, so every CPU takes the AVX2 one
+    # (same pins in mise.toml and ci.yml; docs/decisoes/engine.md, "Paridade")
+    "OPENBLAS_CORETYPE": "Haswell",
+    "NPY_DISABLE_CPU_FEATURES": "AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR",
 }
 
 

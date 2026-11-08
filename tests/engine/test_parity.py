@@ -4,6 +4,7 @@ The snapshot comes from tests/fixtures/parity/generate_legacy_snapshot.py; see t
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -43,8 +44,15 @@ def prototype_view(events: list[dict]) -> list[dict]:
     ]
 
 
-# The MMM optimum moves with the BLAS build: on Windows DISPLAY lands at 4.5% vs 7.0% in the Linux snapshot.
-pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="snapshot is Linux x86-64; see docs/decisoes/engine.md")
+# The MMM optimum moves with the BLAS build and the CPU's SIMD path (ill-conditioned fit), so the snapshot only holds
+# under the pins of api/launcher.py WORKER_ENV, set before numpy loads. See docs/decisoes/engine.md, "Paridade".
+PINNED = os.environ.get("OPENBLAS_CORETYPE") == "Haswell" and "AVX512F" in os.environ.get(
+    "NPY_DISABLE_CPU_FEATURES", ""
+)
+pytestmark = [
+    pytest.mark.skipif(sys.platform != "linux", reason="snapshot is Linux x86-64; see docs/decisoes/engine.md"),
+    pytest.mark.skipif(not PINNED, reason="needs the numeric pins (mise run parity, or the env of the ci py job)"),
+]
 
 
 def assert_close(actual, expected, where="snapshot"):
