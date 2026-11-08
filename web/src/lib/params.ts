@@ -220,7 +220,7 @@ function changed(field: FormField, value: unknown, saved: unknown): boolean {
 export const unsavedParams = (layout: FormGroup[], values: Record<string, FormValue>, config: Record<string, unknown>) =>
   allFields(layout).some((field) => changed(field, fromForm(field, values[field.path]), getPath(config, field.path)))
 
-type PydanticError = { type: string; loc: (string | number)[]; ctx?: Record<string, unknown> }
+export type PydanticError = { type: string; loc: (string | number)[]; msg?: string; ctx?: Record<string, unknown> }
 
 const num = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('pt-BR') : String(v))
 
@@ -238,13 +238,15 @@ const ERROR_MESSAGES: Record<string, (ctx: Record<string, unknown>) => string> =
   revenue_needs_ticket: () => 'Obrigatório para otimizar por receita.',
 }
 
+export const pydanticMessage = (e: PydanticError) => ERROR_MESSAGES[e.type]?.(e.ctx ?? {}) ?? 'Valor inválido.'
+
 // pydantic's 422 lists one error per field at loc ["body", ...path]; our own 422 (no mapping) is a string
 export function fieldErrors(error: unknown): Record<string, string> | null {
   if (!(error instanceof ApiError) || error.status !== 422 || !Array.isArray(error.body.detail)) return null
   return Object.fromEntries(
     (error.body.detail as PydanticError[]).map((e) => [
       e.loc.slice(1).join('.'),
-      ERROR_MESSAGES[e.type]?.(e.ctx ?? {}) ?? 'Valor inválido.',
+      pydanticMessage(e),
     ]),
   )
 }

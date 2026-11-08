@@ -1,6 +1,7 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from './api'
+import { type PydanticError, pydanticMessage } from './params'
 
 // the engine.scenario answer (engine/scenario.py), monthly values
 type Num = number | null
@@ -97,8 +98,23 @@ export function useDebounced<T>(value: T, ms = 200) {
   return debounced
 }
 
-// FastAPI's 422 body: {detail: [{msg: "Value error, o orçamento mínimo passa do máximo", ...}]}
+export const FILTER_LABELS: Record<keyof Filters, string> = {
+  min_budget: 'Orçamento mínimo',
+  max_budget: 'Orçamento máximo',
+  target_cpa: 'CPA máximo',
+  target_icpa: 'iCPA máximo',
+  min_roas: 'ROAS mínimo',
+  min_iroas: 'iROAS mínimo',
+  min_kpi: 'KPI mínimo',
+  min_incrementality_pct: '% de incrementalidade mínima',
+}
+
+// FastAPI's 422 body: a per-field pydantic error at loc ["query", field], or our own value_error, already in pt-BR
 export const filterErrors = (body: Record<string, unknown>) =>
   Array.isArray(body.detail)
-    ? body.detail.map((d: { msg?: string }) => String(d.msg ?? '').replace(/^Value error, /, ''))
+    ? (body.detail as PydanticError[]).map((e) => {
+        if (e.type === 'value_error') return String(e.msg ?? '').replace(/^Value error, /, '')
+        const label = FILTER_LABELS[e.loc.at(-1) as keyof Filters]
+        return label ? `${label}: ${pydanticMessage(e)}` : pydanticMessage(e)
+      })
     : []

@@ -25,7 +25,10 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
       {!elasticity ? (
         <p className="text-sm text-muted-foreground">Sem análise de elasticidade nesta execução.</p>
       ) : elasticity.status !== 'ok' ? (
-        <Inconclusive lines={elasticity.reasons.map(reasonLabel)} />
+        <Inconclusive
+          title={elasticity.status === 'failed' ? 'Análise de elasticidade falhou' : undefined}
+          lines={elasticity.reasons.map(reasonLabel)}
+        />
       ) : (
         <Planner slug={slug} runId={runId} elasticity={elasticity} />
       )}
@@ -33,11 +36,11 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
   )
 }
 
-function Inconclusive({ lines }: { lines: string[] }) {
+function Inconclusive({ title = 'Análise de elasticidade inconclusiva', lines }: { title?: string; lines: string[] }) {
   return (
     <Alert>
       <TriangleAlert />
-      <AlertTitle>Análise de elasticidade inconclusiva</AlertTitle>
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
         <ul className="list-disc pl-5">
           {lines.map((l) => (
@@ -63,7 +66,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
   const error = query.error instanceof ApiError ? query.error : null
   if (!scenario) {
     if (query.isPending) return <p className="text-sm text-muted-foreground">Carregando…</p>
-    if (error?.status === 409) return <Inconclusive lines={[error.detail]} />
+    if (error?.status === 409) return <Inconclusive title="Sem cenário para simular" lines={[error.detail]} />
     return (
       <p role="alert" className="text-sm text-destructive">
         Não foi possível carregar o cenário.
@@ -76,7 +79,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
     ? [Math.floor(curve[0].investment), Math.ceil(curve[curve.length - 1].investment)]
     : null
   const mixRow = scenario.recommended ?? scenario.saturation
-  const hidden = elasticity.channels.filter((c) => c.identifiable === false)
+  const hidden = elasticity.channels.filter((c) => c.identifiable !== true)
   const metrics = elasticity.metrics
 
   return (
@@ -86,7 +89,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
         onChange={setFilters}
         bounds={bounds}
         revenueMode={scenario.revenue_mode}
-        errors={error?.status === 422 ? filterErrors(error.body) : []}
+        errors={!error ? [] : error.status === 422 ? filterErrors(error.body) : ['Não foi possível atualizar o cenário.']}
       />
       <div className="min-w-0 space-y-8">
         {metrics?.low_confidence && (
@@ -116,9 +119,11 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
             </section>
           )}
         </div>
-        {mixRow.mix && (
+        {mixRow.mix && Object.keys(mixRow.mix).length > 0 && (
           <section aria-label="Mix por canal" className="space-y-2">
-            <h2 className="text-lg font-semibold">Mix por canal</h2>
+            <h2 className="text-lg font-semibold">
+              Mix por canal{scenario.recommended ? ' no ponto recomendado' : ' no ponto de saturação'}
+            </h2>
             {metrics?.reallocation_suppressed && (
               <Alert>
                 <TriangleAlert />

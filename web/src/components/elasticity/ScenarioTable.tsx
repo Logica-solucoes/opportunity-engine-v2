@@ -9,7 +9,7 @@ type Line = [string, (r: TableRow) => string, boolean]
 const LINES: Line[] = [
   ['Investimento', (r) => formatMoney(r.investment), false],
   ['KPI', (r) => formatInteger(r.kpi), false],
-  ['KPI p5–p95', (r) => (r.kpi_lo == null ? '—' : `${formatInteger(r.kpi_lo)} – ${formatInteger(r.kpi_hi)}`), false],
+  ['KPI p5–p95', (r) => (r.kpi_lo == null || r.kpi_hi == null ? '—' : `${formatInteger(r.kpi_lo)} – ${formatInteger(r.kpi_hi)}`), false],
   ['CPA', (r) => formatMoney(r.cpa), false],
   ['iCPA', (r) => formatMoney(r.icpa), false],
   ['ROAS', (r) => formatDecimal(r.roas), true],
@@ -72,7 +72,7 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
           {ramp.map((s) => (
             <li key={s.step} className="tabular-nums">
               {s.step}. {formatMoney(s.investment)} → KPI {formatInteger(s.kpi)}
-              {s.kpi_lo != null && ` (${formatInteger(s.kpi_lo)} – ${formatInteger(s.kpi_hi)})`}
+              {s.kpi_lo != null && s.kpi_hi != null && ` (${formatInteger(s.kpi_lo)} – ${formatInteger(s.kpi_hi)})`}
             </li>
           ))}
         </ol>

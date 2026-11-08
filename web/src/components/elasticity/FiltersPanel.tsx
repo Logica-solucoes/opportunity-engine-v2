@@ -3,16 +3,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { formatMoney } from '@/lib/results'
-import type { Filters } from '@/lib/scenario'
+import { FILTER_LABELS, type Filters } from '@/lib/scenario'
 
 type Key = keyof Filters
 const FIELDS: [Key, string, boolean][] = [
-  ['target_cpa', 'CPA máximo', false],
-  ['target_icpa', 'iCPA máximo', false],
-  ['min_roas', 'ROAS mínimo', true],
-  ['min_iroas', 'iROAS mínimo', true],
-  ['min_kpi', 'KPI mínimo', false],
-  ['min_incrementality_pct', '% de incrementalidade mínima', false],
+  ['target_cpa', FILTER_LABELS.target_cpa, false],
+  ['target_icpa', FILTER_LABELS.target_icpa, false],
+  ['min_roas', FILTER_LABELS.min_roas, true],
+  ['min_iroas', FILTER_LABELS.min_iroas, true],
+  ['min_kpi', FILTER_LABELS.min_kpi, false],
+  ['min_incrementality_pct', FILTER_LABELS.min_incrementality_pct, false],
 ]
 
 type Props = {
