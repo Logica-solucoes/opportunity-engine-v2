@@ -16,11 +16,11 @@ O `results.json` traz `series` também dos eventos rejeitados, e a tela ignora. 
 
 ## Elasticidade não conclusiva não mostra número (07/nov/2026)
 
-Com `elasticity.status` diferente de `ok`, o `engine.scenario` recusa (`NOT_CONCLUSIVE`, 409 na rota) e a aba mostra só o alerta com os motivos. A Gol sai `inconclusive` por `no_identifiable_channel`, e a curva dela, com recomendado e saturação, vinha inteira de canais que o motor não identificou. É a regra do evento rejeitado aplicada à elasticidade, e o gate mora no motor para nenhum outro consumidor (export do B7) escapar dele.
+Com `elasticity.status` `failed` ou com `no_identifiable_channel`/`model_failed` nos motivos, o `engine.scenario` recusa (`NOT_CONCLUSIVE`, 409 na rota) e a aba mostra só o alerta com os motivos. Revisto em 08/nov/2026: `inconclusive` só por `cv_in_sample` (histórico curto, CV dentro da amostra) não recusa, porque os canais identificáveis seguem identificáveis; a aba mostra o planner sob um alerta "não validada" com o motivo. A Gol sai `inconclusive` por `no_identifiable_channel`, e a curva dela, com recomendado e saturação, vinha inteira de canais que o motor não identificou. É a regra do evento rejeitado aplicada à elasticidade, e o gate mora no motor para nenhum outro consumidor (export do B7) escapar dele.
 
 ## Tudo mensal, escalado no motor (07/nov/2026)
 
-As curvas por canal, a faixa observada e o mix estão no `results.json` em valores diários do período. O `scenario` devolve tudo já em valores mensais, pelo mesmo `30 / period_days` do agregado; o gasto atual de cada canal é a participação histórica (constante ao longo da curva) × o investimento atual.
+As curvas por canal, a faixa observada e o mix estão no `results.json` em valores diários do período. O `scenario` devolve tudo já em valores mensais, pelo mesmo `30 / period_days` do agregado; o gasto atual de cada canal é a participação histórica (constante ao longo da curva) × o investimento atual. A saturação de cada canal é procurada a partir do gasto atual dele, como a do agregado (08/nov/2026): procurada desde zero, podia cair abaixo do gasto atual e sugerir corte.
 
 ## Mix com as três séries mesmo com a realocação suprimida (07/nov/2026)
 
