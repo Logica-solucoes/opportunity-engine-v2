@@ -89,6 +89,10 @@ def _scaled(value: float | None, factor: float) -> float | None:
     return None if value is None else value * factor
 
 
+def _scaled_mix(mix: dict, factor: float) -> dict:
+    return {variant: {ch: _scaled(v, factor) for ch, v in spend.items()} for variant, spend in mix.items()}
+
+
 def _ratio(a: float | None, b: float | None) -> float | None:
     return a / b if a is not None and b else None
 
@@ -120,6 +124,7 @@ def _curve_row(row: dict, factor: float) -> dict:
         if row["kpi"] and row["kpi"] > 0 and incremental_kpi is not None
         else 0.0,
         "extrapolated": row["extrapolated"],
+        "mix": _scaled_mix(row.get("mix") or {}, factor),
     }
 
 
@@ -178,11 +183,57 @@ def _table_row(point: dict, base: dict, max_step: float, curve: list[dict], note
         "extrapolated": point["extrapolated"],
         "ramp": ramp(base["investment"], point["investment"], max_step, curve) if changes else None,
         "notes": [note] if changes else [],
+        "mix": point.get("mix"),
     }
 
 
+def _historical_share(rows: list[dict]) -> dict[str, float]:
+    """Each channel's share of the spend in the historical mix: the engine keeps it the same at every curve point."""
+    row = next((r for r in rows if r["investment"] and (r.get("mix") or {}).get("historical")), None)
+    if row is None:
+        return {}
+    return {ch: v / row["investment"] for ch, v in row["mix"]["historical"].items() if v is not None}
+
+
+def _channels(elasticity: dict, rows: list[dict], current_investment: float, factor: float) -> list[dict]:
+    """Monthly curve, observed range, current spend and saturation of each identifiable channel; a hidden channel
+    never comes back (its name and reasons are in the results.json)."""
+    share = _historical_share(rows)
+    out = []
+    for channel in elasticity.get("channels") or []:
+        points = [p for p in channel.get("curve") or [] if p.get("x") is not None and p.get("y") is not None]
+        if not channel.get("identifiable") or not points:
+            continue
+        curve = [
+            {
+                "investment": p["x"] * factor,
+                "kpi": p["y"] * factor,
+                "kpi_lo": _scaled(p.get("lo"), factor),
+                "kpi_hi": _scaled(p.get("hi"), factor),
+                "extrapolated": p.get("extrapolated"),
+            }
+            for p in points
+        ]
+        observed = channel.get("observed_spend_range")
+        index = _saturation_index(curve, 0.0)
+        name = channel["name"]
+        out.append(
+            {
+                "name": name,
+                "curve": curve,
+                "observed_range": [observed[0] * factor, observed[1] * factor]
+                if observed and None not in observed
+                else None,
+                "current": share[name] * current_investment if name in share else None,
+                "saturation": curve[index]["investment"] if index is not None else None,
+            }
+        )
+    return out
+
+
 def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) -> dict:
-    """Recommended point, saturation point and the filtered curve for the planner, in monthly values.
+    """Recommended point, saturation point, the filtered curve and the identifiable channels' curves for the planner, in
+    monthly values.
 
     Pure over the results.json dict: the curve is the one the run simulated; filters only pick points of it.
     """
@@ -231,4 +282,5 @@ def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) ->
         "recommended": _table_row(recommended, base, max_budget_step, curve, note) if recommended else None,
         "saturation": _table_row(saturation, base, max_budget_step, curve, note),
         "curve": curve,
+        "channels": _channels(elasticity, rows, base["investment"], factor),
     }

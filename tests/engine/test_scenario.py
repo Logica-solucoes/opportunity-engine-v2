@@ -144,7 +144,7 @@ def test_the_gol_fixture_gives_monthly_rows_with_its_band():
 # --- hand-made documents ---
 
 
-def _row(investment, kpi, revenue=None, iroas=None, inc_inv=0.0, inc_kpi=0.0):
+def _row(investment, kpi, revenue=None, iroas=None, inc_inv=0.0, inc_kpi=0.0, mix=None):
     return {
         "investment": investment,
         "kpi": kpi,
@@ -156,7 +156,7 @@ def _row(investment, kpi, revenue=None, iroas=None, inc_inv=0.0, inc_kpi=0.0):
         "incremental_investment": inc_inv,
         "incremental_kpi": inc_kpi,
         "extrapolated": investment > 30,
-        "mix": {},
+        "mix": mix or {},
     }
 
 
@@ -182,6 +182,99 @@ CONVERSIONS = [
     _row(30.0, 50.0, inc_inv=10.0, inc_kpi=10.0),
     _row(40.0, 55.0, inc_inv=20.0, inc_kpi=15.0),
 ]
+
+
+def _mixed(investment, kpi, **kw):
+    # A is 60% of the spend at every point, like the engine's historical mix
+    mix = {
+        "historical": {"A": investment * 0.6, "Não identificados": investment * 0.4},
+        "optimized": {"A": investment * 0.7, "Não identificados": investment * 0.3},
+        "strategic": {"A": investment * 0.6, "Não identificados": None},
+    }
+    return _row(investment, kpi, mix=mix, **kw)
+
+
+MIXED = [
+    _mixed(0.0, 0.0),
+    _mixed(10.0, 25.0),
+    _mixed(20.0, 40.0),
+    _mixed(30.0, 50.0, inc_inv=10.0, inc_kpi=10.0),
+    _mixed(40.0, 55.0, inc_inv=20.0, inc_kpi=15.0),
+]
+
+
+def _with_channels(doc):
+    doc["elasticity"]["channels"] = [
+        {
+            "name": "A",
+            "identifiable": True,
+            "observed_spend_range": [2.0, 8.0],
+            "curve": [
+                {"x": x, "y": y, "lo": y * 0.9, "hi": y * 1.1, "extrapolated": x > 8}
+                for x, y in [(0, 10), (4, 20), (8, 26), (12, 28), (16, 29)]
+            ],
+        },
+        {"name": "B", "identifiable": False, "observed_spend_range": [1.0, 3.0], "curve": []},
+    ]
+    return doc
+
+
+def test_only_identifiable_channels_come_back_monthly():
+    got = scenario(_with_channels(_doc(MIXED, period_days=7)), ScenarioFilters(), 0.2)
+
+    factor = 30 / 7
+    assert [c["name"] for c in got["channels"]] == ["A"]
+    channel = got["channels"][0]
+    assert channel["curve"][1] == pytest.approx(
+        {
+            "investment": 4 * factor,
+            "kpi": 20 * factor,
+            "kpi_lo": 18 * factor,
+            "kpi_hi": 22 * factor,
+            "extrapolated": False,
+        }
+    )
+    assert channel["observed_range"] == pytest.approx([2.0 * factor, 8.0 * factor])
+    assert channel["current"] == pytest.approx(0.6 * 20.0 * factor)  # historical share x current investment
+
+
+def test_a_channel_saturation_is_a_point_of_its_own_curve():
+    channel = scenario(_with_channels(_doc(MIXED)), ScenarioFilters(), 0.2)["channels"][0]
+
+    assert channel["saturation"] in [p["investment"] for p in channel["curve"]]
+
+
+def test_a_document_without_channels_or_mix_still_answers():
+    got = scenario(_doc(CONVERSIONS), ScenarioFilters(), 0.2)
+
+    assert got["channels"] == []
+    assert got["recommended"]["mix"] == {}
+    assert got["current"]["mix"] is None
+
+
+def test_table_rows_carry_the_monthly_mix_of_their_curve_point():
+    got = scenario(_doc(MIXED), ScenarioFilters(), 0.2)
+
+    mix = got["recommended"]["mix"]  # the 40.0 row
+    assert mix["historical"]["A"] == pytest.approx(40.0 * 0.6 * 30)
+    assert mix["optimized"]["Não identificados"] == pytest.approx(40.0 * 0.3 * 30)
+    assert mix["strategic"]["Não identificados"] is None
+    assert got["saturation"]["mix"]["historical"].keys() == {"A", "Não identificados"}
+    assert got["current"]["mix"] is None
+
+
+def test_the_identifiable_fixture_gives_only_strong():
+    doc = json.loads(
+        (Path(__file__).resolve().parents[1] / "fixtures" / "results" / "identificavel.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    got = scenario(doc, ScenarioFilters(), 0.2)
+
+    assert [c["name"] for c in got["channels"]] == ["STRONG"]
+    assert got["channels"][0]["current"] is not None
+    assert got["channels"][0]["saturation"] is None  # STRONG does not saturate in the simulated range
 
 
 def test_values_are_monthly_for_the_cadence():
