@@ -130,3 +130,37 @@ def test_an_effect_of_one_mde_is_detected_about_80_percent_of_the_time():
     z = sums / (s * math.sqrt((1 + r) / (1 - r) * t))
 
     assert (z > 1.96).mean() == pytest.approx(0.80, abs=0.05)
+
+
+def test_non_finite_kpi_is_degenerate():
+    y = noisy(60, 20)
+    y[10] = np.nan
+
+    d = run(kpi_frame(y))
+
+    assert d.status == "insufficient_history" and d.reasons == ["degenerate_kpi"]
+
+
+def test_spend_after_the_last_kpi_date_does_not_count():
+    kpi = kpi_frame(noisy(120, 20))
+    spend = spend_frame(kpi, {"A": 100.0})
+    late = pd.DataFrame(
+        {"Date": pd.date_range(kpi["Date"].iloc[-1] + pd.Timedelta(days=1), periods=14), "Product Group": "A"}
+    ).assign(investment=1e6)
+
+    d = run(kpi, pd.concat([spend, late]))
+
+    assert d.designs[0].spend_per_period == pytest.approx(100.0)
+
+
+def test_fractional_target_lift_keeps_its_decimals_in_the_text():
+    d = run(kpi_frame(noisy(120, 20)), target=0.025)
+
+    assert any("2,5%" in a for a in d.assumptions)
+
+
+def test_a_cadence_longer_than_the_cap_has_no_numbers():
+    d = run(kpi_frame(noisy(60, 20), 30), period_days=30, max_days=14)
+
+    assert d.status == "insufficient_history" and d.reasons == ["duration_capped"]
+    assert d.sigma is None and d.duration_days is None and d.designs == []

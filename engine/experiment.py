@@ -34,7 +34,7 @@ def _noise(window: pd.DataFrame, daily: bool) -> tuple[float, float]:
 
 
 def _assumptions(target_lift: float) -> list[str]:
-    pct = f"{target_lift * 100:.0f}".replace(".", ",")
+    pct = f"{target_lift * 100:g}".replace(".", ",")
     return [
         "O efeito mínimo detectável vem do ruído do KPI em torno da tendência e do dia da semana; a mídia fica "
         "dentro desse ruído, então a estimativa é conservadora.",
@@ -59,19 +59,23 @@ def design(
         return ExperimentDesign(status="insufficient_history", reasons=["short_history"], **base)
 
     window = kpi.tail(max(MIN_PERIODS, math.ceil(WINDOW_DAYS / period_days)))
-    sigma, rho = _noise(window, daily=period_days == 1)
     mean = float(window["kpi"].mean())
-    if mean <= 0 or sigma <= 1e-9 * mean:
+    if not math.isfinite(mean) or mean <= 0:
+        return ExperimentDesign(status="insufficient_history", reasons=["degenerate_kpi"], **base)
+    sigma, rho = _noise(window, daily=period_days == 1)
+    if not math.isfinite(sigma) or sigma <= 1e-9 * mean:
         return ExperimentDesign(status="insufficient_history", reasons=["degenerate_kpi"], **base)
 
     f = (1 + rho) / (1 - rho)
     periods = max(1, math.ceil((Z * sigma * math.sqrt(f) / (target_lift * mean)) ** 2))
-    max_periods = max(1, max_days // period_days)
+    max_periods = max_days // period_days
+    if max_periods < 1:
+        return ExperimentDesign(status="insufficient_history", reasons=["duration_capped"], **base)
     feasible = periods <= max_periods
     periods = min(periods, max_periods)
     mde_abs = Z * sigma * math.sqrt(f * periods)
 
-    in_window = spend_df[spend_df["Date"] >= window["Date"].iloc[0]]
+    in_window = spend_df[spend_df["Date"].isin(window["Date"])]
     per_period = (in_window.groupby("Product Group")["investment"].sum() / len(window)).sort_values(kind="stable")
     cells = []
     for channel, spend in per_period[per_period > 0].items():

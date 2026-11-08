@@ -204,4 +204,5 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - **Janela** `max(90 dias, 30 períodos)` finais do KPI; menos de 30 períodos dá `short_history`, KPI constante ou não positivo dá `degenerate_kpi`, ambos sem números. O gasto por período é a média na mesma janela.
 - **T único para todos os canais**: o efeito-alvo é relativo ao KPI total, e o texto em `assumptions` avisa que desligar canal pequeno dificilmente move tanto.
 - **Só em `inconclusive`** (`build_results`); outros status ficam `null`.
+- **Guardas:** KPI não finito ou constante dá `degenerate_kpi`; `experiment_max_days` menor que a cadência dá `insufficient_history` + `duration_capped`, sem números; o gasto vem só das datas da janela do KPI; erro inesperado no desenho vira warning e `experiment_design` `null`, sem derrubar o run.
 - **Pendência:** os fixtures de `tests/fixtures/results/` seguem sem `experiment_design`: regenerar exige `exemplo_csv/Gol`, que não está na máquina. O E2E do card injeta o dado por `page.route`.
