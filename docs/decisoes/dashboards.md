@@ -44,7 +44,11 @@ Os CSVs saem da API, não do navegador: `events.csv` do `results.json`, `scenari
 
 ## Grounding no cabeçalho só quando existir (08/nov/2026)
 
-O cabeçalho impresso mostra o grounding só quando o `results.json` traz `reports.grounding` (A9). Com `null`, que é o caso de todo run hoje, a linha não aparece: o PDF não afirma um grounding que ninguém avaliou.
+O cabeçalho impresso mostra o grounding só quando o `results.json` traz `reports.grounding` (A9). Com `null` (nenhuma narrativa passou pelo LLM, por exemplo run sem `GEMINI_API_KEY`), a linha não aparece: o PDF não afirma um grounding que ninguém avaliou.
+
+## Narrativa com selo de origem (08/nov/2026)
+
+O cartão "Análise" aparece no evento publicado (aba Causal) e no topo da Elasticidade, com o texto de `reports`. Ele diz de onde veio: sem selo, o texto passou pelo LLM e pelo grounding; "Texto padrão" é o determinístico, montado pelo motor, sem nenhuma tentativa aprovada do LLM (sem chave ou LLM indisponível); "Bloqueado pelo grounding" é o determinístico depois de duas respostas do LLM citarem número ou canal fora do resultado. Ocultar o selo esconderia justamente o que o analista precisa saber antes de citar o texto. O cartão não aparece quando `reports` é `null` (erro interno do motor, ver `docs/decisoes/engine.md` › A9).
 
 ## O front não calcula
 

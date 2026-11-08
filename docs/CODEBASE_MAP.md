@@ -105,7 +105,7 @@ mise.toml       tasks: test, api, web, worker, db-migrate, create-admin, parity*
 
 ## engine/
 
-Pipeline em `pipeline.py`: `run()` valida config -> `get_llm()` -> `validate` (primeiro erro vira `EngineError(check_id)`) -> `compute()` = `load_inputs` -> `detect_events` -> `analyze_events` -> `run_elasticity` -> `identifiability.assess` -> `judge_sufficiency` -> `outputs.write_legacy_outputs` + `generate_reports` -> `results.build_results` -> `results.json`.
+Pipeline em `pipeline.py`: `run()` valida config -> `get_llm()` -> `validate` (primeiro erro vira `EngineError(check_id)`) -> `compute()` = `load_inputs` -> `detect_events` -> `analyze_events` -> `run_elasticity` -> `identifiability.assess` -> `judge_sufficiency` -> `outputs.write_legacy_outputs` -> `narratives.build` -> `results.build_results` -> `results.json`.
 
 | Arquivo | Papel |
 | --- | --- |
@@ -117,12 +117,13 @@ Pipeline em `pipeline.py`: `run()` valida config -> `get_llm()` -> `validate` (p
 | `sufficiency.py` | `spend_cv_min` 0.10, `oos_wmape_max` 0.30; rebaixa eventos para `insufficient_run` |
 | `scenario.py` | `ramp`, notas tCPA/tROAS, `scenario()` mensal (`30/period_days`), `ScenarioFilters` |
 | `results.py`, `results_schema.py` | monta/sanitiza (NaN -> null) e contrato `ResultsV1` (`schema_version=1`) |
-| `outputs.py`, `presentation.py`, `reports.py`, `recommendations.py` | saídas legadas (PNG/CSV/MD/HTML) e relatórios por LLM; cópias do protótipo |
+| `outputs.py`, `presentation.py` | saídas legadas (PNG/CSV/MD); cópias do protótipo |
+| `narratives.py`, `grounding.py` | narrativas por LLM (A9) a partir do `results.json` e checador pós-geração (números, datas e canais contra o payload); uma regeneração, depois texto determinístico |
 | `data_preprocessor.py` | leitura robusta, cadência, parciais, outliers, adstock; cópia evoluída do protótipo |
 | `logmessages.py` | traduz logs para pt-BR por regex (mudar uma mensagem quebra a tradução em silêncio) |
 | `errors.py`, `version.py` | `EngineError`; `ENGINE_VERSION` env -> git -> metadata |
 
-`results.json` v1: `status` (`succeeded|inconclusive|failed`), `validation`, `sufficiency`, `causal`, `elasticity`, `baseline`; `experiment_design` e `reports` sempre `null` (A7/A9). Gates de evento: `not_significant`, `illogical_direction`, `poor_fit`, `placebo_failed`, `model_dependent`, `insufficient_run`, `analysis_failed`.
+`results.json` v1: `status` (`succeeded|inconclusive|failed`), `validation`, `sufficiency`, `causal`, `elasticity`, `baseline`; `experiment_design` sempre `null` (A7); `reports` vem da A9 (`null` se `narratives` falhar por erro interno). Gates de evento: `not_significant`, `illogical_direction`, `poor_fit`, `placebo_failed`, `model_dependent`, `insufficient_run`, `analysis_failed`.
 
 ## web/
 
@@ -171,7 +172,7 @@ Auth: login faz commit antes do scrypt, 5 falhas bloqueiam 15 min, e-mail inexis
 - **Testes:** `tests/conftest.py` define `DATABASE_URL` (`app_test`) antes de importar `api`; cada teste roda em transação com rollback. `ENGINE_FAKE=1` vale em todo teste (autouse); `bcb.get` levanta `AssertionError` por padrão. Paridade (`test_parity.py`) só roda em Linux com as mesmas versões de numpy/pandas/scipy/statsmodels/sklearn; `test_parity_real` precisa de dados confidenciais.
 - **BLAS:** o worker fixa 1 thread; com multithread a curva muda (~7e-4) e o MMM depende da CPU.
 - **Worker:** sem fila nem limite de concorrência; run morto só é marcado `failed` quando alguém consulta (`fail_stale`, 20 min, duplicado na view `usage`).
-- **Gemini:** `api/gemini.py` ainda é usado pela API; `llm/` só pelo `engine/`. Migração pendente (Dev B).
+- **Gemini:** `api/gemini.py` ainda é usado pela API para as sugestões; o worker chama o Gemini pelo `llm/` (A9). Migração pendente (Dev B).
 - **Motor:** `diminishing_return` e `saturation` existem no schema mas o pipeline não preenche; `incremental_investment` do evento é o total do pós-período; `channel_groups`/`block_per_channel` não estão no `ParamsIn`, então dataset colinear com 30+ períodos não roda pela plataforma.
 - **Imagem:** sem migration no `CMD`; `ENGINE_VERSION` via build-arg; `httpx` está só em dev no `pyproject.toml` mas `api/bcb.py` o usa em runtime (confira na imagem `--no-dev`).
 - **Front:** cuidado ao escrever em `web/src/routes/**` com o dev server no ar (gerador do router); número de form fica como string até o PUT.

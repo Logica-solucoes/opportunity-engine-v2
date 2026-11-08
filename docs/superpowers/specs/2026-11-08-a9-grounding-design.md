@@ -98,16 +98,16 @@ Vem de `narratives.deterministic_event(event, payload)` e `deterministic_global(
 
 - `LLMUnavailable` em qualquer chamada: as próximas param, e os relatórios restantes saem determinísticos com `grounding: null` (o mesmo comportamento de hoje).
 - Outro `LLMError`, ou JSON fora do schema: a chamada conta como reprovada, sem issue de número, com `{kind: "output", value: <código>}`, e segue para a regeneração.
-- Exceção inesperada dentro de `narratives`: log `ERROR` com `exc_info` e relatórios determinísticos. O run não falha por causa da narrativa.
+- Exceção inesperada dentro de `narratives` (payload ou texto determinístico): log `ERROR` com `exc_info` e `reports = null`. O run não falha por causa da narrativa. Erro do LLM fica dentro do relatório e cai no determinístico.
 
 ## Código
 
 - `engine/grounding.py` (novo): extração e checagem.
-- `engine/narratives.py` (novo): payload, prompts, schema, chamada com uma regeneração e texto determinístico. `build(results: ResultsV1, cfg, llm) -> Reports`.
+- `engine/narratives.py` (novo): payload, prompts, schema, chamada com uma regeneração e texto determinístico. `build(document: dict, config, llm) -> dict` (recebe o dict sanitizado, não o `ResultsV1`).
 - `engine/pipeline.py`: `run()` chama `narratives.build` depois do `build_results` e antes do `write_results`. Sai a chamada a `outputs.generate_reports`.
 - `engine/outputs.py`: sai o `generate_reports`. O `RECOMMENDATIONS.md` por evento passa a usar o texto determinístico.
 - `engine/reports.py`: removido (só servia ao HTML por LLM). Do `recommendations.py` sai a função antiga, e o módulo some se ficar vazio.
-- `engine/logmessages.py`: as linhas novas de narrativa e grounding já nascem em pt-BR, e as regras do protótipo que só existiam para os HTMLs saem.
+- `engine/logmessages.py`: sem mudança; as linhas novas já nascem em pt-BR.
 - `llm/gemini.py`: `temperature=0` no `generate_json`.
 - `api/launcher.py`: sai `LLM_PROVIDER=none` do `WORKER_ENV`.
 - `web/src/lib/results.ts`: tipos de `reports` (`Narrative`, `GlobalNarrative`).

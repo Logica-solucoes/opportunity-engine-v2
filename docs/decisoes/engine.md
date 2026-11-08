@@ -128,7 +128,7 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 6. `run` roda um run inteiro dentro do processo do worker: nenhum subprocess, nenhuma thread gRPC pendurada (o adaptador do Gemini usa `google-genai`).
 7. **Feito em 05/nov/2026.** **`EngineError` no worker.** `api/worker.py` tem `except EngineError` antes do `except Exception`: o run falha com a mensagem do próprio motor (pt-BR, segura para a tela por contrato) em `runs.error` e no log, e registra o `check_id`. Qualquer outra exceção segue com a mensagem genérica.
 8. **Custo de import.** `from engine import validate` executa o `engine/__init__`, que carrega `pipeline`, statsmodels, sklearn e matplotlib: ~2,2 s e bem mais memória no processo da API (no boot e a cada reload da API). Medir no swap; se pesar, tornar os exports do `__init__` preguiçosos.
-9. **Relatórios do LLM.** O `run` chama o Gemini por evento e mais uma vez no global (até 60 s cada) para gerar os HTML legados, mas `reports` sai `null` no `results.json` (A9) e o worker apaga o diretório. Até o A9, o `api/launcher.py` sobe o worker com `LLM_PROVIDER=none` (feito em 05/nov/2026): o custo, a latência e o envio de agregados do cliente não serviam para nada. Tirar isso do launcher quando o A9 preencher `reports`.
+9. **Relatórios do LLM.** Feito na A9 (08/nov/2026): o HTML do protótipo por LLM saiu, `reports` é preenchido por `narratives.build` (ver A9 abaixo) e o `api/launcher.py` não força mais `LLM_PROVIDER=none`.
 10. O `run` já grava o `results.json` no `out_dir`, mas **o worker continua guardando o dict que o `run` devolve** (`json.dumps`), decidido em 05/nov/2026. Enviar o arquivo quebraria os testes que trocam o `run` por uma lambda, e o ganho é nulo: o dict é o mesmo documento.
 
 ## Limitações conhecidas
@@ -137,9 +137,9 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - Fallbacks de nome de coluna fixos no código (`inputs.py`: `"Start Date"`, `"Ad Opportunities"`, `"dates"`, `"product_group"`, `"total_revenue"`; `config.py`: `"Sessions"`), contra o CODE-STYLE. Uma coluna mapeada que não existe é trocada por outra com só um `log.warning`, que dentro do `validate` não chega a lugar nenhum. Deveria virar check. Dono: Trilha A.
 - **A `message` de `value_not_numeric` (e dos checks que mostram exemplos) leva o valor bruto da coluna, sem limite de tamanho.** Um campo de 200 KB vira uma mensagem de 200 KB no banco e na tela, e o valor é dado do cliente. Truncar os exemplos é da Trilha A.
 - `investment_change_pct = 0` com pré-período zerado (`analysis.py`) é sentinela e chega ao `results.json`.
-- Em `pipeline.py`, `write_legacy_outputs`, `generate_reports` e `build_results` ficam fora do `try`: uma exceção ali sobe crua em vez de `EngineError`. O `log.error` de "análise não produziu resultados" roda depois do `forward_logs` e não chega ao `on_log`.
+- Em `pipeline.py`, `write_legacy_outputs` e `build_results` ficam fora do `try`: uma exceção ali sobe crua em vez de `EngineError`. O `log.error` de "análise não produziu resultados" roda depois do `forward_logs` e não chega ao `on_log`.
 
-- Mensagens do motor ainda misturam inglês (as que não têm regra em `logmessages.py`) e a `reports.py` mantém os prompts em inglês/pt-BR do protótipo (A9).
+- Mensagens do motor ainda misturam inglês (as que não têm regra em `logmessages.py`).
 - `ruff`: o código copiado tem exceções por arquivo em `pyproject.toml` (`# legacy prototype style`); revisar na A10.
 - Duas versões de `hill_transform`, de `create_calendar_features` e três convenções de adstock continuam (achado F10, decisão da A10).
 - `period_days` ainda tem `config.get("period_days", 1)` nos helpers (chave de runtime).
@@ -183,3 +183,15 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - **Gol (A6, 06/nov/2026):** o `validate` bloqueia pelo gate de |r| do A3, não pelo VIF: par GOOGLE DISPLAY/VIDEO × KAYAK r = 0.8501 (> 0.85); VIF máximo 8.99 (KAYAK), abaixo de `vif_max` 10. Então `test_validate_real.py` também falharia no `main` desde o A3. Decisão do dono: a Gol roda com `block_per_channel` (`GOL_RUN_CONFIG`) nos fixtures do A1 e no teste do validate; a paridade mantém `GOL_CONFIG` (o `compute()` não valida). O run da Gol fica `inconclusive`: causal ok (5 publicados, suficiência passou), mas nenhum canal identificável (12 de 12; os dois colineares também levam `collinearity`). Com a decisão 1, nenhum run da Gol chega a `succeeded` hoje, o que importa para o A7 (gatilho `status == "inconclusive"`) e para o B5 parte 2. Para a A10/cliente: o arquivo tem KAIAK e KAYAK como canais (talvez um fornecedor escrito de duas formas).
 - **Revisão final:** canal sinalizado só pelo VIF nunca é sugerido num grupo com um gêmeo de overlap DV360/CM360 (somaria o spend duas vezes).
 - **Decisão 4 (VIF):** `vif_max` 10 como no spec; não medido na Gol/Core (dados indisponíveis aqui).
+
+## A9 · Grounding do Gemini (08/nov/2026)
+
+- **Onde.** `engine/narratives.py` monta o payload, chama o LLM e cai no determinístico; `engine/grounding.py` é o checador (funções puras). O HTML do protótipo por LLM saiu: `reports.py` e `recommendations.py` foram apagados, e o `RECOMMENDATIONS.md` por evento sai do texto determinístico de `reports`.
+- **`reports` no `results.json`:** `events` (um por evento publicado, pelo `id`), `global` (elasticidade) e `grounding` (pior status e issues, ou `null` se nenhuma narrativa passou pelo LLM). Cada relatório traz `source` (`llm` ou `deterministic`), os campos da narrativa e `grounding` (`null` quando veio do determinístico sem tentativa).
+- **Entrada.** `build(document, config, llm)` recebe o dict já sanitizado (`dump_results`), não o `ResultsV1`, porque `engine.scenario` também recebe o dict. O `run` revalida o documento com `ResultsV1` depois de pôr `reports`.
+- **Erro interno não derruba o run.** Exceção fora do LLM (no payload ou no texto determinístico) vira log `ERROR` com `exc_info` e `reports = null`. Erro do LLM fica dentro do relatório e nunca sobe.
+- **Checador.** Números pt-BR casam com o payload pelo arredondamento escrito; percentual casa com a fração; datas em `DD/MM/AAAA` ou por extenso (ver desvio abaixo); canais só os publicados.
+- **Desvio do plano: datas por extenso.** "20 de janeiro de 2025" também é conferida (com ano: dia publicado; sem ano: qualquer dia publicado com o mesmo dia e mês). O prompt pede `DD/MM/AAAA`, mas o modelo escreve por extenso (commit `b0f8636`).
+- **Limites aceitos (não são bug):** inteiro até 12 sem unidade passa sem conferência; número derivado como "28 dias" (duração do período, sem `period_days` no payload) é reprovado; canal inventado que o run não conhece ("Meta" com `META` no run) não é pego.
+- **Fixtures.** `tests/fixtures/results/add_reports.py` preenche `reports` nos JSON versionados com `llm=None` (o que o `generate_fixtures.py` gravaria). Na próxima regeneração completa, o `engine.run` já inclui `reports`.
+- **`logmessages.py` sem mudança.** As linhas novas já saem em pt-BR; as regras antigas dos HTMLs viraram inofensivas.

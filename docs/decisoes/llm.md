@@ -30,13 +30,29 @@ Erros: `LLMError` (base), `LLMUnavailable(reason)` (sem chave, rede, timeout, co
 
 ## `GeminiLLM` (`llm/gemini.py`)
 
-Sobre `google-genai` (importado dentro do adaptador, para o pacote carregar sem o SDK). Sem `temperature` explícito. Mapeamento: sem chave, `429` (`rate_limited`), `500/503/504` (`http_<código>`), timeout e falha de conexão → `LLMUnavailable`; prompt bloqueado → `LLMRefused`; resposta vazia ou JSON inválido → `LLMBadOutput`; qualquer outro erro do SDK → `LLMError`. `generate_json` usa `response_mime_type="application/json"` + `response_json_schema` e tolera *code fence*.
+Sobre `google-genai` (importado dentro do adaptador, para o pacote carregar sem o SDK). `generate_text` sem `temperature`; `generate_json` com `temperature=0` (A9, 08/nov/2026: a narrativa precisa ser a mesma a cada run). Mapeamento: sem chave, `429` (`rate_limited`), `500/503/504` (`http_<código>`), timeout e falha de conexão → `LLMUnavailable`; prompt bloqueado → `LLMRefused`; resposta vazia ou JSON inválido → `LLMBadOutput`; qualquer outro erro do SDK → `LLMError`. `generate_json` usa `response_mime_type="application/json"` + `response_json_schema` e tolera *code fence*.
 
 O SDK antigo (`google-generativeai`) **não** foi adicionado: ele deixava um thread gRPC que travava o processo (origem do `os._exit(0)` do protótipo), o que deixaria o worker pendurado depois de terminar.
 
 ## Como o motor usa
 
-`reports.py` chama `llm.generate_text(prompt, timeout_s=60)` e interpreta o JSON da narrativa onde sempre interpretou (a A9 passa a `generate_json` com `response_schema`). `LLMUnavailable` **não** é embrulhado em `RuntimeError`: o `run` a captura, avisa em pt-BR e deixa de chamar o LLM no resto do run (substitui o casamento de texto de `is_gemini_outage_error`); qualquer outro `LLMError` falha só aquele relatório, que cai no `RECOMMENDATIONS.md` determinístico.
+`engine/narratives.py` chama `llm.generate_json(prompt, schema, timeout_s=60)`, com o `response_schema` vindo do pydantic (`EventNarrative`, `GlobalNarrative`), e valida a resposta com o mesmo modelo. `LLMUnavailable` **não** é embrulhado: o `narratives` a captura, avisa em pt-BR e deixa de chamar o LLM no resto do run (substitui o casamento de texto de `is_gemini_outage_error`). Outro `LLMError`, ou resposta fora do schema, reprova a tentativa como `output` e segue para a regeneração; a falha fica dentro do relatório e nunca derruba o run.
+
+## Grounding (A9, 08/nov/2026)
+
+Toda narrativa que chega à tela passa por `engine/grounding.py` antes de ser publicada:
+
+- **Payload restrito.** O prompt recebe só o que o motor já publicou: lift, IC, p-valores, R², WMAPE, placebo e robustez do evento; status, motivos e curva mensal (`engine.scenario`, sem filtros) da elasticidade; a lista de canais que podem ser citados. Nada de CSV bruto nem dado de linha.
+- **Números.** Todo número do texto (formato pt-BR: `R$ 3,4M`, `89,7%`, `-0,17x`, `1.234`, `3,41 milhões`) tem que casar com um valor do payload, arredondado com a mesma quantidade de casas escrita. Percentual casa também com a fração (`0,897` ↔ `89,7%`).
+- **Datas.** `DD/MM/AAAA` (o prompt pede esse formato) ou por extenso (`20 de janeiro de 2025`): com ano, tem que ser um dia publicado; sem ano, qualquer dia publicado com o mesmo dia e mês. Data ISO no payload conta como publicada.
+- **Canais.** Só canais publicados. Um canal conhecido pelo run mas não publicado (não identificado, evento rejeitado) é reprovado.
+- **Limites aceitos:** inteiro até 12 sem unidade nem casa decimal passa sem conferência (contagens como "3 canais"); um número derivado que não está no payload, como "28 dias" (duração do período, que o payload não traz), é reprovado; e um canal inventado que o run não conhece (ex.: "Meta" quando o run só tem "META") não é pego.
+- **Regeneração.** Reprovado → uma nova chamada com a lista dos problemas no prompt. Reprovado de novo → `grounding.status = "blocked"` e o texto determinístico (`narratives.deterministic_event` / `deterministic_global`, montado só com números do payload, então passa no checador por construção).
+- **`temperature=0`** no `generate_json` (ver adaptador acima).
+- **Sem chave** (`LLM_PROVIDER=none` ou sem `GEMINI_API_KEY`): `get_llm()` devolve `None`, nenhuma chamada, `grounding: null` e texto determinístico.
+- **Worker liga o LLM.** O `api/launcher.py` não força mais `LLM_PROVIDER=none`. Com a chave no `.env` do servidor, o run chama o Gemini: até 2 chamadas por narrativa (uma por evento publicado e uma global), de até 60 s cada.
+
+Ainda pendente: `api/gemini.py` → `llm/` (abaixo). A chave real e a qualidade do texto com o Gemini de verdade não foram verificadas: só o fake e os textos fabricados passaram.
 
 ## Como adicionar um provedor
 

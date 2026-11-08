@@ -23,7 +23,7 @@ O que muda para o B11, porque o Cloud Run fazia sozinho:
 - **Timeout do worker.** O Job expirava em 15 min; um subprocess pendurado roda para sempre. O run é dado como morto aos 20 min (`STALE_AFTER`), mas o processo continua gastando CPU: **Feito em 05/nov/2026:** o worker liga um watchdog (`worker.watchdog`) que encerra o processo com código 1 ao passar do `STALE_AFTER`. O run já está `failed` pela regra de run morto.
 - **TLS, backup do Postgres e do `STORAGE_DIR`, e restart dos containers** passam a ser nossos.
 - **Saída HTTPS para `api.bcb.gov.br`.** Os controles do causal (A4) são buscados pela API ao criar o run; sem essa saída, todo run com controle do BCB dá 502.
-- O worker roda em processo na mesma máquina da API. O `api/launcher.py` sobe o worker com `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` e `MKL_NUM_THREADS` em 1 (um run usa ~1 núcleo, `docs/decisoes/engine.md`) e com `LLM_PROVIDER=none` até o A9. Mesmo assim, runs simultâneos disputam CPU com a API; uma fila entra se isso pesar.
+- O worker roda em processo na mesma máquina da API. O `api/launcher.py` sobe o worker com `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` e `MKL_NUM_THREADS` em 1 (um run usa ~1 núcleo, `docs/decisoes/engine.md`) e sem `LLM_PROVIDER=none` desde a A9 (08/nov/2026): com `GEMINI_API_KEY` no `.env` do servidor, o run chama o Gemini (até 2 chamadas por narrativa, `docs/decisoes/llm.md`). Mesmo assim, runs simultâneos disputam CPU com a API; uma fila entra se isso pesar.
 
 ## Imagem única para API, SPA e worker
 
