@@ -21,3 +21,7 @@ tests/fixtures/parity/real/
 tests/fixtures/results/.private/
 
 .superpowers/
+
+.agents/
+.codex/
+AGENTS.md
