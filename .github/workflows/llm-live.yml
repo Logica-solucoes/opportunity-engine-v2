@@ -1,0 +1,18 @@
+name: llm-live
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run pytest tests/engine/test_narratives_live.py -q
+        env:
+          LLM_LIVE: "1"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
