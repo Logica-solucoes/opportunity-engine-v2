@@ -1,17 +1,18 @@
 import asyncio
 import json
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 import engine
-from api import bcb, logs, runs, simulations, storage
+from api import bcb, exports, logs, runs, simulations, storage
 from api.auth import Ctx, require_role
 from api.db import SessionLocal, get_db
 from api.models import Run, RunLog
@@ -134,15 +135,18 @@ def get_run(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get
 RESULTS_MISSING = "Esta execução não tem resultado."
 
 
-@router.get("/runs/{run_id}/results")
-def get_results(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
-    # the file as the worker wrote it: the engine owns the schema, the API only guards who reads it
-    run = find_run(db, ctx, run_id)
+def results_file(run: Run) -> Path:
     path = storage.path(run.results_uri) if run.results_uri else None
     # a file gone from disk (storage restored older than the db) is a missing result, not a 500
     if path is None or not path.is_file():
         raise HTTPException(404, RESULTS_MISSING)
-    return FileResponse(path, media_type="application/json")
+    return path
+
+
+@router.get("/runs/{run_id}/results")
+def get_results(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
+    # the file as the worker wrote it: the engine owns the schema, the API only guards who reads it
+    return FileResponse(results_file(find_run(db, ctx, run_id)), media_type="application/json")
 
 
 @router.post("/runs/{run_id}/publish", response_model=RunOut)
@@ -185,6 +189,58 @@ def get_scenario(
         return runs.scenario(run, filters)
     except runs.Blocked as e:
         raise HTTPException(409, str(e))
+
+
+NO_CAUSAL = "Esta execução não tem análise causal."
+
+
+def csv_attachment(run: Run, name: str, text: str) -> Response:
+    return Response(
+        text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="execucao-{run.id}-{name}.csv"'},
+    )
+
+
+def scenario_answer(db: Session, ctx: Ctx, run_id: int, filters: engine.ScenarioFilters) -> tuple[Run, dict]:
+    run = find_run(db, ctx, run_id)
+    # no result is a 404, as on the results route; the engine's refusal stays the scenario's 409
+    results_file(run)
+    try:
+        return run, runs.scenario(run, filters)
+    except runs.Blocked as e:
+        raise HTTPException(409, str(e))
+
+
+@router.get("/runs/{run_id}/events.csv")
+def export_events(run_id: RunId, ctx: Ctx = Depends(viewer), db: Session = Depends(get_db)):
+    run = find_run(db, ctx, run_id)
+    results = json.loads(results_file(run).read_text(encoding="utf-8"))
+    if not results.get("causal"):
+        raise HTTPException(404, NO_CAUSAL)
+    return csv_attachment(run, "eventos", exports.events_csv(results))
+
+
+@router.get("/runs/{run_id}/scenario.csv")
+def export_scenarios(
+    run_id: RunId,
+    filters: Annotated[engine.ScenarioFilters, Query()],
+    ctx: Ctx = Depends(viewer),
+    db: Session = Depends(get_db),
+):
+    run, answer = scenario_answer(db, ctx, run_id, filters)
+    return csv_attachment(run, "cenarios", exports.scenario_csv(answer))
+
+
+@router.get("/runs/{run_id}/curve.csv")
+def export_curve(
+    run_id: RunId,
+    filters: Annotated[engine.ScenarioFilters, Query()],
+    ctx: Ctx = Depends(viewer),
+    db: Session = Depends(get_db),
+):
+    run, answer = scenario_answer(db, ctx, run_id, filters)
+    return csv_attachment(run, "curva", exports.curve_csv(answer))
 
 
 def poll(run_id: int, after: int | None, sweep: bool = False) -> tuple[str | None, str, int | None]:

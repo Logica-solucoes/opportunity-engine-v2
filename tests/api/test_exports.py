@@ -4,9 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from api import csvfile, exports
+from api import csvfile, exports, runs, simulations, storage
+from api.engine_config import ParamsIn
+from api.models import Membership
 from engine import ScenarioFilters, scenario
 from engine.scenario import TCPA_NOTE
+from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "results"
 GOL, IDENTIFIABLE = FIXTURES / "gol_anonimizada.json", FIXTURES / "identificavel.json"
@@ -147,3 +150,139 @@ def test_curve_csv_has_a_point_per_line_with_its_filter_flag():
     assert lines[1] == "0,00;195229,73;195229,73;195229,73;0,00;;0,00;0,00;0,00;sim;sim"
     assert len(lines) == 101
     assert {line.rsplit(";", 1)[1] for line in lines[1:]} == {"sim", "não"}
+
+
+# --- routes ---
+
+FILES = ["events.csv", "scenario.csv", "curve.csv"]
+
+
+@pytest.fixture
+def analyst(make_user):
+    return make_user("ana@x.com")
+
+
+@pytest.fixture
+def ws(make_workspace, analyst):
+    return make_workspace("a", [(analyst, "analyst")])
+
+
+@pytest.fixture
+def logged(client, analyst, ws, login_as):
+    login_as(client, analyst)
+    return client
+
+
+@pytest.fixture
+def finished(db, ws, analyst, make_simulation):
+    def make(workspace=None, document=IDENTIFIABLE, results=True):
+        simulation = make_simulation(
+            workspace or ws, analyst, files={"investment": INVESTMENT, "performance": PERFORMANCE}
+        )
+        simulations.save_mapping(db, simulation, MAPPING)
+        simulations.save_params(db, simulation, ParamsIn().model_dump(mode="json"))
+        run = runs.create(db, simulation, set(), by=analyst)
+        run.status = "succeeded"
+        if results:
+            run.results_uri = f"ws/{run.workspace_id}/sim/{run.simulation_id}/runs/{run.id}/results.json"
+            storage.put(run.results_uri, document)
+        db.commit()
+        return run
+
+    return make
+
+
+def url(run, file, slug="a", query=""):
+    return f"/api/w/{slug}/runs/{run.id}/{file}{query}"
+
+
+@pytest.mark.parametrize(
+    ("file", "name"), [("events.csv", "eventos"), ("scenario.csv", "cenarios"), ("curve.csv", "curva")]
+)
+def test_each_csv_is_an_attachment_named_after_the_run(logged, finished, file, name):
+    run = finished()
+
+    r = logged.get(url(run, file))
+
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "text/csv; charset=utf-8"
+    assert r.headers["content-disposition"] == f'attachment; filename="execucao-{run.id}-{name}.csv"'
+    assert r.content.startswith(b"\xef\xbb\xbf")
+
+
+def test_the_events_csv_is_the_documents_events(logged, finished):
+    assert logged.get(url(finished(), "events.csv")).text == exports.events_csv(load(IDENTIFIABLE))
+
+
+def test_the_gol_still_exports_its_events(logged, finished):
+    r = logged.get(url(finished(document=GOL), "events.csv"))
+
+    assert r.status_code == 200 and len(r.text.splitlines()) == 53
+
+
+def test_filters_reach_the_scenario_csv(logged, finished):
+    run = finished()
+
+    every = logged.get(url(run, "scenario.csv")).text
+    capped = logged.get(url(run, "scenario.csv", query="?target_cpa=0.3")).text
+    nothing = logged.get(url(run, "scenario.csv", query="?target_cpa=0.000000001&min_budget=1")).text
+
+    assert "\nRecomendado;85974,50;" in every
+    assert "\nRecomendado;59053,19;" in capped
+    assert "\nRecomendado;" not in nothing and "\nSaturação;" in nothing
+
+
+def test_filters_reach_the_curve_csv(logged, finished):
+    lines = logged.get(url(finished(), "curve.csv", query="?target_cpa=0.000000001&min_budget=1")).text.splitlines()
+
+    assert len(lines) == 101 and all(line.endswith(";não") for line in lines[1:])
+
+
+@pytest.mark.parametrize("file", FILES)
+def test_a_run_without_results_is_not_found(logged, finished, file):
+    r = logged.get(url(finished(results=False), file))
+
+    assert r.status_code == 404 and r.json()["detail"] == "Esta execução não tem resultado."
+
+
+@pytest.mark.parametrize("file", FILES)
+def test_a_run_of_another_workspace_is_not_found(logged, finished, make_workspace, analyst, file):
+    run = finished(workspace=make_workspace("b", [(analyst, "analyst")]))
+
+    assert logged.get(url(run, file, slug="a")).status_code == 404
+
+
+@pytest.mark.parametrize("file", FILES)
+def test_viewer_exports_only_a_published_run(make_client, login_as, make_user, db, ws, finished, analyst, file):
+    run = finished()
+    viewer = make_user("vi@x.com")
+    db.add(Membership(user_id=viewer.id, workspace_id=ws.id, role="viewer"))
+    db.commit()
+    client = make_client()
+    login_as(client, viewer)
+
+    assert client.get(url(run, file)).status_code == 404
+    runs.publish(db, run, by=analyst)
+    assert client.get(url(run, file)).status_code == 200
+
+
+def test_events_csv_without_a_causal_section_is_not_found(logged, finished, tmp_path):
+    document = tmp_path / "results.json"
+    document.write_text(json.dumps({**load(IDENTIFIABLE), "causal": None}), encoding="utf-8")
+
+    r = logged.get(url(finished(document=document), "events.csv"))
+
+    assert r.status_code == 404 and r.json()["detail"] == "Esta execução não tem análise causal."
+
+
+@pytest.mark.parametrize("file", ["scenario.csv", "curve.csv"])
+def test_a_refused_elasticity_is_a_conflict(logged, finished, file):
+    r = logged.get(url(finished(document=GOL), file))
+
+    assert r.status_code == 409 and "não é conclusiva" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("file", ["scenario.csv", "curve.csv"])
+@pytest.mark.parametrize("query", ["?min_budget=-1", "?min_budget=10&max_budget=5", "?foo=1"])
+def test_bad_filters_are_rejected(logged, finished, file, query):
+    assert logged.get(url(finished(), file, query=query)).status_code == 422
