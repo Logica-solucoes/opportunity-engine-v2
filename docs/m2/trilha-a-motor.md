@@ -170,6 +170,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 ## A7 · Experiment designer — semana 3
 
+- **Status:** ✅ backend feito em 08/nov/2026. `engine/experiment.py` + `experiment_design` tipado no `results.json`, só em run `inconclusive`. Verificado: `tests/engine/test_experiment.py` (conta manual, Monte Carlo 80% ± 5 p.p., semanal, histórico curto, KPI degenerado, teto, células) e `test_results_build.py`. Falta: o card do front (depois do A9), regenerar os fixtures (precisa da Gol) e a validação da fórmula pela Data Science.
 - **BRD:** Technical Details §3 (MDE, duração, budget at risk, calibração); Capabilities › Experiment designer.
 - **Depende de:** A6.
 - **Hoje:** nada.

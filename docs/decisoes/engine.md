@@ -196,3 +196,12 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - **Limites aceitos (não são bug):** inteiro até 12 sem unidade passa sem conferência; número derivado como "28 dias" (duração do período, sem `period_days` no payload) é reprovado; canal inventado que o run não conhece ("Meta" com `META` no run) não é pego.
 - **Fixtures.** `tests/fixtures/results/add_reports.py` preenche `reports` nos JSON versionados com `llm=None` (o que o `generate_fixtures.py` gravaria). Na próxima regeneração completa, o `engine.run` já inclui `reports`.
 - **`logmessages.py` sem mudança.** As linhas novas já saem em pt-BR; as regras antigas dos HTMLs viraram inofensivas.
+
+## A7 · Experiment designer (08/nov/2026)
+
+- **Três decisões (spec `2026-11-08-a7-experiment-designer-design.md`).** Um desenho por canal com gasto, em duas células (`on_off` e `step_up` de `max_budget_step`), ordenadas por orçamento em risco; σ do baseline calendário + tendência (dia da semana só no diário); calibração com experimento anterior fora do M2.
+- **Fórmula provisória** (a Data Science valida): MDE da soma do KPI em T períodos = (1,96 + 0,84)·σ·√(f·T), com f = (1+ρ)/(1−ρ) do AR(1) dos resíduos. ρ é cortado em [0, 0,95]: negativo encolheria o MDE, perto de 1 explode f. T é o menor que deixa o MDE em `experiment_target_lift` (5%) do KPI; acima de `experiment_max_days` (90) o T trava e sai `duration_capped`.
+- **Janela** `max(90 dias, 30 períodos)` finais do KPI; menos de 30 períodos dá `short_history`, KPI constante ou não positivo dá `degenerate_kpi`, ambos sem números. O gasto por período é a média na mesma janela.
+- **T único para todos os canais**: o efeito-alvo é relativo ao KPI total, e o texto em `assumptions` avisa que desligar canal pequeno dificilmente move tanto.
+- **Só em `inconclusive`** (`build_results`); outros status ficam `null`.
+- **Pendência:** os fixtures de `tests/fixtures/results/` seguem sem `experiment_design`: regenerar exige `exemplo_csv/Gol`, que não está na máquina. O E2E do card injeta o dado por `page.route`.
