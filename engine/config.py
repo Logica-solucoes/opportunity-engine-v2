@@ -70,6 +70,8 @@ class EngineConfig(Strict):
     country_code: str = "BR"
     per_channel_investment_limit_factor: float = Field(default=3.0, gt=1)
     max_channel_mix_share: float = Field(default=0.4, gt=0, le=1)
+    experiment_target_lift: float = Field(default=0.05, gt=0, lt=1)  # A7: lift relative to the KPI the test must see
+    experiment_max_days: int = Field(default=90, ge=7)  # A7: longest test worth proposing
     minimum_acceptable_iroi: float = Field(default=0, ge=0)
     min_marketing_contribution: float = Field(default=0.05, ge=0, lt=1)
     reallocation_min_cv_r2: float = 0.1

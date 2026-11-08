@@ -2,7 +2,16 @@ import pytest
 from pydantic import ValidationError
 
 from engine.results import sanitize
-from engine.results_schema import SCHEMA_VERSION, CausalEvent, Collinearity, Reports, ResultsV1, Sufficiency
+from engine.results_schema import (
+    SCHEMA_VERSION,
+    CausalEvent,
+    Collinearity,
+    ExperimentCell,
+    ExperimentDesign,
+    Reports,
+    ResultsV1,
+    Sufficiency,
+)
 
 ROOT_KEYS = {
     "schema_version",
@@ -68,3 +77,16 @@ def test_the_a3_and_a6_fields_are_optional():
     assert Collinearity().unresolved == []
     sufficiency = Sufficiency(passed=False)
     assert sufficiency.reasons == [] and sufficiency.cv_out_of_sample is None
+
+
+def test_experiment_design_without_history_has_only_the_reason():
+    d = ExperimentDesign(status="insufficient_history", reasons=["short_history"], period_days=1, target_lift=0.05)
+
+    assert d.sigma is None and d.designs == [] and d.feasible is None
+
+
+def test_experiment_design_is_closed():
+    with pytest.raises(ValidationError):
+        ExperimentDesign(status="ok", period_days=1, target_lift=0.05, extra=1)
+    with pytest.raises(ValidationError):
+        ExperimentCell(channel="A", test_type="geo", step=None, spend_per_period=1, budget_at_risk=1)

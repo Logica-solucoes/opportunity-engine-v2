@@ -31,6 +31,7 @@ def test_defaults_match_the_spec():
     assert c.reallocation_min_cv_r2 == 0.1 and c.minimum_acceptable_iroi == 0
     assert c.treat_outliers is False and c.channel_groups == [] and c.controls == []
     assert c.block_per_channel is False and c.gate_thresholds == {}
+    assert c.experiment_target_lift == 0.05 and c.experiment_max_days == 90
 
 
 def test_extra_key_is_an_engine_error_naming_the_field():

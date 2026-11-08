@@ -61,7 +61,29 @@ class Sufficiency(_Model):
     cv_out_of_sample: bool | None = None  # False: the elasticity CV fell back to in-sample (under 40 rows)
 
 
-ExperimentDesign = dict[str, Any]
+class ExperimentCell(_Model):
+    channel: str
+    test_type: Literal["on_off", "step_up"]
+    step: float | None  # max_budget_step on a step_up; None on an on_off
+    spend_per_period: float
+    budget_at_risk: float
+
+
+class ExperimentDesign(_Model):
+    status: Literal["ok", "insufficient_history"]
+    reasons: list[str] = Field(default_factory=list)  # short_history, degenerate_kpi, duration_capped
+    period_days: int
+    target_lift: float
+    sigma: float | None = None
+    rho: float | None = None
+    kpi_per_period: float | None = None
+    duration_periods: int | None = None
+    duration_days: int | None = None
+    feasible: bool | None = None
+    mde_abs: float | None = None  # KPI summed over the test
+    mde_rel: float | None = None  # fraction of the KPI over the test
+    designs: list[ExperimentCell] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)  # pt-BR, ready for the screen
 
 
 class Grounding(_Model):
