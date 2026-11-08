@@ -92,8 +92,9 @@ def test_fixtures_only_use_anonymous_channel_names(name):
     channels |= {ch for row in data["elasticity"]["response_curve"][:1] for mix in row["mix"].values() for ch in mix}
     channels |= {ch for m in data["baseline"]["monthly"] for ch in m["by_channel"]}
     assert channels and all(ANONYMOUS.match(c) or c == UNIDENTIFIED for c in channels)  # A5 pools hidden channels
-    for text in _strings(data):
+    for text in _strings({k: v for k, v in data.items() if k != "reports"}):
         assert "exemplo_csv" not in text and "/" not in text
+    assert all("exemplo_csv" not in text for text in _strings(data["reports"]))  # narratives quote dd/mm/yyyy dates
 
 
 def _gol_available():
@@ -117,3 +118,14 @@ def test_fixtures_carry_the_validation_report(name):
     report = ResultsV1.model_validate(_load(name)).validation
     assert report is not None and report.ok
     assert report.channels and report.date_range
+
+
+@pytest.mark.parametrize("name", ["gol_anonimizada.json", "gol_inconclusiva.json", "identificavel.json", "falha.json"])
+def test_fixtures_carry_the_deterministic_reports(name):
+    document = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    reports = document["reports"]
+    published = {e["id"] for e in (document["causal"] or {}).get("events", []) if e["status"] == "published"}
+    assert set(reports["events"]) == published
+    assert all(r["source"] == "deterministic" and r["grounding"] is None for r in reports["events"].values())
+    assert reports["global"]["source"] == "deterministic"
+    assert reports["grounding"] is None

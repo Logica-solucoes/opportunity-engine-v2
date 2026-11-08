@@ -15,10 +15,11 @@ identifiable synthetic no event). Add one when a dataset gets there.
 
 What a screen can assume
 - Read `status` and `reasons` (run level, per section, per event); never recompute a gate.
-- `null` means "not produced": `experiment_design` and `reports` (A7, A9); `placebo.passed` is `null` when the
+- `null` means "not produced": `experiment_design` (A7); `placebo.passed` is `null` when the
   pre-period was too short to run it; `placebo`, `robustness` and `fit.wmape` are `null` on an event the primary
   gates (significance, direction, fit) already rejected, since those fits only run for events still in contention.
 - A hidden channel's spend is pooled under `"Não identificados"` in every mix.
+- `reports` (A9) is always filled: one deterministic narrative per published event and a global one, `grounding: null` (the fixtures run with no LLM).
 - No `NaN`/`Infinity` anywhere; a missing number is `null`.
 
 Anonymization (`anonymize_gol.py`): channels become `CANAL_01..NN`; investment and KPI are multiplied by two private factors
@@ -30,6 +31,10 @@ Regenerate (needs `exemplo_csv/Gol` and the same `.private/factors.json`; ~6 min
 where the parity holds):
 
     uv run python tests/fixtures/results/generate_fixtures.py
+
+`reports` alone can be refilled without the Gol data (the narratives only read the document):
+
+    uv run python tests/fixtures/results/add_reports.py
 
 The E2E serves `gol_anonimizada.json` through the fake engine (`FAKE_ENGINE_RESULTS`), so `web/e2e/` checks its
 numbers: update those specs when the fixture changes.
