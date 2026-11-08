@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { ExportBar } from '@/components/ExportBar'
+import { NarrativeCard } from '@/components/NarrativeCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ApiError } from '@/lib/api'
 import { type Elasticity, formatDecimal, reasonLabel, resultsQuery } from '@/lib/results'
@@ -29,8 +30,18 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
       </p>
     )
   const elasticity = query.data.elasticity
+  const report = query.data.reports?.global
   return (
     <section aria-label="Elasticidade">
+      {report && (
+        <div className="mb-6">
+          <NarrativeCard
+            report={report}
+            paragraphs={[report.summary, ...report.scenarios.map((s) => `${s.name}: ${s.analysis}`)]}
+            items={report.recommendations}
+          />
+        </div>
+      )}
       {!elasticity ? (
         <p className="text-sm text-muted-foreground">Sem análise de elasticidade nesta execução.</p>
       ) : scenarioRefused(elasticity) ? (

@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import { NarrativeCard } from '@/components/NarrativeCard'
 import { Badge } from '@/components/ui/badge'
 import {
   type CausalEvent,
+  type EventReport,
   eventNotes,
   eventPeriod,
   formatDecimal,
@@ -16,7 +18,7 @@ import {
 } from '@/lib/results'
 import { AccuracyChart, ImpactChart, InvestmentBars, KpiBars } from './EventCharts'
 
-export function EventDetail({ event }: { event: CausalEvent }) {
+export function EventDetail({ event, report }: { event: CausalEvent; report?: EventReport }) {
   const published = event.status === 'published'
   return (
     <section aria-label="Evento selecionado" className="min-w-0 space-y-4">
@@ -32,6 +34,9 @@ export function EventDetail({ event }: { event: CausalEvent }) {
           </p>
         ))}
       </div>
+      {published && report && (
+        <NarrativeCard report={report} paragraphs={[report.verdict, report.analysis]} items={report.next_steps} />
+      )}
       {published ? <Published event={event} /> : <Rejected event={event} />}
     </section>
   )

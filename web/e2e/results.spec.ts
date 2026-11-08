@@ -24,12 +24,18 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   await expect(detail).toContainText('-31,1%')
   await expect(detail.locator('.recharts-surface').first()).toBeVisible()
 
+  // A9: the published event carries its narrative; the E2E runs with no API key, so it is the deterministic text
+  const analysis = detail.getByRole('region', { name: 'Análise' })
+  await expect(analysis).toContainText('Texto padrão')
+  await expect(analysis).toContainText('Queda de')
+
   await analystPage.getByRole('button', { name: 'Todos', exact: true }).click()
   await analystPage.getByRole('button', { name: /Não significativo/ }).first().click()
   await expect(detail).toContainText('Rejeitado')
   await expect(detail).toContainText('Não significativo')
   await expect(detail).not.toContainText('%')
   await expect(detail).not.toContainText('R$')
+  await expect(detail.getByRole('region', { name: 'Análise' })).toHaveCount(0)
   await expect(detail.locator('.recharts-surface')).toHaveCount(0)
 
   await analystPage.getByRole('link', { name: 'Detalhes' }).click()

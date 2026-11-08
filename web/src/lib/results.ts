@@ -37,13 +37,21 @@ export type Elasticity = {
   metrics: { cv_r2: number | null; low_confidence: boolean | null; reallocation_suppressed: boolean | null } | null
   channels: ChannelFit[]
 }
-export type Grounding = { status: 'passed' | 'regenerated' | 'blocked' }
+export type Grounding = { status: 'passed' | 'regenerated' | 'blocked'; issues: unknown[] }
+export type ReportBase = { source: 'llm' | 'deterministic'; title: string; grounding: Grounding | null }
+export type EventReport = ReportBase & { verdict: string; analysis: string; next_steps: string[] }
+export type GlobalReport = ReportBase & {
+  summary: string
+  scenarios: { name: string; analysis: string }[]
+  recommendations: string[]
+}
+export type Reports = { events: Record<string, EventReport>; global: GlobalReport | null; grounding: Grounding | null }
 export type Results = {
   status: 'succeeded' | 'inconclusive' | 'failed'
   causal: Causal | null
   elasticity: Elasticity | null
-  // null until the A9 judges the reports
-  reports: { grounding: Grounding | null } | null
+  // null only when the engine could not build them (A9); grounding is null when no report went through the LLM
+  reports: Reports | null
 }
 
 export const resultsQuery = (slug: string, runId: string) =>

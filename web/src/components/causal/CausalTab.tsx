@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   type Causal,
+  type Reports,
   channelsLabel,
   eventPeriod,
   eventsCsvHref,
@@ -27,10 +28,10 @@ export function CausalTab({ slug, runId }: { slug: string; runId: string }) {
     )
   const causal = query.data.causal
   if (!causal) return <p className="text-sm text-muted-foreground">Sem análise causal nesta execução.</p>
-  return <CausalView causal={causal} csvHref={eventsCsvHref(slug, runId)} />
+  return <CausalView causal={causal} reports={query.data.reports} csvHref={eventsCsvHref(slug, runId)} />
 }
 
-function CausalView({ causal, csvHref }: { causal: Causal; csvHref: string }) {
+function CausalView({ causal, reports, csvHref }: { causal: Causal; reports: Reports | null; csvHref: string }) {
   const published = causal.events.filter((e) => e.status === 'published')
   const [showAll, setShowAll] = useState(false)
   const [selectedId, setSelectedId] = useState(published[0]?.id ?? null)
@@ -112,7 +113,7 @@ function CausalView({ causal, csvHref }: { causal: Causal; csvHref: string }) {
             )}
           </section>
           {selected ? (
-            <EventDetail event={selected} />
+            <EventDetail event={selected} report={reports?.events[selected.id]} />
           ) : (
             <p className="text-sm text-muted-foreground">Selecione um evento.</p>
           )}
