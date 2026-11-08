@@ -11,6 +11,9 @@ from engine.errors import EngineError
 DAYS_PER_MONTH = 30
 NO_CURVE = "Esta execução não tem curva de resposta para simular cenários."
 NOT_CONCLUSIVE = "A análise de elasticidade desta execução não é conclusiva; não há cenário para simular."
+# a curve built from channels the engine could not identify, or no model at all; a short history (cv_in_sample) still
+# answers, under the low-confidence warning
+REFUSED_REASONS = {"no_identifiable_channel", "model_failed"}
 
 TCPA_NOTE = (
     "Campanhas com CPA desejado (tCPA): mudar a verba pode pedir ajuste do CPA desejado. Espere o período de "
@@ -215,8 +218,10 @@ def _channels(elasticity: dict, rows: list[dict], current_investment: float, fac
             for p in points
         ]
         observed = channel.get("observed_spend_range")
-        index = _saturation_index(curve, 0.0)
         name = channel["name"]
+        spend = share[name] * current_investment if name in share else None
+        # like the aggregate, saturation is searched from today's spend up: never a point that says "cut"
+        index = _saturation_index(curve, spend or 0.0)
         out.append(
             {
                 "name": name,
@@ -224,7 +229,7 @@ def _channels(elasticity: dict, rows: list[dict], current_investment: float, fac
                 "observed_range": [observed[0] * factor, observed[1] * factor]
                 if observed and None not in observed
                 else None,
-                "current": share[name] * current_investment if name in share else None,
+                "current": spend,
                 "saturation": curve[index]["investment"] if index is not None else None,
             }
         )
@@ -238,8 +243,7 @@ def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) ->
     Pure over the results.json dict: the curve is the one the run simulated; filters only pick points of it.
     """
     elasticity = results.get("elasticity") or {}
-    # an inconclusive curve comes from channels the engine could not identify: no number of it reaches a screen
-    if elasticity and elasticity.get("status") != "ok":
+    if elasticity.get("status") == "failed" or REFUSED_REASONS & set(elasticity.get("reasons") or []):
         raise EngineError(NOT_CONCLUSIVE)
     rows = elasticity.get("response_curve") or []
     current = next((s for s in elasticity.get("scenarios") or [] if s["name"] == "current"), None)

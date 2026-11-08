@@ -238,12 +238,6 @@ def test_only_identifiable_channels_come_back_monthly():
     assert channel["current"] == pytest.approx(0.6 * 20.0 * factor)  # historical share x current investment
 
 
-def test_a_channel_saturation_is_a_point_of_its_own_curve():
-    channel = scenario(_with_channels(_doc(MIXED)), ScenarioFilters(), 0.2)["channels"][0]
-
-    assert channel["saturation"] in [p["investment"] for p in channel["curve"]]
-
-
 def test_a_document_without_channels_or_mix_still_answers():
     got = scenario(_doc(CONVERSIONS), ScenarioFilters(), 0.2)
 
@@ -341,13 +335,39 @@ def test_a_budget_cut_has_no_incremental_return():
     assert got["recommended"]["icpa"] is None and got["recommended"]["iroas"] is None
 
 
-@pytest.mark.parametrize("status", ["inconclusive", "failed"])
-def test_an_elasticity_that_is_not_ok_is_refused(status):
+@pytest.mark.parametrize(
+    ("status", "reasons"),
+    [
+        ("inconclusive", ["no_identifiable_channel"]),
+        ("inconclusive", ["no_identifiable_channel", "cv_in_sample"]),
+        ("failed", ["model_failed"]),
+    ],
+)
+def test_an_elasticity_without_identifiable_channels_is_refused(status, reasons):
     doc = _doc(CONVERSIONS)
-    doc["elasticity"]["status"] = status
+    doc["elasticity"].update(status=status, reasons=reasons)
 
     with pytest.raises(EngineError, match=NOT_CONCLUSIVE):
         scenario(doc, ScenarioFilters(), 0.2)
+
+
+def test_a_short_history_alone_still_answers():
+    doc = _doc(CONVERSIONS)
+    doc["elasticity"].update(status="inconclusive", reasons=["cv_in_sample"])
+
+    assert scenario(doc, ScenarioFilters(), 0.2)["recommended"] is not None
+
+
+def test_a_channel_saturation_is_searched_from_its_current_spend():
+    doc = _with_channels(_doc(MIXED))
+    curve = [(0, 10), (4, 20), (8, 21), (12, 21.1), (16, 21.15), (20, 21.16), (24, 21.161)]
+    doc["elasticity"]["channels"][0]["curve"] = [{"x": x, "y": y, "extrapolated": False} for x, y in curve]
+
+    channel = scenario(doc, ScenarioFilters(), 0.2)["channels"][0]
+
+    # from zero the gain fades at x=8 (240/month), below A's current 0.6 × 20 × 30 = 360
+    assert channel["current"] == pytest.approx(360.0)
+    assert channel["saturation"] == pytest.approx(24 * 30)
 
 
 def test_the_gol_is_refused_because_no_channel_is_identifiable():
