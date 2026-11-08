@@ -39,12 +39,12 @@ Uma entrada por canal de `elasticity.channels` com `identifiable` verdadeiro e `
   "name": str,
   "curve": [{"investment", "kpi", "kpi_lo", "kpi_hi", "extrapolated"}],   # x, y, lo, hi × fator
   "observed_range": [lo, hi] | None,                                       # observed_spend_range × fator
-  "current": float | None,                                                 # mix.historical[name] da linha da curva agregada mais próxima do atual × fator
+  "current": float | None,                                                 # participação no mix.historical × investimento atual mensal
   "saturation": float | None                                               # investimento do _saturation_index na curva do canal, a partir de 0
 }
 ```
 
-Canal não identificável não entra (o nome e os motivos a tela lê do `results.json`). **Primeiro passo do plano:** confirmar em `engine/results.py` e `engine/elasticity_analysis.py` que `ChannelFit.curve.x/y`, `observed_spend_range` e `response_curve[].mix` estão na mesma unidade de `response_curve[].investment`; se não estiverem, o fator do canal muda e a spec é corrigida antes do código. O `current` do canal sai do mix histórico da linha da curva agregada cujo `investment` é o mais próximo do atual (seleção, não interpolação); se o plano achar fonte melhor no `results.json` (ex.: um campo de gasto atual por canal), usa a fonte e anota aqui.
+Canal não identificável não entra (o nome e os motivos a tela lê do `results.json`). Unidades conferidas em 07/nov/2026: `ChannelFit.curve.x` (`Channel_Spend`), `observed_spend_range` e `response_curve[].mix` são diários, como `response_curve[].investment`, então o fator é o mesmo. A participação histórica de cada canal é constante ao longo da curva, então o `current` do canal é essa participação × o investimento atual, exato.
 
 ### `mix` nas linhas da tabela
 
@@ -111,7 +111,7 @@ Campo `null` vira "—"; série vazia some com o gráfico. Cores das séries vê
 - `tests/engine/test_scenario.py` e o teste de API acima.
 - `web/e2e/elasticity.spec.ts`:
   1. Com a Gol (o `FAKE_ENGINE_RESULTS` de hoje): a aba Elasticidade mostra o alerta com "Nenhum canal com efeito identificável" e nenhum "R$".
-  2. Caso feliz com `page.route` servindo `tests/fixtures/results/identificavel.json` em `…/results` e `tests/fixtures/results/identificavel_scenario.json` em `…/scenario` (gerado pelo `generate_fixtures.py` chamando `engine.scenario` sem filtro): tabela com as três colunas, banner de baixa confiança, curva visível, aviso no mix, curva de `STRONG` e `NOEFFECT` só com o motivo.
+  2. Caso feliz com `page.route` servindo `tests/fixtures/results/identificavel.json` em `…/results` e `tests/fixtures/results/identificavel_scenario.json` em `…/scenario` (gerado por `tests/fixtures/results/scenario_fixture.py`, `engine.scenario` sem filtro; um teste avisa quando fica velho): tabela com as três colunas, banner de baixa confiança, curva visível, aviso no mix, curva de `STRONG` e `NOEFFECT` só com o motivo.
   3. Mexer num filtro dispara uma nova chamada ao `scenario` com o parâmetro na query string.
 - Os specs do B4, B6 e da Causal continuam passando.
 - Manual: screenshots nos dois temas (Gol inconclusiva e `identificavel`) e o slider respondendo em < 500 ms com a API real (DevTools, run do `identificavel`).
