@@ -25,3 +25,4 @@ tests/fixtures/results/.private/
 .agents/
 .codex/
 AGENTS.md
+deploy/.env

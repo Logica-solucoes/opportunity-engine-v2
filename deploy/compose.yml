@@ -1,0 +1,49 @@
+# Production on the own server (B11). Run from the repo root:
+#   TAG=$(git rev-parse --short HEAD) docker compose -f deploy/compose.yml --env-file deploy/.env up -d
+name: gem
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: gem:${TAG:?set TAG to the image tag (git sha)}
+    command: ["alembic", "-c", "api/alembic.ini", "upgrade", "head"]
+    environment: &db
+      DATABASE_URL: postgresql+psycopg://app:${POSTGRES_PASSWORD}@postgres:5432/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: gem:${TAG}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *db
+      # the port only listens on localhost, so the server's proxy is the only one that can set X-Forwarded-For
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - storage:/app/data
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  storage:
