@@ -8,6 +8,7 @@ from api.models import Membership
 from tests.samples import INVESTMENT, MAPPING, PERFORMANCE
 
 GOL = Path(__file__).resolve().parents[1] / "fixtures" / "results" / "gol_anonimizada.json"
+IDENTIFIABLE = GOL.with_name("identificavel.json")
 PARAMS = ParamsIn().model_dump(mode="json")
 
 
@@ -40,12 +41,12 @@ def ready(db, ws, analyst, make_simulation):
     return make
 
 
-def finished(db, simulation, analyst, with_results=True):
+def finished(db, simulation, analyst, with_results=True, document=IDENTIFIABLE):
     run = runs.create(db, simulation, set(), by=analyst)
     run.status = "succeeded"
     if with_results:
         key = f"ws/{run.workspace_id}/sim/{run.simulation_id}/runs/{run.id}/results.json"
-        storage.put(key, GOL)
+        storage.put(key, document)
         run.results_uri = key
     db.commit()
     return run
@@ -106,3 +107,20 @@ def test_bad_filters_are_rejected(logged, db, ready, analyst, query):
     run = finished(db, ready(), analyst)
 
     assert logged.get(url(run, query=query)).status_code == 422
+
+
+def test_an_inconclusive_elasticity_is_a_conflict(logged, db, ready, analyst):
+    run = finished(db, ready(), analyst, document=GOL)
+
+    r = logged.get(url(run))
+
+    assert r.status_code == 409 and "não é conclusiva" in r.json()["detail"]
+
+
+def test_the_scenario_has_the_identifiable_channels(logged, db, ready, analyst):
+    run = finished(db, ready(), analyst)
+
+    body = logged.get(url(run)).json()
+
+    assert [c["name"] for c in body["channels"]] == ["STRONG"]
+    assert body["recommended"]["mix"]["historical"]

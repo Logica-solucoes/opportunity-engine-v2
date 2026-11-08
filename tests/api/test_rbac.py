@@ -8,7 +8,8 @@ from api.auth import RANK
 from api.engine_config import ParamsIn
 from tests.samples import GOOGLE_CONFIG, GOOGLE_PERIOD, INVESTMENT, MAPPING, PERFORMANCE
 
-GOL = Path(__file__).resolve().parents[1] / "fixtures" / "results" / "gol_anonimizada.json"
+# identifiable, so the scenario route answers 200 (the Gol's elasticity is inconclusive: 409)
+RESULTS = Path(__file__).resolve().parents[1] / "fixtures" / "results" / "identificavel.json"
 PUBLIC, SESSION, PLATFORM = "public", "session", "platform"
 ACTORS = ["anon", "viewer", "analyst", "admin", "platform"]
 
@@ -91,7 +92,7 @@ def env(db, stream_db, make_user, make_workspace, make_simulation, password, fak
     run = runs.create(db, simulation, set(), by=users["analyst"])
     run.status, run.published_at = "succeeded", func.now()
     run.results_uri = f"ws/{run.workspace_id}/sim/{run.simulation_id}/runs/{run.id}/results.json"
-    storage.put(run.results_uri, GOL)
+    storage.put(run.results_uri, RESULTS)
     db.commit()
     return {
         "users": users,

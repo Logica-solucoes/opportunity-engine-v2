@@ -8,6 +8,7 @@ Real-shaped `results.json` documents (schema v1, `engine/results_schema.py`) for
 | `gol_inconclusiva.json` | `inconclusive` | Same data with no eligible event (`causal.reasons == ["no_eligible_events"]`) |
 | `falha.json` | `failed` | Nothing worked: `elasticity.reasons == ["model_failed"]`, no events |
 | `identificavel.json` | `inconclusive` | Synthetic (`make_identifiable_dataset`, not anonymized): `STRONG` identifiable with its curve, `NOEFFECT` not; the one event fails the placebo |
+| `identificavel_scenario.json` | — | `engine.scenario` sem filtro sobre `identificavel.json` (o E2E da aba Elasticidade serve este arquivo); regenere com `uv run python tests/fixtures/results/scenario_fixture.py` sempre que o `identificavel.json` ou o `scenario` mudarem — `test_the_e2e_scenario_fixture_is_up_to_date` avisa |
 
 No fixture is `succeeded`: since A5/A6 no dataset we have reaches it (the Gol has no identifiable channel, the
 identifiable synthetic no event). Add one when a dataset gets there.

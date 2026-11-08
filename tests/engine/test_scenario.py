@@ -413,3 +413,9 @@ def test_saturation_floor_keeps_the_ceiling_at_or_above_current_spend():
 def test_saturation_falls_back_when_the_curve_never_rises_or_is_too_short():
     assert _saturation_index(_curve([0, 10, 20], [100, 90, 80]), 0.0) is None
     assert _saturation_index(_curve([0], [100]), 0.0) is None
+
+
+def test_the_e2e_scenario_fixture_is_up_to_date():
+    from tests.fixtures.results.scenario_fixture import TARGET, build
+
+    assert json.loads(TARGET.read_text(encoding="utf-8")) == json.loads(json.dumps(build()))
