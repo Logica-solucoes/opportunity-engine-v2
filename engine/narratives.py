@@ -307,27 +307,33 @@ def _published_by_elasticity(document: dict, payload: dict) -> set[str]:
     return published.union(*(members.get(name, []) for name in published))
 
 
-def build(document: dict, config: EngineConfig, llm: LLM | None) -> dict:
-    """The `reports` section: a narrative per published event and a global one, each from the LLM when it passes the
-    grounding check (at most two tries) or the deterministic text otherwise."""
+def jobs(document: dict, config: EngineConfig) -> list[tuple[str, Kind, dict, set[str]]]:
+    """What `build` asks the LLM about: (key, kind, payload, channels it may cite) per published event, then the global."""
     kpi = config.column_mapping.get("performance_file", {}).get("kpi_col") or "KPI"
     revenue = config.kpi_is_monetary or config.optimization_target == "REVENUE"
     sufficiency = (document.get("sufficiency") or {}).get("reasons") or []
-    names = universe(document)
-    jobs = [
+    found = [
         (event["id"], EVENT, event_payload(event, kpi, config.p_value_threshold, sufficiency), set(event["channels"]))
         for event in (document.get("causal") or {}).get("events") or []
         if event["status"] == "published"
     ]
     payload = global_payload(document, config, kpi, revenue)
     if payload is not None:
-        jobs.append(("global", GLOBAL, payload, _published_by_elasticity(document, payload)))
-    if llm is not None and jobs:
+        found.append(("global", GLOBAL, payload, _published_by_elasticity(document, payload)))
+    return found
+
+
+def build(document: dict, config: EngineConfig, llm: LLM | None) -> dict:
+    """The `reports` section: a narrative per published event and a global one, each from the LLM when it passes the
+    grounding check (at most two tries) or the deterministic text otherwise."""
+    names = universe(document)
+    jobs_ = jobs(document, config)
+    if llm is not None and jobs_:
         log.info("Gerando as narrativas com a IA e conferindo os números (grounding)...")
 
     started = time.monotonic()
     reports: dict = {"events": {}, "global": None, "grounding": None}
-    for key, kind, payload, published in jobs:
+    for key, kind, payload, published in jobs_:
         narrative, judged = None, None
         if llm is not None and time.monotonic() - started > LLM_BUDGET_S:
             log.warning("AVISO: o tempo reservado para a IA acabou; os próximos relatórios usarão o texto padrão.")

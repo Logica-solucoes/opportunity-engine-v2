@@ -1,0 +1,92 @@
+{
+  "gol_anonimizada.json": {
+    "default_advertiser_CANAL_06,_CANAL_08_2025-01-20": {
+      "title": "Relatório de Avaliação Causal: Investimento em Mídia",
+      "verdict": "A redução de verba nos canais CANAL_06 e CANAL_08 causou uma queda estatisticamente significante no kpi entre 20/01/2025 e 03/02/2025.",
+      "analysis": "No período de 20/01/2025 a 03/02/2025, a variação de investimento de -33,57% nos canais CANAL_06 e CANAL_08 (com investimento pós-período de R$ 140.700,00) causou uma retração de -31,11% no kpi. O impacto absoluto estimado foi de -514.400,00 (intervalo de confiança de 95% entre -671.600,00 e -357.100,00), com CPA incremental de -0,27 e R² de 0,53. O teste atingiu significância com p-valor abaixo do limiar de 0,05.",
+      "next_steps": [
+        "Reavaliar a contenção orçamentária aplicada aos canais CANAL_06 e CANAL_08 para conter a retração no kpi.",
+        "Definir novo patamar de investimento com base no CPA incremental de -0,27.",
+        "Planejar novos testes controlados para calibrar o volume ótimo de investimento."
+      ]
+    },
+    "default_advertiser_CANAL_08_2025-03-03": {
+      "title": "Relatório de Avaliação Causal - CANAL_08",
+      "verdict": "O aumento de investimento no CANAL_08 gerou um impacto causal positivo e estatisticamente significativo no kpi, atendendo aos critérios de publicação.",
+      "analysis": "Entre 03/03/2025 e 17/03/2025, a variação de investimento no CANAL_08 foi de 239%, com investimento no período de R$ 52.810. O modelo causal apontou um lift absoluto de 611.300 no kpi (intervalo de confiança de 95% entre 423.500 e 799.100) e um lift relativo de 79,48%. O CPA incremental foi de R$ 0,09. O modelo apresentou R2 de 0,43, WMAPE de 0,13 e p-valor do teste placebo de 0,76.",
+      "next_steps": [
+        "Avaliar a sustentabilidade da eficiência mantendo a alocação de orçamento no CANAL_08.",
+        "Monitorar o kpi e o CPA incremental em execuções subsequentes."
+      ]
+    },
+    "default_advertiser_CANAL_08_2025-03-17": {
+      "title": "Relatório de Avaliação Causal: Impacto no kpi no CANAL_08",
+      "verdict": "A redução de investimento no CANAL_08 gerou uma queda estatisticamente significante no kpi entre 17/03/2025 e 31/03/2025.",
+      "analysis": "No período de 17/03/2025 a 31/03/2025, o investimento no CANAL_08 sofreu uma variação de -64,42%, totalizando R$ 7.638,00 no pós-período. Como consequência, o modelo causal estimou uma redução relativa no kpi de -34,36% e impacto absoluto de -633.600,00, com intervalo de confiança de 95% entre -827.000,00 e -440.300,00. O resultado atende aos critérios de publicação com p-valor de 0,00 (inferior ao limite de 0,05) e robustez validada (p-valor do teste placebo em 0,12).",
+      "next_steps": [
+        "Reavaliar a estratégia de corte de verba no CANAL_08 considerando o impacto negativo mensurado no kpi.",
+        "Ajustar o planejamento orçamentário futuro do CANAL_08 com base na sensibilidade observada.",
+        "Monitorar a estabilidade do kpi nos próximos ciclos de investimento."
+      ]
+    },
+    "default_advertiser_CANAL_09_2025-07-28": {
+      "title": "Avaliação Causal de Investimento: CANAL_09",
+      "verdict": "O aumento de investimento no CANAL_09 gerou impacto positivo e estatisticamente significante no kpi, atendendo aos critérios de validação causal.",
+      "analysis": "Entre 28/07/2025 e 11/08/2025, a variação de investimento de 68,4% no CANAL_09 (com investimento pós-período de R$ 135.700,00) gerou um lift relativo de 49,11% no kpi. O ganho absoluto estimado foi de 464.700, com intervalo de confiança de 95% entre 292.100 e 637.400. A eficiência foi confirmada por um CPA incremental de R$ 0,29 e p-valor inferior ao limiar de 0,05, além de teste placebo com p-valor de 0,06.",
+      "next_steps": [
+        "Manter a alocação de recursos no CANAL_09 sustentada pelo CPA incremental de R$ 0,29.",
+        "Planejar novos ciclos de escala orçamentária com base no lift relativo verificado de 49,11%.",
+        "Acompanhar a estabilidade dos modelos causais para sustentar as próximas decisões de investimento no kpi."
+      ]
+    },
+    "default_advertiser_CANAL_01,_CANAL_02,_CANAL_03,_CANAL_06,_CANAL_08,_CANAL_09,_CANAL_10_2025-11-24": {
+      "title": "Relatório de Avaliação de Impacto Causal em Mídia",
+      "verdict": "O aumento de investimento gerou impacto positivo e estatisticamente significante no kpi, sendo validado com sucesso pelo modelo causal.",
+      "analysis": "Entre 24/11/2025 e 08/12/2025, o investimento cresceu 88,09%, atingindo R$ 2.986.000,00 nos canais CANAL_01, CANAL_02, CANAL_03, CANAL_06, CANAL_08, CANAL_09 e CANAL_10. O modelo estimou um lift absoluto de 1.217.000,00 no kpi (intervalo de confiança de 95% entre 998.000,00 e 1.435.000,00), correspondendo a um lift relativo de 160,1% e um CPA incremental de R$ 2,45.",
+      "next_steps": [
+        "Manter o plano de alocação nos canais CANAL_01, CANAL_02, CANAL_03, CANAL_06, CANAL_08, CANAL_09 e CANAL_10.",
+        "Acompanhar a sustentabilidade do kpi e a eficiência do CPA incremental nos próximos períodos.",
+        "Utilizar os parâmetros de resposta observados para orientar futuras rodadas de investimento."
+      ]
+    },
+    "global": {
+      "title": "Resumo da Análise de Elasticidade de Mídia",
+      "summary": "A análise de elasticidade do investimento sobre o kpi foi considerada inconclusiva porque nenhum canal tem efeito identificável. Foram contabilizados 12 canais sem efeito identificável no modelo, impossibilitando a estimativa confiável de curvas de resposta.",
+      "scenarios": [
+        {
+          "name": "Cenários Mensais",
+          "analysis": "A simulação de cenários mensais para o kpi não foi concluída porque nenhum canal tem efeito identificável nos dados analisados, totalizando 12 canais sem efeito mensurável."
+        }
+      ],
+      "recommendations": [
+        "Reavaliar a qualidade e o volume dos dados históricos antes de calibrar novas curvas de resposta.",
+        "Não definir ou alterar valores de investimento com base no modelo atual enquanto persistir a falta de efeito identificável."
+      ]
+    }
+  },
+  "identificavel.json": {
+    "global": {
+      "title": "Análise Executiva de Elasticidade de Mídia - Sessions",
+      "summary": "Avaliação de investimento mensal com foco exclusivo no canal STRONG, que representa 100% da contribuição de canais identificada. Os dados indicam uma contribuição de mídia de 0,81 e R² de 0,05, operando sob condição de baixa confiança.",
+      "scenarios": [
+        {
+          "name": "Atual",
+          "analysis": "Apresenta investimento de R$ 57.320 para uma entrega de 196.900 Sessions, oscilando entre 196.300 e 197.300, com iCPA de 0."
+        },
+        {
+          "name": "Recomendado",
+          "analysis": "Projeta investimento de R$ 85.970 para alcançar 197.800 Sessions (faixa entre 196.900 e 198.500), resultando em iCPA de 31,96."
+        },
+        {
+          "name": "Saturação",
+          "analysis": "Alcança o patamar de saturação com investimento de R$ 85.970 e 197.800 Sessions estimadas (faixa de 196.900 a 198.500), sob iCPA de 31,96."
+        }
+      ],
+      "recommendations": [
+        "Alocar os recursos exclusivamente no canal STRONG, que responde por 100% da contribuição analisada.",
+        "Considerar o investimento de R$ 85.970 para atingir o volume previsto de 197.800 Sessions ao iCPA de 31,96.",
+        "Avaliar os resultados com cautela na tomada de decisão, considerando o R² de 0,05 e o status de baixa confiança do modelo."
+      ]
+    }
+  }
+}
