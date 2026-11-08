@@ -27,6 +27,21 @@ NUMBER = re.compile(
     r"(?:\s?(?P<unit>%|x\b|(?i:milh(?:ões|ão|oes|ao)|bilh(?:ões|ão|oes|ao)|mil|mi|bi|k|m)\b))?"
 )
 DATE = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b|\b\d{4}-\d{2}-\d{2}\b")
+MONTHS = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+]
+WORD_DATE = re.compile(r"\b(\d{1,2}) de (" + "|".join(MONTHS) + r"|marco)(?: de (\d{4}))?\b", re.IGNORECASE)
 ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 SMALL_COUNT = 12
 
@@ -69,7 +84,17 @@ def check(text: str, payload: Any, published: set[str], universe: set[str]) -> l
             issues.append({"kind": "number", "value": m[0]})
         return " "
 
-    rest = DATE.sub(drop_date, text)
+    def drop_word_date(m: re.Match) -> str:
+        month = MONTHS.index(m[2].lower().replace("marco", "março")) + 1
+        if m[3]:
+            ok = f"{m[3]}-{month:02d}-{int(m[1]):02d}" in days
+        else:
+            ok = any(d[5:] == f"{month:02d}-{int(m[1]):02d}" for d in days)
+        if not ok:
+            issues.append({"kind": "number", "value": m[0]})
+        return " "
+
+    rest = WORD_DATE.sub(drop_word_date, DATE.sub(drop_date, text))
     for m in NUMBER.finditer(rest):
         decimals = len(m["dec"] or "")
         digits = m["int"].replace(".", "")

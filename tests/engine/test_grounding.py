@@ -39,6 +39,7 @@ def _issues(text, published=frozenset({"CANAL_01"})):
         "Entre 20/01/2025 e 2025-02-03, no ano de 2025.",
         "Três canais, 2 semanas e 12 meses.",
         "O CANAL_01 respondeu.",
+        "Entre 20 de janeiro de 2025 e 3 de fevereiro.",
     ],
 )
 def test_legitimate_rounding_passes(text):
@@ -54,6 +55,8 @@ def test_legitimate_rounding_passes(text):
         ("Alta de 40,2%.", "40,2%"),
         ("Em 21/01/2025 o investimento subiu.", "21/01/2025"),
         ("R² de 0,7.", "0,7"),
+        ("Em 21 de janeiro de 2025 o investimento subiu.", "21 de janeiro de 2025"),
+        ("Em 25 de março houve alta.", "25 de março"),
     ],
 )
 def test_an_invented_number_fails(text, value):

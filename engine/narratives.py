@@ -59,6 +59,7 @@ RULES = """Regras:
 - Use só números que estão nos dados abaixo. Pode arredondar, mas não calcule nenhum número novo.
 - Cite só estes canais: {channels}. Não cite nenhum outro.
 - O KPI se chama "{kpi}".
+- Escreva datas como DD/MM/AAAA.
 """
 EVENT_PROMPT = (
     "Escreva um relatório curto sobre um evento de investimento em mídia. O efeito no KPI foi estimado por um modelo "
