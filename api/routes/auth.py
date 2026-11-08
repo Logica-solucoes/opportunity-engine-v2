@@ -63,9 +63,10 @@ def me_out(db: Session, user: User) -> MeOut:
 
 @router.post("/auth/login", response_model=MeOut)
 def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
+    # behind the proxy uvicorn already put the X-Forwarded-For address here (FORWARDED_ALLOW_IPS)
+    ip = request.client.host if request.client else ""
     try:
-        # behind the proxy uvicorn already put the X-Forwarded-For address here (FORWARDED_ALLOW_IPS)
-        auth.check_login_rate(request.client.host if request.client else "")
+        auth.check_login_rate(ip)
     except auth.RateLimited as e:
         return JSONResponse(
             {"detail": "rate_limited", "retry_after_s": e.retry_after_s},
@@ -75,8 +76,10 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
     try:
         user = auth.authenticate(db, body.email, body.password)
     except auth.AccountLocked as e:
+        auth.record_login_failure(ip)
         return JSONResponse({"detail": "locked", "retry_after_s": e.retry_after_s}, status_code=429)
     except auth.InvalidCredentials:
+        auth.record_login_failure(ip)
         raise HTTPException(401, "invalid_credentials")
     auth.set_session_cookie(response, auth.create_session(db, user))
     return me_out(db, user)

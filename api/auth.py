@@ -29,6 +29,7 @@ MAX_FAILED_LOGINS = 5
 LOCKOUT = timedelta(minutes=15)
 LOGIN_RATE_LIMIT = int(os.environ.get("LOGIN_RATE_LIMIT", "20"))  # the E2E raises it: every test logs in
 LOGIN_RATE_WINDOW = timedelta(minutes=15)
+LOGIN_MAX_IPS = 10_000
 RANK = {"viewer": 0, "analyst": 1, "admin": 2}
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -72,20 +73,30 @@ _login_attempts_lock = threading.Lock()
 
 
 def check_login_rate(ip: str) -> None:
-    """Every login attempt from one IP counts, right or wrong; over the limit it waits for the window to slide."""
-    t = now()
-    cutoff = t - LOGIN_RATE_WINDOW
+    """Only failed attempts count (see record_login_failure): many users behind one NAT log in fine."""
+    cutoff = now() - LOGIN_RATE_WINDOW
     with _login_attempts_lock:
-        if len(login_attempts) > 10_000:
-            for stale in [k for k, v in login_attempts.items() if not v or v[-1] <= cutoff]:
-                del login_attempts[stale]
-        attempts = login_attempts[ip]
+        attempts = login_attempts.get(ip)
+        if attempts is None:
+            return
         while attempts and attempts[0] <= cutoff:
             attempts.popleft()
         if len(attempts) >= LOGIN_RATE_LIMIT:
             log.warning("auth.login_rate_limited")
             raise RateLimited(math.ceil((attempts[0] - cutoff).total_seconds()))
-        attempts.append(t)
+
+
+def record_login_failure(ip: str) -> None:
+    t = now()
+    cutoff = t - LOGIN_RATE_WINDOW
+    with _login_attempts_lock:
+        if len(login_attempts) >= LOGIN_MAX_IPS:
+            for stale in [k for k, v in login_attempts.items() if not v or v[-1] <= cutoff]:
+                del login_attempts[stale]
+        if len(login_attempts) >= LOGIN_MAX_IPS:
+            # ponytail: a flood of rotating IPs resets everyone's count (fail-open); the upgrade is the proxy's limit
+            login_attempts.clear()
+        login_attempts[ip].append(t)
 
 
 def register_failure(db: Session, user: User) -> None:

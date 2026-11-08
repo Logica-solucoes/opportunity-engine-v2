@@ -335,12 +335,38 @@ def test_login_rate_limit_per_ip(client, make_user, password, monkeypatch):
     assert r.headers["retry-after"] == str(r.json()["retry_after_s"])
 
 
-def test_login_rate_limit_is_per_ip_and_expires(monkeypatch):
+def test_successful_logins_do_not_count_toward_the_rate_limit(client, make_user, password, monkeypatch):
+    make_user("ana@x.com")
+    monkeypatch.setattr(auth, "LOGIN_RATE_LIMIT", 2)
+
+    codes = [
+        client.post("/api/auth/login", json={"email": "ana@x.com", "password": password}).status_code for _ in range(5)
+    ]
+
+    assert codes == [200] * 5
+
+
+def test_locked_account_attempts_count_toward_the_rate_limit(client, make_user, password, monkeypatch):
+    make_user("ana@x.com")
+    monkeypatch.setattr(auth, "LOGIN_RATE_LIMIT", 6)
+    for _ in range(5):
+        client.post("/api/auth/login", json={"email": "ana@x.com", "password": "errada-errada"})
+    locked = client.post("/api/auth/login", json={"email": "ana@x.com", "password": password})
+
+    r = client.post("/api/auth/login", json={"email": "ana@x.com", "password": password})
+
+    assert locked.json()["detail"] == "locked"
+    assert r.status_code == 429 and r.json()["detail"] == "rate_limited"
+
+
+def test_login_rate_limit_counts_failures_per_ip_and_expires(monkeypatch):
     t0 = datetime(2026, 11, 8, 12, tzinfo=UTC)
     freeze(monkeypatch, t0)
     monkeypatch.setattr(auth, "LOGIN_RATE_LIMIT", 2)
-    auth.check_login_rate("1.1.1.1")
-    auth.check_login_rate("1.1.1.1")
+    for _ in range(5):
+        auth.check_login_rate("1.1.1.1")
+    auth.record_login_failure("1.1.1.1")
+    auth.record_login_failure("1.1.1.1")
 
     with pytest.raises(auth.RateLimited):
         auth.check_login_rate("1.1.1.1")
@@ -348,3 +374,11 @@ def test_login_rate_limit_is_per_ip_and_expires(monkeypatch):
 
     freeze(monkeypatch, t0 + auth.LOGIN_RATE_WINDOW + timedelta(seconds=1))
     auth.check_login_rate("1.1.1.1")
+
+
+def test_login_rate_memory_is_bounded(monkeypatch):
+    monkeypatch.setattr(auth, "LOGIN_MAX_IPS", 3)
+    for i in range(4):
+        auth.record_login_failure(f"10.0.0.{i}")
+
+    assert len(auth.login_attempts) <= 3
