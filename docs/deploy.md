@@ -11,7 +11,7 @@ Uma imagem (`Dockerfile`), três serviços (`deploy/compose.yml`): `postgres`, `
 ## Primeiro deploy
 ```bash
 git clone <repo> /opt/gem && cd /opt/gem
-cp deploy/.env.example deploy/.env && chmod 600 deploy/.env   # preencha POSTGRES_PASSWORD e GEMINI_API_KEY
+cp deploy/.env.example deploy/.env && chmod 600 deploy/.env   # preencha POSTGRES_PASSWORD (URL-safe: vai cru no DATABASE_URL; use `openssl rand -hex 32`) e GEMINI_API_KEY
 TAG=$(git rev-parse --short HEAD)
 docker build --build-arg ENGINE_VERSION=$TAG -t gem:$TAG .
 sed -i "s/^TAG=.*/TAG=$TAG/" deploy/.env
@@ -21,6 +21,8 @@ curl -fsS http://127.0.0.1:8080/api/health
 ```
 
 ## Atualizar
+O `up -d` recria a api e mata os runs em andamento (eles viram runs mortos só depois de 20 min). Atualize quando não houver run ativo.
+
 ```bash
 git pull && TAG=$(git rev-parse --short HEAD)
 docker build --build-arg ENGINE_VERSION=$TAG -t gem:$TAG .
