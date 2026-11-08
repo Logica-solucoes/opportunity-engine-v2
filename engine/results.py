@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from engine import identifiability
+from engine import experiment, identifiability
 from engine.results_schema import (
     AccuracyPoint,
     Baseline,
@@ -20,6 +20,7 @@ from engine.results_schema import (
     ElasticityMetrics,
     EventDetected,
     EventSeries,
+    ExperimentDesign,
     Fit,
     Group,
     Hill,
@@ -359,16 +360,30 @@ def run_status(causal: Causal, elasticity: Elasticity | None) -> str:
     return "failed"
 
 
+def _experiment_design(computed: "Computed") -> ExperimentDesign:
+    cfg, prepared = computed.effective_config, computed.prepared
+    return experiment.design(
+        prepared.kpi_df,
+        prepared.spend_df,
+        prepared.period_days,
+        cfg["experiment_target_lift"],
+        cfg["experiment_max_days"],
+        cfg["max_budget_step"],
+    )
+
+
 def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
     causal, elasticity = _causal(computed), _elasticity(computed)
+    status = run_status(causal, elasticity)
     return ResultsV1(
         engine_version=engine_version,
-        status=run_status(causal, elasticity),
+        status=status,
         causal=causal,
         elasticity=elasticity,
         baseline=_baseline(computed),
         validation=computed.validation,
         sufficiency=computed.sufficiency,
+        experiment_design=_experiment_design(computed) if status == "inconclusive" else None,
     )
 
 

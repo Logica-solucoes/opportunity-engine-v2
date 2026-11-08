@@ -58,7 +58,7 @@ def test_run_returns_the_contract_dict(ran):
     r = ran.result
     assert r["schema_version"] == 1 and r["status"] == "inconclusive"
     assert isinstance(r["engine_version"], str) and r["engine_version"]
-    assert r["experiment_design"] is None  # A7
+    assert r["experiment_design"]["status"] == "ok"  # A7: inconclusive runs carry it
     reports = r["reports"]
     published = [e["id"] for e in r["causal"]["events"] if e["status"] == "published"]
     assert published and set(reports["events"]) == set(published)

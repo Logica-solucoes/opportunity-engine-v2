@@ -389,7 +389,7 @@ def test_failed_model_yields_a_failed_elasticity_section(synthetic_computed):
 def test_build_results_validates_and_leaves_the_future_sections_null(synthetic_computed):
     built = results.build_results(synthetic_computed, "abc123")
     assert built.engine_version == "abc123" and built.schema_version == 1
-    assert built.validation is built.experiment_design is built.reports is None and built.sufficiency is not None
+    assert built.validation is built.reports is None and built.sufficiency is not None
     ResultsV1.model_validate(_dump(built))
     json.dumps(_dump(built), allow_nan=False)
 
@@ -501,3 +501,17 @@ def test_one_hidden_channel_drops_the_reallocation_scenario_and_says_so(syntheti
     assert shown.metrics.reallocation_suppressed is False
     assert "strategic_reallocation" not in [s.name for s in suppressed.scenarios]
     assert suppressed.metrics.reallocation_suppressed is True
+
+
+def test_an_inconclusive_run_carries_the_experiment_design(synthetic_computed):
+    doc = results.build_results(synthetic_computed, "test")
+
+    assert doc.status == "inconclusive"  # no identifiable channel in the parity synthetic
+    assert doc.experiment_design is not None and doc.experiment_design.target_lift == 0.05
+    assert results.dump_results(doc)["experiment_design"]["period_days"] == synthetic_computed.prepared.period_days
+
+
+def test_other_statuses_have_no_experiment_design(synthetic_computed, monkeypatch):
+    monkeypatch.setattr(results, "run_status", lambda causal, elasticity: "succeeded")
+
+    assert results.build_results(synthetic_computed, "test").experiment_design is None
