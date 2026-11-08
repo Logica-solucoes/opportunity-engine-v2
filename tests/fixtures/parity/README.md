@@ -5,19 +5,27 @@ synthetic dataset from `tests/engine/synthetic_data.py`: per-event causal result
 (contribution, R2, walk-forward CV R2, adstock/Hill parameters) and the aggregated response curve with its notable points.
 `tests/engine/test_parity.py` checks `engine` against it with `rtol=1e-9`.
 
-Regenerate **only with approval** (it defines "no number changed"). With the prototype's own environment:
+Regenerate **only with approval** (it defines "no number changed"). The numbers depend on the BLAS kernel and numpy's
+SIMD path, so generate under the pins of `mise.toml` (`OPENBLAS_CORETYPE=Haswell`, one thread,
+`NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"`), on Linux x86-64 (a container on Windows works), with the
+prototype's own environment, from the prototype's checkout (read-only, `../opportunity-engine` next to this repo):
 
-    cd /home/rodrigo/Sistemas/Dash/opportunity-engine
-    uv run python <this repo>/tests/fixtures/parity/generate_legacy_snapshot.py --legacy-repo . --out <this dir>/snapshot.json
+    export OPENBLAS_CORETYPE=Haswell OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+    cd ../opportunity-engine
+    uv run python ../opportunity-engine-v2/tests/fixtures/parity/generate_legacy_snapshot.py --legacy-repo . --out ../opportunity-engine-v2/tests/fixtures/parity/snapshot.json
+
+Run it twice and `cmp` the files: they must be byte-identical. Docker example (Windows host):
+`ghcr.io/astral-sh/uv:python3.13-bookworm` with both repos mounted and `UV_PROJECT_ENVIRONMENT` pointing outside the
+mounts, so the host `.venv` is not touched.
 
 Notes
 - The prototype repo is read-only for us; the script only imports it.
-- Generated on x86-64 with numpy 2.5.0, pandas 3.0.3, scipy 1.18.0, statsmodels 0.14.6, scikit-learn 1.9.0 (the
+- Generated on x86-64 (08/nov/2026, regenerated under the pins) with numpy 2.5.0, pandas 3.0.3, scipy 1.18.0, statsmodels 0.14.6, scikit-learn 1.9.0 (the
   `versions` key in the JSON). Parity needs the same versions; they are pinned in `pyproject.toml`.
-- Two consecutive runs produced byte-identical files on the generating machine (~1.5 min each, multi-threaded BLAS).
+- Two consecutive runs produce byte-identical files under the pins (~1.5 min each).
 - `require_model_fit` is off in the synthetic config: the local-level model's in-sample R2 is negative on this data,
   and with the gate on no event would pass (4 of 6 events pass with it off).
-- Other CPUs may pick different BLAS kernels. Run the parity test once on the server and record any tolerance change.
+- Without the pins other CPUs pick different BLAS kernels and SIMD paths and the MMM optimum moves (up to ~2e-3). With them the test passed on Zen3, Zen4 and three Intel Xeon generations. `test_parity.py` skips when the pins are absent.
 
 ## Real data (Gol)
 
