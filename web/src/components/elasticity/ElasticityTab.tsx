@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ApiError } from '@/lib/api'
 import { type Elasticity, formatDecimal, reasonLabel, resultsQuery } from '@/lib/results'
@@ -51,13 +51,14 @@ function Inconclusive({ lines }: { lines: string[] }) {
 
 function Planner({ slug, runId, elasticity }: { slug: string; runId: string; elasticity: Elasticity }) {
   const [filters, setFilters] = useState<Filters>({})
-  const query = useQuery(scenarioQuery(slug, runId, useDebounced(filters)))
+  const debounced = useDebounced(filters)
+  const query = useQuery(scenarioQuery(slug, runId, debounced))
   // the slider's range is the whole curve, so it comes from the unfiltered answer (cached by its key)
   const unfiltered = useQuery(scenarioQuery(slug, runId, {})).data
   // a 422 on a bad filter keeps the last good answer on screen
-  const last = useRef<Scenario | undefined>(undefined)
-  if (query.data) last.current = query.data
-  const scenario = query.data ?? last.current
+  const [last, setLast] = useState<Scenario>()
+  if (query.data && query.data !== last) setLast(query.data)
+  const scenario = query.data ?? last
 
   const error = query.error instanceof ApiError ? query.error : null
   if (!scenario) {
@@ -71,7 +72,9 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
   }
 
   const curve = unfiltered?.curve
-  const bounds: [number, number] | null = curve?.length ? [curve[0].investment, curve[curve.length - 1].investment] : null
+  const bounds: [number, number] | null = curve?.length
+    ? [Math.floor(curve[0].investment), Math.ceil(curve[curve.length - 1].investment)]
+    : null
   const mixRow = scenario.recommended ?? scenario.saturation
   const hidden = elasticity.channels.filter((c) => c.identifiable === false)
   const metrics = elasticity.metrics

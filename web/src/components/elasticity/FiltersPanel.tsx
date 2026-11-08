@@ -32,9 +32,9 @@ export function FiltersPanel({ filters, onChange, bounds, revenueMode, errors }:
       <h2 className="text-sm font-medium">Filtros (valores mensais)</h2>
       {bounds && budget && (
         <div className="space-y-2">
-          <Label>Orçamento</Label>
+          <p className="text-sm font-medium">Orçamento</p>
           <Slider
-            aria-label="Orçamento"
+            thumbLabels={['Orçamento mínimo', 'Orçamento máximo']}
             min={bounds[0]}
             max={bounds[1]}
             step={1}
