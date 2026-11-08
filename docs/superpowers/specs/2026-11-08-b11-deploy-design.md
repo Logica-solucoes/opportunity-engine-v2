@@ -40,7 +40,7 @@ Deixar pronto tudo do B11 que não precisa do servidor: o compose de produção,
 2. **Primeiro deploy:** clonar, copiar o `.env`, `docker build --build-arg ENGINE_VERSION=$(git rev-parse --short HEAD) -t gem:$(git rev-parse --short HEAD) .`, `TAG=… docker compose -f deploy/compose.yml up -d` e `create-admin` pelo `docker compose run --rm api python -m api.cli create-admin …`.
 3. **Atualizar:** build da nova tag e `up -d` com ela. As migrations rodam sozinhas no `migrate`.
 4. **Rollback:** subir a tag anterior. Se a migration nova não for reversível, restaurar o backup anterior ao deploy.
-5. **Trecho do nginx:** `client_max_body_size 32m`, `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`, `X-Forwarded-Proto`, `Host` e, na rota do log, **`proxy_buffering off` e `proxy_read_timeout` ≥ 1h**. Sem o buffering desligado, o SSE do log fica parado até o run acabar.
+5. **Trecho do nginx:** `client_max_body_size 32m`, `proxy_set_header X-Forwarded-For $remote_addr` (sobrescreve; com `$proxy_add_x_forwarded_for` o cliente forjaria o IP e burlaria o rate limit), `X-Forwarded-Proto`, `Host` e, na rota do log, **`proxy_buffering off` e `proxy_read_timeout` ≥ 1h**. Sem o buffering desligado, o SSE do log fica parado até o run acabar.
 6. **Backup:** a linha do cron (`0 3 * * * …/deploy/backup.sh`) e como testar a restauração.
 7. **Logs:** `docker compose logs -f api`, que sai em JSON por linha.
 
