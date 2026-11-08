@@ -18,13 +18,13 @@ export function NarrativeCard({
         {report.source === 'deterministic' && <Badge variant="outline">Texto padrão</Badge>}
         {report.grounding?.status === 'blocked' && <Badge variant="outline">Bloqueado pelo grounding</Badge>}
       </div>
-      {paragraphs.filter(Boolean).map((p) => (
-        <p key={p}>{p}</p>
+      {paragraphs.filter(Boolean).map((p, n) => (
+        <p key={`${n}-${p}`}>{p}</p>
       ))}
       {items.length > 0 && (
         <ul className="list-disc space-y-1 pl-5">
-          {items.map((i) => (
-            <li key={i}>{i}</li>
+          {items.map((i, n) => (
+            <li key={`${n}-${i}`}>{i}</li>
           ))}
         </ul>
       )}
