@@ -162,7 +162,7 @@ export const TEST_TYPE_LABELS: Record<ExperimentCell['test_type'], string> = {
   step_up: 'Aumentar o orçamento',
 }
 
-export const formatDay =(iso: string) => {
+export const formatDay = (iso: string) => {
   const [y, m, d] = iso.slice(0, 10).split('-')
   return `${d}/${m}/${y}`
 }
