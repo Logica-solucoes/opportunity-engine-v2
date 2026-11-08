@@ -8,19 +8,18 @@ import pytest
 
 from llm.base import LLMBadOutput, LLMUnavailable
 
-# narratives with every key the report builders read
+# narratives in the A9 shape, with no number or channel, so they pass any grounding check
 EVENT_NARRATIVE = {
-    "report_title": "T",
-    "executive_verdict": "V",
-    "detailed_analysis": "D",
-    "value_delivered": {"narrative": "N", "methodology_narrative": "M"},
-    "next_steps": [{"step": "S", "description": "D"}],
+    "title": "Relatório do evento",
+    "verdict": "O investimento teve efeito no KPI.",
+    "analysis": "O efeito passou nos critérios de publicação.",
+    "next_steps": ["Acompanhar o próximo período."],
 }
 GLOBAL_NARRATIVE = {
-    "report_title": "T",
-    "executive_summary": "S",
-    "analysis_of_scenarios": {"introduction": "I", "scenario_table": []},
-    "strategic_recommendations": [{"recommendation": "R1"}, {"recommendation": "R2"}],
+    "title": "Elasticidade",
+    "summary": "A análise de elasticidade não é conclusiva.",
+    "scenarios": [],
+    "recommendations": ["Coletar mais histórico."],
 }
 
 TRANSIENT = object()  # a reply that makes the provider fail the way an outage does

@@ -1,0 +1,332 @@
+"""LLM narratives of a run (A9): one per published event and one global, built only from the results.json the engine
+already published, checked by `grounding`, regenerated once, and replaced by a deterministic text when they fail."""
+
+import json
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
+from pydantic import BaseModel, Field, ValidationError
+
+from engine import grounding
+from engine.config import EngineConfig
+from engine.errors import EngineError
+from engine.scenario import ScenarioFilters, scenario
+from llm.base import LLM, LLMError, LLMUnavailable
+
+log = logging.getLogger(__name__)
+
+# per call: a provider retrying a 503 for minutes would freeze the log; the first call of a run pays it in full before
+# LLMUnavailable stops the others
+TIMEOUT_S = 60
+CI_LEVEL_PCT = 95
+SEVERITY = {"passed": 0, "regenerated": 1, "blocked": 2}
+ELASTICITY_REASONS = {
+    "no_identifiable_channel": "nenhum canal tem efeito identificável",
+    "model_failed": "o modelo de elasticidade falhou",
+    "cv_in_sample": "o histórico é curto e o modelo não foi validado fora da amostra",
+}
+SCENARIO_LABELS = {"current": "Atual", "recommended": "Recomendado", "saturation": "Saturação"}
+FEEDBACK = {
+    "number": "número que não está nos dados",
+    "channel": "canal que não pode ser citado",
+    "output": "resposta fora do formato pedido",
+}
+
+
+class EventNarrative(BaseModel):
+    title: str
+    verdict: str
+    analysis: str
+    next_steps: list[str] = Field(max_length=3)
+
+
+class ScenarioNote(BaseModel):
+    name: str
+    analysis: str
+
+
+class GlobalNarrative(BaseModel):
+    title: str
+    summary: str
+    scenarios: list[ScenarioNote] = Field(max_length=4)
+    recommendations: list[str] = Field(max_length=3)
+
+
+RULES = """Regras:
+- Escreva em português do Brasil, em tom executivo e direto.
+- Use só números que estão nos dados abaixo. Pode arredondar, mas não calcule nenhum número novo.
+- Cite só estes canais: {channels}. Não cite nenhum outro.
+- O KPI se chama "{kpi}".
+"""
+EVENT_PROMPT = (
+    "Escreva um relatório curto sobre um evento de investimento em mídia. O efeito no KPI foi estimado por um modelo "
+    "causal e passou nos critérios de publicação.\n\n" + RULES + "\nDados (JSON):\n{data}\n"
+)
+GLOBAL_PROMPT = (
+    "Escreva um resumo da análise de elasticidade do investimento em mídia (curva de resposta e cenários mensais)."
+    "\n{status_rule}\n\n" + RULES + "\nDados (JSON):\n{data}\n"
+)
+NOT_OK_RULE = (
+    "A análise não é conclusiva (veja status e reasons). Explique só por que ela não é conclusiva e não sugira "
+    "valores de investimento."
+)
+
+
+# --- formatting (pt-BR, from the payload only, so the deterministic text passes the check by construction) ---
+
+
+def _br(value: float, decimals: int) -> str:
+    return f"{value:,.{decimals}f}".translate(str.maketrans(",.", ".,"))
+
+
+def _money(value: float) -> str:
+    return f"R$ {_br(value, 2)}"
+
+
+def _day(iso: str) -> str:
+    year, month, day = iso[:10].split("-")
+    return f"{day}/{month}/{year}"
+
+
+def text_of(obj: Any) -> str:
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, dict):
+        return " ".join(text_of(v) for v in obj.values())
+    if isinstance(obj, list):
+        return " ".join(text_of(v) for v in obj)
+    return ""
+
+
+# --- payloads ---
+
+
+def event_payload(event: dict, kpi: str, p_value_threshold: float, sufficiency_reasons: list[str]) -> dict:
+    fit = event.get("fit") or {}
+    return {
+        "kpi_name": kpi,
+        "p_value_threshold": p_value_threshold,
+        "ci_level_pct": CI_LEVEL_PCT,
+        "channels": event["channels"],
+        "start": event.get("start"),
+        "end": event.get("end"),
+        "investment_change_pct": event.get("investment_change_pct"),
+        "lift": event.get("lift"),
+        "p_value": event.get("p_value"),
+        "incremental_investment": event.get("incremental_investment"),
+        "cpa_incremental": event.get("cpa_incremental"),
+        "fit": {"r2": fit.get("r2"), "wmape": fit.get("wmape")},
+        "placebo_p_value": (event.get("placebo") or {}).get("p_value"),
+        "robustness_p_value": (event.get("robustness") or {}).get("p_value"),
+        "sufficiency_reasons": sufficiency_reasons,
+    }
+
+
+def global_payload(document: dict, config: EngineConfig, kpi: str, revenue: bool) -> dict | None:
+    elasticity = document.get("elasticity")
+    if not elasticity:
+        return None
+    channels = elasticity.get("channels") or []
+    payload = {
+        "kpi_name": kpi,
+        "revenue_mode": revenue,
+        "status": elasticity["status"],
+        "reasons": elasticity.get("reasons") or [],
+        "unidentified_count": sum(1 for c in channels if not c.get("identifiable")),
+    }
+    if elasticity["status"] != "ok":
+        return payload
+    metrics = elasticity.get("metrics") or {}
+    keys = ("cv_r2", "r2", "media_contribution_pct", "low_confidence", "reallocation_suppressed")
+    payload["metrics"] = {k: metrics.get(k) for k in keys}
+    payload["channels"] = [
+        {"name": c["name"], "contribution_pct": c.get("contribution_pct"), "K": (c.get("hill") or {}).get("K")}
+        for c in channels
+        if c.get("identifiable")
+    ]
+    try:
+        answer = scenario(document, ScenarioFilters(), config.max_budget_step)
+    except EngineError:
+        return payload
+    fields = ("investment", "kpi", "kpi_lo", "kpi_hi", "icpa") + (("roas", "iroas") if revenue else ())
+    payload["scenarios_monthly"] = {
+        name: {k: answer[name].get(k) for k in fields} for name in SCENARIO_LABELS if answer.get(name)
+    }
+    return payload
+
+
+def universe(document: dict) -> set[str]:
+    """Every channel name the run knows: the check rejects any of them outside the published set."""
+    names = set((document.get("validation") or {}).get("channels") or [])
+    elasticity = document.get("elasticity") or {}
+    names |= {c["name"] for c in elasticity.get("channels") or []}
+    names |= {g["name"] for g in elasticity.get("groups") or []}
+    for event in (document.get("causal") or {}).get("events") or []:
+        names |= set(event["channels"])
+    return names
+
+
+# --- deterministic texts ---
+
+
+def deterministic_event(p: dict) -> dict:
+    lift = p.get("lift") or {}
+    period = f"{_day(p['start'])} a {_day(p['end'])}" if p.get("start") and p.get("end") else ""
+    title = " · ".join(part for part in (", ".join(p["channels"]), period) if part)
+    if lift.get("abs") is None:
+        verdict = "Evento publicado sem estimativa de lift."
+    else:
+        verdict = f"{'Aumento' if lift['abs'] >= 0 else 'Queda'} de {_br(abs(lift['abs']), 0)} em {p['kpi_name']}"
+        if lift.get("rel_pct") is not None:
+            verdict += f" ({_br(abs(lift['rel_pct']), 1)}%)"
+        ci = lift.get("ci") or [None, None]
+        if None not in ci:
+            verdict += f", IC {CI_LEVEL_PCT}% [{_br(ci[0], 0)}; {_br(ci[1], 0)}]"
+        if p.get("p_value") is not None:
+            verdict += f", p-valor {_br(p['p_value'], 4)}"
+        verdict += "."
+    fit = p.get("fit") or {}
+    facts = []
+    if p.get("incremental_investment") is not None:
+        facts.append(f"investimento incremental de {_money(p['incremental_investment'])}")
+    if p.get("cpa_incremental") is not None:
+        facts.append(f"CPA incremental de {_money(p['cpa_incremental'])}")
+    if fit.get("r2") is not None:
+        facts.append(f"R² de {_br(fit['r2'], 2)} no pré-período")
+    if fit.get("wmape") is not None:
+        facts.append(f"WMAPE fora da amostra de {_br(fit['wmape'] * 100, 1)}%")
+    analysis = "; ".join(facts)
+    analysis = analysis[:1].upper() + analysis[1:] + "." if analysis else ""
+    return {"title": title, "verdict": verdict, "analysis": analysis, "next_steps": []}
+
+
+def deterministic_global(p: dict) -> dict:
+    scenarios = p.get("scenarios_monthly") or {}
+    if p["status"] != "ok" or not scenarios:
+        reasons = [ELASTICITY_REASONS.get(r, r) for r in p["reasons"]] or ["não há curva de resposta para simular"]
+        summary = "A análise de elasticidade não é conclusiva: " + "; ".join(reasons) + "."
+        if p["unidentified_count"]:
+            summary += f" Canais sem efeito identificável: {p['unidentified_count']}."
+        return {"title": "Elasticidade não conclusiva", "summary": summary, "scenarios": [], "recommendations": []}
+    rows = []
+    for name, s in scenarios.items():
+        if s.get("investment") is None:
+            continue
+        text = f"Investimento mensal de {_money(s['investment'])}"
+        if s.get("kpi") is not None:
+            text += f" e {p['kpi_name']} de {_br(s['kpi'], 0)}"
+        if s.get("kpi_lo") is not None and s.get("kpi_hi") is not None:
+            text += f" (faixa de {_br(s['kpi_lo'], 0)} a {_br(s['kpi_hi'], 0)})"
+        rows.append({"name": SCENARIO_LABELS[name], "analysis": text + "."})
+    return {
+        "title": "Elasticidade do investimento",
+        "summary": "Valores mensais da curva de resposta, sem filtros de meta.",
+        "scenarios": rows,
+        "recommendations": [],
+    }
+
+
+# --- the LLM call, checked and regenerated once ---
+
+
+@dataclass(frozen=True)
+class Kind:
+    prompt: str
+    model: type[BaseModel]
+    fallback: Callable[[dict], dict]
+
+
+EVENT = Kind(EVENT_PROMPT, EventNarrative, deterministic_event)
+GLOBAL = Kind(GLOBAL_PROMPT, GlobalNarrative, deterministic_global)
+
+
+def _feedback(issues: list[dict]) -> str:
+    lines = "\n".join(f"- {FEEDBACK[i['kind']]}: {i['value']}" for i in issues)
+    return f"\n\nSua resposta anterior foi recusada. Corrija:\n{lines}"
+
+
+def _ask(llm: LLM, kind: Kind, payload: dict, published: set[str], names: set[str]) -> tuple[dict | None, dict]:
+    prompt = kind.prompt.format(
+        channels=", ".join(sorted(published)) or "nenhum",
+        kpi=payload["kpi_name"],
+        status_rule="" if payload.get("status", "ok") == "ok" else NOT_OK_RULE,
+        data=json.dumps(payload, ensure_ascii=False, indent=2),
+    )
+    first: list[dict] = []
+    issues: list[dict] = []
+    for _ in range(2):
+        try:
+            answer = llm.generate_json(
+                prompt + (_feedback(issues) if issues else ""), kind.model.model_json_schema(), timeout_s=TIMEOUT_S
+            )
+            narrative = kind.model.model_validate(answer).model_dump()
+            issues = grounding.check(text_of(narrative), payload, published, names)
+        except LLMUnavailable:
+            raise
+        except LLMError as e:
+            issues = [{"kind": "output", "value": str(e) or type(e).__name__}]
+        except ValidationError:
+            issues = [{"kind": "output", "value": "bad_shape"}]
+        if not issues:
+            return narrative, {"status": "regenerated" if first else "passed", "issues": first}
+        first = first or issues
+    return None, {"status": "blocked", "issues": issues}
+
+
+def _summary(reports: dict) -> dict | None:
+    judged = [
+        (key, report["grounding"])
+        for key, report in [*reports["events"].items(), ("global", reports["global"])]
+        if report and report["grounding"]
+    ]
+    if not judged:
+        return None
+    return {
+        "status": max((g["status"] for _, g in judged), key=SEVERITY.__getitem__),
+        "issues": [{"report": key, **issue} for key, g in judged for issue in g["issues"]],
+    }
+
+
+def build(document: dict, config: EngineConfig, llm: LLM | None) -> dict:
+    """The `reports` section: a narrative per published event and a global one, each from the LLM when it passes the
+    grounding check (at most two tries) or the deterministic text otherwise."""
+    kpi = config.column_mapping.get("performance_file", {}).get("kpi_col") or "KPI"
+    revenue = config.kpi_is_monetary or config.optimization_target == "REVENUE"
+    sufficiency = (document.get("sufficiency") or {}).get("reasons") or []
+    names = universe(document)
+    jobs = [
+        (event["id"], EVENT, event_payload(event, kpi, config.p_value_threshold, sufficiency), set(event["channels"]))
+        for event in (document.get("causal") or {}).get("events") or []
+        if event["status"] == "published"
+    ]
+    payload = global_payload(document, config, kpi, revenue)
+    if payload is not None:
+        jobs.append(("global", GLOBAL, payload, {c["name"] for c in payload.get("channels", [])}))
+    if llm is not None and jobs:
+        log.info("Gerando as narrativas com a IA e conferindo os números (grounding)...")
+
+    reports: dict = {"events": {}, "global": None, "grounding": None}
+    for key, kind, payload, published in jobs:
+        narrative, judged = None, None
+        if llm is not None and payload.get("status") != "failed":
+            try:
+                narrative, judged = _ask(llm, kind, payload, published, names)
+            except LLMUnavailable as e:
+                log.warning(
+                    f"AVISO: o serviço de IA está indisponível ({e.reason}); os próximos relatórios usarão o texto padrão."
+                )
+                llm = None
+            except Exception:
+                log.error(f"Não foi possível gerar a narrativa {key}", exc_info=True)
+        if judged and judged["status"] == "blocked":
+            log.warning(f"   - A narrativa {key} citou números ou canais fora do resultado; vale o texto padrão.")
+        report = {"source": "llm", **narrative} if narrative else {"source": "deterministic", **kind.fallback(payload)}
+        report["grounding"] = judged
+        if key == "global":
+            reports["global"] = report
+        else:
+            reports["events"][key] = report
+    reports["grounding"] = _summary(reports)
+    return reports
