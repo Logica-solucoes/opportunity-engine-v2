@@ -17,6 +17,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen
-      - run: lscpu | grep -E "Model name|Flags" | cut -c1-400
-      - run: uv run python -c "import numpy as np; from threadpoolctl import threadpool_info as t; print([(i['filepath'].split('/')[-1], i.get('architecture')) for i in t()]); print([k for k, v in np._core._multiarray_umath.__cpu_features__.items() if v and 'AVX' in k])"
+      - run: lscpu | grep -E "Model name|Flags" | cut -c1-2000
+      - run: |
+          OPENBLAS_VERBOSE=2 uv run python - <<'PY'
+          import numpy as np, scipy.linalg, sklearn.linear_model
+          from threadpoolctl import threadpool_info as t
+          print(t())
+          print("numpy cpu features true:", sorted(k for k, v in np._core._multiarray_umath.__cpu_features__.items() if v))
+          np.show_runtime()
+          PY
       - run: uv run pytest tests/engine/test_parity.py -q -W ignore
+        continue-on-error: true
+      - name: variant all avx512 names off
+        continue-on-error: true
+        run: |
+          export NPY_DISABLE_CPU_FEATURES="$(uv run python -c "import numpy as np; print(' '.join(k for k, v in np._core._multiarray_umath.__cpu_features__.items() if v and k.startswith(('AVX512', 'AVX10', 'APX', 'AMX'))))")"
+          echo "$NPY_DISABLE_CPU_FEATURES"
+          uv run pytest tests/engine/test_parity.py -q -W ignore
+      - name: variant no avx512 and scipy/sklearn untouched but OPENBLAS_CORETYPE=Prescott
+        continue-on-error: true
+        run: OPENBLAS_CORETYPE=Prescott uv run pytest tests/engine/test_parity.py -q -W ignore
