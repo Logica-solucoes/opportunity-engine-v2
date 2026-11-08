@@ -223,7 +223,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
   - **Checagem pós-geração:**
     - extrair todo número do texto (formatos pt-BR: `R$ 3,4M`, `89,7%`, `-0,17x`, `4,64M`) e casar com algum valor do payload, com tolerância de arredondamento;
     - todo nome de canal citado tem que estar no conjunto publicado.
-  - Falhou → regenera 1x → falhou de novo → `grounding.status="blocked"`, e a UI mostra o texto determinístico de `recommendations.py`.
+  - Falhou → regenera 1x → falhou de novo → `grounding.status="blocked"`, e a UI mostra o texto determinístico de `engine/narratives.py`.
   - Remover a menção a imagem inexistente.
 - **Aceite:**
   - Testes do checador com textos fabricados: número inventado reprova, canal rejeitado reprova, arredondamento legítimo passa.
