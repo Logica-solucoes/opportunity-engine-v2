@@ -30,7 +30,18 @@ export type Causal = {
   events_detected: { date: string; channels: string[] }[]
   events: CausalEvent[]
 }
-export type Results = { status: 'succeeded' | 'inconclusive' | 'failed'; causal: Causal | null }
+export type ChannelFit = { name: string; identifiable: boolean | null; reasons: string[] }
+export type Elasticity = {
+  status: 'ok' | 'inconclusive' | 'failed'
+  reasons: string[]
+  metrics: { cv_r2: number | null; low_confidence: boolean | null; reallocation_suppressed: boolean | null } | null
+  channels: ChannelFit[]
+}
+export type Results = {
+  status: 'succeeded' | 'inconclusive' | 'failed'
+  causal: Causal | null
+  elasticity: Elasticity | null
+}
 
 export const resultsQuery = (slug: string, runId: string) =>
   queryOptions({
@@ -57,6 +68,11 @@ const REASON_LABELS: Record<string, string> = {
   low_spend_variation: 'O investimento varia pouco para medir efeito',
   high_oos_wmape: 'O contrafactual erra demais fora da amostra',
   cv_in_sample: 'Histórico curto: o modelo de elasticidade não foi validado fora da amostra',
+  no_identifiable_channel: 'Nenhum canal com efeito identificável',
+  model_failed: 'O modelo de elasticidade falhou',
+  coef_ci_includes_zero: 'O intervalo do efeito inclui zero',
+  coef_ci_too_wide: 'O intervalo do efeito é largo demais',
+  collinearity: 'Investimento colinear com outro canal',
 }
 
 // a reason the engine adds later shows as its code instead of breaking the screen
