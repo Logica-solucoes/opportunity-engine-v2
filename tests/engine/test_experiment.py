@@ -107,3 +107,26 @@ def test_spend_before_the_window_does_not_count():
     d = run(kpi, spend)
 
     assert d.designs[0].spend_per_period == pytest.approx(100.0)
+
+
+def ar1(rng, sigma, rho, reps, n):
+    """AR(1) with marginal sd sigma."""
+    x = np.empty((reps, n))
+    x[:, 0] = rng.normal(0, sigma, reps)
+    innovations = rng.normal(0, sigma * math.sqrt(1 - rho**2), (reps, n))
+    for i in range(1, n):
+        x[:, i] = rho * x[:, i - 1] + innovations[:, i]
+    return x
+
+
+def test_an_effect_of_one_mde_is_detected_about_80_percent_of_the_time():
+    rng = np.random.default_rng(11)
+    history = 1000 + ar1(rng, 100.0, 0.3, 1, 400)[0]
+    d = run(kpi_frame(history), max_days=3650)
+    assert d.status == "ok" and d.feasible and d.rho > 0
+
+    t, s, r = d.duration_periods, d.sigma, d.rho
+    sums = (ar1(rng, s, r, 2000, t) + d.mde_abs / t).sum(axis=1)
+    z = sums / (s * math.sqrt((1 + r) / (1 - r) * t))
+
+    assert (z > 1.96).mean() == pytest.approx(0.80, abs=0.05)
