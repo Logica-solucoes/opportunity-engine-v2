@@ -25,7 +25,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
   - Defaults inconsistentes: `investment_limit_factor` vale 2.0 (`analysis.py:871`), 3.0 (`elasticity_analysis.py:657,1049`) e 1.5 (`:974`).
 - **Fazer:**
   - Mover os módulos do motor de `scripts/` para `engine/` com `git mv`, mantendo os nomes e trocando para imports de pacote. `streamlit_app.py` fica em `scripts/` até a remoção.
-  - Criar `engine/pipeline.py` com `run(inputs, config, out_dir, on_log) -> dict`, que une os dois `local_main`. O Gemini é opcional: sem chave, cai no texto determinístico de `recommendations.py`.
+  - Criar `engine/pipeline.py` com `run(inputs, config, out_dir, on_log) -> dict`, que une os dois `local_main`. O Gemini é opcional: sem chave, cai no texto determinístico de `narratives`.
   - Criar `engine/config.py` com o `EngineConfig` (pydantic), único lugar dos defaults; `investment_limit_factor=1.5` (BRD). A tabela de chaves está no mapeamento do `local_main` e em `CUSTOMIZATION.md`.
   - Criar `python -m engine --config x.json --out dir`, que o Streamlit passa a chamar no lugar dos dois scripts.
   - O motor só escreve dentro de `out_dir`, nunca chama `exit` e nunca mexe em filtros globais de warnings.
