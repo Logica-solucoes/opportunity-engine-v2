@@ -1,6 +1,7 @@
 import threading
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import delete, func, select
 
 from api import auth, passwords
@@ -319,3 +320,31 @@ def test_foreign_origin_on_mutation_is_403(client, make_user, password):
     assert (evil.status_code, evil.json()) == (403, {"detail": "bad_origin"})
     assert same.status_code == 200
     assert get.status_code == 200
+
+
+def test_login_rate_limit_per_ip(client, make_user, password, monkeypatch):
+    make_user("ana@x.com")
+    monkeypatch.setattr(auth, "LOGIN_RATE_LIMIT", 3)
+    for _ in range(3):
+        client.post("/api/auth/login", json={"email": "ana@x.com", "password": "errada-errada"})
+
+    r = client.post("/api/auth/login", json={"email": "ana@x.com", "password": password})
+
+    assert r.status_code == 429
+    assert r.json()["detail"] == "rate_limited" and 0 < r.json()["retry_after_s"] <= 15 * 60
+    assert r.headers["retry-after"] == str(r.json()["retry_after_s"])
+
+
+def test_login_rate_limit_is_per_ip_and_expires(monkeypatch):
+    t0 = datetime(2026, 11, 8, 12, tzinfo=UTC)
+    freeze(monkeypatch, t0)
+    monkeypatch.setattr(auth, "LOGIN_RATE_LIMIT", 2)
+    auth.check_login_rate("1.1.1.1")
+    auth.check_login_rate("1.1.1.1")
+
+    with pytest.raises(auth.RateLimited):
+        auth.check_login_rate("1.1.1.1")
+    auth.check_login_rate("2.2.2.2")
+
+    freeze(monkeypatch, t0 + auth.LOGIN_RATE_WINDOW + timedelta(seconds=1))
+    auth.check_login_rate("1.1.1.1")

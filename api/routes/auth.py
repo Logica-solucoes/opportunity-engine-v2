@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -62,7 +62,16 @@ def me_out(db: Session, user: User) -> MeOut:
 
 
 @router.post("/auth/login", response_model=MeOut)
-def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
+def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
+    try:
+        # behind the proxy uvicorn already put the X-Forwarded-For address here (FORWARDED_ALLOW_IPS)
+        auth.check_login_rate(request.client.host if request.client else "")
+    except auth.RateLimited as e:
+        return JSONResponse(
+            {"detail": "rate_limited", "retry_after_s": e.retry_after_s},
+            status_code=429,
+            headers={"Retry-After": str(e.retry_after_s)},
+        )
     try:
         user = auth.authenticate(db, body.email, body.password)
     except auth.AccountLocked as e:

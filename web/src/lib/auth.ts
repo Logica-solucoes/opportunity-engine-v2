@@ -64,6 +64,10 @@ export function errorMessage(error: unknown): string {
     const minutes = Math.max(1, Math.ceil(Number(error.body.retry_after_s) / 60))
     return `Conta bloqueada. Tente de novo em ${minutes} min.`
   }
+  if (error.detail === 'rate_limited') {
+    const minutes = Math.max(1, Math.ceil(Number(error.body.retry_after_s) / 60))
+    return `Muitas tentativas de login. Tente de novo em ${minutes} min.`
+  }
   if (MESSAGES[error.detail]) return MESSAGES[error.detail]
   if (error.status === 403) return 'Sem permissão.'
   if (error.status === 404) return 'Não encontrado.'

@@ -1,7 +1,10 @@
 import hashlib
 import logging
 import math
+import os
 import secrets
+import threading
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
@@ -24,6 +27,8 @@ MAX_AGE = timedelta(days=7)
 TOUCH_EVERY = timedelta(minutes=1)
 MAX_FAILED_LOGINS = 5
 LOCKOUT = timedelta(minutes=15)
+LOGIN_RATE_LIMIT = int(os.environ.get("LOGIN_RATE_LIMIT", "20"))  # the E2E raises it: every test logs in
+LOGIN_RATE_WINDOW = timedelta(minutes=15)
 RANK = {"viewer": 0, "analyst": 1, "admin": 2}
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -54,6 +59,33 @@ def check_lock(user: User) -> None:
     if user.locked_until is not None and user.locked_until > t:
         log.info("auth.login_locked user_id=%s", user.id)
         raise AccountLocked(math.ceil((user.locked_until - t).total_seconds()))
+
+
+class RateLimited(Exception):
+    def __init__(self, retry_after_s: int):
+        self.retry_after_s = retry_after_s
+
+
+# ponytail: memory of one uvicorn process; with more workers, a Postgres table or the proxy's limit
+login_attempts: dict[str, deque[datetime]] = defaultdict(deque)
+_login_attempts_lock = threading.Lock()
+
+
+def check_login_rate(ip: str) -> None:
+    """Every login attempt from one IP counts, right or wrong; over the limit it waits for the window to slide."""
+    t = now()
+    cutoff = t - LOGIN_RATE_WINDOW
+    with _login_attempts_lock:
+        if len(login_attempts) > 10_000:
+            for stale in [k for k, v in login_attempts.items() if not v or v[-1] <= cutoff]:
+                del login_attempts[stale]
+        attempts = login_attempts[ip]
+        while attempts and attempts[0] <= cutoff:
+            attempts.popleft()
+        if len(attempts) >= LOGIN_RATE_LIMIT:
+            log.warning("auth.login_rate_limited")
+            raise RateLimited(math.ceil((attempts[0] - cutoff).total_seconds()))
+        attempts.append(t)
 
 
 def register_failure(db: Session, user: User) -> None:

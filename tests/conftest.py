@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from api import bcb, bigquery, launcher, passwords, simulations, storage
+from api import auth, bcb, bigquery, launcher, passwords, simulations, storage
 from api import db as api_db
 from api.main import create_app
 from api.models import Membership, User, Workspace
@@ -35,6 +35,12 @@ def create_database_if_missing(url: str) -> None:
         if not exists:
             conn.execute(text(f'CREATE DATABASE "{target.database}"'))
     server.dispose()
+
+
+@pytest.fixture(autouse=True)
+def fresh_login_rate():
+    # the limiter is process memory: without this, the suite's own logins would trip it
+    auth.login_attempts.clear()
 
 
 @pytest.fixture(scope="session")

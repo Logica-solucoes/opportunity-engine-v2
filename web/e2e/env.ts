@@ -14,6 +14,8 @@ export const pyEnv = {
   STORAGE_DIR: join(tmpdir(), 'gem-e2e-storage'),
   // the E2E never calls Gemini: an empty key takes the "unavailable" path even if the dev shell has one
   GEMINI_API_KEY: '',
+  // every spec logs in from 127.0.0.1; the production limit (20 per 15 min) would trip mid-suite
+  LOGIN_RATE_LIMIT: '10000',
   // the worker subprocess inherits this env: the fake engine takes ~5 s per run, long enough to see "Rodando"
   // and reload mid-run; the real one needs months of data
   ENGINE_FAKE: '1',
