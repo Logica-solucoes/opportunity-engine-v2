@@ -62,6 +62,10 @@ Toda narrativa que chega à tela passa por `engine/grounding.py` antes de ser pu
 
 **Verificado com chave real** (08/nov/2026, fixtures `gol_anonimizada` e `identificavel`, `narratives.build` com Gemini): antes das correções, 159 s, os 5 eventos inventaram números na primeira tentativa (ex.: "1,44") e só passaram na regeneração, com floats crus, e a global leu "12" como "12 registros não mapeados". Depois, 63 s, os 7 relatórios passaram na primeira tentativa, sem float cru e com "12 canais sem efeito identificável" correto.
 
+**Contrato do Gemini real.** O `FakeLLM` só prova a interface: ele devolve texto sem números, então o grounding nunca via uma resposta realista (foi a chave real que mostrou as invenções). Por isso há duas guardas:
+- `tests/engine/test_narratives_live.py` roda `narratives.build` com o Gemini nas fixtures e exige nenhum relatório `blocked` e nenhum float cru. Ele só roda com `LLM_LIVE=1` e `GEMINI_API_KEY`. Na CI fica em `.github/workflows/llm-live.yml` (manual e semanal, com o secret `GEMINI_API_KEY`), fora do gate de PR, porque custa chamadas e o texto varia.
+- `tests/fixtures/llm/gemini_answers.json` guarda respostas reais do Gemini, e o `test_grounding_real_answers.py` as confere offline: todas passam e as mutações (número, canal, data inventados) reprovam. Isso pega um checador que endureça e passe a bloquear prosa real. Para atualizar, veja o README da pasta.
+
 Ainda pendente: `api/gemini.py` → `llm/` (abaixo). Qualidade do texto em outros datasets não foi medida.
 
 ## Como adicionar um provedor
