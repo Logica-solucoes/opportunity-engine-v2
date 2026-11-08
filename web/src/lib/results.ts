@@ -37,10 +37,13 @@ export type Elasticity = {
   metrics: { cv_r2: number | null; low_confidence: boolean | null; reallocation_suppressed: boolean | null } | null
   channels: ChannelFit[]
 }
+export type Grounding = { status: 'passed' | 'regenerated' | 'blocked' }
 export type Results = {
   status: 'succeeded' | 'inconclusive' | 'failed'
   causal: Causal | null
   elasticity: Elasticity | null
+  // null until the A9 judges the reports
+  reports: { grounding: Grounding | null } | null
 }
 
 export const resultsQuery = (slug: string, runId: string) =>
@@ -50,6 +53,14 @@ export const resultsQuery = (slug: string, runId: string) =>
     // a finished run's results never change
     staleTime: Infinity,
   })
+
+export const GROUNDING_LABELS: Record<Grounding['status'], string> = {
+  passed: 'aprovado',
+  regenerated: 'aprovado depois de regenerado',
+  blocked: 'bloqueado',
+}
+
+export const eventsCsvHref = (slug: string, runId: string) => `/api/w/${slug}/runs/${runId}/events.csv`
 
 const REASON_LABELS: Record<string, string> = {
   not_significant: 'Não significativo',

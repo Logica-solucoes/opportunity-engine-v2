@@ -1,7 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* print is always the light theme: dark: utilities and the dark palette only apply on screen */
+@custom-variant dark {
+  @media screen {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 :root {
   --radius: 0.75rem;
@@ -30,30 +37,32 @@
   --chart-5: oklch(0.769 0.188 70.08);
 }
 
-.dark {
-  --background: #0e1117;
-  --foreground: #fafafa;
-  --card: #262730;
-  --card-foreground: #fafafa;
-  --popover: #262730;
-  --popover-foreground: #fafafa;
-  --primary: #ff4b4b;
-  --primary-foreground: #ffffff;
-  --secondary: #31333f;
-  --secondary-foreground: #fafafa;
-  --muted: #31333f;
-  --muted-foreground: #a3a8b8;
-  --accent: #3a2328;
-  --accent-foreground: #fafafa;
-  --destructive: #ff6b6b;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.15);
-  --ring: #ff4b4b;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+@media screen {
+  .dark {
+    --background: #0e1117;
+    --foreground: #fafafa;
+    --card: #262730;
+    --card-foreground: #fafafa;
+    --popover: #262730;
+    --popover-foreground: #fafafa;
+    --primary: #ff4b4b;
+    --primary-foreground: #ffffff;
+    --secondary: #31333f;
+    --secondary-foreground: #fafafa;
+    --muted: #31333f;
+    --muted-foreground: #a3a8b8;
+    --accent: #3a2328;
+    --accent-foreground: #fafafa;
+    --destructive: #ff6b6b;
+    --border: rgba(255, 255, 255, 0.1);
+    --input: rgba(255, 255, 255, 0.15);
+    --ring: #ff4b4b;
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+  }
 }
 
 @theme inline {
@@ -93,5 +102,33 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  :root {
+    --background: #ffffff;
+  }
+  /* the A4 width minus the margins: emulated print (page.pdf, the E2E) lays the page out at the sheet's width too,
+     so Recharts measures what fits on it */
+  main {
+    width: 186mm;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  [data-slot="chart"],
+  [data-slot="table-container"],
+  [data-slot="alert"],
+  figure {
+    break-inside: avoid;
+  }
+  h2 {
+    break-after: avoid;
   }
 }

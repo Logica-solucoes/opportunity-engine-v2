@@ -34,7 +34,7 @@ export function AppHeader() {
   const logout = useLogout()
 
   return (
-    <header className="border-b bg-card">
+    <header className="border-b bg-card print:hidden">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
         <Link to="/" className="flex shrink-0 items-center gap-3">
           <Logo light={dashLight} dark={dashDark} alt="DASH" />

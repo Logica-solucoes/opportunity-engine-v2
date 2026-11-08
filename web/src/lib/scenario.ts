@@ -79,6 +79,10 @@ const toQuery = (filters: Filters) => {
   return query ? `?${query}` : ''
 }
 
+// the filters on screen, not the debounced ones: the file matches what the table shows when the link is clicked
+export const scenarioCsvHref = (slug: string, runId: string, file: 'scenario.csv' | 'curve.csv', filters: Filters) =>
+  `/api/w/${slug}/runs/${runId}/${file}${toQuery(filters)}`
+
 export const scenarioQuery = (slug: string, runId: string, filters: Filters) =>
   queryOptions({
     queryKey: ['scenario', slug, runId, filters],
