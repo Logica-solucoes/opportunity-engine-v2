@@ -50,6 +50,10 @@ O cabeçalho impresso mostra o grounding só quando o `results.json` traz `repor
 
 O cartão "Análise" aparece no evento publicado (aba Causal) e no topo da Elasticidade, com o texto de `reports`. Ele diz de onde veio: sem selo, o texto passou pelo LLM e pelo grounding; "Texto padrão" é o determinístico, montado pelo motor, sem nenhuma tentativa aprovada do LLM (sem chave ou LLM indisponível); "Bloqueado pelo grounding" é o determinístico depois de duas respostas do LLM citarem número ou canal fora do resultado. Ocultar o selo esconderia justamente o que o analista precisa saber antes de citar o texto. O cartão não aparece quando `reports` é `null` (erro interno do motor, ver `docs/decisoes/engine.md` › A9).
 
+## Desenho de experimento no topo da Causal (08/nov/2026)
+
+O card aparece quando o `results.json` traz `experiment_design` (só run `inconclusive`), logo abaixo da barra de export e acima do resumo: o run inconclusivo da Gol não tem lift publicável, e o desenho do teste é o que o analista leva dali. Com `insufficient_history` mostra só os motivos (`short_history`, `degenerate_kpi`, `duration_capped` quando o teto é menor que um período), sem número. Com `feasible: false` mostra o aviso de que nem no prazo máximo o teste detecta o alvo, e a duração e o MDE exibidos são os do teto. As premissas (fórmula provisória até a Data Science validar) ficam sempre visíveis na lista do card. O card mora dentro da aba Causal, então um run sem `causal` não o mostra.
+
 ## O front não calcula
 
 Lift, IC, `rel_pct`, CPA, investimento pré × evento e KPI previsto × real vêm prontos do motor. O front formata (`Intl` pt-BR), compara sinal (aumento × queda) e conta status. Se um número novo for preciso na tela, ele entra no `results.json`, não no TypeScript.
