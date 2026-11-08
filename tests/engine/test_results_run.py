@@ -57,7 +57,8 @@ def test_run_result_validates_against_the_schema(ran):
     results = ResultsV1.model_validate(ran["returned"])
     assert results.status == "inconclusive" and results.causal.status == "ok"
     assert results.elasticity.status == "inconclusive" and results.elasticity.reasons == ["no_identifiable_channel"]
-    assert results.experiment_design is not None and results.reports is not None and results.sufficiency is not None
+    assert results.experiment_design is not None and results.reports is not None
+    assert results.sufficiency is not None
     assert results.validation is not None
 
 
