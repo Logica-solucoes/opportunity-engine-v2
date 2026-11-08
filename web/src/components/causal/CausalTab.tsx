@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   type Causal,
+  type ExperimentDesign,
   type Reports,
   channelsLabel,
   eventPeriod,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/results'
 import { cn } from '@/lib/utils'
 import { EventDetail } from './EventDetail'
+import { ExperimentCard } from './ExperimentCard'
 
 export function CausalTab({ slug, runId }: { slug: string; runId: string }) {
   const query = useQuery(resultsQuery(slug, runId))
@@ -28,10 +30,27 @@ export function CausalTab({ slug, runId }: { slug: string; runId: string }) {
     )
   const causal = query.data.causal
   if (!causal) return <p className="text-sm text-muted-foreground">Sem análise causal nesta execução.</p>
-  return <CausalView causal={causal} reports={query.data.reports} csvHref={eventsCsvHref(slug, runId)} />
+  return (
+    <CausalView
+      causal={causal}
+      reports={query.data.reports}
+      experiment={query.data.experiment_design}
+      csvHref={eventsCsvHref(slug, runId)}
+    />
+  )
 }
 
-function CausalView({ causal, reports, csvHref }: { causal: Causal; reports: Reports | null; csvHref: string }) {
+function CausalView({
+  causal,
+  reports,
+  experiment,
+  csvHref,
+}: {
+  causal: Causal
+  reports: Reports | null
+  experiment: ExperimentDesign | null
+  csvHref: string
+}) {
   const published = causal.events.filter((e) => e.status === 'published')
   const [showAll, setShowAll] = useState(false)
   const [selectedId, setSelectedId] = useState(published[0]?.id ?? null)
@@ -47,6 +66,8 @@ function CausalView({ causal, reports, csvHref }: { causal: Causal; reports: Rep
   return (
     <div className="space-y-6">
       <ExportBar links={causal.events.length > 0 ? [['Baixar CSV', csvHref]] : []} />
+
+      {experiment && <ExperimentCard design={experiment} />}
 
       {causal.status !== 'ok' && (
         <Alert>

@@ -46,8 +46,27 @@ export type GlobalReport = ReportBase & {
   recommendations: string[]
 }
 export type Reports = { events: Record<string, EventReport>; global: GlobalReport | null; grounding: Grounding | null }
+export type ExperimentCell = {
+  channel: string
+  test_type: 'on_off' | 'step_up'
+  step: number | null
+  spend_per_period: number
+  budget_at_risk: number
+}
+export type ExperimentDesign = {
+  status: 'ok' | 'insufficient_history'
+  reasons: string[]
+  period_days: number
+  target_lift: number
+  duration_days: number | null
+  feasible: boolean | null
+  mde_rel: number | null
+  designs: ExperimentCell[]
+  assumptions: string[]
+}
 export type Results = {
   status: 'succeeded' | 'inconclusive' | 'failed'
+  experiment_design: ExperimentDesign | null
   causal: Causal | null
   elasticity: Elasticity | null
   // null only when the engine could not build them (A9); grounding is null when no report went through the LLM
@@ -92,6 +111,9 @@ const REASON_LABELS: Record<string, string> = {
   coef_ci_includes_zero: 'O intervalo do efeito inclui zero',
   coef_ci_too_wide: 'O intervalo do efeito é largo demais',
   collinearity: 'Investimento colinear com outro canal',
+  short_history: 'Histórico curto demais para desenhar um experimento (menos de 30 períodos)',
+  degenerate_kpi: 'O KPI não varia o bastante para estimar o ruído',
+  duration_capped: 'Nem no prazo máximo o teste detecta o efeito-alvo',
 }
 
 // a reason the engine adds later shows as its code instead of breaking the screen
@@ -120,6 +142,7 @@ const money = fmt({ style: 'currency', currency: 'BRL', minimumFractionDigits: 2
 const decimal = fmt({ minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const compact = fmt({ notation: 'compact', maximumFractionDigits: 1 })
 const pValue = fmt({ maximumFractionDigits: 3 })
+const share = fmt({ style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 type Num = number | null | undefined
 const or = (v: Num, f: (n: number) => string) => (v == null ? '—' : f(v))
@@ -133,7 +156,13 @@ export const formatDecimal = (v: Num) => or(v, decimal.format)
 export const formatCompact = (v: Num) => or(v, compact.format)
 export const formatPValue = (v: Num) => or(v, (n) => (n < 0.001 ? '< 0,001' : `= ${pValue.format(n)}`))
 
-export const formatDay = (iso: string) => {
+export const formatShare = (v: Num) => or(v, share.format)
+export const TEST_TYPE_LABELS: Record<ExperimentCell['test_type'], string> = {
+  on_off: 'Desligar o canal',
+  step_up: 'Aumentar o orçamento',
+}
+
+export const formatDay =(iso: string) => {
   const [y, m, d] = iso.slice(0, 10).split('-')
   return `${d}/${m}/${y}`
 }
