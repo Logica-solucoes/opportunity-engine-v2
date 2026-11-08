@@ -1,6 +1,7 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from './api'
+import type { Elasticity } from './results'
 import { type PydanticError, pydanticMessage } from './params'
 
 // the engine.scenario answer (engine/scenario.py), monthly values
@@ -97,6 +98,17 @@ export function useDebounced<T>(value: T, ms = 200) {
   }, [value, ms])
   return debounced
 }
+
+// the first extrapolated point also closes the observed line, so the solid and dashed segments meet
+export const splitExtrapolated = <T extends { kpi: number | null; extrapolated: boolean | null }>(points: T[]) =>
+  points.map((p, i) => ({
+    observed: [points[i - 1], p, points[i + 1]].some((q) => q && !q.extrapolated) ? p.kpi : null,
+    extrapolated: p.extrapolated ? p.kpi : null,
+  }))
+
+// the engine.scenario gate (engine/scenario.py REFUSED_REASONS): these answer 409, a short history alone does not
+export const scenarioRefused = (e: Elasticity) =>
+  e.status === 'failed' || e.reasons.some((r) => r === 'no_identifiable_channel' || r === 'model_failed')
 
 export const FILTER_LABELS: Record<keyof Filters, string> = {
   min_budget: 'Orçamento mínimo',

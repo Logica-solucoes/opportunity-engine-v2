@@ -1,7 +1,7 @@
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { type ChannelFit, formatCompact, formatMoney, reasonLabel } from '@/lib/results'
-import type { ChannelCurve } from '@/lib/scenario'
+import { type ChannelCurve, splitExtrapolated } from '@/lib/scenario'
 
 const curveConfig = {
   band: { label: 'Faixa p5–p95', color: 'var(--chart-2)' },
@@ -10,11 +10,11 @@ const curveConfig = {
 } satisfies ChartConfig
 
 function ChannelChart({ channel }: { channel: ChannelCurve }) {
-  const data = channel.curve.map((p) => ({
+  const split = splitExtrapolated(channel.curve)
+  const data = channel.curve.map((p, i) => ({
     investment: p.investment,
     band: p.kpi_lo != null && p.kpi_hi != null ? [p.kpi_lo, p.kpi_hi] : null,
-    observed: p.extrapolated ? null : p.kpi,
-    extrapolated: p.extrapolated ? p.kpi : null,
+    ...split[i],
   }))
   return (
     <figure className="space-y-1 rounded-lg border p-3">

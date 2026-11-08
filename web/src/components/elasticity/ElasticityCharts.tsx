@@ -18,7 +18,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart'
 import { formatCompact, formatMoney } from '@/lib/results'
-import type { CurveRow, Mix, Scenario, TableRow } from '@/lib/scenario'
+import { type CurveRow, type Mix, type Scenario, type TableRow, splitExtrapolated } from '@/lib/scenario'
 
 const investmentAxis = (
   <XAxis
@@ -40,11 +40,11 @@ const saturationConfig = {
 } satisfies ChartConfig
 
 export function SaturationChart({ scenario }: { scenario: Scenario }) {
-  const data = scenario.curve.map((r) => ({
+  const split = splitExtrapolated(scenario.curve)
+  const data = scenario.curve.map((r, i) => ({
     investment: r.investment,
     band: r.kpi_lo != null && r.kpi_hi != null ? [r.kpi_lo, r.kpi_hi] : null,
-    observed: r.extrapolated ? null : r.kpi,
-    extrapolated: r.extrapolated ? r.kpi : null,
+    ...split[i],
     filtered_out: r.in_filter ? null : r.kpi,
   }))
   const marks: [string, TableRow | null, string][] = [

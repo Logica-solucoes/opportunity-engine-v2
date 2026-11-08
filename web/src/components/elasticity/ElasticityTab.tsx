@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ApiError } from '@/lib/api'
 import { type Elasticity, formatDecimal, reasonLabel, resultsQuery } from '@/lib/results'
-import { type Filters, type Scenario, filterErrors, scenarioQuery, useDebounced } from '@/lib/scenario'
+import { type Filters, type Scenario, filterErrors, scenarioQuery, scenarioRefused, useDebounced } from '@/lib/scenario'
 import { ChannelCurves } from './ChannelCurves'
 import { IcpaChart, MixChart, RevenueChart, SaturationChart } from './ElasticityCharts'
 import { FiltersPanel } from './FiltersPanel'
@@ -24,13 +24,19 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
     <section aria-label="Elasticidade">
       {!elasticity ? (
         <p className="text-sm text-muted-foreground">Sem análise de elasticidade nesta execução.</p>
-      ) : elasticity.status !== 'ok' ? (
+      ) : scenarioRefused(elasticity) ? (
         <Inconclusive
           title={elasticity.status === 'failed' ? 'Análise de elasticidade falhou' : undefined}
           lines={elasticity.reasons.map(reasonLabel)}
         />
       ) : (
-        <Planner slug={slug} runId={runId} elasticity={elasticity} />
+        <div className="space-y-6">
+          {elasticity.status !== 'ok' && (
+            <Inconclusive title="Análise de elasticidade não validada" lines={elasticity.reasons.map(reasonLabel)} />
+          )}
+          {/* keyed by run: filters and the last good answer never cross to another run */}
+          <Planner key={runId} slug={slug} runId={runId} elasticity={elasticity} />
+        </div>
       )}
     </section>
   )
