@@ -6,7 +6,7 @@ Spec canônica: `docs/m2/README.md` (decisões, arquitetura alvo, contrato A↔B
 
 Antes de escrever spec, plano ou código de qualquer item `A*`/`B*`, leia `docs/m2/README.md` e o arquivo da sua trilha.
 
-Mapa do código (arquitetura, endpoints, schema, fluxos): `docs/CODEBASE_MAP.md` — ainda não gerado; rodar o cartographer quando houver mais código (B1+). Ele diz **onde**; `docs/decisoes/` diz **por quê**.
+Mapa do código (arquitetura, endpoints, schema, fluxos): `docs/CODEBASE_MAP.md` (gerado em 08/nov/2026; rodar o cartographer de novo após mudanças grandes). Ele diz **onde**; `docs/decisoes/` diz **por quê**.
 
 ## Estrutura
 
