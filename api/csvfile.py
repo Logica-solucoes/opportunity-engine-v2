@@ -1,6 +1,7 @@
 import csv
+import io
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 DELIMITERS = ",;\t|"
@@ -52,3 +53,23 @@ def header(path: Path) -> list[str]:
 
 def normalize(column: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", column.lower()) if c.isalnum())
+
+
+def safe(cell: str) -> str:
+    # Excel runs a cell that starts with these as a formula; names come from people. Only text goes through here:
+    # a number we format may start with "-"
+    return "'" + cell if cell.startswith(("=", "+", "-", "@", "\t", "\r")) else cell
+
+
+def decimal(value: float | None, digits: int = 2) -> str:
+    # a decimal comma and no thousands separator: Excel in pt-BR reads "1234,5" as a number
+    return "" if value is None else f"{value:.{digits}f}".replace(".", ",")
+
+
+def to_csv(header: list[str], rows: Iterable[list]) -> str:
+    # ";" and a decimal comma, with a BOM: what Excel in pt-BR opens without the import wizard
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";", lineterminator="\n")
+    writer.writerow(header)
+    writer.writerows(rows)
+    return "\ufeff" + out.getvalue()

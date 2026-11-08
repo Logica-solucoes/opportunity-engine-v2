@@ -1,9 +1,7 @@
-import csv
-import io
-
 from sqlalchemy import column, select, table
 from sqlalchemy.orm import Session
 
+from api import csvfile
 from api.models import User, Workspace
 
 COUNTS = ("succeeded", "inconclusive", "failed", "active", "total")
@@ -43,18 +41,16 @@ def rows(db: Session, month: str | None) -> list[dict]:
     return [dict(r._mapping) for r in db.execute(query)]
 
 
-def safe(cell: str) -> str:
-    # Excel runs a cell that starts with these as a formula; names and e-mails are typed by workspace admins
-    return "'" + cell if cell.startswith(("=", "+", "-", "@", "\t", "\r")) else cell
-
-
 def to_csv(rows: list[dict]) -> str:
-    # ";" and a decimal comma, with a BOM: what Excel in pt-BR opens without the import wizard
-    out = io.StringIO()
-    writer = csv.writer(out, delimiter=";", lineterminator="\n")
-    writer.writerow(CSV_HEADER)
-    for r in rows:
-        minutes = f"{r['run_seconds'] / 60:.1f}".replace(".", ",")
-        name, user, email = safe(r["workspace_name"]), safe(r["user_name"]), safe(r["user_email"])
-        writer.writerow([r["month"], name, user, email, *(r[c] for c in COUNTS), minutes])
-    return "﻿" + out.getvalue()
+    lines = [
+        [
+            r["month"],
+            csvfile.safe(r["workspace_name"]),
+            csvfile.safe(r["user_name"]),
+            csvfile.safe(r["user_email"]),
+            *(r[c] for c in COUNTS),
+            csvfile.decimal(r["run_seconds"] / 60, 1),
+        ]
+        for r in rows
+    ]
+    return csvfile.to_csv(CSV_HEADER, lines)
