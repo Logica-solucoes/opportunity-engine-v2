@@ -19,11 +19,23 @@ O plano do M2 previa Cloud Run (service + Job), Cloud SQL, GCS, Secret Manager e
 
 O que muda para o B11, porque o Cloud Run fazia sozinho:
 
-- **Limite do corpo da requisição.** O Starlette grava o corpo inteiro em arquivo temporário antes do auth e do teto de 30 MB rodarem, e quem cortava em 32 MiB era o Cloud Run. Sem ele, um POST anônimo enche o disco. **Feito em 05/nov/2026, em parte:** `api/main.py` recusa com 413 qualquer request com `Content-Length` acima de 32 MiB, antes do auth e antes de ler o corpo. Um corpo *chunked* não tem `Content-Length`, então o proxy reverso na frente da API ainda precisa limitar o corpo (ex.: `client_max_body_size 32m` no nginx).
+- **Limite do corpo da requisição.** O Starlette grava o corpo inteiro em arquivo temporário antes do auth e do teto de 30 MB rodarem, e quem cortava em 32 MiB era o Cloud Run. Sem ele, um POST anônimo enche o disco. **Feito em 05/nov/2026, em parte:** `api/main.py` recusa com 413 qualquer request com `Content-Length` acima de 32 MiB, antes do auth e antes de ler o corpo. Um corpo *chunked* não tem `Content-Length`, então o proxy reverso na frente da API ainda precisa limitar o corpo (ex.: `client_max_body_size 32m` no nginx). **Fechado em 08/nov/2026** pelo trecho do nginx em `docs/deploy.md`.
 - **Timeout do worker.** O Job expirava em 15 min; um subprocess pendurado roda para sempre. O run é dado como morto aos 20 min (`STALE_AFTER`), mas o processo continua gastando CPU: **Feito em 05/nov/2026:** o worker liga um watchdog (`worker.watchdog`) que encerra o processo com código 1 ao passar do `STALE_AFTER`. O run já está `failed` pela regra de run morto.
-- **TLS, backup do Postgres e do `STORAGE_DIR`, e restart dos containers** passam a ser nossos.
+- **TLS, backup do Postgres e do `STORAGE_DIR`, e restart dos containers** passam a ser nossos. Backup e restart: ver "B11 sem o servidor" abaixo; TLS é do proxy do servidor.
 - **Saída HTTPS para `api.bcb.gov.br`.** Os controles do causal (A4) são buscados pela API ao criar o run; sem essa saída, todo run com controle do BCB dá 502.
 - O worker roda em processo na mesma máquina da API. O `api/launcher.py` sobe o worker com `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` e `MKL_NUM_THREADS` em 1 (um run usa ~1 núcleo, `docs/decisoes/engine.md`) e sem `LLM_PROVIDER=none` desde a A9 (08/nov/2026): com `GEMINI_API_KEY` no `.env` do servidor, o run chama o Gemini (até 2 chamadas por narrativa, `docs/decisoes/llm.md`). Mesmo assim, runs simultâneos disputam CPU com a API; uma fila entra se isso pesar.
+
+## B11 sem o servidor (08/nov/2026)
+
+Sem acesso ao servidor, o B11 entregou o que dá para escrever e conferir sem ele: `deploy/` (compose, `.env.example`, `backup.sh`, `restore.sh`), `docs/deploy.md` e o rate limit do login. Carga, rollback e homologação esperam o acesso.
+
+- **O proxy é do servidor.** TLS e o limite de corpo ficam no nginx do time do servidor; o trecho está em `docs/deploy.md` (`client_max_body_size 32m`, `Host`, `X-Forwarded-*`, e `proxy_buffering off` com `proxy_read_timeout` de 1 h na rota do log por SSE). Isso fecha a pendência do corpo *chunked*.
+- **Só prod.** Um compose (`deploy/compose.yml`), sem staging; o `docker-compose.yml` da raiz segue sendo o do dev.
+- **`migrate` é um serviço de execução única.** Roda `alembic upgrade head` e sai; a `api` só sobe depois (`service_completed_successfully`). Atualizar é trocar o `TAG` e rodar `up -d`, que recria a api e mata runs em andamento (eles viram runs mortos aos 20 min), então se atualiza sem run ativo.
+- **`FORWARDED_ALLOW_IPS=*` é seguro só porque a porta está presa a `127.0.0.1` E o nginx sobrescreve o `X-Forwarded-For` com `$remote_addr`.** Com `$proxy_add_x_forwarded_for` o cliente forjaria o IP (o uvicorn pega o primeiro item) e burlaria o rate limit.
+- **Rate limit por IP no login: resolvido.** Conta só tentativas **falhas** (senha errada ou conta bloqueada), 20 por 15 min (`LOGIN_RATE_LIMIT`), na memória de um processo uvicorn; passando de 10 000 IPs o mapa é zerado (falha aberta sob enxurrada de IPs rotativos; a saída é o limite do proxy). Acerto não conta, para vários usuários atrás do mesmo NAT não se travarem. **Em aberto:** travar uma conta de propósito (5 falhas por conta, de qualquer IP). Detalhe em `docs/decisoes/auth.md`.
+- **Backup local de 7 dias.** `backup.sh` grava `pg_dump -Fc` e o tar do `STORAGE_DIR` em `/var/backups/gem/AAAA-MM-DD`, no mesmo disco; copiar para fora é do time do servidor. O `restore.sh` recria o schema `public` antes do `pg_restore` (com `--clean` sobrariam tabelas de migrations mais novas que o dump e o próximo `migrate` quebraria). O consolidador testou a restauração contra um `postgres:16` descartável; no servidor real ela ainda precisa ser testada uma vez.
+- **`POSTGRES_PASSWORD` vai cru no `DATABASE_URL`**: tem de ser URL-safe (`openssl rand -hex 32`).
 
 ## Imagem única para API, SPA e worker
 
