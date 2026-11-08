@@ -5,7 +5,8 @@ import type { ReactNode } from 'react'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { meQuery, roleIn } from '@/lib/auth'
-import { isPublishable, runQuery } from '@/lib/runs'
+import { GROUNDING_LABELS, resultsQuery } from '@/lib/results'
+import { type Run, STATUS_LABELS, isPublishable, runQuery } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
 
 export const Route = createFileRoute('/_auth/w/$slug/execucoes/$runId')({ component: RunRoute })
@@ -47,7 +48,13 @@ function RunLayout() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
+      <PrintHeader
+        slug={slug}
+        runId={runId}
+        run={run}
+        workspace={me.workspaces.find((w) => w.slug === slug)?.name ?? slug}
+      />
+      <div className="space-y-1 print:hidden">
         {/* viewers can't open simulations, so their way back is the history */}
         {canEdit ? (
           <Link
@@ -79,7 +86,7 @@ function RunLayout() {
         </Alert>
       )}
 
-      <nav aria-label="Seções da execução" className="flex gap-6 border-b text-sm">
+      <nav aria-label="Seções da execução" className="flex gap-6 border-b text-sm print:hidden">
         {isPublishable(run.status) && tab('/w/$slug/execucoes/$runId/causal', 'Causal')}
         {isPublishable(run.status) && tab('/w/$slug/execucoes/$runId/elasticidade', 'Elasticidade')}
         {tab('/w/$slug/execucoes/$runId/detalhes', 'Detalhes')}
@@ -87,5 +94,27 @@ function RunLayout() {
 
       <Outlet />
     </div>
+  )
+}
+
+// on paper this replaces the app header, the back link and the tabs
+function PrintHeader({ slug, runId, run, workspace }: { slug: string; runId: string; run: Run; workspace: string }) {
+  // same guard as the tabs: a run still going would cache the results 404 for good (staleTime: Infinity)
+  const { data: results } = useQuery({ ...resultsQuery(slug, runId), enabled: isPublishable(run.status) })
+  // only once the A9 has judged the reports: the PDF never claims a grounding nobody checked
+  const grounding = results?.reports?.grounding
+  return (
+    <section aria-label="Cabeçalho de impressão" className="hidden space-y-1 border-b pb-3 print:block">
+      <p className="text-sm">
+        {workspace} · {run.simulation.name}
+      </p>
+      <h1 className="text-xl font-semibold">
+        Execução #{run.id} · {STATUS_LABELS[run.status]}
+      </h1>
+      <p className="text-sm text-muted-foreground">
+        {formatDate(run.created_at)} · motor {run.engine_version ?? '—'}
+      </p>
+      {grounding && <p className="text-sm">Grounding: {GROUNDING_LABELS[grounding.status]}</p>}
+    </section>
   )
 }

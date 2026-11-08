@@ -1,9 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { ExportBar } from '@/components/ExportBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { type Causal, channelsLabel, eventPeriod, formatSignedPct, reasonLabel, resultsQuery } from '@/lib/results'
+import {
+  type Causal,
+  channelsLabel,
+  eventPeriod,
+  eventsCsvHref,
+  formatSignedPct,
+  reasonLabel,
+  resultsQuery,
+} from '@/lib/results'
 import { cn } from '@/lib/utils'
 import { EventDetail } from './EventDetail'
 
@@ -18,10 +27,10 @@ export function CausalTab({ slug, runId }: { slug: string; runId: string }) {
     )
   const causal = query.data.causal
   if (!causal) return <p className="text-sm text-muted-foreground">Sem análise causal nesta execução.</p>
-  return <CausalView causal={causal} />
+  return <CausalView causal={causal} csvHref={eventsCsvHref(slug, runId)} />
 }
 
-function CausalView({ causal }: { causal: Causal }) {
+function CausalView({ causal, csvHref }: { causal: Causal; csvHref: string }) {
   const published = causal.events.filter((e) => e.status === 'published')
   const [showAll, setShowAll] = useState(false)
   const [selectedId, setSelectedId] = useState(published[0]?.id ?? null)
@@ -36,6 +45,8 @@ function CausalView({ causal }: { causal: Causal }) {
 
   return (
     <div className="space-y-6">
+      <ExportBar links={causal.events.length > 0 ? [['Baixar CSV', csvHref]] : []} />
+
       {causal.status !== 'ok' && (
         <Alert>
           <TriangleAlert />
@@ -57,9 +68,9 @@ function CausalView({ causal }: { causal: Causal }) {
       </section>
 
       {causal.events.length > 0 && (
-        <div className="grid gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
+        <div className="grid gap-6 md:grid-cols-[18rem_minmax(0,1fr)] print:block print:space-y-6">
           <section aria-label="Eventos" className="space-y-2">
-            <div className="flex gap-2">
+            <div className="flex gap-2 print:hidden">
               <Button size="sm" variant={showAll ? 'outline' : 'secondary'} aria-pressed={!showAll} onClick={showPublished}>
                 Publicados
               </Button>
@@ -75,7 +86,8 @@ function CausalView({ causal }: { causal: Causal }) {
                 </button>
               </p>
             ) : (
-              <ul className="max-h-[32rem] space-y-1 overflow-auto">
+              // on paper the whole list, not a scroll box cut at 32rem
+              <ul className="max-h-[32rem] space-y-1 overflow-auto print:max-h-none print:overflow-visible">
                 {listed.map((e) => (
                   <li key={e.id}>
                     <button
@@ -112,7 +124,7 @@ function CausalView({ causal }: { causal: Causal }) {
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <p className="rounded-md border p-3 text-sm">
+    <p className="break-inside-avoid rounded-md border p-3 text-sm">
       <span className="text-2xl font-semibold tabular-nums">{value}</span> {label}
     </p>
   )

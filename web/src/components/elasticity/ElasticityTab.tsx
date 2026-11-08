@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
+import { ExportBar } from '@/components/ExportBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ApiError } from '@/lib/api'
 import { type Elasticity, formatDecimal, reasonLabel, resultsQuery } from '@/lib/results'
-import { type Filters, type Scenario, filterErrors, scenarioQuery, scenarioRefused, useDebounced } from '@/lib/scenario'
+import {
+  type Filters,
+  type Scenario,
+  filterErrors,
+  scenarioCsvHref,
+  scenarioQuery,
+  scenarioRefused,
+  useDebounced,
+} from '@/lib/scenario'
 import { ChannelCurves } from './ChannelCurves'
 import { IcpaChart, MixChart, RevenueChart, SaturationChart } from './ElasticityCharts'
-import { FiltersPanel } from './FiltersPanel'
+import { FiltersPanel, FiltersSummary } from './FiltersPanel'
 import { ScenarioTable } from './ScenarioTable'
 
 export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) {
@@ -89,60 +98,74 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
   const metrics = elasticity.metrics
 
   return (
-    <div className="grid gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
-      <FiltersPanel
-        filters={filters}
-        onChange={setFilters}
-        bounds={bounds}
-        revenueMode={scenario.revenue_mode}
-        errors={!error ? [] : error.status === 422 ? filterErrors(error.body) : ['Não foi possível atualizar o cenário.']}
+    <div className="space-y-4">
+      <ExportBar
+        links={
+          // a filter the API rejects would download its 422
+          error
+            ? []
+            : [
+                ['Cenários CSV', scenarioCsvHref(slug, runId, 'scenario.csv', filters)],
+                ['Curva CSV', scenarioCsvHref(slug, runId, 'curve.csv', filters)],
+              ]
+        }
       />
-      <div className="min-w-0 space-y-8">
-        {metrics?.low_confidence && (
-          <Alert>
-            <TriangleAlert />
-            <AlertTitle>Baixa confiança</AlertTitle>
-            <AlertDescription>
-              O modelo explica pouco fora da amostra (CV R² {formatDecimal(metrics.cv_r2)}). Use as curvas como
-              direção, não como meta.
-            </AlertDescription>
-          </Alert>
-        )}
-        <ScenarioTable scenario={scenario} />
-        <section aria-label="Curva de saturação" className="space-y-2">
-          <h2 className="text-lg font-semibold">Curva de saturação</h2>
-          <SaturationChart scenario={scenario} />
-        </section>
-        <div className={scenario.revenue_mode ? 'grid gap-6 lg:grid-cols-2' : undefined}>
-          <section aria-label="iCPA" className="space-y-2">
-            <h2 className="text-lg font-semibold">iCPA</h2>
-            <IcpaChart curve={scenario.curve} />
+      <FiltersSummary filters={filters} />
+      <div className="grid gap-6 md:grid-cols-[18rem_minmax(0,1fr)] print:block">
+        <FiltersPanel
+          filters={filters}
+          onChange={setFilters}
+          bounds={bounds}
+          revenueMode={scenario.revenue_mode}
+          errors={!error ? [] : error.status === 422 ? filterErrors(error.body) : ['Não foi possível atualizar o cenário.']}
+        />
+        <div className="min-w-0 space-y-8">
+          {metrics?.low_confidence && (
+            <Alert>
+              <TriangleAlert />
+              <AlertTitle>Baixa confiança</AlertTitle>
+              <AlertDescription>
+                O modelo explica pouco fora da amostra (CV R² {formatDecimal(metrics.cv_r2)}). Use as curvas como
+                direção, não como meta.
+              </AlertDescription>
+            </Alert>
+          )}
+          <ScenarioTable scenario={scenario} />
+          <section aria-label="Curva de saturação" className="space-y-2">
+            <h2 className="text-lg font-semibold">Curva de saturação</h2>
+            <SaturationChart scenario={scenario} />
           </section>
-          {scenario.revenue_mode && (
-            <section aria-label="Receita e ROAS" className="space-y-2">
-              <h2 className="text-lg font-semibold">Receita e ROAS</h2>
-              <RevenueChart curve={scenario.curve} />
+          <div className={scenario.revenue_mode ? 'grid gap-6 lg:grid-cols-2' : undefined}>
+            <section aria-label="iCPA" className="space-y-2">
+              <h2 className="text-lg font-semibold">iCPA</h2>
+              <IcpaChart curve={scenario.curve} />
+            </section>
+            {scenario.revenue_mode && (
+              <section aria-label="Receita e ROAS" className="space-y-2">
+                <h2 className="text-lg font-semibold">Receita e ROAS</h2>
+                <RevenueChart curve={scenario.curve} />
+              </section>
+            )}
+          </div>
+          {mixRow.mix && Object.keys(mixRow.mix).length > 0 && (
+            <section aria-label="Mix por canal" className="space-y-2">
+              <h2 className="text-lg font-semibold">
+                Mix por canal{scenario.recommended ? ' no ponto recomendado' : ' no ponto de saturação'}
+              </h2>
+              {metrics?.reallocation_suppressed && (
+                <Alert>
+                  <TriangleAlert />
+                  <AlertDescription>
+                    O motor não confia na redistribuição entre canais desta execução: leia o otimizado e o estratégico
+                    como hipótese, não como recomendação.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <MixChart mix={mixRow.mix} />
             </section>
           )}
+          <ChannelCurves channels={scenario.channels} hidden={hidden} />
         </div>
-        {mixRow.mix && Object.keys(mixRow.mix).length > 0 && (
-          <section aria-label="Mix por canal" className="space-y-2">
-            <h2 className="text-lg font-semibold">
-              Mix por canal{scenario.recommended ? ' no ponto recomendado' : ' no ponto de saturação'}
-            </h2>
-            {metrics?.reallocation_suppressed && (
-              <Alert>
-                <TriangleAlert />
-                <AlertDescription>
-                  O motor não confia na redistribuição entre canais desta execução: leia o otimizado e o estratégico
-                  como hipótese, não como recomendação.
-                </AlertDescription>
-              </Alert>
-            )}
-            <MixChart mix={mixRow.mix} />
-          </section>
-        )}
-        <ChannelCurves channels={scenario.channels} hidden={hidden} />
       </div>
     </div>
   )

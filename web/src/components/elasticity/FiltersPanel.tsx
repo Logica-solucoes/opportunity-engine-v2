@@ -2,17 +2,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { formatMoney } from '@/lib/results'
+import { formatDecimal, formatInteger, formatMoney, formatPct } from '@/lib/results'
 import { FILTER_LABELS, type Filters } from '@/lib/scenario'
 
 type Key = keyof Filters
-const FIELDS: [Key, string, boolean][] = [
-  ['target_cpa', FILTER_LABELS.target_cpa, false],
-  ['target_icpa', FILTER_LABELS.target_icpa, false],
-  ['min_roas', FILTER_LABELS.min_roas, true],
-  ['min_iroas', FILTER_LABELS.min_iroas, true],
-  ['min_kpi', FILTER_LABELS.min_kpi, false],
-  ['min_incrementality_pct', FILTER_LABELS.min_incrementality_pct, false],
+// [key, label, revenue mode only, how the printed summary shows it]
+const FIELDS: [Key, string, boolean, (v: number) => string][] = [
+  ['target_cpa', FILTER_LABELS.target_cpa, false, formatMoney],
+  ['target_icpa', FILTER_LABELS.target_icpa, false, formatMoney],
+  ['min_roas', FILTER_LABELS.min_roas, true, formatDecimal],
+  ['min_iroas', FILTER_LABELS.min_iroas, true, formatDecimal],
+  ['min_kpi', FILTER_LABELS.min_kpi, false, formatInteger],
+  ['min_incrementality_pct', FILTER_LABELS.min_incrementality_pct, false, formatPct],
 ]
 
 type Props = {
@@ -28,7 +29,7 @@ export function FiltersPanel({ filters, onChange, bounds, revenueMode, errors }:
   const budget: [number, number] | null = bounds && [filters.min_budget ?? bounds[0], filters.max_budget ?? bounds[1]]
 
   return (
-    <aside aria-label="Filtros" className="space-y-4">
+    <aside aria-label="Filtros" className="space-y-4 print:hidden">
       <h2 className="text-sm font-medium">Filtros (valores mensais)</h2>
       {bounds && budget && (
         <div className="space-y-2">
@@ -70,5 +71,22 @@ export function FiltersPanel({ filters, onChange, bounds, revenueMode, errors }:
         </ul>
       )}
     </aside>
+  )
+}
+
+// on paper the panel is gone: one line says which filters produced the table and the curves
+export function FiltersSummary({ filters }: { filters: Filters }) {
+  const budget =
+    filters.min_budget != null || filters.max_budget != null
+      ? [`Orçamento ${formatMoney(filters.min_budget)} – ${formatMoney(filters.max_budget)}`]
+      : []
+  const parts = [
+    ...budget,
+    ...FIELDS.filter(([key]) => filters[key] != null).map(
+      ([key, label, , format]) => `${label} ${format(filters[key] as number)}`,
+    ),
+  ]
+  return (
+    <p className="hidden text-sm print:block">Filtros (valores mensais): {parts.join(' · ') || 'Sem filtros'}</p>
   )
 }

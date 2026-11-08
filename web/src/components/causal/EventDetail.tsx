@@ -96,7 +96,7 @@ function Published({ event }: { event: CausalEvent }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border p-3">
+    <div className="break-inside-avoid rounded-md border p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="font-medium tabular-nums">{value}</p>
     </div>
