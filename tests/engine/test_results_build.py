@@ -515,3 +515,15 @@ def test_other_statuses_have_no_experiment_design(synthetic_computed, monkeypatc
     monkeypatch.setattr(results, "run_status", lambda causal, elasticity: "succeeded")
 
     assert results.build_results(synthetic_computed, "test").experiment_design is None
+
+
+def test_an_experiment_design_failure_does_not_fail_the_run(synthetic_computed, monkeypatch, caplog):
+    def boom(*args):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(results.experiment, "design", boom)
+
+    doc = results.build_results(synthetic_computed, "test")
+
+    assert doc.status == "inconclusive" and doc.experiment_design is None
+    assert "experiment design" in caplog.text

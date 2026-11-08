@@ -1,6 +1,7 @@
 """Builds, sanitizes and writes results.json from what `compute()` produced. No statistics happen here."""
 
 import json
+import logging
 import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -40,6 +41,8 @@ from engine.sufficiency import CAUSAL_REASONS
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed, EventOutcome
+
+log = logging.getLogger(__name__)
 
 
 def sanitize(obj: Any) -> Any:
@@ -360,16 +363,20 @@ def run_status(causal: Causal, elasticity: Elasticity | None) -> str:
     return "failed"
 
 
-def _experiment_design(computed: "Computed") -> ExperimentDesign:
+def _experiment_design(computed: "Computed") -> ExperimentDesign | None:
     cfg, prepared = computed.effective_config, computed.prepared
-    return experiment.design(
-        prepared.kpi_df,
-        prepared.spend_df,
-        prepared.period_days,
-        cfg["experiment_target_lift"],
-        cfg["experiment_max_days"],
-        cfg["max_budget_step"],
-    )
+    try:
+        return experiment.design(
+            prepared.kpi_df,
+            prepared.spend_df,
+            prepared.period_days,
+            cfg["experiment_target_lift"],
+            cfg["experiment_max_days"],
+            cfg["max_budget_step"],
+        )
+    except Exception:
+        log.warning("experiment design failed; publishing the run without it", exc_info=True)
+        return None
 
 
 def build_results(computed: "Computed", engine_version: str) -> ResultsV1:
