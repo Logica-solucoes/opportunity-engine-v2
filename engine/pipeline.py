@@ -14,7 +14,7 @@ from engine.config import EngineConfig
 from engine.data_preprocessor import PreparedData, load_and_prepare_data
 from engine.errors import EngineError
 from engine.logmessages import forward_logs
-from engine.results_schema import ResultsV1, Sufficiency, ValidationReport
+from engine.results_schema import Reports, Sufficiency, ValidationReport
 from engine.validation import validate
 from engine.version import engine_version
 from llm import get_llm
@@ -346,10 +346,11 @@ def run(
         written = outputs.write_legacy_outputs(computed, out_dir)
         document = results.dump_results(results.build_results(computed, engine_version()))
         try:
-            document["reports"] = narratives.build(document, engine_config, llm)
+            built = narratives.build(document, engine_config, llm)
+            document["reports"] = Reports.model_validate(built).model_dump(mode="json", by_alias=True)
         except Exception:  # a narrative never fails the run: the screen just shows no text
             log.error("Não foi possível montar os relatórios da execução", exc_info=True)
-        document = results.dump_results(ResultsV1.model_validate(document))
+            document["reports"] = None
         outputs.write_recommendations(written, document["reports"])
     results.write_results(document, out_dir / "results.json")
     if document["status"] == "failed":

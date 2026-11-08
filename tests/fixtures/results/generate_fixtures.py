@@ -20,9 +20,10 @@ sys.path.insert(0, str(HERE.parents[2]))
 os.environ["LLM_PROVIDER"] = "none"
 
 import engine
-from engine import results
+from engine import narratives, results
 from engine.config import EngineConfig
 from engine.pipeline import Computed, load_inputs
+from engine.results_schema import ResultsV1
 from tests.engine.real_data import GOL_CONFIG, GOL_RUN_CONFIG, gol_files
 from tests.engine.synthetic_data import dataset_config, identifiable_config, make_dataset, make_identifiable_dataset
 from tests.fixtures.results.anonymize_gol import anonymize, load_factors
@@ -38,7 +39,9 @@ def failed_document() -> dict:
     computed = Computed(
         prepared=prepared, effective_config=config.to_legacy_dict(), events=[], mmm=None, validation=report
     )
-    return results.dump_results(results.build_results(computed, "fixture"))
+    document = results.dump_results(results.build_results(computed, "fixture"))
+    document["reports"] = narratives.build(document, config, None)
+    return results.dump_results(ResultsV1.model_validate(document))
 
 
 def identifiable_document(tmp: Path) -> Path:
