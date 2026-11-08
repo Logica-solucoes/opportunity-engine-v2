@@ -10,13 +10,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        n: [1, 2, 3, 4, 5, 6, 7, 8]
     env:
       OMP_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
       OPENBLAS_CORETYPE: Haswell
-      NPY_DISABLE_CPU_FEATURES: "AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR"
+      NPY_DISABLE_CPU_FEATURES: "X86_V4 AVX512_ICL AVX512_SPR"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -31,13 +31,3 @@ jobs:
           np.show_runtime()
           PY
       - run: uv run pytest tests/engine/test_parity.py -q -W ignore
-        continue-on-error: true
-      - name: variant all avx512 names off
-        continue-on-error: true
-        run: |
-          export NPY_DISABLE_CPU_FEATURES="$(uv run python -c "import numpy as np; print(' '.join(k for k, v in np._core._multiarray_umath.__cpu_features__.items() if v and k.startswith(('AVX512', 'AVX10', 'APX', 'AMX'))))")"
-          echo "$NPY_DISABLE_CPU_FEATURES"
-          uv run pytest tests/engine/test_parity.py -q -W ignore
-      - name: variant sandybridge blas (control, should fail everywhere)
-        continue-on-error: true
-        run: OPENBLAS_CORETYPE=Sandybridge uv run pytest tests/engine/test_parity.py -q -W ignore

@@ -35,12 +35,12 @@ run = "uv run python -m api.cli create-admin"
 
 [tasks.parity]
 description = "Engine parity against the frozen prototype's snapshot (~95 s)"
-env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", OPENBLAS_CORETYPE = "Haswell", NPY_DISABLE_CPU_FEATURES = "AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR" }
+env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", OPENBLAS_CORETYPE = "Haswell", NPY_DISABLE_CPU_FEATURES = "X86_V4 AVX512_ICL AVX512_SPR" }
 run = "uv run pytest tests/engine/test_parity.py -q"
 
 [tasks.parity-real]
 description = "Real-data parity (Gol): runs the frozen prototype on exemplo_csv/, then the engine test (~4 min). LEGACY_REPO defaults to ../opportunity-engine"
-env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", OPENBLAS_CORETYPE = "Haswell", NPY_DISABLE_CPU_FEATURES = "AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR" }
+env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", OPENBLAS_CORETYPE = "Haswell", NPY_DISABLE_CPU_FEATURES = "X86_V4 AVX512_ICL AVX512_SPR" }
 run = """
 set -e
 LEGACY="${LEGACY_REPO:-$(realpath ../opportunity-engine)}"
@@ -54,7 +54,7 @@ uv run pytest tests/engine/test_parity_real.py -q
 
 [tasks.parity-a4-golden]
 description = "Pin the engine's own causal numbers on the Gol (real/gol_a4_events.json) and print how far each event moved from the prototype. Only with approval; needs exemplo_csv/ and real/gol.json"
-env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", OPENBLAS_CORETYPE = "Haswell", NPY_DISABLE_CPU_FEATURES = "AVX512F AVX512CD AVX512_SKX AVX512_CLX AVX512_CNL AVX512_ICL AVX512_SPR" }
+env = { OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", OPENBLAS_CORETYPE = "Haswell", NPY_DISABLE_CPU_FEATURES = "X86_V4 AVX512_ICL AVX512_SPR" }
 run = "uv run python -m tests.fixtures.parity.make_a4_golden"
 
 [tasks.e2e]

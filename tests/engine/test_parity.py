@@ -46,7 +46,7 @@ def prototype_view(events: list[dict]) -> list[dict]:
 
 # The MMM optimum moves with the BLAS build and the CPU's SIMD path (ill-conditioned fit), so the snapshot only holds
 # under the pins of api/launcher.py WORKER_ENV, set before numpy loads. See docs/decisoes/engine.md, "Paridade".
-PINNED = os.environ.get("OPENBLAS_CORETYPE") == "Haswell" and "AVX512F" in os.environ.get(
+PINNED = os.environ.get("OPENBLAS_CORETYPE") == "Haswell" and "X86_V4" in os.environ.get(
     "NPY_DISABLE_CPU_FEATURES", ""
 )
 pytestmark = [

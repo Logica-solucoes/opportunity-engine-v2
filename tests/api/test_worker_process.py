@@ -17,7 +17,7 @@ def test_launch_pins_blas_to_one_thread_and_keeps_the_llm_setting(monkeypatch):
     env = kw["env"]
     assert env["OMP_NUM_THREADS"] == env["OPENBLAS_NUM_THREADS"] == env["MKL_NUM_THREADS"] == "1"
     assert env["OPENBLAS_CORETYPE"] == "Haswell"
-    assert "AVX512F" in env["NPY_DISABLE_CPU_FEATURES"].split()
+    assert "X86_V4" in env["NPY_DISABLE_CPU_FEATURES"].split()
     assert env["LLM_PROVIDER"] == "gemini"  # A9: the narratives are grounded, so the worker may call the LLM
     assert env["SOMETHING_ELSE"] == "kept"
 
