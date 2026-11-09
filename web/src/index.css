@@ -121,6 +121,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* every size is rem, so one step here scales text, controls and spacing together on big screens */
+  html {
+    @media (min-width: 1280px) {
+      font-size: 106.25%;
+    }
+    @media (min-width: 1800px) {
+      font-size: 112.5%;
+    }
+  }
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
