@@ -5,7 +5,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Link, RouterProvider, createRouter } from '@tanstack/react-router'
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Compass, WarningCircle } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { ApiError } from './lib/api'
 import { errorMessage, meQuery } from './lib/auth'
 import { applyTheme } from './lib/theme'
@@ -43,20 +45,34 @@ const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultNotFoundComponent: () => (
-    <div className="p-10 text-center">
-      <p className="mb-4 text-lg">Página não encontrada.</p>
-      <Link to="/" className={textLink}>
-        Voltar ao início
-      </Link>
-    </div>
+    <Empty className="mx-auto mt-10 max-w-3xl border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Compass />
+        </EmptyMedia>
+        <EmptyTitle>Página não encontrada</EmptyTitle>
+        <EmptyDescription>
+          <Link to="/" className={textLink}>
+            Voltar ao início
+          </Link>
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   ),
   defaultErrorComponent: () => (
-    <div className="p-10 text-center">
-      <p className="mb-4 text-lg">Algo deu errado.</p>
-      <button type="button" onClick={() => window.location.reload()} className={textLink}>
-        Recarregar a página
-      </button>
-    </div>
+    <Empty className="mx-auto mt-10 max-w-3xl border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <WarningCircle />
+        </EmptyMedia>
+        <EmptyTitle>Algo deu errado</EmptyTitle>
+        <EmptyDescription>
+          <button type="button" onClick={() => window.location.reload()} className={textLink}>
+            Recarregar a página
+          </button>
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   ),
 })
 

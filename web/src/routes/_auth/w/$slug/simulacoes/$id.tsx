@@ -1,6 +1,6 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { FileCsv, Info, Play, Sliders, Warning, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, FileCsv, Info, Play, Sliders, Warning, XCircle } from '@phosphor-icons/react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
@@ -488,10 +488,10 @@ function ValidationResult({ report, gate }: { report: ValidationReport; gate: Ga
         )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {report.checks.length === 0 && (
-          <Alert variant="info">
-            <Info />
-            <AlertDescription>Nenhum problema encontrado.</AlertDescription>
+        {!report.checks.some((c) => c.level !== 'info') && (
+          <Alert>
+            <CheckCircle className="text-success" />
+            <AlertDescription>Arquivos válidos, sem erros nem avisos.</AlertDescription>
           </Alert>
         )}
         {report.checks.map((check, i) => {
