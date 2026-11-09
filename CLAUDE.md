@@ -116,15 +116,15 @@ Com o MCP `playwright` conectado (registrado em `.mcp.json`; aprove com `/mcp` s
 ## UI stack
 
 Tone: Dense system — ferramenta interna de análise, densa e sóbria.
-- Blocks: shadcn (estilo `radix-nova`) para primitivos; blocks.so (`@blocks-so`) para telas de app (o `FileDrop` vem do `file-upload-04`)
+- Blocks: shadcn (estilo `radix-nova`) para primitivos; blocks.so (`@blocks-so`) para telas de app
 - Motion: nenhum por ora
-- Icons: lucide (o padrão do shadcn), até o B10
-- Theme: tema próprio do protótipo em `web/src/index.css`, até o B10 trazer os tokens do Almap Metrics
-- Fonts: Inter, até o B10
+- Icons: Phosphor (`@phosphor-icons/react`), desde 09/nov/2026
+- Theme: neutros frios + coral da Almap só como acento (`--primary`/`--ring`), tokens `success`/`warning`/`info`, raio único `--radius`, em `web/src/index.css`; o B10 traz os tokens do Almap Metrics
+- Fonts: Geist Sans + Geist Mono (números e tabelas, `tabular-nums`)
 - Showpiece: nenhum
 - Extras: —
 
-Pick UI from this stack only. At the start of a UI task, offer once to scout the `ui-sources` catalog for components that fit this tone; load that skill for the scouting pass or when the stack can't cover a need. Ícones, tema e fontes são trocados juntos no B10, não peça a peça.
+Pick UI from this stack only. At the start of a UI task, offer once to scout the `ui-sources` catalog for components that fit this tone; load that skill for the scouting pass or when the stack can't cover a need. Todo componente de UI é primitivo de `web/src/components/ui/` (`bunx shadcn@latest add`); o MCP `shadcn` (`.mcp.json`) consulta o registry.
 
 ## Refino do front-end
 
@@ -132,7 +132,7 @@ Para qualquer tarefa de UI (tela, componente, tema), leia `docs/audit/front-end.
 
 ## Estado atual
 
-Histórico por item, pendências e o plano do refino do front-end estão em `docs/status.md`: **leia sob demanda**, só quando a tarefa pedir (contexto de um item `A*`/`B*`, o que falta, o refino visual). Resumo: B0–B9, B11 (sem servidor) e A0–A9 concluídos; auditoria matemática do motor tratada em 09/nov/2026; faltam A10 (Data Science), paridade no servidor, B10 (visual) e o que depende do servidor no B11. Próxima fase: refino do front-end (lucide→Phosphor, Inter→Geist, tudo em primitivos shadcn), auditoria antes de editar.
+Histórico por item, pendências e o plano do refino do front-end estão em `docs/status.md`: **leia sob demanda**, só quando a tarefa pedir (contexto de um item `A*`/`B*`, o que falta, o refino visual). Resumo: B0–B9, B11 (sem servidor) e A0–A9 concluídos; auditoria matemática do motor tratada em 09/nov/2026; faltam A10 (Data Science), paridade no servidor, B10 (visual) e o que depende do servidor no B11. Refino do front-end (T0–T4) feito em 09/nov/2026 para a demo; ver `docs/audit/front-end.md`.
 
 **Onde as decisões estão escritas.** Este arquivo e os quatro da raiz dizem as regras; `docs/decisoes/` diz **por quê** (índice em `docs/decisoes/README.md`). Leia o arquivo da área antes de mexer nela:
 

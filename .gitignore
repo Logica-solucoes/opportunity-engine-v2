@@ -27,3 +27,4 @@ tests/fixtures/results/.private/
 AGENTS.md
 deploy/.env
 audit/
+web/.tanstack/
