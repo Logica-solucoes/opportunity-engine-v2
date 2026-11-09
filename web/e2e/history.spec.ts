@@ -39,7 +39,7 @@ test('analyst filters the history, publishes a run and the viewer sees only that
   await viewerPage.getByRole('link', { name: /^#\d+$/ }).click()
   // a finished run opens on the Causal tab; inputs live on Detalhes
   await expect(viewerPage).toHaveURL(/\/causal$/)
-  await viewerPage.getByRole('link', { name: 'Detalhes' }).click()
+  await viewerPage.getByRole('tab', { name: 'Detalhes' }).click()
   await expect(viewerPage.getByText('investimento.csv', { exact: true })).toBeVisible()
   await expect(viewerPage.getByRole('link', { name: 'investimento.csv' })).toHaveCount(0)
   await expect(viewerPage.getByRole('button', { name: 'Despublicar' })).toHaveCount(0)

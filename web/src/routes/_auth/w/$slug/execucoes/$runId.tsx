@@ -1,9 +1,11 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
 import { XCircle } from '@phosphor-icons/react'
-import type { ReactNode } from 'react'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { meQuery, roleIn } from '@/lib/auth'
 import { GROUNDING_LABELS, resultsQuery } from '@/lib/results'
 import { type Run, STATUS_LABELS, isPublishable, runQuery } from '@/lib/runs'
@@ -17,45 +19,42 @@ function RunRoute() {
   return <RunLayout key={Route.useParams().runId} />
 }
 
-const TAB = '-mb-px border-b-2 pb-2 hover:text-foreground'
+const TABS = [
+  ['causal', 'Causal'],
+  ['elasticidade', 'Elasticidade'],
+  ['detalhes', 'Detalhes'],
+] as const
 
 function RunLayout() {
   const { slug, runId } = Route.useParams()
   const { data: run, isError } = useQuery(runQuery(slug, runId))
   const { data: me } = useSuspenseQuery(meQuery)
   const canEdit = roleIn(me, slug) !== 'viewer'
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const current = TABS.find(([key]) => pathname.endsWith(`/${key}`))?.[0]
 
   // 404 covers another workspace, a run a viewer can't see yet and a non-numeric id
-  if (!run) return isError ? <p>Execução não encontrada.</p> : null
+  if (!run)
+    return isError ? (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyTitle>Execução não encontrada</EmptyTitle>
+          <EmptyDescription>Ela não existe ou você não tem acesso.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    ) : null
 
-  const tab = (
-    to:
-      | '/w/$slug/execucoes/$runId/causal'
-      | '/w/$slug/execucoes/$runId/elasticidade'
-      | '/w/$slug/execucoes/$runId/detalhes',
-    label: ReactNode,
-  ) => (
-    // active and inactive colors in separate props: two border-color classes on one element let the CSS order pick
-    <Link
-      to={to}
-      params={{ slug, runId }}
-      className={TAB}
-      activeProps={{ className: 'border-primary text-foreground' }}
-      inactiveProps={{ className: 'border-transparent text-muted-foreground' }}
-    >
-      {label}
-    </Link>
-  )
+  const visible = TABS.filter(([key]) => key === 'detalhes' || isPublishable(run.status))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PrintHeader
         slug={slug}
         runId={runId}
         run={run}
         workspace={me.workspaces.find((w) => w.slug === slug)?.name ?? slug}
       />
-      <div className="space-y-1 print:hidden">
+      <header className="space-y-1.5 print:hidden">
         {/* viewers can't open simulations, so their way back is the history */}
         {canEdit ? (
           <Link
@@ -70,14 +69,15 @@ function RunLayout() {
             ← Execuções
           </Link>
         )}
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">Execução #{run.id}</h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="text-xl font-semibold text-balance">Execução #{run.id}</h1>
           <RunStatusBadge status={run.status} />
+          <p className="text-sm text-muted-foreground">
+            {run.created_by_name} · {formatDate(run.created_at)} · motor{' '}
+            <span className="font-mono text-xs">{run.engine_version ?? '—'}</span>
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {run.created_by_name} · {formatDate(run.created_at)} · motor {run.engine_version ?? '—'}
-        </p>
-      </div>
+      </header>
 
       {run.status === 'failed' && run.error && (
         <Alert variant="destructive">
@@ -87,13 +87,25 @@ function RunLayout() {
         </Alert>
       )}
 
-      <nav aria-label="Seções da execução" className="flex gap-6 border-b text-sm print:hidden">
-        {isPublishable(run.status) && tab('/w/$slug/execucoes/$runId/causal', 'Causal')}
-        {isPublishable(run.status) && tab('/w/$slug/execucoes/$runId/elasticidade', 'Elasticidade')}
-        {tab('/w/$slug/execucoes/$runId/detalhes', 'Detalhes')}
-      </nav>
-
-      <Outlet />
+      <TooltipProvider delayDuration={150}>
+        <Tabs value={current ?? ""} className="flex-col gap-5">
+          <TabsList variant="line" aria-label="Seções da execução" className="h-9 w-full justify-start gap-4 rounded-none border-b p-0 print:hidden">
+            {visible.map(([key, label]) => (
+              <TabsTrigger
+                key={key}
+                value={key}
+                asChild
+                className="h-9 flex-none rounded-none px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
+              >
+                <Link to={`/w/$slug/execucoes/$runId/${key}`} params={{ slug, runId }}>
+                  {label}
+                </Link>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <Outlet />
+        </Tabs>
+      </TooltipProvider>
     </div>
   )
 }

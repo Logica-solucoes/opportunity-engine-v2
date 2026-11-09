@@ -29,7 +29,7 @@ test('the causal tab downloads the events csv and prints with the run header', a
   await loggedInAdmin(page)
   const slug = await createWorkspace(page)
   const runId = runIdOf(await runToCompletion(page, slug, 'Gol'))
-  await page.getByRole('link', { name: 'Causal' }).click()
+  await page.getByRole('tab', { name: 'Causal' }).click()
   await expect(page).toHaveURL(/\/causal$/)
 
   const downloading = page.waitForEvent('download')
@@ -77,7 +77,7 @@ test('the elasticity tab links the csvs with the filters on screen and prints th
   await loggedInAdmin(page)
   const slug = await createWorkspace(page)
   const runId = runIdOf(await runToCompletion(page, slug, 'Sintético'))
-  await page.getByRole('link', { name: 'Elasticidade' }).click()
+  await page.getByRole('tab', { name: 'Elasticidade' }).click()
 
   const base = `/api/w/${slug}/runs/${runId}`
   const scenarioCsv = page.getByRole('link', { name: 'Cenários CSV' })

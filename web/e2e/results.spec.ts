@@ -9,7 +9,7 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   const analystPage = await newSession(browser, analyst)
 
   const detailsUrl = await runToCompletion(analystPage, slug, 'Gol')
-  await analystPage.getByRole('link', { name: 'Causal' }).click()
+  await analystPage.getByRole('tab', { name: 'Causal' }).click()
   await expect(analystPage).toHaveURL(/\/causal$/)
 
   const summary = analystPage.getByRole('region', { name: 'Resumo' })
@@ -29,7 +29,7 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   await expect(analysis).toContainText('Texto padrão')
   await expect(analysis).toContainText('Queda de')
 
-  await analystPage.getByRole('button', { name: 'Todos', exact: true }).click()
+  await analystPage.getByRole('radio', { name: 'Todos', exact: true }).click()
   await analystPage.getByRole('button', { name: /Não significativo/ }).first().click()
   await expect(detail).toContainText('Rejeitado')
   await expect(detail).toContainText('Não significativo')
@@ -38,7 +38,7 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   await expect(detail.getByRole('region', { name: 'Análise' })).toHaveCount(0)
   await expect(detail.locator('.recharts-surface')).toHaveCount(0)
 
-  await analystPage.getByRole('link', { name: 'Detalhes' }).click()
+  await analystPage.getByRole('tab', { name: 'Detalhes' }).click()
   await expect(analystPage.getByRole('log', { name: 'Log da execução' })).toBeVisible()
   await analystPage.getByRole('button', { name: 'Publicar' }).click()
   await expect(analystPage.getByText(/Publicada por/)).toBeVisible()

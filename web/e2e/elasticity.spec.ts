@@ -10,7 +10,7 @@ test('an inconclusive elasticity shows only its reasons', async ({ page }) => {
   const slug = await createWorkspace(page)
   await runToCompletion(page, slug, 'Gol')
 
-  await page.getByRole('link', { name: 'Elasticidade' }).click()
+  await page.getByRole('tab', { name: 'Elasticidade' }).click()
   await expect(page).toHaveURL(/\/elasticidade$/)
   const tab = page.getByRole('region', { name: 'Elasticidade' })
   await expect(tab).toContainText('Análise de elasticidade inconclusiva')
@@ -31,7 +31,7 @@ test('an identifiable run shows the planner and filters go to the scenario', asy
   await loggedInAdmin(page)
   const slug = await createWorkspace(page)
   await runToCompletion(page, slug, 'Sintético')
-  await page.getByRole('link', { name: 'Elasticidade' }).click()
+  await page.getByRole('tab', { name: 'Elasticidade' }).click()
 
   const table = page.getByRole('region', { name: 'Cenários' })
   for (const column of ['Atual', 'Recomendado', 'Saturação']) await expect(table).toContainText(column)
