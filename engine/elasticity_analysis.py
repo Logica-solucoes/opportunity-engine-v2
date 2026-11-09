@@ -178,6 +178,8 @@ def _media_ridge():
 
 CV_SPLITS = 3
 ADSTOCK_WINDOW = 12  # geometric_adstock's max_len
+HILL_K_MIN = 0.1
+HILL_S_MIN_OF_MEAN = 0.01
 
 
 def trusts_reallocation(cv_r2: float, config: dict) -> bool:
@@ -335,14 +337,14 @@ def fit_media_params(spend, lift):
         # budget (490x iROAS on a real project's Google Ads channel).
         # k <= 1 forces every channel concave (diminishing returns) from the
         # first dollar, which is the standard assumption for media response.
-        + [(0.1, 1.0)] * n
+        + [(HILL_K_MIN, 1.0)] * n
         # Hill s (inflection) bounded to the observed spend range, not mean*20.
         # Letting s balloon far past real spend (e.g. 1.6M when the channel never
         # spent near that) flattens the Hill curve into a straight line over the
         # whole data -- "saturation" stops being modeled at all. Capping s near
         # the historical max keeps the inflection inside the range the curve is
         # actually calibrated against.
-        + [(spend[col].mean() * 0.01, max(spend[col].max() * 3, spend[col].mean() * 2)) for col in spend.columns]
+        + [(spend[col].mean() * HILL_S_MIN_OF_MEAN, max(spend[col].max() * 3, spend[col].mean() * 2)) for col in spend.columns]
     )
     initial_params = [0.5] * n + [1.0] * n + [spend[col].mean() for col in spend.columns]
 
@@ -358,6 +360,16 @@ def fit_media_params(spend, lift):
     if not result.success:
         log.warning(f"   - WARNING: Optimization did not converge fully. Details: {result.message}")
     return result.x[:n], result.x[n : 2 * n], result.x[2 * n :]
+
+
+def floor_from_bound(spend, features, ks, ss) -> np.ndarray:
+    """Channels whose drop from the lowest observed level to zero spend the data cannot measure: never at zero, and
+    the CV left Hill k or s on its lower bound, so the curve under the band is the bound's shape (always-on channels
+    came out at 10x their true contribution and media at 61–89% of the KPI, against 10–13%)."""
+    on_bound = (np.asarray(ks) <= HILL_K_MIN * 1.01) | (
+        np.asarray(ss) <= spend.mean().to_numpy() * HILL_S_MIN_OF_MEAN * 1.01
+    )
+    return on_bound & (features.min().to_numpy() > 0)
 
 
 def out_of_sample_r2(df, base_features, spend_cols, kpi_col="kpi"):
@@ -463,9 +475,11 @@ def run_mmm_engine(config, prepared):
     # Divided by the range, without the shift: z = 0 is zero spend, so contributions and the curve start from no media
     # instead of from the lowest level ever observed (MMM F2, planner F1). The Ridge centers the features, so the
     # slopes and the penalty are those of the min-max fit; dividing by the max instead would shrink an always-on
-    # channel (narrow z) toward 0 under the same penalty.
+    # channel (narrow z) toward 0 under the same penalty. A channel in floor_from_bound keeps the shift: measured from
+    # its lowest level, its floor stays in the KPI with no media and it is not identifiable (identifiability.assess).
     mkt_scaler = MinMaxScaler().fit(transformed_mkt)
-    mkt_scaler.min_[:] = 0.0
+    unmeasured_floor = floor_from_bound(df[active_spend_cols], transformed_mkt, final_ks, final_ss)
+    mkt_scaler.min_[~unmeasured_floor] = 0.0
     X_mkt_scaled = mkt_scaler.transform(transformed_mkt)
     coef_samples, intercept_samples = bootstrap_coefficients(
         X_mkt_scaled, y_lift, block=block_length(len(df), final_alphas)
@@ -548,6 +562,7 @@ def run_mmm_engine(config, prepared):
         "scaler": mkt_scaler,
         "optimal_params": {"alphas": final_alphas, "ks": final_ks, "ss": final_ss},
         "spend_cols": active_spend_cols,
+        "unmeasured_floor": [c for c, flag in zip(active_spend_cols, unmeasured_floor, strict=True) if flag],
         "kpi_col": kpi_col,
         "dataframe": df,
         "organic_baseline_mean": organic_level,  # the KPI with zero media
