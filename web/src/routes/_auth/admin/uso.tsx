@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { DownloadSimple } from '@phosphor-icons/react'
+import { DataTable } from '@/components/DataTable'
+import { FilterBar, FilterField } from '@/components/FilterBar'
 import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 
 type UsageRow = {
@@ -79,13 +79,20 @@ function Usage() {
     queryFn: () => api<UsageRow[]>(`/admin/usage${qs}`),
   })
 
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="usage-month">Mês</Label>
+  const exportCsv = (
+    <Button asChild variant="outline" size="sm">
+      <a href={`/api/admin/usage.csv${qs}`} download>
+        <DownloadSimple aria-hidden />
+        Exportar CSV
+      </a>
+    </Button>
+  )
+
+  const filters = (
+      <FilterBar>
+        <FilterField label="Mês" htmlFor="usage-month">
           <Select value={monthNumber ?? ''} onValueChange={changeMonthNumber}>
-            <SelectTrigger id="usage-month" className="w-40">
+            <SelectTrigger id="usage-month" className="gap-3 pl-4">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -96,11 +103,10 @@ function Usage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="usage-year">Ano</Label>
+        </FilterField>
+        <FilterField label="Ano" htmlFor="usage-year">
           <Select value={year ?? ''} onValueChange={changeYear}>
-            <SelectTrigger id="usage-year" className="w-28">
+            <SelectTrigger id="usage-year" className="gap-3 pl-4">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -111,19 +117,23 @@ function Usage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FilterField>
         {month && (
-          <Button variant="ghost" onClick={() => goTo('todos')}>
+          <Button variant="ghost" size="sm" onClick={() => goTo('todos')}>
             Todos os meses
           </Button>
         )}
-        <Button asChild variant="outline" className="ml-auto">
-          <a href={`/api/admin/usage.csv${qs}`} download>
-            <DownloadSimple aria-hidden />
-            Exportar CSV
-          </a>
-        </Button>
-      </div>
+      </FilterBar>
+  )
+
+  return (
+    <div className="space-y-6">
+      {!usage.data || usage.data.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {filters}
+          {exportCsv}
+        </div>
+      ) : null}
 
       {!usage.data ? (
         <LoadState query={usage} />
@@ -135,36 +145,24 @@ function Usage() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <Table>
-          <TableHeader className="[&_th]:text-muted-foreground">
-            <TableRow>
-              <TableHead>Mês</TableHead>
-              <TableHead>Workspace</TableHead>
-              <TableHead>Usuário</TableHead>
-              <TableHead className="text-right">Concluídas</TableHead>
-              <TableHead className="text-right">Inconclusivas</TableHead>
-              <TableHead className="text-right">Falharam</TableHead>
-              <TableHead className="text-right">Em andamento</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-right">Tempo de execução</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usage.data.map((r) => (
-              <TableRow key={`${r.month}-${r.workspace_id}-${r.user_id}`}>
-                <TableCell className="tabular-nums">{formatMonth(r.month)}</TableCell>
-                <TableCell>{r.workspace_name}</TableCell>
-                <TableCell title={r.user_email}>{r.user_name}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.succeeded}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.inconclusive}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.failed}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.active}</TableCell>
-                <TableCell className="text-right tabular-nums">{r.total}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatDuration(r.run_seconds)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          id="uso"
+          toolbar={filters}
+          actions={exportCsv}
+          rows={usage.data}
+          rowKey={(r) => `${r.month}-${r.workspace_id}-${r.user_id}`}
+          columns={[
+            { id: 'month', header: 'Mês', sort: (r) => r.month, className: 'tabular-nums', cell: (r) => formatMonth(r.month) },
+            { id: 'workspace', header: 'Workspace', sort: (r) => r.workspace_name, cell: (r) => r.workspace_name },
+            { id: 'user', header: 'Usuário', sort: (r) => r.user_name, cell: (r) => <span title={r.user_email}>{r.user_name}</span> },
+            { id: 'succeeded', header: 'Concluídas', sort: (r) => r.succeeded, className: 'tabular-nums', cell: (r) => r.succeeded },
+            { id: 'inconclusive', header: 'Inconclusivas', sort: (r) => r.inconclusive, className: 'tabular-nums', cell: (r) => r.inconclusive },
+            { id: 'failed', header: 'Falharam', sort: (r) => r.failed, className: 'tabular-nums', cell: (r) => r.failed },
+            { id: 'active', header: 'Em andamento', sort: (r) => r.active, className: 'tabular-nums', cell: (r) => r.active },
+            { id: 'total', header: 'Total', sort: (r) => r.total, className: 'tabular-nums', cell: (r) => r.total },
+            { id: 'time', header: 'Tempo de execução', sort: (r) => r.run_seconds, className: 'tabular-nums', cell: (r) => formatDuration(r.run_seconds) },
+          ]}
+        />
       )}
     </div>
   )

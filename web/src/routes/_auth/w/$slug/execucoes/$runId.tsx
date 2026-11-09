@@ -1,6 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
-import { XCircle } from '@phosphor-icons/react'
+import { ClockCounterClockwise, XCircle } from '@phosphor-icons/react'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -10,7 +10,7 @@ import { meQuery, roleIn } from '@/lib/auth'
 import { GROUNDING_LABELS, resultsQuery } from '@/lib/results'
 import { type Run, STATUS_LABELS, isPublishable, runQuery } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
-import { backLink } from '@/lib/links'
+import { PageHeader } from '@/components/PageHeader'
 
 export const Route = createFileRoute('/_auth/w/$slug/execucoes/$runId')({ component: RunRoute })
 
@@ -29,6 +29,7 @@ function RunLayout() {
   const { slug, runId } = Route.useParams()
   const { data: run, isError } = useQuery(runQuery(slug, runId))
   const { data: me } = useSuspenseQuery(meQuery)
+  // viewers can't open simulations, so their way back is the history
   const canEdit = roleIn(me, slug) !== 'viewer'
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const current = TABS.find(([key]) => pathname.endsWith(`/${key}`))?.[0]
@@ -47,37 +48,33 @@ function RunLayout() {
   const visible = TABS.filter(([key]) => key === 'detalhes' || isPublishable(run.status))
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PrintHeader
         slug={slug}
         runId={runId}
         run={run}
         workspace={me.workspaces.find((w) => w.slug === slug)?.name ?? slug}
       />
-      <header className="space-y-1.5 print:hidden">
-        {/* viewers can't open simulations, so their way back is the history */}
-        {canEdit ? (
-          <Link
-            to="/w/$slug/simulacoes/$id"
-            params={{ slug, id: String(run.simulation.id) }}
-            className={backLink}
-          >
-            ← {run.simulation.name}
-          </Link>
-        ) : (
-          <Link to="/w/$slug/execucoes" params={{ slug }} className={backLink}>
-            ← Execuções
-          </Link>
-        )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-xl font-semibold text-balance">Execução #{run.id}</h1>
-          <RunStatusBadge status={run.status} />
-          <p className="text-sm text-muted-foreground">
-            {run.created_by_name} · {formatDate(run.created_at)} · motor{' '}
-            <span className="font-mono text-xs">{run.engine_version ?? '—'}</span>
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        slug={slug}
+        trail={
+          canEdit
+            ? [
+                { label: 'Simulações', link: { to: '/w/$slug', params: { slug } } },
+                { label: run.simulation.name, link: { to: '/w/$slug/simulacoes/$id', params: { slug, id: String(run.simulation.id) } } },
+                { label: `Execução #${run.id}` },
+              ]
+            : [{ label: 'Execuções', link: { to: '/w/$slug/execucoes', params: { slug } } }, { label: `#${run.id}` }]
+        }
+        title={`Execução #${run.id}`}
+        icon={ClockCounterClockwise}
+      >
+        <RunStatusBadge status={run.status} />
+        <p className="text-sm text-muted-foreground md:ml-auto">
+          {run.created_by_name} · {formatDate(run.created_at)} · motor{' '}
+          <span className="font-mono text-xs">{run.engine_version ?? '—'}</span>
+        </p>
+      </PageHeader>
 
       {run.status === 'failed' && run.error && (
         <Alert variant="destructive">

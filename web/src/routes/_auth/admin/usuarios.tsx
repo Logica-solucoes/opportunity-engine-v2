@@ -14,11 +14,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { DataTable } from '@/components/DataTable'
 import { LoadState } from '@/components/LoadState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
 
@@ -72,63 +72,69 @@ function Users() {
           </EmptyHeader>
         </Empty>
       )}
-      <Table>
-        <TableHeader className="[&_th]:text-muted-foreground">
-          <TableRow>
-            <TableHead>E-mail</TableHead>
-            <TableHead>Nome</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.data?.map((u) => (
-            <TableRow key={u.id}>
-              <TableCell>
-                {u.email}
-                {u.is_platform_admin && (
-                  <Badge variant="info" className="ml-2">
-                    platform admin
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>{u.name}</TableCell>
-              <TableCell>
-                <StatusBadge u={u} />
-              </TableCell>
-              <TableCell className="space-x-1 text-right">
-                {/* resetting your own password drops your own session; use "Trocar senha" instead */}
-                {u.id !== me.id && (
-                  <>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          Resetar senha
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Resetar a senha de {u.email}?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            As sessões dessa pessoa caem e ela terá de trocar a senha no próximo login.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => reset.mutate(u)}>Resetar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <Button variant="ghost" size="sm" onClick={() => setActive.mutate(u)}>
-                      {u.active ? 'Desativar' : 'Ativar'}
-                    </Button>
-                  </>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {!!users.data?.length && (
+        <DataTable
+          id="usuarios"
+          rows={users.data}
+          rowKey={(u) => u.id}
+          columns={[
+            {
+              id: 'email',
+              header: 'E-mail',
+              fixed: true,
+              sort: (u) => u.email,
+              cell: (u) => (
+                <>
+                  {u.email}
+                  {u.is_platform_admin && (
+                    <Badge variant="info" className="ml-2">
+                      platform admin
+                    </Badge>
+                  )}
+                </>
+              ),
+            },
+            { id: 'name', header: 'Nome', sort: (u) => u.name, cell: (u) => u.name },
+            { id: 'status', header: 'Status', sort: (u) => (u.active ? 'Ativo' : 'Inativo'), cell: (u) => <StatusBadge u={u} /> },
+            {
+              id: 'actions',
+              header: '',
+              className: 'space-x-1',
+              cell: (u) => (
+                <>
+                  {/* resetting your own password drops your own session; use "Trocar senha" instead */}
+                  {u.id !== me.id && (
+                    <>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            Resetar senha
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Resetar a senha de {u.email}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              As sessões dessa pessoa caem e ela terá de trocar a senha no próximo login.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => reset.mutate(u)}>Resetar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <Button variant="ghost" size="sm" onClick={() => setActive.mutate(u)}>
+                        {u.active ? 'Desativar' : 'Ativar'}
+                      </Button>
+                    </>
+                  )}
+                </>
+              ),
+            },
+          ]}
+        />
+      )}
       <TempPasswordDialog password={temp?.password ?? null} email={temp?.email ?? ''} onClose={() => setTemp(null)} />
     </>
   )

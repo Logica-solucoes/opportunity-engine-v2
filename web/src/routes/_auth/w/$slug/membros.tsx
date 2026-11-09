@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
+import { UsersThree } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/PageHeader'
+import { AddDialog } from '@/components/AddDialog'
 import { LoadState } from '@/components/LoadState'
+import { DataTable } from '@/components/DataTable'
 import { TempPasswordDialog } from '@/components/TempPasswordDialog'
 import {
   AlertDialog,
@@ -16,13 +20,12 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { DialogFooter } from '@/components/ui/dialog'
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { type Me, ROLE_LABELS, type Role, errorMessage, meQuery, roleIn } from '@/lib/auth'
 
@@ -53,6 +56,7 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
   const key = ['members', slug]
   const base = `/w/${slug}/members`
   const members = useQuery({ queryKey: key, queryFn: () => api<Member[]>(base) })
+  const [open, setOpen] = useState(false)
   const [newRole, setNewRole] = useState<Role>('analyst')
   const [temp, setTemp] = useState<{ password: string; email: string } | null>(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: key })
@@ -89,6 +93,7 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
       },
       {
         onSuccess: () => {
+          setOpen(false)
           formEl.reset()
           setNewRole('analyst')
         },
@@ -96,86 +101,100 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
     )
   }
 
-  return (
-    <div className="space-y-5">
-      <h1 className="text-xl font-semibold text-balance">Membros</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Adicionar membro</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-            <div className="grid w-64 gap-1.5">
-              <Label htmlFor="m-email">E-mail</Label>
-              <Input id="m-email" name="email" type="email" autoComplete="off" spellCheck={false} required />
-            </div>
-            {/* only the platform admin creates accounts; a workspace admin links existing ones */}
-            {me.is_platform_admin && (
-              <div className="grid w-56 gap-1.5">
-                <Label htmlFor="m-name">Nome</Label>
-                <Input id="m-name" name="name" autoComplete="off" placeholder="Só para conta nova…" />
-              </div>
-            )}
-            <div className="grid w-40 gap-1.5">
-              <Label htmlFor="m-role">Papel</Label>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
-                <SelectTrigger id="m-role" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" disabled={add.isPending}>
-              Adicionar
-            </Button>
-          </form>
-          {add.isError && (
-            <Alert variant="destructive">
-              <AlertDescription>{errorMessage(add.error)}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+  const addButton = (
+    <AddDialog
+      label="Adicionar membro"
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) add.reset()
+      }}
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="m-email">E-mail</Label>
+          <Input id="m-email" name="email" type="email" autoComplete="off" spellCheck={false} required />
+        </div>
+        {/* only the platform admin creates accounts; a workspace admin links existing ones */}
+        {me.is_platform_admin && (
+          <div className="grid gap-1.5">
+            <Label htmlFor="m-name">Nome</Label>
+            <Input id="m-name" name="name" autoComplete="off" placeholder="Só para conta nova…" />
+          </div>
+        )}
+        <div className="grid gap-1.5">
+          <Label htmlFor="m-role">Papel</Label>
+          <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
+            <SelectTrigger id="m-role" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {add.isError && (
+          <Alert variant="destructive">
+            <AlertDescription>{errorMessage(add.error)}</AlertDescription>
+          </Alert>
+        )}
+        <DialogFooter>
+          <Button type="submit" disabled={add.isPending}>
+            Adicionar
+          </Button>
+        </DialogFooter>
+      </form>
+    </AddDialog>
+  )
 
+  return (
+    <div className="space-y-6">
+      <PageHeader slug={slug} trail={[{ label: 'Membros' }]} title="Membros" icon={UsersThree} hideTitle />
       <LoadState query={members} />
       {members.data?.length === 0 && (
         <Empty className="border">
           <EmptyHeader>
             <EmptyTitle>Nenhum membro</EmptyTitle>
-            <EmptyDescription>Adicione alguém pelo e-mail acima.</EmptyDescription>
+            <EmptyDescription>Adicione alguém pelo e-mail.</EmptyDescription>
           </EmptyHeader>
+          <EmptyContent>{addButton}</EmptyContent>
         </Empty>
       )}
       {!!members.data?.length && (
-        <Table>
-          <TableHeader className="[&_th]:text-muted-foreground">
-            <TableRow>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Papel</TableHead>
-              <TableHead className="w-24" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {members.data.map((m) => (
-              <TableRow key={m.user_id}>
-                <TableCell>
+        <DataTable
+          id="membros"
+          toolbar={addButton}
+          rows={members.data}
+          rowKey={(m) => m.user_id}
+          columns={[
+            {
+              id: 'email',
+              header: 'E-mail',
+              fixed: true,
+              sort: (m) => m.email,
+              cell: (m) => (
+                <>
                   {m.email}
                   {!m.active && (
                     <Badge variant="neutral" className="ml-2">
                       inativo
                     </Badge>
                   )}
-                </TableCell>
-                <TableCell>{m.name}</TableCell>
-                {/* demoting or removing yourself would leave this screen stale and forbidden; another admin does it */}
-                <TableCell>
+                </>
+              ),
+            },
+            { id: 'name', header: 'Nome', sort: (m) => m.name, cell: (m) => m.name },
+            {
+              id: 'role',
+              header: 'Papel',
+              sort: (m) => ROLE_LABELS[m.role],
+              // demoting or removing yourself would leave this screen stale and forbidden; another admin does it
+              cell: (m) => (
+                <div className="flex justify-center">
                   {m.user_id === me.id ? (
                     <span className="px-2.5">{ROLE_LABELS[m.role]}</span>
                   ) : (
@@ -196,8 +215,14 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
                       </SelectContent>
                     </Select>
                   )}
-                </TableCell>
-                <TableCell className="text-right">
+                </div>
+              ),
+            },
+            {
+              id: 'actions',
+              header: '',
+              cell: (m) => (
+                <>
                   {m.user_id !== me.id && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -216,11 +241,11 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
                       </AlertDialogContent>
                     </AlertDialog>
                   )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </>
+              ),
+            },
+          ]}
+        />
       )}
       <TempPasswordDialog password={temp?.password ?? null} email={temp?.email ?? ''} onClose={() => setTemp(null)} />
     </div>

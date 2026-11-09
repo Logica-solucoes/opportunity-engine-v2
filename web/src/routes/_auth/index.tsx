@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
+import { PageHeader } from '@/components/PageHeader'
 import { ArrowRight, Buildings } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardTitle } from '@/components/ui/card'
@@ -20,7 +21,7 @@ function Home() {
   const { data: me } = useSuspenseQuery(meQuery)
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-balance">Workspaces</h1>
+      <PageHeader trail={[{ label: 'Início', link: { to: '/' } }, { label: 'Workspaces' }]} title="Workspaces" icon={Buildings} hideTitle />
       {me.workspaces.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
@@ -40,7 +41,7 @@ function Home() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {me.workspaces.map((w) => (
             <Link
               key={w.slug}

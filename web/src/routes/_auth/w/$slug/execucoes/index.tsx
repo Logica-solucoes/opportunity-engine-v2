@@ -1,9 +1,12 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { CalendarBlank, FunnelSimple, MagnifyingGlass, X } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { PageHeader } from '@/components/PageHeader'
+import { CalendarBlank, ClockCounterClockwise, FunnelSimple, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { type ReactNode, useState } from 'react'
 import { ptBR } from 'react-day-picker/locale'
+import { FilterBar } from '@/components/FilterBar'
 import { LoadState } from '@/components/LoadState'
+import { type Column, DataTable } from '@/components/DataTable'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,8 +15,6 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { meQuery, roleIn } from '@/lib/auth'
 import {
   type Run,
   type RunFilters,
@@ -24,7 +25,6 @@ import {
   workspaceRunsQuery,
 } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
-import { backLink } from '@/lib/links'
 
 const ALL = 'all'
 
@@ -87,7 +87,6 @@ function HistoryPage() {
   const { slug } = Route.useParams()
   const filters = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { data: me } = useSuspenseQuery(meQuery)
   const query = useQuery(workspaceRunsQuery(slug))
   const { data } = query
   // replace: typing in the search box must not push one history entry per key
@@ -102,19 +101,8 @@ function HistoryPage() {
   const authors = [...new Set(data?.map((r) => r.created_by_name))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   const shown = data ? filterRuns(data, filters) : []
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        {/* a viewer's workspace home redirects here, so the link would loop */}
-        {roleIn(me, slug) !== 'viewer' && (
-          <Link to="/w/$slug" params={{ slug }} className={backLink}>
-            ← Simulações
-          </Link>
-        )}
-        <h1 className="text-xl font-semibold text-balance">Execuções</h1>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
+  const bar = (
+      <FilterBar>
         <div className="relative">
           <MagnifyingGlass aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -178,7 +166,14 @@ function HistoryPage() {
             Limpar
           </Button>
         )}
-      </div>
+      </FilterBar>
+  )
+
+  return (
+    <div className="space-y-6">
+      <PageHeader slug={slug} trail={[{ label: 'Execuções' }]} title="Execuções" icon={ClockCounterClockwise} hideTitle />
+
+      {shown.length === 0 && bar}
 
       {!data ? (
         <LoadState query={query} />
@@ -208,55 +203,52 @@ function HistoryPage() {
           </EmptyContent>
         </Empty>
       ) : (
-        <HistoryTable slug={slug} runs={shown} />
+        <HistoryTable slug={slug} runs={shown} toolbar={bar} />
       )}
     </div>
   )
 }
 
-function HistoryTable({ slug, runs }: { slug: string; runs: Run[] }) {
-  return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Execução</TableHead>
-            <TableHead>Simulação</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Criada por</TableHead>
-            <TableHead>Criada em</TableHead>
-            <TableHead>Motor</TableHead>
-            <TableHead>Publicação</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {runs.map((r) => (
-            <TableRow key={r.id} className="relative">
-              <TableCell>
-                <Link
-                  to="/w/$slug/execucoes/$runId"
-                  params={{ slug, runId: String(r.id) }}
-                  className="font-medium tabular-nums outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
-                >
-                  #{r.id}
-                </Link>
-              </TableCell>
-              <TableCell className="font-medium">{r.simulation.name}</TableCell>
-              <TableCell>
-                <RunStatusBadge status={r.status} />
-              </TableCell>
-              <TableCell className="text-muted-foreground">{r.created_by_name}</TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">{formatDate(r.created_at)}</TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
-                {r.engine_version ?? '—'}
-              </TableCell>
-              <TableCell>
-                {r.published_at ? <Badge variant="success">Publicada</Badge> : <span className="text-muted-foreground">—</span>}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
+function HistoryTable({ slug, runs, toolbar }: { slug: string; runs: Run[]; toolbar: ReactNode }) {
+  const columns: Column<Run>[] = [
+    {
+      id: 'id',
+      header: 'Execução',
+      fixed: true,
+      sort: (r) => r.id,
+      cell: (r) => (
+        <Link
+          to="/w/$slug/execucoes/$runId"
+          params={{ slug, runId: String(r.id) }}
+          className="font-medium tabular-nums outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
+        >
+          #{r.id}
+        </Link>
+      ),
+    },
+    { id: 'simulation', header: 'Simulação', sort: (r) => r.simulation.name, className: 'font-medium', cell: (r) => r.simulation.name },
+    { id: 'status', header: 'Status', sort: (r) => STATUS_LABELS[r.status], cell: (r) => <RunStatusBadge status={r.status} /> },
+    { id: 'author', header: 'Criada por', sort: (r) => r.created_by_name, className: 'text-muted-foreground', cell: (r) => r.created_by_name },
+    {
+      id: 'created',
+      header: 'Criada em',
+      sort: (r) => r.created_at,
+      className: 'text-muted-foreground tabular-nums',
+      cell: (r) => formatDate(r.created_at),
+    },
+    {
+      id: 'engine',
+      header: 'Motor',
+      sort: (r) => r.engine_version,
+      className: 'font-mono text-xs text-muted-foreground tabular-nums',
+      cell: (r) => r.engine_version ?? '—',
+    },
+    {
+      id: 'published',
+      header: 'Publicação',
+      sort: (r) => r.published_at,
+      cell: (r) => (r.published_at ? <Badge variant="success">Publicada</Badge> : <span className="text-muted-foreground">—</span>),
+    },
+  ]
+  return <DataTable id="execucoes" columns={columns} rows={runs} rowKey={(r) => r.id} rowClassName="relative" toolbar={toolbar} />
 }
