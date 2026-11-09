@@ -240,3 +240,41 @@ def test_cv_r2_is_scored_on_rows_the_whole_fit_never_saw(monkeypatch):
 
     assert sorted(seen) == [20, 40, 60, 80]  # 3 folds of 20 + the final fit on all rows
     assert mmm["cv_out_of_sample"] is True and mmm["cv_r_squared"] > 0.5
+
+
+def _narrow_band(seed: int):
+    """A always on in a narrow band (800–1200), B swings 0–2000; y = 4000 + 600·x/(x+1000) per channel."""
+    rng = np.random.default_rng(seed)
+    n = 365
+    spend = {"A": rng.uniform(800, 1200, n), "B": rng.uniform(0, 2000, n)}
+    media = {name: 600 * x / (x + 1000) for name, x in spend.items()}
+    return spend, media, 4000.0, 4000 + sum(media.values()) + rng.normal(0, 30, n)
+
+
+def _late_launch():
+    """A always on (500–1500), B launches at row 141; y = 3000 + 500·x/(x+1000) per channel."""
+    rng = np.random.default_rng(9)
+    n = 240
+    spend = {"A": rng.uniform(500, 1500, n)}
+    spend["B"] = np.where(np.arange(n) > 140, rng.uniform(500, 1500, n), 0.0)
+    media = {name: 500 * x / (x + 1000) for name, x in spend.items()}
+    return spend, media, 3000.0, 3000 + sum(media.values()) + rng.normal(0, 20, n)
+
+
+@pytest.mark.parametrize("case", [lambda: _narrow_band(20), lambda: _narrow_band(21), _late_launch])
+def test_a_hill_on_its_bound_does_not_extrapolate_an_always_on_channel_to_zero(case):
+    """Review of MMM F1/F2: when the CV left Hill k or s on its lower bound, the drop under the observed band came from
+    the bound, not the data: media went to 61–89% of the KPI (true 10–13%) and A was published as identifiable."""
+    spend, media, level, kpi = case()
+    with threadpool_limits(limits=1):
+        mmm = run_mmm_engine(
+            {"country_code": "BR", "period_days": 1, "min_marketing_contribution": 0.05}, _prepared(spend, kpi)
+        )
+    true_pct = 100 * sum(m.sum() for m in media.values()) / kpi.sum()
+    verdicts = assess(mmm)
+    i = mmm["spend_cols"].index("A")
+
+    assert mmm["marketing_contribution_of_kpi_pct"] < 1.5 * true_pct
+    assert mmm["organic_baseline_mean"] > 0.9 * level
+    if verdicts["A"]["identifiable"]:
+        assert mmm["model"].coef_[i] * mmm["channel_totals"][i] == pytest.approx(media["A"].sum(), rel=0.5)
