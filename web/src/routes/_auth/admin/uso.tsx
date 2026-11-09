@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { DownloadSimple } from '@phosphor-icons/react'
 import { LoadState } from '@/components/LoadState'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 
@@ -48,6 +49,18 @@ function formatDuration(seconds: number) {
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`
 }
 
+const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => {
+  const name = new Date(2000, i, 1).toLocaleDateString('pt-BR', { month: 'long' })
+  return name[0].toUpperCase() + name.slice(1)
+})
+
+// the platform started in 2026; the selected year is added if it falls outside
+function yearOptions(selected?: string) {
+  const last = new Date().getFullYear()
+  const years = Array.from({ length: last - 2026 + 1 }, (_, i) => String(2026 + i))
+  return selected && !years.includes(selected) ? [...years, selected].sort() : years
+}
+
 const formatMonth = (month: string) => `${month.slice(5)}/${month.slice(0, 4)}`
 
 function Usage() {
@@ -55,39 +68,58 @@ function Usage() {
   const navigate = useNavigate({ from: Route.fullPath })
   const month = search.month === 'todos' ? undefined : (search.month ?? thisMonth())
   const qs = month ? `?month=${month}` : ''
-  // the field keeps its own text: Safari/Firefox render type=month as a text box, and a half-typed
-  // value (or Chrome's '' mid-edit) must not round-trip through the URL
-  const [draft, setDraft] = useState(month ?? '')
-  const changeMonth = (value: string) => {
-    setDraft(value)
-    if (value === '') navigate({ search: { month: 'todos' }, replace: true })
-    else if (MONTH.test(value)) navigate({ search: { month: value }, replace: true })
-  }
+  const [year, monthNumber] = (month ?? '').split('-')
+  const goTo = (value: string) => navigate({ search: { month: value }, replace: true })
+  // picking only one half fills the other from today
+  const now = thisMonth()
+  const changeYear = (y: string) => goTo(`${y}-${monthNumber ?? now.slice(5)}`)
+  const changeMonthNumber = (m: string) => goTo(`${year ?? now.slice(0, 4)}-${m}`)
   const usage = useQuery({
     queryKey: ['admin', 'usage', month ?? 'todos'],
     queryFn: () => api<UsageRow[]>(`/admin/usage${qs}`),
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
+        <div className="grid gap-1.5">
           <Label htmlFor="usage-month">Mês</Label>
-          <Input
-            id="usage-month"
-            type="month"
-            className="w-44"
-            value={draft}
-            onChange={(e) => changeMonth(e.target.value)}
-          />
+          <Select value={monthNumber ?? ''} onValueChange={changeMonthNumber}>
+            <SelectTrigger id="usage-month" className="w-40">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_NAMES.map((name, i) => (
+                <SelectItem key={name} value={String(i + 1).padStart(2, '0')}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="usage-year">Ano</Label>
+          <Select value={year ?? ''} onValueChange={changeYear}>
+            <SelectTrigger id="usage-year" className="w-28">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions(year).map((y) => (
+                <SelectItem key={y} value={y}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {month && (
-          <Button variant="outline" size="sm" onClick={() => changeMonth('')}>
+          <Button variant="ghost" onClick={() => goTo('todos')}>
             Todos os meses
           </Button>
         )}
-        <Button asChild variant="outline" size="sm" className="ml-auto">
+        <Button asChild variant="outline" className="ml-auto">
           <a href={`/api/admin/usage.csv${qs}`} download>
+            <DownloadSimple aria-hidden />
             Exportar CSV
           </a>
         </Button>
@@ -96,10 +128,15 @@ function Usage() {
       {!usage.data ? (
         <LoadState query={usage} />
       ) : usage.data.length === 0 ? (
-        <p className="text-muted-foreground">Nenhuma execução neste período.</p>
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle>Nenhuma execução neste período</EmptyTitle>
+            <EmptyDescription>Escolha outro mês ou veja todos.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <Table>
-          <TableHeader>
+          <TableHeader className="[&_th]:text-muted-foreground">
             <TableRow>
               <TableHead>Mês</TableHead>
               <TableHead>Workspace</TableHead>
@@ -115,15 +152,15 @@ function Usage() {
           <TableBody>
             {usage.data.map((r) => (
               <TableRow key={`${r.month}-${r.workspace_id}-${r.user_id}`}>
-                <TableCell>{formatMonth(r.month)}</TableCell>
+                <TableCell className="tabular-nums">{formatMonth(r.month)}</TableCell>
                 <TableCell>{r.workspace_name}</TableCell>
                 <TableCell title={r.user_email}>{r.user_name}</TableCell>
-                <TableCell className="text-right">{r.succeeded}</TableCell>
-                <TableCell className="text-right">{r.inconclusive}</TableCell>
-                <TableCell className="text-right">{r.failed}</TableCell>
-                <TableCell className="text-right">{r.active}</TableCell>
-                <TableCell className="text-right">{r.total}</TableCell>
-                <TableCell className="text-right">{formatDuration(r.run_seconds)}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.succeeded}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.inconclusive}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.failed}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.active}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.total}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatDuration(r.run_seconds)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

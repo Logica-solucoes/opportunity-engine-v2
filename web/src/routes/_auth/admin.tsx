@@ -1,4 +1,5 @@
-import { Link, Outlet, createFileRoute, notFound } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute, notFound, useRouterState } from '@tanstack/react-router'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export const Route = createFileRoute('/_auth/admin')({
   beforeLoad: ({ context: { me } }) => {
@@ -7,23 +8,28 @@ export const Route = createFileRoute('/_auth/admin')({
   component: AdminLayout,
 })
 
-const tab = 'border-b-2 border-transparent pb-2 hover:text-primary'
+const TABS = [
+  ['workspaces', 'Workspaces'],
+  ['usuarios', 'Usuários'],
+  ['uso', 'Uso'],
+] as const
 
 function AdminLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const current = TABS.find(([key]) => pathname.endsWith(`/${key}`))?.[0]
   return (
-    <div className="space-y-6">
-      <nav className="flex gap-6 border-b text-sm">
-        <Link to="/admin/workspaces" className={tab} activeProps={{ className: 'border-primary! text-primary' }}>
-          Workspaces
-        </Link>
-        <Link to="/admin/usuarios" className={tab} activeProps={{ className: 'border-primary! text-primary' }}>
-          Usuários
-        </Link>
-        <Link to="/admin/uso" className={tab} activeProps={{ className: 'border-primary! text-primary' }}>
-          Uso
-        </Link>
-      </nav>
-      <Outlet />
+    <div className="space-y-5">
+      <h1 className="text-xl font-semibold text-balance">Administração</h1>
+      <Tabs value={current ?? ''} className="gap-5">
+        <TabsList variant="line" aria-label="Seções da administração">
+          {TABS.map(([key, label]) => (
+            <TabsTrigger key={key} value={key} asChild>
+              <Link to={`/admin/${key}`}>{label}</Link>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <Outlet />
+      </Tabs>
     </div>
   )
 }

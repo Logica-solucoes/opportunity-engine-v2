@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -86,8 +87,8 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
       </DialogHeader>
       <form id="google-connector" onSubmit={submit} className="space-y-4">
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium">Google Ads</legend>
-          <div className="space-y-1">
+          <legend className="mb-2 text-sm font-medium">Google Ads</legend>
+          <div className="grid gap-1.5">
             <Label htmlFor="ads.dataset">Dataset do Google Ads</Label>
             <Input
               id="ads.dataset"
@@ -99,7 +100,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
             />
             {hint('ads.dataset')}
           </div>
-          <div className="space-y-1">
+          <div className="grid gap-1.5">
             <Label htmlFor="ads.customer_ids">Customer ids</Label>
             <Input
               id="ads.customer_ids"
@@ -113,8 +114,8 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
           </div>
         </fieldset>
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium">GA4</legend>
-          <div className="space-y-1">
+          <legend className="mb-2 text-sm font-medium">GA4</legend>
+          <div className="grid gap-1.5">
             <Label htmlFor="ga4.dataset">Dataset do GA4</Label>
             <Input
               id="ga4.dataset"
@@ -127,7 +128,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
             {hint('ga4.dataset')}
           </div>
           <div className="flex flex-wrap gap-4">
-            <div className="space-y-1">
+            <div className="grid gap-1.5">
               <Label htmlFor="ga4.event">Evento do KPI</Label>
               <Input
                 id="ga4.event"
@@ -139,7 +140,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
               />
               {hint('ga4.event')}
             </div>
-            <div className="space-y-1">
+            <div className="grid gap-1.5">
               <Label htmlFor="ga4.metric">Métrica</Label>
               <Select name="ga4.metric" defaultValue={google?.ga4.metric ?? 'count'}>
                 <SelectTrigger id="ga4.metric" className="w-full">
@@ -155,9 +156,9 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
         </fieldset>
       </form>
       {(save.isError && !hinted) || remove.isError ? (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(remove.isError ? remove.error : save.error)}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{errorMessage(remove.isError ? remove.error : save.error)}</AlertDescription>
+        </Alert>
       ) : null}
       <DialogFooter className="sm:justify-between">
         {google &&

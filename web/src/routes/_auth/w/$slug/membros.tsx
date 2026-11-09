@@ -14,9 +14,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
@@ -32,7 +36,15 @@ const ROLES = Object.entries(ROLE_LABELS) as [Role, string][]
 function Members() {
   const { slug } = Route.useParams()
   const { data: me } = useSuspenseQuery(meQuery)
-  if (roleIn(me, slug) !== 'admin') return <p>Sem permissão para gerenciar membros deste workspace.</p>
+  if (roleIn(me, slug) !== 'admin')
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyTitle>Sem permissão</EmptyTitle>
+          <EmptyDescription>Sem permissão para gerenciar membros deste workspace.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
   return <MemberAdmin slug={slug} me={me} />
 }
 
@@ -85,110 +97,131 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Membros</h1>
-      <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="m-email">E-mail</Label>
-          <Input id="m-email" name="email" type="email" autoComplete="off" spellCheck={false} required />
-        </div>
-        {/* only the platform admin creates accounts; a workspace admin links existing ones */}
-        {me.is_platform_admin && (
-          <div className="space-y-2">
-            <Label htmlFor="m-name">Nome</Label>
-            <Input id="m-name" name="name" placeholder="Só para conta nova" />
-          </div>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="m-role">Papel</Label>
-          <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
-            <SelectTrigger id="m-role">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLES.map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button type="submit" disabled={add.isPending}>
-          Adicionar
-        </Button>
-      </form>
-      {add.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(add.error)}
-        </p>
-      )}
+    <div className="space-y-5">
+      <h1 className="text-xl font-semibold text-balance">Membros</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Adicionar membro</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+            <div className="grid w-64 gap-1.5">
+              <Label htmlFor="m-email">E-mail</Label>
+              <Input id="m-email" name="email" type="email" autoComplete="off" spellCheck={false} required />
+            </div>
+            {/* only the platform admin creates accounts; a workspace admin links existing ones */}
+            {me.is_platform_admin && (
+              <div className="grid w-56 gap-1.5">
+                <Label htmlFor="m-name">Nome</Label>
+                <Input id="m-name" name="name" autoComplete="off" placeholder="Só para conta nova…" />
+              </div>
+            )}
+            <div className="grid w-40 gap-1.5">
+              <Label htmlFor="m-role">Papel</Label>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
+                <SelectTrigger id="m-role" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" disabled={add.isPending}>
+              Adicionar
+            </Button>
+          </form>
+          {add.isError && (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage(add.error)}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
 
       <LoadState query={members} />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>E-mail</TableHead>
-            <TableHead>Nome</TableHead>
-            <TableHead>Papel</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {members.data?.map((m) => (
-            <TableRow key={m.user_id}>
-              <TableCell>
-                {m.email}
-                {!m.active && <span className="ml-2 text-xs text-muted-foreground">inativo</span>}
-              </TableCell>
-              <TableCell>{m.name}</TableCell>
-              {/* demoting or removing yourself would leave this screen stale and forbidden; another admin does it */}
-              <TableCell>
-                {m.user_id === me.id ? (
-                  ROLE_LABELS[m.role]
-                ) : (
-                  <Select
-                    value={m.role}
-                    disabled={changeRole.isPending}
-                    onValueChange={(v) => changeRole.mutate({ id: m.user_id, role: v as Role })}
-                  >
-                    <SelectTrigger aria-label="Papel" size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map(([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                {m.user_id !== me.id && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        Remover
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover {m.email} deste workspace?</AlertDialogTitle>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => remove.mutate(m.user_id)}>Remover</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </TableCell>
+      {members.data?.length === 0 && (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle>Nenhum membro</EmptyTitle>
+            <EmptyDescription>Adicione alguém pelo e-mail acima.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+      {!!members.data?.length && (
+        <Table>
+          <TableHeader className="[&_th]:text-muted-foreground">
+            <TableRow>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>Papel</TableHead>
+              <TableHead className="w-24" />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {members.data.map((m) => (
+              <TableRow key={m.user_id}>
+                <TableCell>
+                  {m.email}
+                  {!m.active && (
+                    <Badge variant="neutral" className="ml-2">
+                      inativo
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>{m.name}</TableCell>
+                {/* demoting or removing yourself would leave this screen stale and forbidden; another admin does it */}
+                <TableCell>
+                  {m.user_id === me.id ? (
+                    <span className="px-2.5">{ROLE_LABELS[m.role]}</span>
+                  ) : (
+                    <Select
+                      value={m.role}
+                      disabled={changeRole.isPending}
+                      onValueChange={(v) => changeRole.mutate({ id: m.user_id, role: v as Role })}
+                    >
+                      <SelectTrigger aria-label="Papel" size="sm" className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {m.user_id !== me.id && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                          Remover
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover {m.email} deste workspace?</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => remove.mutate(m.user_id)}>Remover</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
       <TempPasswordDialog password={temp?.password ?? null} email={temp?.email ?? ''} onClose={() => setTemp(null)} />
     </div>
   )

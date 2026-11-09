@@ -3,14 +3,19 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { LoadState } from '@/components/LoadState'
 import { type AdminWorkspace, GoogleConnectorDialog } from '@/components/GoogleConnectorDialog'
+import { Plugs } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
-import { textLink } from '@/lib/links'
+import { rowLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/admin/workspaces')({ component: Workspaces })
 
@@ -50,79 +55,106 @@ function Workspaces() {
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="ws-name">Nome</Label>
-          <Input
-            id="ws-name"
-            value={name}
-            required
-            onChange={(e) => {
-              setName(e.target.value)
-              if (!slugTouched) setSlug(slugify(e.target.value))
-            }}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="ws-slug">Slug</Label>
-          <Input
-            id="ws-slug"
-            value={slug}
-            required
-            pattern="[a-z0-9\-]{2,40}"
-            title="2 a 40 caracteres: letras minúsculas, números e hífen"
-            onChange={(e) => {
-              setSlug(e.target.value)
-              setSlugTouched(true)
-            }}
-          />
-        </div>
-        <Button type="submit" disabled={create.isPending}>
-          Criar workspace
-        </Button>
-      </form>
-      {create.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(create.error)}
-        </p>
-      )}
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-5">
+        <Card>
+          <CardHeader>
+            <CardTitle>Novo workspace</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+              <div className="grid w-64 gap-1.5">
+                <Label htmlFor="ws-name">Nome</Label>
+                <Input
+                  id="ws-name"
+                  value={name}
+                  required
+                  autoComplete="off"
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    if (!slugTouched) setSlug(slugify(e.target.value))
+                  }}
+                />
+              </div>
+              <div className="grid w-56 gap-1.5">
+                <Label htmlFor="ws-slug">Slug</Label>
+                <Input
+                  id="ws-slug"
+                  value={slug}
+                  required
+                  autoComplete="off"
+                  spellCheck={false}
+                  pattern="[a-z0-9\-]{2,40}"
+                  title="2 a 40 caracteres: letras minúsculas, números e hífen"
+                  onChange={(e) => {
+                    setSlug(e.target.value)
+                    setSlugTouched(true)
+                  }}
+                />
+              </div>
+              <Button type="submit" disabled={create.isPending}>
+                Criar workspace
+              </Button>
+            </form>
+            {create.isError && (
+              <Alert variant="destructive">
+                <AlertDescription>{errorMessage(create.error)}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
-      <LoadState query={workspaces} />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Slug</TableHead>
-            <TableHead>Criado em</TableHead>
-            <TableHead>Conector Google</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {workspaces.data?.map((w) => (
-            <TableRow key={w.id}>
-              <TableCell>{w.name}</TableCell>
-              <TableCell>{w.slug}</TableCell>
-              <TableCell>{new Date(w.created_at).toLocaleDateString('pt-BR')}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {w.google && <Badge variant="secondary">configurado</Badge>}
-                  <Button variant="outline" size="sm" onClick={() => setEditing(w)}>
-                    Conector Google
-                  </Button>
-                </div>
-              </TableCell>
-              <TableCell className="text-right">
-                <Link to="/w/$slug/membros" params={{ slug: w.slug }} className={textLink}>
-                  Membros
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <GoogleConnectorDialog workspace={editing} onClose={() => setEditing(null)} />
-    </div>
+        <LoadState query={workspaces} />
+        {workspaces.data?.length === 0 && (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyTitle>Nenhum workspace</EmptyTitle>
+              <EmptyDescription>Crie o primeiro acima.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
+        {!!workspaces.data?.length && (
+          <Table>
+            <TableHeader className="[&_th]:text-muted-foreground">
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Criado em</TableHead>
+                <TableHead>Google</TableHead>
+                <TableHead className="w-40" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {workspaces.data.map((w) => (
+                <TableRow key={w.id}>
+                  <TableCell className="font-medium">{w.name}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{w.slug}</TableCell>
+                  <TableCell className="tabular-nums">{new Date(w.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>
+                    {w.google ? <Badge variant="success">configurado</Badge> : <span className="text-muted-foreground">-</span>}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-3">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" aria-label="Conector Google" onClick={() => setEditing(w)}>
+                            <Plugs aria-hidden />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Conector Google</TooltipContent>
+                      </Tooltip>
+                      <Link to="/w/$slug/membros" params={{ slug: w.slug }} className={rowLink}>
+                        Membros
+                      </Link>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <GoogleConnectorDialog workspace={editing} onClose={() => setEditing(null)} />
+      </div>
+    </TooltipProvider>
   )
 }
