@@ -59,6 +59,7 @@ test('rodar de novo restores the run parameters and the inputs download', async 
   expect((await download).suggestedFilename()).toBe('investimento.csv')
 
   await analystPage.getByRole('link', { name: '← Reprise' }).click()
+  await analystPage.getByRole('tab', { name: 'Parâmetros' }).click()
   const factor = analystPage.getByLabel('Fator limite de investimento')
   const original = await factor.inputValue()
   await factor.fill('3')

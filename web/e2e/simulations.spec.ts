@@ -30,10 +30,12 @@ test('analyst uploads the templates, accepts the suggested mapping and validates
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
   await expect(analystPage.getByText('Valide os arquivos antes de rodar.')).toBeVisible()
 
+  await analystPage.getByRole('tab', { name: 'Mapeamento' }).click()
   await analystPage.getByRole('button', { name: 'Validar' }).click()
 
   await expect(analystPage.getByText('A colinearidade entre canais não foi avaliada', { exact: false })).toBeVisible()
-  await expect(analystPage.getByText('SEARCH, YOUTUBE')).toBeVisible()
+  await expect(analystPage.getByText('SEARCH', { exact: true })).toBeVisible()
+  await expect(analystPage.getByText('YOUTUBE', { exact: true })).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 
@@ -53,6 +55,7 @@ test('a repeated (date, channel) row shows the pt-BR error and blocks the run', 
   await expect(analystPage.getByText('investimento.csv', { exact: true })).toBeVisible()
   await analystPage.getByLabel('Arquivo de performance').setInputFiles(template('performance.csv'))
   await expect(analystPage.getByText('performance.csv', { exact: true })).toBeVisible()
+  await analystPage.getByRole('tab', { name: 'Mapeamento' }).click()
   await analystPage.getByRole('button', { name: 'Validar' }).click()
 
   await expect(
@@ -124,7 +127,7 @@ test('parameters open with the data suggestions, save and persist', async ({ pag
   // performance.csv has 3 days of history and a "conversoes" KPI
   await expect(analystPage.getByText('Mínimo para série diária: o histórico tem só 3 dias.')).toBeVisible()
   await expect(analystPage.getByLabel('Pré-período mínimo (dias)')).toHaveValue('28')
-  await expect(analystPage.getByLabel('Otimizar para')).toHaveValue('CONVERSIONS')
+  await expect(analystPage.getByRole('combobox', { name: 'Otimizar para' })).toHaveText('Conversões')
   await expect(analystPage.getByText('Sugerido pelos dados')).toHaveCount(3)
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 
@@ -178,12 +181,14 @@ test('macro controls are saved with the parameters', async ({ page, browser }) =
   await createSimulation(analystPage, slug, 'Controles')
   await uploadTemplatesAndValidate(analystPage)
 
+  await analystPage.getByRole('button', { name: 'Avançado' }).click()
   await analystPage.getByLabel('IPCA').check()
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
   await analystPage.getByRole('button', { name: 'Salvar parâmetros' }).click()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
 
   await analystPage.reload()
+  await analystPage.getByRole('button', { name: 'Avançado' }).click()
   await expect(analystPage.getByLabel('IPCA')).toBeChecked()
   await expect(analystPage.getByLabel('Selic')).not.toBeChecked()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
@@ -206,12 +211,14 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
   await analystPage.reload()
 
   await expect(analystPage.getByText('Inconclusiva', { exact: true })).toBeVisible()
+  const logToggle = analystPage.getByRole('button', { name: /Log da execução/ })
+  if ((await logToggle.getAttribute('aria-expanded')) !== 'true') await logToggle.click()
   await expect(log.getByText('Lendo os arquivos de investimento e performance')).toBeVisible()
   await expect(log.getByText('Montando o resultado')).toBeVisible()
   await expect(analystPage.getByRole('tab', { name: 'Causal' })).toBeVisible()
 
   await analystPage.getByRole('link', { name: '← Rodada' }).click()
-  await expect(analystPage.getByRole('heading', { name: 'Execuções' })).toBeVisible()
+  await analystPage.getByRole('tab', { name: 'Execuções' }).click()
   await expect(analystPage.getByRole('cell', { name: 'Inconclusiva' })).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
 })
@@ -243,7 +250,7 @@ test('workspace admin deletes a simulation and its runs; analysts never see the 
   await expect(page).toHaveURL(new RegExp(`/w/${slug}$`))
   await expect(page.getByText('Descartável')).toHaveCount(0)
   await page.goto(runUrl)
-  await expect(page.getByText('Execução não encontrada.')).toBeVisible()
+  await expect(page.getByText('Execução não encontrada')).toBeVisible()
   await analystPage.goto(simUrl)
   await expect(analystPage.getByText('Simulação não encontrada.')).toBeVisible()
 })
