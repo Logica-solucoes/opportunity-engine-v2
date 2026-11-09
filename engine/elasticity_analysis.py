@@ -127,14 +127,11 @@ def hill_transform(spend, k, s):
 
 def predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features):
     """
-    Predicts KPI from Hill-transformed marketing features, flooring the scaled
-    features at 0 before feeding the linear model.
+    KPI for one vector of Hill features: `organic_baseline_mean` (the KPI with no media) plus the media model.
 
-    Simulated spend below the historically observed range (e.g. investment=0)
-    extrapolates `mkt_scaler` below the range it was fit on -- MinMaxScaler
-    does not clip, so this can produce a negative scaled feature which,
-    combined with the model's non-negative coefficients, predicts a KPI below
-    the organic baseline (even negative). Flooring at 0 fixes that.
+    The engine's `mkt_scaler` divides each channel by its historical range without shifting it, so zero spend scores
+    exactly the baseline and spend under the historical minimum still has an effect (planner F1). The floor at 0
+    only guards a scaler that shifts (a MinMaxScaler would push spend under its range below 0).
 
     The upper bound is intentionally left unclipped: `mkt_features` is already
     a Hill-transform output, which asymptotically bounds itself to [0, 1) for
@@ -154,11 +151,13 @@ def predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_featur
 
 
 def kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features) -> tuple[float, float]:
-    """p5/p95 of the KPI over the bootstrap resamples of the Ridge (A8). Hill, adstock and scaler stay fixed, so the
-    band is optimistic: it carries the uncertainty of the split, not of the curve shapes."""
+    """p5/p95 of the KPI over the bootstrap resamples of the Ridge (A8). Pass mmm["baseline_samples"] (one KPI with no
+    media per resample) as `organic_baseline_mean`; a single number leaves the level fixed and the band collapses at
+    zero spend. Hill, adstock and scaler stay fixed, so the band is optimistic: it carries the uncertainty of the
+    split, not of the curve shapes."""
     features = pd.DataFrame([mkt_features], columns=getattr(mkt_scaler, "feature_names_in_", None))
     scaled = np.clip(mkt_scaler.transform(features), 0.0, None)[0]
-    lo, hi = np.percentile(organic_baseline_mean + np.asarray(coef_samples) @ scaled, [5, 95])
+    lo, hi = np.percentile(np.asarray(organic_baseline_mean) + np.asarray(coef_samples) @ scaled, [5, 95])
     return float(lo), float(hi)
 
 
@@ -171,7 +170,14 @@ def _transform_channels(df, spend_cols, alphas, ks, ss):
     return transformed_df
 
 
+def _media_ridge():
+    """Stage 2: positive media coefficients and a free intercept. The lift has mean 0 and the Hill features do not, so
+    without the intercept every slope shrank by var/(var + mean²) and always-on channels went to 0 (MMM F1)."""
+    return Ridge(alpha=1.0, positive=True, fit_intercept=True)
+
+
 CV_SPLITS = 3
+ADSTOCK_WINDOW = 12  # geometric_adstock's max_len
 
 
 def trusts_reallocation(cv_r2: float, config: dict) -> bool:
@@ -186,40 +192,35 @@ def cv_folds(n_rows: int, n_splits: int = CV_SPLITS) -> int:
 
 def walk_forward_cv_score(transformed_df, kpi_lift, n_splits=CV_SPLITS):
     """
-    Walk-forward (expanding-window) CV for the Stage-2 marketing fit. Returns
-    (mean_out_of_sample_mse, pooled_out_of_fold_r2).
+    Walk-forward (expanding-window) CV for the Stage-2 marketing fit on a given lift. Returns
+    (mean_out_of_sample_mse, pooled_out_of_fold_r2), the R² against each training fold's mean.
 
     Selecting the adstock/Hill params by OUT-OF-SAMPLE error instead of in-sample
     MSE is the core fix for the identifiability problem: the flexible saturation
     transform (3 params/channel) could drive in-sample MSE down by overfitting
     noise, which pinned params on their bounds and reported an R^2 that didn't
-    generalize. The scaler is refit on each training fold so test folds stay
-    genuinely out of sample. Falls back to in-sample when there is too little
-    data to split.
+    generalize. The scaler is refit on each training fold. Falls back to in-sample when there is too little
+    data to split. The lift itself comes from a Stage 1 fit on every row: the published cv_r2 is out_of_sample_r2.
     """
     X = np.asarray(transformed_df.values, dtype=float)
     y = np.asarray(kpi_lift, dtype=float)
     n = len(y)
     usable_splits = cv_folds(n, n_splits)
     if usable_splits < 2:
-        scaler = MinMaxScaler()
-        Xs = scaler.fit_transform(X)
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(Xs, y)
-        pred = model.predict(Xs)
+        Xs = MinMaxScaler().fit_transform(X)
+        pred = _media_ridge().fit(Xs, y).predict(Xs)
         return float(np.mean((y - pred) ** 2)), float(r2_score(y, pred))
 
-    tscv = TimeSeriesSplit(n_splits=usable_splits)
-    fold_mses, oof_true, oof_pred = [], [], []
-    for train_idx, test_idx in tscv.split(X):
+    fold_mses, sq_err, sq_tot = [], 0.0, 0.0
+    for train_idx, test_idx in TimeSeriesSplit(n_splits=usable_splits).split(X):
         scaler = MinMaxScaler().fit(X[train_idx])
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(scaler.transform(X[train_idx]), y[train_idx])
-        pred = model.predict(scaler.transform(X[test_idx]))
-        fold_mses.append(float(np.mean((y[test_idx] - pred) ** 2)))
-        oof_true.extend(y[test_idx].tolist())
-        oof_pred.extend(pred.tolist())
+        model = _media_ridge().fit(scaler.transform(X[train_idx]), y[train_idx])
+        err = y[test_idx] - model.predict(scaler.transform(X[test_idx]))
+        fold_mses.append(float(np.mean(err**2)))
+        sq_err += float(np.sum(err**2))
+        sq_tot += float(np.sum((y[test_idx] - y[train_idx].mean()) ** 2))
 
-    r2 = r2_score(oof_true, oof_pred) if len(set(oof_true)) > 1 else 0.0
-    return float(np.mean(fold_mses)), float(r2)
+    return float(np.mean(fold_mses)), float(1 - sq_err / sq_tot) if sq_tot > 0 else 0.0
 
 
 def elasticity_objective_function(params, df, kpi_lift, spend_cols):
@@ -267,11 +268,21 @@ def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5
     return best_result
 
 
-def bootstrap_coefficients(X, y, n_bootstrap=200, seed=42):
+def block_length(n_rows: int, alphas) -> int:
+    """Moving-block length of the bootstrap: ~n^(1/3), and never shorter than the carry-over (lags until alpha^j < 5%,
+    at most the adstock window), so a block keeps an ad's effect with the spend that caused it."""
+    memory = max(int(np.ceil(np.log(0.05) / np.log(a))) if 0 < a < 1 else 1 for a in alphas)
+    return int(min(n_rows, max(np.ceil(n_rows ** (1 / 3)), min(memory, ADSTOCK_WINDOW))))
+
+
+def bootstrap_coefficients(X, y, n_bootstrap=200, seed=42, block=None):
     """
-    Refits Ridge(alpha=1.0, positive=True, fit_intercept=False) on n_bootstrap
-    resamples of the rows (with replacement) and returns the (n_bootstrap, n_columns)
-    matrix of coefficients. The model uses its mean; A5 uses its percentiles.
+    Refits the Stage-2 Ridge on n_bootstrap moving-block resamples of the rows and returns (coefs, intercepts),
+    shaped (n_bootstrap, n_columns) and (n_bootstrap,). The model uses the mean; A5 and the A8 band use the spread.
+
+    Resamples are runs of `block` contiguous rows (block_length; default n^(1/3)): adstocked spend and the residuals
+    are serially correlated, and iid rows (block=1) made the spread too narrow, publishing a zero-effect channel ~20%
+    of the time (MMM F3, G2).
 
     A single fit of a positive-constrained Ridge on correlated columns tends to
     hand all the credit to one column and zero the other (a stable but fragile
@@ -283,13 +294,91 @@ def bootstrap_coefficients(X, y, n_bootstrap=200, seed=42):
     """
     rng = np.random.default_rng(seed)
     n_rows = X.shape[0]
+    block = block or block_length(n_rows, [0.0])
+    offsets = np.arange(block)
     y_arr = np.asarray(y)
     coefs = np.zeros((n_bootstrap, X.shape[1]))
+    intercepts = np.zeros(n_bootstrap)
     for b in range(n_bootstrap):
-        idx = rng.integers(0, n_rows, n_rows)
-        model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y_arr[idx])
-        coefs[b] = model.coef_
-    return coefs
+        starts = rng.integers(0, n_rows - block + 1, -(-n_rows // block))
+        idx = (starts[:, None] + offsets).ravel()[:n_rows]
+        model = _media_ridge().fit(X[idx], y_arr[idx])
+        coefs[b], intercepts[b] = model.coef_, model.intercept_
+    return coefs, intercepts
+
+
+def fit_baseline(X_base, y):
+    """Stage 1: calendar/context Ridge with intercept; returns its predictor.
+
+    No positivity constraint here: calendar/context effects on the baseline can
+    legitimately be negative (weekends/holidays depressing the KPI). Forcing
+    positive coefficients pinned ~1/3 of them to exactly 0, so those depressing
+    effects leaked into the residual and were misattributed to marketing lift.
+    Positivity is kept only on the Stage-2 marketing model, where it belongs.
+    """
+    scaler = MinMaxScaler().fit(X_base)
+    model = Ridge(alpha=1.0).fit(scaler.transform(X_base), y)
+    return lambda X: model.predict(scaler.transform(X))
+
+
+def fit_media_params(spend, lift):
+    """Adstock alpha, Hill k and Hill s per channel of `spend`, picked by the walk-forward CV MSE of Stage 2."""
+    n = spend.shape[1]
+    bounds = (
+        [(0.0, 0.9)] * n
+        # Hill k capped at 1.0: k > 1 makes the curve S-shaped, with a convex
+        # (accelerating-returns) region before its inflection point. For
+        # channels with little independent spend variation, the optimizer
+        # picked k near the old 5.0 ceiling and s far beyond real spend,
+        # landing the whole historical range inside that convex region --
+        # produced a response curve where marginal ROI *increased* with
+        # budget (490x iROAS on a real project's Google Ads channel).
+        # k <= 1 forces every channel concave (diminishing returns) from the
+        # first dollar, which is the standard assumption for media response.
+        + [(0.1, 1.0)] * n
+        # Hill s (inflection) bounded to the observed spend range, not mean*20.
+        # Letting s balloon far past real spend (e.g. 1.6M when the channel never
+        # spent near that) flattens the Hill curve into a straight line over the
+        # whole data -- "saturation" stops being modeled at all. Capping s near
+        # the historical max keeps the inflection inside the range the curve is
+        # actually calibrated against.
+        + [(spend[col].mean() * 0.01, max(spend[col].max() * 3, spend[col].mean() * 2)) for col in spend.columns]
+    )
+    initial_params = [0.5] * n + [1.0] * n + [spend[col].mean() for col in spend.columns]
+
+    # n_restarts kept modest: the objective is a walk-forward CV (k Ridge refits
+    # per evaluation), and out_of_sample_r2 repeats this search once per fold.
+    result = optimize_with_restarts(
+        elasticity_objective_function,
+        initial_params,
+        bounds,
+        args=(spend, lift, list(spend.columns)),
+        n_restarts=3,
+    )
+    if not result.success:
+        log.warning(f"   - WARNING: Optimization did not converge fully. Details: {result.message}")
+    return result.x[:n], result.x[n : 2 * n], result.x[2 * n :]
+
+
+def out_of_sample_r2(df, base_features, spend_cols, kpi_col="kpi"):
+    """
+    The published cv_r2 (MMM F5): pooled R² of the media model on the lift of each held-out fold, with Stage 1, the
+    adstock/Hill search and the Ridge all fit on the training rows only, against the training lift's mean. The adstock
+    runs over the whole series, so a held-out row carries the spend before it; its KPI is never seen before scoring.
+    """
+    sq_err = sq_tot = 0.0
+    for train, test in TimeSeriesSplit(n_splits=cv_folds(len(df))).split(df):
+        fit, held = df.iloc[train], df.iloc[test]
+        baseline = fit_baseline(fit[base_features], fit[kpi_col])
+        lift = (fit[kpi_col] - baseline(fit[base_features])).to_numpy()
+        alphas, ks, ss = fit_media_params(fit[spend_cols], lift)
+        features = _transform_channels(df, spend_cols, alphas, ks, ss).to_numpy()
+        scaler = MinMaxScaler().fit(features[train])
+        model = _media_ridge().fit(scaler.transform(features[train]), lift)
+        held_lift = held[kpi_col].to_numpy() - baseline(held[base_features])
+        sq_err += float(np.sum((held_lift - model.predict(scaler.transform(features[test]))) ** 2))
+        sq_tot += float(np.sum((held_lift - lift.mean()) ** 2))
+    return 1 - sq_err / sq_tot if sq_tot > 0 else 0.0
 
 
 def run_mmm_engine(config, prepared):
@@ -303,7 +392,8 @@ def run_mmm_engine(config, prepared):
     try:
         # Load and prepare data
         kpi_df = prepared.kpi_df.copy()
-        daily_investment_df = prepared.investment_df.copy()
+        # the spend as sent: the MMM's adstock is the only one (MMM F4)
+        daily_investment_df = prepared.spend_df.copy()
         trends_df = prepared.trends_df.copy()
 
         # Pivot investment data to have channels as columns
@@ -354,92 +444,35 @@ def run_mmm_engine(config, prepared):
         return None
 
     log.info("   - Stage 1: Modeling Organic Baseline...")
-    X_base = df[base_features]
     y_total = df[kpi_col]
-
-    base_scaler = MinMaxScaler()
-    X_base_scaled = base_scaler.fit_transform(X_base)
-
-    # No positivity constraint here: calendar/context effects on the baseline can
-    # legitimately be negative (weekends/holidays depressing the KPI). Forcing
-    # positive coefficients pinned ~1/3 of them to exactly 0, so those depressing
-    # effects leaked into the residual and were misattributed to marketing lift.
-    # Positivity is kept only on the Stage-2 marketing model, where it belongs.
-    base_model = Ridge(alpha=1.0).fit(X_base_scaled, y_total)
-    df["kpi_organic_baseline"] = base_model.predict(X_base_scaled)
+    df["kpi_organic_baseline"] = fit_baseline(df[base_features], y_total)(df[base_features])
 
     # Lift = signed residual of the organic baseline. We deliberately do NOT
     # clip negatives to 0 anymore: the baseline (with intercept) passes through
     # the mean, so the residual is mean ~0. Clipping kept only the positive half
     # of that noise and handed it to the Stage-2 marketing model, manufacturing a
     # ~15% "marketing lift" even from pure noise (verified with a white-noise
-    # control). Fitting Stage 2 on the signed residual instead reports the honest
-    # net marketing contribution -- which can legitimately be near zero when the
-    # data shows little measurable media effect. Stage 2 keeps positive-only
-    # coefficients on non-negative features, so the total contribution stays >= 0.
+    # control). Stage 2 keeps positive-only coefficients on non-negative features,
+    # and its intercept takes back the media level Stage 1 absorbed.
     y_lift = y_total - df["kpi_organic_baseline"]
 
     log.info("   - Stage 2: Optimizing Marketing Response on Incremental Lift...")
-    # Optimization Setup
-    bounds = (
-        [(0.0, 0.9)] * len(active_spend_cols)
-        # Hill k capped at 1.0: k > 1 makes the curve S-shaped, with a convex
-        # (accelerating-returns) region before its inflection point. For
-        # channels with little independent spend variation, the optimizer
-        # picked k near the old 5.0 ceiling and s far beyond real spend,
-        # landing the whole historical range inside that convex region --
-        # produced a response curve where marginal ROI *increased* with
-        # budget (490x iROAS on a real project's Google Ads channel).
-        # k <= 1 forces every channel concave (diminishing returns) from the
-        # first dollar, which is the standard assumption for media response.
-        + [(0.1, 1.0)] * len(active_spend_cols)
-        # Hill s (inflection) bounded to the observed spend range, not mean*20.
-        # Letting s balloon far past real spend (e.g. 1.6M when the channel never
-        # spent near that) flattens the Hill curve into a straight line over the
-        # whole data -- "saturation" stops being modeled at all. Capping s near
-        # the historical max keeps the inflection inside the range the curve is
-        # actually calibrated against.
-        + [(df[col].mean() * 0.01, max(df[col].max() * 3, df[col].mean() * 2)) for col in active_spend_cols]
+    final_alphas, final_ks, final_ss = fit_media_params(df[active_spend_cols], y_lift)
+
+    transformed_mkt = _transform_channels(df, active_spend_cols, final_alphas, final_ks, final_ss)
+    # Divided by the range, without the shift: z = 0 is zero spend, so contributions and the curve start from no media
+    # instead of from the lowest level ever observed (MMM F2, planner F1). The Ridge centers the features, so the
+    # slopes and the penalty are those of the min-max fit; dividing by the max instead would shrink an always-on
+    # channel (narrow z) toward 0 under the same penalty.
+    mkt_scaler = MinMaxScaler().fit(transformed_mkt)
+    mkt_scaler.min_[:] = 0.0
+    X_mkt_scaled = mkt_scaler.transform(transformed_mkt)
+    coef_samples, intercept_samples = bootstrap_coefficients(
+        X_mkt_scaled, y_lift, block=block_length(len(df), final_alphas)
     )
-
-    # Initial guesses
-    initial_params = (
-        [0.5] * len(active_spend_cols) + [1.0] * len(active_spend_cols) + [df[col].mean() for col in active_spend_cols]
-    )
-
-    # Run optimization from multiple starting points to avoid a bad local minimum.
-    # n_restarts kept modest: the objective is now a walk-forward CV (k Ridge refits
-    # per evaluation), so each restart is ~k times costlier than the old in-sample
-    # objective. 3 restarts still clears the local-minimum regression test.
-    result = optimize_with_restarts(
-        elasticity_objective_function,
-        initial_params,
-        bounds,
-        args=(df, y_lift, active_spend_cols),
-        n_restarts=3,
-    )
-
-    if not result.success:
-        log.warning(f"   - WARNING: Optimization did not converge fully. Details: {result.message}")
-
-    optimal_params = result.x
-    num_active_channels = len(active_spend_cols)
-    final_alphas = optimal_params[:num_active_channels]
-    final_ks = optimal_params[num_active_channels : 2 * num_active_channels]
-    final_ss = optimal_params[2 * num_active_channels : 3 * num_active_channels]
-
-    # Final Marketing Fit
-    transformed_mkt = pd.DataFrame()
-    for i, col in enumerate(active_spend_cols):
-        adstocked_spend = geometric_adstock(df[col].values, final_alphas[i])
-        saturated_spend = hill_transform(adstocked_spend, final_ks[i], final_ss[i])
-        transformed_mkt[col] = saturated_spend
-
-    mkt_scaler = MinMaxScaler()
-    X_mkt_scaled = mkt_scaler.fit_transform(transformed_mkt)
-    mkt_model = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X_mkt_scaled, y_lift)
-    coef_samples = bootstrap_coefficients(X_mkt_scaled, y_lift)
+    mkt_model = _media_ridge().fit(X_mkt_scaled, y_lift)
     mkt_model.coef_ = coef_samples.mean(axis=0)
+    mkt_model.intercept_ = float(y_lift.mean() - X_mkt_scaled.mean(axis=0) @ mkt_model.coef_)
 
     y_mkt_pred = mkt_model.predict(X_mkt_scaled)
     final_r2 = r2_score(y_lift, y_mkt_pred)
@@ -447,7 +480,8 @@ def run_mmm_engine(config, prepared):
     # cv_r2 <= 0 means the marketing model does not generalize (predicts the lift
     # worse than its own mean on held-out days) -- treat the mix/ROAS below as
     # unreliable when that happens.
-    _, cv_r2 = walk_forward_cv_score(transformed_mkt, y_lift)
+    cv_out_of_sample = cv_folds(len(df)) >= 2  # False: too few rows to split, cv_r2 is the in-sample R² (A6)
+    cv_r2 = out_of_sample_r2(df, base_features, active_spend_cols, kpi_col) if cv_out_of_sample else final_r2
     log.info(f"   - Marketing Model R² (in-sample on lift): {final_r2:.4f}")
     log.info(f"   - Marketing Model R² (walk-forward CV): {cv_r2:.4f}")
     if cv_r2 <= 0:
@@ -456,6 +490,13 @@ def run_mmm_engine(config, prepared):
             "(R2 CV <= 0). A divisao de contribuicao e o mix recomendado abaixo "
             "tem confianca baixa -- ha pouco sinal de midia neste periodo."
         )
+
+    # The KPI with no media. Stage 1 passes through mean(y), so it is that baseline plus the Stage-2 intercept
+    # (= mean(y) minus the mean media effect), not mean(y), which carries the media (MMM F2, planner F2). The intercept
+    # moves into this level, leaving mkt_model.predict as the media effect alone: 0 at zero spend.
+    baseline_mean = df["kpi_organic_baseline"].mean()
+    organic_level = baseline_mean + mkt_model.intercept_
+    mkt_model.intercept_ = 0.0
 
     # Calculate contribution breakdown
     contributions = {col: (mkt_model.coef_[i] * X_mkt_scaled[:, i]).sum() for i, col in enumerate(active_spend_cols)}
@@ -498,17 +539,18 @@ def run_mmm_engine(config, prepared):
         "contribution_pct": contribution_pct,
         "r_squared": final_r2,
         "cv_r_squared": cv_r2,
-        "cv_out_of_sample": cv_folds(len(y_lift)) >= 2,  # False: the CV above fell back to in-sample (A6)
+        "cv_out_of_sample": cv_out_of_sample,
         "marketing_contribution_of_kpi_pct": marketing_contribution_of_kpi_pct,
-        "model": mkt_model,
+        "model": mkt_model,  # media effect only (intercept 0): add organic_baseline_mean for the KPI
         "coef_samples": coef_samples,  # (n_bootstrap, channels), scaled space: A5 CIs, A8 bands
+        "baseline_samples": baseline_mean + intercept_samples,  # KPI with no media per resample: kpi_band's level
         "channel_totals": X_mkt_scaled.sum(axis=0),  # coef × total = the channel's contribution over the period
         "scaler": mkt_scaler,
         "optimal_params": {"alphas": final_alphas, "ks": final_ks, "ss": final_ss},
         "spend_cols": active_spend_cols,
         "kpi_col": kpi_col,
         "dataframe": df,
-        "organic_baseline_mean": df["kpi_organic_baseline"].mean(),
+        "organic_baseline_mean": organic_level,  # the KPI with zero media
     }
 
 
