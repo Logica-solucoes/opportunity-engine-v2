@@ -88,15 +88,10 @@ function RunLayout() {
       )}
 
       <TooltipProvider delayDuration={150}>
-        <Tabs value={current ?? ""} className="flex-col gap-5">
-          <TabsList variant="line" aria-label="Seções da execução" className="h-9 w-full justify-start gap-4 rounded-none border-b p-0 print:hidden">
+        <Tabs value={current ?? ''} className="gap-5">
+          <TabsList variant="line" aria-label="Seções da execução" className="print:hidden">
             {visible.map(([key, label]) => (
-              <TabsTrigger
-                key={key}
-                value={key}
-                asChild
-                className="h-9 flex-none rounded-none px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
-              >
+              <TabsTrigger key={key} value={key} asChild>
                 <Link to={`/w/$slug/execucoes/$runId/${key}`} params={{ slug, runId }}>
                   {label}
                 </Link>
