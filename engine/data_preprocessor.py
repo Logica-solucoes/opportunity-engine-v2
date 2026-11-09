@@ -23,24 +23,30 @@ def iqr_bounds(series):
     return Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
 
 
+OUTLIER_WINDOW = 7  # periods; a run of 4 or more is part of the baseline, so a post window of 4+ periods survives
+
+
 def treat_outliers(df, column):
-    """Identifies and caps outliers in a specified column using the 1.5 * IQR rule."""
-    lower_bound, upper_bound = iqr_bounds(df[column])
-    df[column] = np.where(df[column] > upper_bound, upper_bound, df[column])
-    df[column] = np.where(df[column] < lower_bound, lower_bound, df[column])
+    """Caps the rows of `column` (in date order) whose distance to a centred rolling median is outside the 1.5 * IQR
+    fences of those distances. Fences on the raw series would cut every real lift and level shift."""
+    values = df[column]
+    baseline = values.rolling(OUTLIER_WINDOW, center=True, min_periods=1).median()
+    lower, upper = iqr_bounds(values - baseline)
+    df[column] = baseline + (values - baseline).clip(lower, upper)
     return df
 
 
-def geometric_decay(series, alpha):
-    """Applies geometric decay for ad-stock."""
-    return series.ewm(alpha=alpha, adjust=False).mean()
+def ewm_smooth(series, weight):
+    """y_t = weight * x_t + (1 - weight) * y_{t-1}: `weight` is the share of today, not the carry-over
+    (analysis.geometric_decay is the unnormalized one, where alpha is the carry-over)."""
+    return series.ewm(alpha=weight, adjust=False).mean()
 
 
 def find_best_alpha(investment_series, kpi_series):
-    """Finds the best adstock alpha for a single channel."""
+    """Finds the best ewm_smooth weight for a single channel."""
     correlations = {}
     for alpha in np.arange(0.1, 1.0, 0.1):
-        adstocked_series = geometric_decay(investment_series, alpha)
+        adstocked_series = ewm_smooth(investment_series, alpha)
         correlations[alpha] = adstocked_series.corr(kpi_series)
 
     best_alpha = max(correlations, key=correlations.get)
@@ -213,7 +219,9 @@ def detect_cadence(dates):
       - <= 1.5 dia    -> 1  (diário)
       - 6 a 8 dias    -> 7  (semanal; tolera feriados/re-ancoramentos que
                              deslocam o dia da semana em +-1 dia)
-      - 27 a 31 dias  -> 30 (mensal; cobre a variação natural de dias no mês)
+      - mais de 28 até 31 dias -> 30 (mensal; a mediana de meses de calendário
+                             nunca é 28, e 28 exato é dado de 4 semanas, que
+                             fica 28 e não ganha o fator de um mês)
     Fora dessas faixas, retorna a mediana bruta arredondada (ex: cadência
     quinzenal ~14 dias não tem faixa própria e sai como valor bruto,
     conforme pedido no plano: "ou valor bruto se não bater em nenhum").
@@ -234,7 +242,7 @@ def detect_cadence(dates):
         return 1
     if 6 <= median_days <= 8:
         return 7
-    if 27 <= median_days <= 31:
+    if 28 < median_days <= 31:
         return 30
     return int(round(median_days))
 
@@ -854,6 +862,7 @@ def load_and_prepare_data(config, paths):
         outlier_config = config["treat_outliers"]
         if outlier_config:
             log.info("   - Applying outlier treatment...")
+            kpi_df = kpi_df.sort_values("Date").reset_index(drop=True)
             if isinstance(outlier_config, list):
                 # Treat specific columns listed in config
                 for col in outlier_config:
@@ -895,7 +904,7 @@ def load_and_prepare_data(config, paths):
             if column in correlation_matrix and correlation_matrix[column][kpi_col] < 0:
                 log.info(f"     - Applying adstock to '{column}' due to negative correlation.")
                 best_alpha, _ = find_best_alpha(merged_for_corr[column], merged_for_corr[kpi_col])
-                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = geometric_decay(
+                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = ewm_smooth(
                     daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"],
                     best_alpha,
                 )
