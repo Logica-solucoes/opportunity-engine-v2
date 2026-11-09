@@ -15,7 +15,7 @@ GATE_DEFAULTS = {
     "vif_max": 10.0,
     "control_spend_corr": 0.5,
     "spend_cv_min": 0.10,
-    "oos_wmape_max": 0.30,  # retired by G3: drop with its line in to_legacy_dict once pipeline passes oos_skill_min
+    "oos_wmape_max": 0.30,  # only for events without a seasonal-naive WMAPE (G3); drop once analysis.py computes it
     "oos_skill_min": 0.10,  # 1 − WMAPE / seasonal-naive WMAPE; a perfect model on Poisson noise scores ~0.29
 }
 

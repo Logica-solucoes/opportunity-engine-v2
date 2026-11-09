@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from engine import pipeline
 from engine.sufficiency import assess, seasonal_naive_wmape, spend_cv
 from engine.validation import check_missing_dates, check_outliers, validate
 from tests.engine.csv_factory import days, write_inputs
@@ -42,7 +43,12 @@ def _skill_verdict(actual: np.ndarray, forecast: np.ndarray, train: np.ndarray, 
     model = float(np.abs(actual - forecast).sum() / np.abs(actual).sum())
     naive = seasonal_naive_wmape(train, actual, season)
     return assess(
-        [{"channels": ["A"], "oos_wmape": model, "naive_wmape": naive}], INVESTMENT, True, 0.10, oos_skill_min=0.10
+        [{"channels": ["A"], "oos_wmape": model, "naive_wmape": naive}],
+        INVESTMENT,
+        True,
+        0.10,
+        0.30,
+        oos_skill_min=0.10,
     )
 
 
@@ -87,10 +93,25 @@ def test_g3_a_biased_model_on_a_high_level_kpi_fails():
     assert verdict.reasons == ["high_oos_wmape"]
 
 
-def test_g3_without_a_naive_benchmark_the_skill_is_not_judged():
-    verdict = assess([{"channels": ["A"], "oos_wmape": 0.9}], INVESTMENT, True, 0.10, oos_skill_min=0.10)
+def test_g3_without_a_naive_benchmark_the_absolute_ceiling_still_judges():
+    assert assess([{"channels": ["A"], "oos_wmape": 0.9}], INVESTMENT, True, 0.10, 0.30).reasons == ["high_oos_wmape"]
+    assert assess([{"channels": ["A"], "oos_wmape": 0.2}], INVESTMENT, True, 0.10, 0.30).passed
 
-    assert verdict.passed and verdict.pre_wmape == 0.9
+
+def test_g3_the_fifth_argument_is_the_ceiling_not_the_skill_threshold():
+    event = {"channels": ["A"], "oos_wmape": 0.8, "naive_wmape": 1.0}  # skill 0.2: passes 0.10, fails a 0.30
+
+    assert assess([event], INVESTMENT, True, 0.10, 0.30).passed
+    assert assess([event], INVESTMENT, True, 0.10, 0.30, oos_skill_min=0.25).reasons == ["high_oos_wmape"]
+
+
+def test_g3_the_gate_still_fires_through_the_current_pipeline(synthetic_prepared):
+    poor = pipeline.EventOutcome("e1", "YOUTUBE", "2024-10-28", {"oos_wmape": 0.9}, passed=True, selected=True)
+    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3}
+
+    _, verdict = pipeline.judge_sufficiency(synthetic_prepared, [poor], {"cv_out_of_sample": True}, limits)
+
+    assert verdict.reasons == ["high_oos_wmape"]
 
 
 def _cadences(spend: np.ndarray) -> dict[str, pd.DataFrame]:

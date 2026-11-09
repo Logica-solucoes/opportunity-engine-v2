@@ -19,7 +19,7 @@ INVESTMENT = pd.concat(
 
 
 def _assess(validated, cv_out_of_sample=True, spend_cv_min=0.10, oos_skill_min=0.10):
-    return assess(validated, INVESTMENT, cv_out_of_sample, spend_cv_min, oos_skill_min)
+    return assess(validated, INVESTMENT, cv_out_of_sample, spend_cv_min, 0.30, oos_skill_min=oos_skill_min)
 
 
 def test_spend_cv_is_std_over_mean_and_zero_without_spend():

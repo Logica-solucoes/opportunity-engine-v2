@@ -5,6 +5,7 @@ import statistics
 import numpy as np
 import pandas as pd
 
+from engine.config import GATE_DEFAULTS
 from engine.data_preprocessor import detect_cadence
 from engine.results_schema import Sufficiency
 
@@ -56,13 +57,15 @@ def assess(
     investment_df: pd.DataFrame,
     cv_out_of_sample: bool | None,
     spend_cv_min: float,
-    oos_skill_min: float,
+    oos_wmape_max: float,
+    oos_skill_min: float = GATE_DEFAULTS["oos_skill_min"],
 ) -> Sufficiency:
     """`validated`: {"channels", "oos_wmape", "naive_wmape"} of each event that passed every event gate.
 
     high_oos_wmape: the median skill over the seasonal naive (1 − WMAPE / naive WMAPE) is under `oos_skill_min`. An
-    absolute WMAPE ceiling fails a low-volume KPI even with a perfect model. An event without both WMAPEs, or a run
-    without a model (cv_out_of_sample None), does not fail its check.
+    absolute WMAPE ceiling fails a low-volume KPI even with a perfect model, so `oos_wmape_max` only judges a run whose
+    events carry no naive WMAPE (the pipeline until it computes one). An event without a WMAPE, or a run without a
+    model (cv_out_of_sample None), does not fail its check.
     """
     channels = list(dict.fromkeys(c for event in validated for c in event["channels"]))
     variation = spend_cv(investment_df, channels)
@@ -74,7 +77,11 @@ def assess(
         reasons.append("no_validated_event")
     if any(cv < spend_cv_min for cv in variation.values()):
         reasons.append("low_spend_variation")
-    if skills and statistics.median(skills) < oos_skill_min:
+    if skills:
+        poor_fit = statistics.median(skills) < oos_skill_min
+    else:
+        poor_fit = pre_wmape is not None and pre_wmape > oos_wmape_max
+    if poor_fit:
         reasons.append("high_oos_wmape")
     if cv_out_of_sample is False:
         reasons.append("cv_in_sample")
