@@ -8,7 +8,15 @@ import pytest
 from pydantic import ValidationError
 
 from engine import EngineError
-from engine.scenario import NO_CURVE, NOT_CONCLUSIVE, TCPA_NOTE, ScenarioFilters, _saturation_index, scenario
+from engine.scenario import (
+    DAYS_PER_MONTH,
+    NO_CURVE,
+    NOT_CONCLUSIVE,
+    TCPA_NOTE,
+    ScenarioFilters,
+    _saturation_index,
+    scenario,
+)
 
 GOL = json.loads(
     (Path(__file__).resolve().parents[1] / "fixtures" / "results" / "gol_anonimizada.json").read_text(encoding="utf-8")
@@ -47,7 +55,7 @@ def streamlit_pick(doc, filters):
     """streamlit_app.py:1999-2235 on the results.json rows (conversion mode): monthly investment of the recommended
     point (None when nothing passes) and of the saturation point."""
     rows = doc["elasticity"]["response_curve"]
-    days_in_month = 30 / doc["validation"]["period_days"]
+    days_in_month = DAYS_PER_MONTH / doc["validation"]["period_days"]
     current = next(s for s in doc["elasticity"]["scenarios"] if s["name"] == "current")
     df = pd.DataFrame(
         {
@@ -222,7 +230,7 @@ def _with_channels(doc):
 def test_only_identifiable_channels_come_back_monthly():
     got = scenario(_with_channels(_doc(MIXED, period_days=7)), ScenarioFilters(), 0.2)
 
-    factor = 30 / 7
+    factor = DAYS_PER_MONTH / 7
     assert [c["name"] for c in got["channels"]] == ["A"]
     channel = got["channels"][0]
     assert channel["curve"][1] == pytest.approx(
@@ -250,8 +258,8 @@ def test_table_rows_carry_the_monthly_mix_of_their_curve_point():
     got = scenario(_doc(MIXED), ScenarioFilters(), 0.2)
 
     mix = got["recommended"]["mix"]  # the 40.0 row
-    assert mix["historical"]["A"] == pytest.approx(40.0 * 0.6 * 30)
-    assert mix["optimized"]["Não identificados"] == pytest.approx(40.0 * 0.3 * 30)
+    assert mix["historical"]["A"] == pytest.approx(40.0 * 0.6 * DAYS_PER_MONTH)
+    assert mix["optimized"]["Não identificados"] == pytest.approx(40.0 * 0.3 * DAYS_PER_MONTH)
     assert mix["strategic"]["Não identificados"] is None
     assert got["saturation"]["mix"]["historical"].keys() == {"A", "Não identificados"}
     assert got["current"]["mix"] is None
@@ -274,7 +282,7 @@ def test_the_identifiable_fixture_gives_only_strong():
 def test_values_are_monthly_for_the_cadence():
     got = scenario(_doc(CONVERSIONS, period_days=7), ScenarioFilters(), 0.2)
 
-    factor = 30 / 7
+    factor = DAYS_PER_MONTH / 7
     assert got["curve"][1]["investment"] == pytest.approx(10.0 * factor)
     assert got["curve"][1]["kpi"] == pytest.approx(25.0 * factor)
     assert got["curve"][1]["cpa"] == pytest.approx(10.0 / 25.0)
@@ -296,14 +304,14 @@ def test_the_table_rows_compare_against_the_current_scenario():
     assert got["current"]["incremental_investment"] == 0 and got["current"]["icpa"] == 0.0
     assert got["current"]["ramp"] is None and got["current"]["notes"] == []
     recommended = got["recommended"]
-    assert recommended["investment"] == pytest.approx(40.0 * 30)
-    assert recommended["incremental_investment"] == pytest.approx(20.0 * 30)
-    assert recommended["incremental_kpi"] == pytest.approx(15.0 * 30)
+    assert recommended["investment"] == pytest.approx(40.0 * DAYS_PER_MONTH)
+    assert recommended["incremental_investment"] == pytest.approx(20.0 * DAYS_PER_MONTH)
+    assert recommended["incremental_kpi"] == pytest.approx(15.0 * DAYS_PER_MONTH)
     assert recommended["icpa"] == pytest.approx(20.0 / 15.0)
     assert recommended["extrapolated"] is True
     assert recommended["notes"] == [TCPA_NOTE]
     assert [s["investment"] for s in recommended["ramp"]] == pytest.approx(
-        [24.0 * 30, 28.8 * 30, 34.56 * 30, 40.0 * 30]
+        [24.0 * DAYS_PER_MONTH, 28.8 * DAYS_PER_MONTH, 34.56 * DAYS_PER_MONTH, 40.0 * DAYS_PER_MONTH]
     )
 
 
@@ -316,20 +324,20 @@ def test_roas_filters_apply_only_in_revenue_mode():
     got = scenario(_doc(revenue, current_kpi=20.0), ScenarioFilters(min_roas=3.5), 0.2)
 
     assert got["revenue_mode"] is True
-    assert got["recommended"]["investment"] == pytest.approx(20.0 * 30)  # roas 50/10=5, 80/20=4, 90/30=3
+    assert got["recommended"]["investment"] == pytest.approx(20.0 * DAYS_PER_MONTH)  # roas 50/10=5, 80/20=4, 90/30=3
     assert got["recommended"]["roas"] == pytest.approx(4.0)
 
     got = scenario(_doc(revenue, current_kpi=20.0), ScenarioFilters(min_iroas=0.5), 0.2)
-    assert got["recommended"]["investment"] == pytest.approx(30.0 * 30)  # the only row with iROAS >= 0.5
+    assert got["recommended"]["investment"] == pytest.approx(30.0 * DAYS_PER_MONTH)  # the only row with iROAS >= 0.5
 
     got = scenario(_doc(CONVERSIONS), ScenarioFilters(min_roas=100.0), 0.2)
-    assert got["recommended"]["investment"] == pytest.approx(40.0 * 30)  # no revenue: ROAS filter ignored
+    assert got["recommended"]["investment"] == pytest.approx(40.0 * DAYS_PER_MONTH)  # no revenue: ROAS filter ignored
 
 
 def test_a_budget_cut_has_no_incremental_return():
     revenue = [_row(10.0, 10.0, revenue=50.0), _row(20.0, 20.0, revenue=80.0)]
 
-    got = scenario(_doc(revenue, current_kpi=20.0), ScenarioFilters(max_budget=10.0 * 30), 0.2)
+    got = scenario(_doc(revenue, current_kpi=20.0), ScenarioFilters(max_budget=10.0 * DAYS_PER_MONTH), 0.2)
 
     assert got["recommended"]["incremental_kpi"] < 0
     assert got["recommended"]["icpa"] is None and got["recommended"]["iroas"] is None
@@ -365,9 +373,9 @@ def test_a_channel_saturation_is_searched_from_its_current_spend():
 
     channel = scenario(doc, ScenarioFilters(), 0.2)["channels"][0]
 
-    # from zero the gain fades at x=8 (240/month), below A's current 0.6 × 20 × 30 = 360
-    assert channel["current"] == pytest.approx(360.0)
-    assert channel["saturation"] == pytest.approx(24 * 30)
+    # from zero the gain fades at x=8 per day, below A's current 0.6 × 20 = 12 per day
+    assert channel["current"] == pytest.approx(0.6 * 20.0 * DAYS_PER_MONTH)
+    assert channel["saturation"] == pytest.approx(24 * DAYS_PER_MONTH)
 
 
 def test_the_gol_is_refused_because_no_channel_is_identifiable():

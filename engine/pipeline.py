@@ -248,18 +248,26 @@ def judge_sufficiency(
     return demoted, verdict
 
 
-def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None = None) -> dict:
-    """MMM, aggregated response curve and, when `global_dir` is given, the curve functions' own exports there."""
+def run_elasticity(
+    prepared: PreparedData, cfg: dict, *, global_dir: Path | None = None, collinear: frozenset[str] = frozenset()
+) -> dict:
+    """MMM, identifiability, aggregated response curve and, when `global_dir` is given, the curve functions' own
+    exports there. `collinear`: the channels the collinearity gate left open (never identifiable)."""
     log.info("Starting Global Elasticity Analysis...")
     mmm = elasticity_analysis.run_mmm_engine(cfg, prepared)
     result = {"mmm": mmm}
     if not mmm:
         return result
+    # before the curve: a hidden channel must not have budget moved into or out of it (audit F7)
+    result["identifiability"] = identifiability.assess(mmm, set(collinear))
 
     pivot = prepared.investment_df.pivot_table(index="Date", columns="Product Group", values="investment").fillna(0)
     totals = pivot.sum()
     result["current_split"] = (totals / totals.sum()).to_dict()
-    result["optimized_mix"] = analysis.find_optimal_historical_mix(prepared.kpi_df, prepared.investment_df) or {}
+    organic = mmm["dataframe"].set_index("Date")["kpi_organic_baseline"]
+    result["optimized_mix"] = (
+        analysis.find_optimal_historical_mix(prepared.kpi_df, prepared.investment_df, organic) or {}
+    )
     (
         result["response_curve_df"],
         result["baseline_point"],
@@ -269,7 +277,11 @@ def run_elasticity(prepared: PreparedData, cfg: dict, *, global_dir: Path | None
         result["saturation_point"],
         result["strategic_reallocation_point"],
     ) = elasticity_analysis.generate_aggregated_response_curve(
-        mmm, cfg, optimized_mix=result["optimized_mix"], output_dir=global_dir
+        mmm,
+        cfg,
+        optimized_mix=result["optimized_mix"],
+        output_dir=global_dir,
+        suppress_reallocation=identifiability.reallocation_suppressed(result["identifiability"]),
     )
     result["individual_curves_df"] = elasticity_analysis.generate_individual_response_curves(
         mmm, cfg, output_dir=global_dir, strategic_limit_point=result["strategic_limit_point"]
@@ -289,20 +301,18 @@ def compute(
     cfg = {**config.to_legacy_dict(), "period_days": prepared.period_days}
     candidates = detect_events(prepared, cfg)
     events = analyze_events(prepared, candidates, cfg)
-    elasticity = run_elasticity(prepared, cfg, global_dir=global_dir)
+    collinearity = validation.collinearity if validation else None
+    collinear = frozenset(collinearity.unresolved) if collinearity else frozenset()
+    elasticity = run_elasticity(prepared, cfg, global_dir=global_dir, collinear=collinear)
     events, verdict = judge_sufficiency(prepared, events, elasticity["mmm"], cfg)
-    verdicts = {}
     if elasticity["mmm"]:
-        collinearity = validation.collinearity if validation else None
-        verdicts = identifiability.assess(elasticity["mmm"], set(collinearity.unresolved) if collinearity else set())
-        _log_contribution_split(elasticity["mmm"], verdicts)
+        _log_contribution_split(elasticity["mmm"], elasticity["identifiability"])
     return Computed(
         prepared=prepared,
         effective_config=cfg,
         events=events,
         candidates=candidates,
         validation=validation,
-        identifiability=verdicts,
         sufficiency=verdict,
         **elasticity,
     )

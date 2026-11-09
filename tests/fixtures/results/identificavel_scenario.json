@@ -2,10 +2,10 @@
  "unit": "month",
  "revenue_mode": false,
  "current": {
-  "investment": 57316.335077384596,
-  "kpi": 196855.75830841364,
-  "kpi_lo": 196328.492323556,
-  "kpi_hi": 197349.41761986326,
+  "investment": 58152.19829726312,
+  "kpi": 199726.57145041134,
+  "kpi_lo": 199191.6161699412,
+  "kpi_hi": 200227.42996015295,
   "revenue": null,
   "cpa": 0.2911590474665576,
   "roas": null,
@@ -19,39 +19,39 @@
   "mix": null
  },
  "recommended": {
-  "investment": 85974.50261607689,
-  "kpi": 197752.3674980048,
-  "kpi_lo": 196934.36113428505,
-  "kpi_hi": 198518.23609160347,
+  "investment": 87228.29744589467,
+  "kpi": 200636.25619068407,
+  "kpi_lo": 199806.32056749339,
+  "kpi_hi": 201413.2937012727,
   "revenue": null,
-  "cpa": 0.43475839861661486,
+  "cpa": 0.4347583986166148,
   "roas": null,
-  "incremental_investment": 28658.167538692294,
-  "incremental_kpi": 896.6091895911668,
-  "icpa": 31.96283048555387,
+  "incremental_investment": 29076.099148631547,
+  "incremental_kpi": 909.684740272729,
+  "icpa": 31.962830485553003,
   "iroas": null,
   "extrapolated": false,
   "ramp": [
    {
     "step": 1,
-    "investment": 68779.60209286152,
-    "kpi": 197227.97310862032,
-    "kpi_lo": 196580.01031038348,
-    "kpi_hi": 197834.6363070987
+    "investment": 69782.63795671574,
+    "kpi": 200104.21438312103,
+    "kpi_lo": 199446.8021274099,
+    "kpi_hi": 200719.7247532439
    },
    {
     "step": 2,
-    "investment": 82535.52251143382,
-    "kpi": 197650.5718773151,
-    "kpi_lo": 196865.5744294858,
-    "kpi_hi": 198385.53546441195
+    "investment": 83739.16554805888,
+    "kpi": 200532.97605052593,
+    "kpi_lo": 199736.53072324913,
+    "kpi_hi": 201278.6578566013
    },
    {
     "step": 3,
-    "investment": 85974.50261607689,
-    "kpi": 197752.3674980048,
-    "kpi_lo": 196934.36113428505,
-    "kpi_hi": 198518.23609160347
+    "investment": 87228.29744589467,
+    "kpi": 200636.25619068407,
+    "kpi_lo": 199806.32056749339,
+    "kpi_hi": 201413.2937012727
    }
   ],
   "notes": [
@@ -59,53 +59,53 @@
   ],
   "mix": {
    "historical": {
-    "STRONG": 47602.12307368646,
-    "Não identificados": 38372.37954239042
+    "STRONG": 48296.320701844386,
+    "Não identificados": 38931.976744050284
    },
    "optimized": {
-    "STRONG": 48977.64451254281,
-    "Não identificados": 36996.85810353408
+    "STRONG": 49691.901828350725,
+    "Não identificados": 37536.39561754395
    },
    "strategic": {
-    "STRONG": 47602.12307368646,
-    "Não identificados": 38372.37954239042
+    "STRONG": 48296.320701844386,
+    "Não identificados": 38931.976744050284
    }
   }
  },
  "saturation": {
-  "investment": 85974.50261607689,
-  "kpi": 197752.3674980048,
-  "kpi_lo": 196934.36113428505,
-  "kpi_hi": 198518.23609160347,
+  "investment": 87228.29744589467,
+  "kpi": 200636.25619068407,
+  "kpi_lo": 199806.32056749339,
+  "kpi_hi": 201413.2937012727,
   "revenue": null,
-  "cpa": 0.43475839861661486,
+  "cpa": 0.4347583986166148,
   "roas": null,
-  "incremental_investment": 28658.167538692294,
-  "incremental_kpi": 896.6091895911668,
-  "icpa": 31.96283048555387,
+  "incremental_investment": 29076.099148631547,
+  "incremental_kpi": 909.684740272729,
+  "icpa": 31.962830485553003,
   "iroas": null,
   "extrapolated": false,
   "ramp": [
    {
     "step": 1,
-    "investment": 68779.60209286152,
-    "kpi": 197227.97310862032,
-    "kpi_lo": 196580.01031038348,
-    "kpi_hi": 197834.6363070987
+    "investment": 69782.63795671574,
+    "kpi": 200104.21438312103,
+    "kpi_lo": 199446.8021274099,
+    "kpi_hi": 200719.7247532439
    },
    {
     "step": 2,
-    "investment": 82535.52251143382,
-    "kpi": 197650.5718773151,
-    "kpi_lo": 196865.5744294858,
-    "kpi_hi": 198385.53546441195
+    "investment": 83739.16554805888,
+    "kpi": 200532.97605052593,
+    "kpi_lo": 199736.53072324913,
+    "kpi_hi": 201278.6578566013
    },
    {
     "step": 3,
-    "investment": 85974.50261607689,
-    "kpi": 197752.3674980048,
-    "kpi_lo": 196934.36113428505,
-    "kpi_hi": 198518.23609160347
+    "investment": 87228.29744589467,
+    "kpi": 200636.25619068407,
+    "kpi_lo": 199806.32056749339,
+    "kpi_hi": 201413.2937012727
    }
   ],
   "notes": [
@@ -113,25 +113,25 @@
   ],
   "mix": {
    "historical": {
-    "STRONG": 47602.12307368646,
-    "Não identificados": 38372.37954239042
+    "STRONG": 48296.320701844386,
+    "Não identificados": 38931.976744050284
    },
    "optimized": {
-    "STRONG": 48977.64451254281,
-    "Não identificados": 36996.85810353408
+    "STRONG": 49691.901828350725,
+    "Não identificados": 37536.39561754395
    },
    "strategic": {
-    "STRONG": 47602.12307368646,
-    "Não identificados": 38372.37954239042
+    "STRONG": 48296.320701844386,
+    "Não identificados": 38931.976744050284
    }
   }
  },
  "curve": [
   {
    "investment": 0.0,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.0,
    "icpa": null,
@@ -158,10 +158,10 @@
    "in_filter": true
   },
   {
-   "investment": 868.4293193543122,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 881.0939135948959,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.004448243158462917,
    "icpa": null,
@@ -173,25 +173,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 480.829525996833,
-     "Não identificados": 387.5997933574791
+     "STRONG": 487.8416232509535,
+     "Não identificados": 393.2522903439423
     },
     "optimized": {
-     "STRONG": 494.72368194487694,
-     "Não identificados": 373.7056374094352
+     "STRONG": 501.9384023065731,
+     "Não identificados": 379.1555112883228
     },
     "strategic": {
-     "STRONG": 480.829525996833,
-     "Não identificados": 387.5997933574791
+     "STRONG": 487.8416232509535,
+     "Não identificados": 393.2522903439423
     }
    },
    "in_filter": true
   },
   {
-   "investment": 1736.8586387086243,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 1762.1878271897917,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.008896486316925835,
    "icpa": null,
@@ -203,25 +203,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 961.659051993666,
-     "Não identificados": 775.1995867149582
+     "STRONG": 975.683246501907,
+     "Não identificados": 786.5045806878846
     },
     "optimized": {
-     "STRONG": 989.4473638897539,
-     "Não identificados": 747.4112748188704
+     "STRONG": 1003.8768046131462,
+     "Não identificados": 758.3110225766457
     },
     "strategic": {
-     "STRONG": 961.659051993666,
-     "Não identificados": 775.1995867149582
+     "STRONG": 975.683246501907,
+     "Não identificados": 786.5045806878846
     }
    },
    "in_filter": true
   },
   {
-   "investment": 2605.2879580629365,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 2643.2817407846874,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.01334472947538875,
    "icpa": null,
@@ -233,25 +233,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 1442.488577990499,
-     "Não identificados": 1162.7993800724373
+     "STRONG": 1463.5248697528602,
+     "Não identificados": 1179.756871031827
     },
     "optimized": {
-     "STRONG": 1484.1710458346308,
-     "Não identificados": 1121.1169122283054
+     "STRONG": 1505.8152069197192,
+     "Não identificados": 1137.4665338649684
     },
     "strategic": {
-     "STRONG": 1442.488577990499,
-     "Não identificados": 1162.7993800724373
+     "STRONG": 1463.5248697528602,
+     "Não identificados": 1179.756871031827
     }
    },
    "in_filter": true
   },
   {
-   "investment": 3473.7172774172486,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 3524.3756543795835,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.01779297263385167,
    "icpa": null,
@@ -263,27 +263,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 1923.318103987332,
-     "Não identificados": 1550.3991734299163
+     "STRONG": 1951.366493003814,
+     "Não identificados": 1573.0091613757693
     },
     "optimized": {
-     "STRONG": 1978.8947277795078,
-     "Não identificados": 1494.8225496377408
+     "STRONG": 2007.7536092262924,
+     "Não identificados": 1516.6220451532913
     },
     "strategic": {
-     "STRONG": 1923.318103987332,
-     "Não identificados": 1550.3991734299163
+     "STRONG": 1951.366493003814,
+     "Não identificados": 1573.0091613757693
     }
    },
    "in_filter": true
   },
   {
-   "investment": 4342.146596771561,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 4405.469567974479,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
-   "cpa": 0.022241215792314587,
+   "cpa": 0.022241215792314584,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -293,25 +293,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 2404.147629984165,
-     "Não identificados": 1937.9989667873956
+     "STRONG": 2439.2081162547674,
+     "Não identificados": 1966.2614517197119
     },
     "optimized": {
-     "STRONG": 2473.618409724385,
-     "Não identificados": 1868.528187047176
+     "STRONG": 2509.6920115328653,
+     "Não identificados": 1895.777556441614
     },
     "strategic": {
-     "STRONG": 2404.147629984165,
-     "Não identificados": 1937.9989667873956
+     "STRONG": 2439.2081162547674,
+     "Não identificados": 1966.2614517197119
     }
    },
    "in_filter": true
   },
   {
-   "investment": 5210.575916125873,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 5286.563481569375,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.0266894589507775,
    "icpa": null,
@@ -323,25 +323,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 2884.977155980998,
-     "Não identificados": 2325.5987601448746
+     "STRONG": 2927.0497395057205,
+     "Não identificados": 2359.513742063654
     },
     "optimized": {
-     "STRONG": 2968.3420916692617,
-     "Não identificados": 2242.233824456611
+     "STRONG": 3011.6304138394385,
+     "Não identificados": 2274.9330677299367
     },
     "strategic": {
-     "STRONG": 2884.977155980998,
-     "Não identificados": 2325.5987601448746
+     "STRONG": 2927.0497395057205,
+     "Não identificados": 2359.513742063654
     }
    },
    "in_filter": true
   },
   {
-   "investment": 6079.005235480185,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 6167.65739516427,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.031137702109240415,
    "icpa": null,
@@ -353,25 +353,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 3365.806681977831,
-     "Não identificados": 2713.1985535023537
+     "STRONG": 3414.8913627566744,
+     "Não identificados": 2752.7660324075964
     },
     "optimized": {
-     "STRONG": 3463.065773614138,
-     "Não identificados": 2615.9394618660463
+     "STRONG": 3513.5688161460107,
+     "Não identificados": 2654.0885790182597
     },
     "strategic": {
-     "STRONG": 3365.806681977831,
-     "Não identificados": 2713.1985535023537
+     "STRONG": 3414.8913627566744,
+     "Não identificados": 2752.7660324075964
     }
    },
    "in_filter": true
   },
   {
-   "investment": 6947.434554834497,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 7048.751308759167,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.03558594526770334,
    "icpa": null,
@@ -383,25 +383,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 3846.636207974664,
-     "Não identificados": 3100.7983468598327
+     "STRONG": 3902.732986007628,
+     "Não identificados": 3146.0183227515386
     },
     "optimized": {
-     "STRONG": 3957.7894555590156,
-     "Não identificados": 2989.6450992754817
+     "STRONG": 4015.5072184525848,
+     "Não identificados": 3033.2440903065826
     },
     "strategic": {
-     "STRONG": 3846.636207974664,
-     "Não identificados": 3100.7983468598327
+     "STRONG": 3902.732986007628,
+     "Não identificados": 3146.0183227515386
     }
    },
    "in_filter": true
   },
   {
-   "investment": 7815.863874188808,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 7929.845222354062,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.040034188426166246,
    "icpa": null,
@@ -413,27 +413,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 4327.465733971497,
-     "Não identificados": 3488.3981402173113
+     "STRONG": 4390.5746092585805,
+     "Não identificados": 3539.2706130954807
     },
     "optimized": {
-     "STRONG": 4452.513137503891,
-     "Não identificados": 3363.3507366849162
+     "STRONG": 4517.445620759157,
+     "Não identificados": 3412.3996015949047
     },
     "strategic": {
-     "STRONG": 4327.465733971497,
-     "Não identificados": 3488.3981402173113
+     "STRONG": 4390.5746092585805,
+     "Não identificados": 3539.2706130954807
     }
    },
    "in_filter": true
   },
   {
-   "investment": 8684.293193543122,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 8810.939135948958,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
-   "cpa": 0.044482431584629174,
+   "cpa": 0.04448243158462917,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -443,27 +443,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 4808.29525996833,
-     "Não identificados": 3875.997933574791
+     "STRONG": 4878.416232509535,
+     "Não identificados": 3932.5229034394238
     },
     "optimized": {
-     "STRONG": 4947.23681944877,
-     "Não identificados": 3737.056374094352
+     "STRONG": 5019.384023065731,
+     "Não identificados": 3791.555112883228
     },
     "strategic": {
-     "STRONG": 4808.29525996833,
-     "Não identificados": 3875.997933574791
+     "STRONG": 4878.416232509535,
+     "Não identificados": 3932.5229034394238
     }
    },
    "in_filter": true
   },
   {
-   "investment": 9552.722512897433,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 9692.033049543854,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
-   "cpa": 0.04893067474309209,
+   "cpa": 0.04893067474309208,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -473,25 +473,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 5289.124785965163,
-     "Não identificados": 4263.597726932269
+     "STRONG": 5366.257855760488,
+     "Não identificados": 4325.7751937833655
     },
     "optimized": {
-     "STRONG": 5441.960501393646,
-     "Não identificados": 4110.762011503787
+     "STRONG": 5521.322425372303,
+     "Não identificados": 4170.710624171551
     },
     "strategic": {
-     "STRONG": 5289.124785965163,
-     "Não identificados": 4263.597726932269
+     "STRONG": 5366.257855760488,
+     "Não identificados": 4325.7751937833655
     }
    },
    "in_filter": true
   },
   {
-   "investment": 10421.151832251746,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 10573.12696313875,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.053378917901555,
    "icpa": null,
@@ -503,25 +503,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 5769.954311961996,
-     "Não identificados": 4651.197520289749
+     "STRONG": 5854.099479011441,
+     "Não identificados": 4719.027484127308
     },
     "optimized": {
-     "STRONG": 5936.684183338523,
-     "Não identificados": 4484.467648913222
+     "STRONG": 6023.260827678877,
+     "Não identificados": 4549.8661354598735
     },
     "strategic": {
-     "STRONG": 5769.954311961996,
-     "Não identificados": 4651.197520289749
+     "STRONG": 5854.099479011441,
+     "Não identificados": 4719.027484127308
     }
    },
    "in_filter": true
   },
   {
-   "investment": 11289.581151606057,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 11454.220876733645,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.057827161060017916,
    "icpa": null,
@@ -533,25 +533,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 6250.783837958828,
-     "Não identificados": 5038.797313647228
+     "STRONG": 6341.941102262394,
+     "Não identificados": 5112.27977447125
     },
     "optimized": {
-     "STRONG": 6431.4078652834,
-     "Não identificados": 4858.173286322657
+     "STRONG": 6525.199229985449,
+     "Não identificados": 4929.021646748196
     },
     "strategic": {
-     "STRONG": 6250.783837958828,
-     "Não identificados": 5038.797313647228
+     "STRONG": 6341.941102262394,
+     "Não identificados": 5112.27977447125
     }
    },
    "in_filter": true
   },
   {
-   "investment": 12158.01047096037,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 12335.31479032854,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.06227540421848083,
    "icpa": null,
@@ -563,25 +563,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 6731.613363955662,
-     "Não identificados": 5426.397107004707
+     "STRONG": 6829.782725513349,
+     "Não identificados": 5505.532064815193
     },
     "optimized": {
-     "STRONG": 6926.131547228276,
-     "Não identificados": 5231.8789237320925
+     "STRONG": 7027.137632292021,
+     "Não identificados": 5308.177158036519
     },
     "strategic": {
-     "STRONG": 6731.613363955662,
-     "Não identificados": 5426.397107004707
+     "STRONG": 6829.782725513349,
+     "Não identificados": 5505.532064815193
     }
    },
    "in_filter": true
   },
   {
-   "investment": 13026.439790314682,
-   "kpi": 195229.7319228377,
-   "kpi_lo": 195229.7319228377,
-   "kpi_hi": 195229.7319228377,
+   "investment": 13216.408703923438,
+   "kpi": 198076.83218004575,
+   "kpi_lo": 198076.83218004575,
+   "kpi_hi": 198076.83218004575,
    "revenue": null,
    "cpa": 0.06672364737694375,
    "icpa": null,
@@ -593,25 +593,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 7212.4428899524955,
-     "Não identificados": 5813.996900362186
+     "STRONG": 7317.624348764302,
+     "Não identificados": 5898.784355159135
     },
     "optimized": {
-     "STRONG": 7420.855229173154,
-     "Não identificados": 5605.584561141528
+     "STRONG": 7529.076034598596,
+     "Não identificados": 5687.332669324842
     },
     "strategic": {
-     "STRONG": 7212.4428899524955,
-     "Não identificados": 5813.996900362186
+     "STRONG": 7317.624348764302,
+     "Não identificados": 5898.784355159135
     }
    },
    "in_filter": true
   },
   {
-   "investment": 13894.869109668994,
-   "kpi": 195251.99529728197,
-   "kpi_lo": 195244.77602940492,
-   "kpi_hi": 195258.7544262827,
+   "investment": 14097.502617518334,
+   "kpi": 198099.42022870068,
+   "kpi_lo": 198092.09567983376,
+   "kpi_hi": 198106.27792833268,
    "revenue": null,
    "cpa": 0.07116377524600087,
    "icpa": null,
@@ -623,27 +623,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 7693.272415949328,
-     "Não identificados": 6201.596693719665
+     "STRONG": 7805.465972015256,
+     "Não identificados": 6292.036645503077
     },
     "optimized": {
-     "STRONG": 7915.578911118031,
-     "Não identificados": 5979.290198550963
+     "STRONG": 8031.0144369051695,
+     "Não identificados": 6066.488180613165
     },
     "strategic": {
-     "STRONG": 7693.272415949328,
-     "Não identificados": 6201.596693719665
+     "STRONG": 7805.465972015256,
+     "Não identificados": 6292.036645503077
     }
    },
    "in_filter": true
   },
   {
-   "investment": 14763.298429023303,
-   "kpi": 195287.4818543261,
-   "kpi_lo": 195268.7554826191,
-   "kpi_hi": 195305.01465186718,
+   "investment": 14978.596531113228,
+   "kpi": 198135.424298035,
+   "kpi_lo": 198116.42483340728,
+   "kpi_hi": 198153.21278220692,
    "revenue": null,
-   "cpa": 0.0755977714948259,
+   "cpa": 0.07559777149482591,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -653,25 +653,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 8174.101941946161,
-     "Não identificados": 6589.1964870771435
+     "STRONG": 8293.30759526621,
+     "Não identificados": 6685.288935847018
     },
     "optimized": {
-     "STRONG": 8410.302593062906,
-     "Não identificados": 6352.995835960398
+     "STRONG": 8532.95283921174,
+     "Não identificados": 6445.643691901487
     },
     "strategic": {
-     "STRONG": 8174.101941946161,
-     "Não identificados": 6589.1964870771435
+     "STRONG": 8293.30759526621,
+     "Não identificados": 6685.288935847018
     }
    },
    "in_filter": true
   },
   {
-   "investment": 15631.727748377616,
-   "kpi": 195322.81470017415,
-   "kpi_lo": 195292.63106803817,
-   "kpi_hi": 195351.07449975386,
+   "investment": 15859.690444708123,
+   "kpi": 198171.2724145517,
+   "kpi_lo": 198140.64860444705,
+   "kpi_hi": 198199.9443362086,
    "revenue": null,
    "cpa": 0.0800302195745681,
    "icpa": null,
@@ -683,25 +683,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 8654.931467942994,
-     "Não identificados": 6976.7962804346225
+     "STRONG": 8781.149218517161,
+     "Não identificados": 7078.541226190961
     },
     "optimized": {
-     "STRONG": 8905.026275007782,
-     "Não identificados": 6726.7014733698325
+     "STRONG": 9034.891241518313,
+     "Não identificados": 6824.799203189809
     },
     "strategic": {
-     "STRONG": 8654.931467942994,
-     "Não identificados": 6976.7962804346225
+     "STRONG": 8781.149218517161,
+     "Não identificados": 7078.541226190961
     }
    },
    "in_filter": true
   },
   {
-   "investment": 16500.15706773193,
-   "kpi": 195357.9948313756,
-   "kpi_lo": 195316.403459064,
-   "kpi_hi": 195396.93526904314,
+   "investment": 16740.78435830302,
+   "kpi": 198206.96558933315,
+   "kpi_lo": 198164.76767617537,
+   "kpi_hi": 198246.47390838337,
    "revenue": null,
    "cpa": 0.08446113035698455,
    "icpa": null,
@@ -713,27 +713,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 9135.760993939826,
-     "Não identificados": 7364.3960737921025
+     "STRONG": 9268.990841768114,
+     "Não identificados": 7471.793516534904
     },
     "optimized": {
-     "STRONG": 9399.74995695266,
-     "Não identificados": 7100.407110779269
+     "STRONG": 9536.829643824887,
+     "Não identificados": 7203.954714478134
     },
     "strategic": {
-     "STRONG": 9135.760993939826,
-     "Não identificados": 7364.3960737921025
+     "STRONG": 9268.990841768114,
+     "Não identificados": 7471.793516534904
     }
    },
    "in_filter": true
   },
   {
-   "investment": 17368.586387086245,
-   "kpi": 195393.02323588385,
-   "kpi_lo": 195340.07332328975,
-   "kpi_hi": 195442.59824762976,
+   "investment": 17621.878271897916,
+   "kpi": 198242.5048247405,
+   "kpi_lo": 198188.78272592105,
+   "kpi_hi": 198292.8028054077,
    "revenue": null,
-   "cpa": 0.08889051461227665,
+   "cpa": 0.08889051461227664,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -743,25 +743,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 9616.59051993666,
-     "Não identificados": 7751.995867149582
+     "STRONG": 9756.83246501907,
+     "Não identificados": 7865.0458068788475
     },
     "optimized": {
-     "STRONG": 9894.47363889754,
-     "Não identificados": 7474.112748188704
+     "STRONG": 10038.768046131461,
+     "Não identificados": 7583.110225766456
     },
     "strategic": {
-     "STRONG": 9616.59051993666,
-     "Não identificados": 7751.995867149582
+     "STRONG": 9756.83246501907,
+     "Não identificados": 7865.0458068788475
     }
    },
    "in_filter": true
   },
   {
-   "investment": 18237.015706440554,
-   "kpi": 195427.90089314897,
-   "kpi_lo": 195363.6413225625,
-   "kpi_hi": 195488.06471232334,
+   "investment": 18502.97218549281,
+   "kpi": 198277.8911145074,
+   "kpi_lo": 198212.6944251832,
+   "kpi_hi": 198338.9323227114,
    "revenue": null,
    "cpa": 0.09331838301027302,
    "icpa": null,
@@ -773,27 +773,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 10097.420045933492,
-     "Não identificados": 8139.5956605070605
+     "STRONG": 10244.674088270021,
+     "Não identificados": 8258.298097222789
     },
     "optimized": {
-     "STRONG": 10389.197320842415,
-     "Não identificados": 7847.818385598139
+     "STRONG": 10540.706448438033,
+     "Não identificados": 7962.265737054779
     },
     "strategic": {
-     "STRONG": 10097.420045933492,
-     "Não identificados": 8139.5956605070605
+     "STRONG": 10244.674088270021,
+     "Não identificados": 8258.298097222789
     }
    },
    "in_filter": true
   },
   {
-   "investment": 19105.445025794867,
-   "kpi": 195462.62877420877,
-   "kpi_lo": 195387.10811304502,
-   "kpi_hi": 195533.33592896746,
+   "investment": 19384.066099087708,
+   "kpi": 198313.12544383266,
+   "kpi_lo": 198236.5034396936,
+   "kpi_hi": 198384.86374459823,
    "revenue": null,
-   "cpa": 0.09774474612159634,
+   "cpa": 0.09774474612159632,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -803,25 +803,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 10578.249571930326,
-     "Não identificados": 8527.195453864539
+     "STRONG": 10732.515711520977,
+     "Não identificados": 8651.550387566731
     },
     "optimized": {
-     "STRONG": 10883.921002787292,
-     "Não identificados": 8221.524023007574
+     "STRONG": 11042.644850744606,
+     "Não identificados": 8341.421248343102
     },
     "strategic": {
-     "STRONG": 10578.249571930326,
-     "Não identificados": 8527.195453864539
+     "STRONG": 10732.515711520977,
+     "Não identificados": 8651.550387566731
     }
    },
    "in_filter": true
   },
   {
-   "investment": 19973.87434514918,
-   "kpi": 195497.20784177905,
-   "kpi_lo": 195410.47434527657,
-   "kpi_hi": 195578.41315255704,
+   "investment": 20265.160012682605,
+   "kpi": 198348.20878947165,
+   "kpi_lo": 198260.21042947852,
+   "kpi_hi": 198430.59834436516,
    "revenue": null,
    "cpa": 0.10216961441881335,
    "icpa": null,
@@ -833,27 +833,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 11059.07909792716,
-     "Não identificados": 8914.79524722202
+     "STRONG": 11220.35733477193,
+     "Não identificados": 9044.802677910675
     },
     "optimized": {
-     "STRONG": 11378.644684732171,
-     "Não identificados": 8595.22966041701
+     "STRONG": 11544.583253051182,
+     "Não identificados": 8720.576759631424
     },
     "strategic": {
-     "STRONG": 11059.07909792716,
-     "Não identificados": 8914.79524722202
+     "STRONG": 11220.35733477193,
+     "Não identificados": 9044.802677910675
     }
    },
    "in_filter": true
   },
   {
-   "investment": 20842.30366450349,
-   "kpi": 195531.63905034252,
-   "kpi_lo": 195433.74066423302,
-   "kpi_hi": 195623.29762735448,
+   "investment": 21146.2539262775,
+   "kpi": 198383.1421198267,
+   "kpi_lo": 198283.81604891975,
+   "kpi_hi": 198476.13738442006,
    "revenue": null,
-   "cpa": 0.10659299827756945,
+   "cpa": 0.10659299827756943,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -863,25 +863,25 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 11539.908623923991,
-     "Não identificados": 9302.395040579499
+     "STRONG": 11708.198958022882,
+     "Não identificados": 9438.054968254615
     },
     "optimized": {
-     "STRONG": 11873.368366677047,
-     "Não identificados": 8968.935297826443
+     "STRONG": 12046.521655357754,
+     "Não identificados": 9099.732270919747
     },
     "strategic": {
-     "STRONG": 11539.908623923991,
-     "Não identificados": 9302.395040579499
+     "STRONG": 11708.198958022882,
+     "Não identificados": 9438.054968254615
     }
    },
    "in_filter": true
   },
   {
-   "investment": 21710.7329838578,
-   "kpi": 195565.92334623664,
-   "kpi_lo": 195456.90770938623,
-   "kpi_hi": 195667.9905870038,
+   "investment": 22027.347839872393,
+   "kpi": 198417.9263950359,
+   "kpi_lo": 198307.32094681478,
+   "kpi_hi": 198521.48211639762,
    "revenue": null,
    "cpa": 0.1110149079777072,
    "icpa": null,
@@ -893,27 +893,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 12020.738149920824,
-     "Não identificados": 9689.994833936977
+     "STRONG": 12196.040581273835,
+     "Não identificados": 9831.307258598557
     },
     "optimized": {
-     "STRONG": 12368.092048621922,
-     "Não identificados": 9342.640935235879
+     "STRONG": 12548.460057664324,
+     "Não identificados": 9478.887782208069
     },
     "strategic": {
-     "STRONG": 12020.738149920824,
-     "Não identificados": 9689.994833936977
+     "STRONG": 12196.040581273835,
+     "Não identificados": 9831.307258598557
     }
    },
    "in_filter": true
   },
   {
-   "investment": 22579.162303212113,
-   "kpi": 195600.0616677403,
-   "kpi_lo": 195479.9761147626,
-   "kpi_hi": 195712.49325464416,
+   "investment": 22908.44175346729,
+   "kpi": 198452.56256706148,
+   "kpi_lo": 198330.72576643623,
+   "kpi_hi": 198566.63378127437,
    "revenue": null,
-   "cpa": 0.11543535370436964,
+   "cpa": 0.11543535370436965,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -923,27 +923,27 @@
    "extrapolated": true,
    "mix": {
     "historical": {
-     "STRONG": 12501.567675917657,
-     "Não identificados": 10077.594627294457
+     "STRONG": 12683.882204524789,
+     "Não identificados": 10224.5595489425
     },
     "optimized": {
-     "STRONG": 12862.8157305668,
-     "Não identificados": 9716.346572645314
+     "STRONG": 13050.398459970898,
+     "Não identificados": 9858.043293496392
     },
     "strategic": {
-     "STRONG": 12501.567675917657,
-     "Não identificados": 10077.594627294457
+     "STRONG": 12683.882204524789,
+     "Não identificados": 10224.5595489425
     }
    },
    "in_filter": true
   },
   {
-   "investment": 23447.591622566426,
-   "kpi": 195634.05494515935,
-   "kpi_lo": 195502.94650900105,
-   "kpi_hi": 195756.80684302098,
+   "investment": 23789.535667062188,
+   "kpi": 198487.05157977628,
+   "kpi_lo": 198354.03114559065,
+   "kpi_hi": 198611.59360948173,
    "revenue": null,
-   "cpa": 0.11985434554908815,
+   "cpa": 0.11985434554908814,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -953,27 +953,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 12982.397201914491,
-     "Não identificados": 10465.194420651935
+     "STRONG": 13171.723827775744,
+     "Não identificados": 10617.811839286442
     },
     "optimized": {
-     "STRONG": 13357.539412511676,
-     "Não identificados": 10090.052210054751
+     "STRONG": 13552.336862277472,
+     "Não identificados": 10237.198804784715
     },
     "strategic": {
-     "STRONG": 12982.397201914491,
-     "Não identificados": 10465.194420651935
+     "STRONG": 13171.723827775744,
+     "Não identificados": 10617.811839286442
     }
    },
    "in_filter": true
   },
   {
-   "investment": 24316.02094192074,
-   "kpi": 195667.90410091137,
-   "kpi_lo": 195525.81951540976,
-   "kpi_hi": 195800.9325545964,
+   "investment": 24670.62958065708,
+   "kpi": 198521.39436904967,
+   "kpi_lo": 198377.23771667617,
+   "kpi_hi": 198656.3628210176,
    "revenue": null,
-   "cpa": 0.12427189351085548,
+   "cpa": 0.12427189351085546,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -983,25 +983,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 13463.226727911324,
-     "Não identificados": 10852.794214009415
+     "STRONG": 13659.565451026698,
+     "Não identificados": 11011.064129630386
     },
     "optimized": {
-     "STRONG": 13852.263094456552,
-     "Não identificados": 10463.757847464185
+     "STRONG": 14054.275264584043,
+     "Não identificados": 10616.354316073039
     },
     "strategic": {
-     "STRONG": 13463.226727911324,
-     "Não identificados": 10852.794214009415
+     "STRONG": 13659.565451026698,
+     "Não identificados": 11011.064129630386
     }
    },
    "in_filter": true
   },
   {
-   "investment": 25184.45026127505,
-   "kpi": 195701.61004960875,
-   "kpi_lo": 195548.59575202304,
-   "kpi_hi": 195844.87158165788,
+   "investment": 25551.72349425198,
+   "kpi": 198555.5918628322,
+   "kpi_lo": 198400.34610674006,
+   "kpi_hi": 198700.94262555707,
    "revenue": null,
    "cpa": 0.12868800749718412,
    "icpa": null,
@@ -1013,25 +1013,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 13944.056253908157,
-     "Não identificados": 11240.394007366893
+     "STRONG": 14147.40707427765,
+     "Não identificados": 11404.316419974328
     },
     "optimized": {
-     "STRONG": 14346.98677640143,
-     "Não identificados": 10837.46348487362
+     "STRONG": 14556.213666890619,
+     "Não identificados": 10995.50982736136
     },
     "strategic": {
-     "STRONG": 13944.056253908157,
-     "Não identificados": 11240.394007366893
+     "STRONG": 14147.40707427765,
+     "Não identificados": 11404.316419974328
     }
    },
    "in_filter": true
   },
   {
-   "investment": 26052.879580629364,
-   "kpi": 195735.17369814127,
-   "kpi_lo": 195571.27583165665,
-   "kpi_hi": 195888.6251064257,
+   "investment": 26432.817407846876,
+   "kpi": 198589.64498123917,
+   "kpi_lo": 198423.35693753496,
+   "kpi_hi": 198745.33422256107,
    "revenue": null,
    "cpa": 0.13310269732515004,
    "icpa": null,
@@ -1043,27 +1043,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 14424.885779904991,
-     "Não identificados": 11627.993800724373
+     "STRONG": 14635.248697528605,
+     "Não identificados": 11797.56871031827
     },
     "optimized": {
-     "STRONG": 14841.710458346308,
-     "Não identificados": 11211.169122283056
+     "STRONG": 15058.152069197193,
+     "Não identificados": 11374.665338649684
     },
     "strategic": {
-     "STRONG": 14424.885779904991,
-     "Não identificados": 11627.993800724373
+     "STRONG": 14635.248697528605,
+     "Não identificados": 11797.56871031827
     }
    },
    "in_filter": true
   },
   {
-   "investment": 26921.308899983676,
-   "kpi": 195768.59594575752,
-   "kpi_lo": 195593.86036196287,
-   "kpi_hi": 195932.19430115895,
+   "investment": 27313.91132144177,
+   "kpi": 198623.55463663317,
+   "kpi_lo": 198446.27082557481,
+   "kpi_hi": 198789.5388013842,
    "revenue": null,
-   "cpa": 0.13751597272242216,
+   "cpa": 0.13751597272242214,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1073,25 +1073,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 14905.715305901822,
-     "Não identificados": 12015.593594081853
+     "STRONG": 15123.090320779556,
+     "Não identificados": 12190.821000662212
     },
     "optimized": {
-     "STRONG": 15336.434140291183,
-     "Não identificados": 11584.874759692491
+     "STRONG": 15560.090471503763,
+     "Não identificados": 11753.820849938007
     },
     "strategic": {
-     "STRONG": 14905.715305901822,
-     "Não identificados": 12015.593594081853
+     "STRONG": 15123.090320779556,
+     "Não identificados": 12190.821000662212
     }
    },
    "in_filter": true
   },
   {
-   "investment": 27789.73821933799,
-   "kpi": 195801.8776841449,
-   "kpi_lo": 195616.3499454847,
-   "kpi_hi": 195975.5803282602,
+   "investment": 28195.005235036668,
+   "kpi": 198657.32173370535,
+   "kpi_lo": 198469.0883821897,
+   "kpi_hi": 198833.55754138067,
    "revenue": null,
    "cpa": 0.1419278433282781,
    "icpa": null,
@@ -1103,25 +1103,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 15386.544831898656,
-     "Não identificados": 12403.19338743933
+     "STRONG": 15610.931944030512,
+     "Não identificados": 12584.073291006154
     },
     "optimized": {
-     "STRONG": 15831.157822236062,
-     "Não identificados": 11958.580397101927
+     "STRONG": 16062.028873810339,
+     "Não identificados": 12132.97636122633
     },
     "strategic": {
-     "STRONG": 15386.544831898656,
-     "Não identificados": 12403.19338743933
+     "STRONG": 15610.931944030512,
+     "Não identificados": 12584.073291006154
     }
    },
    "in_filter": true
   },
   {
-   "investment": 28658.167538692298,
-   "kpi": 195835.01979750927,
-   "kpi_lo": 195638.74517970963,
-   "kpi_hi": 196018.78434037883,
+   "investment": 29076.09914863156,
+   "kpi": 198690.94716955628,
+   "kpi_lo": 198491.81021358038,
+   "kpi_hi": 198877.39161200938,
    "revenue": null,
    "cpa": 0.14633831869460553,
    "icpa": null,
@@ -1133,25 +1133,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 15867.374357895489,
-     "Não identificados": 12790.79318079681
+     "STRONG": 16098.773567281465,
+     "Não identificados": 12977.325581350096
     },
     "optimized": {
-     "STRONG": 16325.88150418094,
-     "Não identificados": 12332.286034511362
+     "STRONG": 16563.96727611691,
+     "Não identificados": 12512.131872514652
     },
     "strategic": {
-     "STRONG": 15867.374357895489,
-     "Não identificados": 12790.79318079681
+     "STRONG": 16098.773567281465,
+     "Não identificados": 12977.325581350096
     }
    },
    "in_filter": true
   },
   {
-   "investment": 29526.596858046607,
-   "kpi": 195868.0231626531,
-   "kpi_lo": 195661.04665712235,
-   "kpi_hi": 196061.8074805133,
+   "investment": 29957.193062226455,
+   "kpi": 198724.4318337751,
+   "kpi_lo": 198514.43692087207,
+   "kpi_hi": 198921.04217293745,
    "revenue": null,
    "cpa": 0.1507474082868906,
    "icpa": null,
@@ -1163,25 +1163,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 16348.203883892322,
-     "Não identificados": 13178.392974154287
+     "STRONG": 16586.61519053242,
+     "Não identificados": 13370.577871694037
     },
     "optimized": {
-     "STRONG": 16820.605186125813,
-     "Não identificados": 12705.991671920796
+     "STRONG": 17065.90567842348,
+     "Não identificados": 12891.287383802974
     },
     "strategic": {
-     "STRONG": 16348.203883892322,
-     "Não identificados": 13178.392974154287
+     "STRONG": 16586.61519053242,
+     "Não identificados": 13370.577871694037
     }
    },
    "in_filter": true
   },
   {
-   "investment": 30395.026177400923,
-   "kpi": 195900.88864905262,
-   "kpi_lo": 195683.25496525713,
-   "kpi_hi": 196104.65088211177,
+   "investment": 30838.286975821353,
+   "kpi": 198757.77660851798,
+   "kpi_lo": 198536.96910016713,
+   "kpi_hi": 198964.51037414256,
    "revenue": null,
    "cpa": 0.15515512148519248,
    "icpa": null,
@@ -1193,25 +1193,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 16829.033409889154,
-     "Não identificados": 13565.992767511767
+     "STRONG": 17074.45681378337,
+     "Não identificados": 13763.83016203798
     },
     "optimized": {
-     "STRONG": 17315.32886807069,
-     "Não identificados": 13079.697309330231
+     "STRONG": 17567.844080730054,
+     "Não identificados": 13270.442895091297
     },
     "strategic": {
-     "STRONG": 16829.033409889154,
-     "Não identificados": 13565.992767511767
+     "STRONG": 17074.45681378337,
+     "Não identificados": 13763.83016203798
     }
    },
    "in_filter": true
   },
   {
-   "investment": 31263.455496755232,
-   "kpi": 195933.61711893458,
-   "kpi_lo": 195705.37068674937,
-   "kpi_hi": 196147.31566917163,
+   "investment": 31719.380889416247,
+   "kpi": 198790.9823685857,
+   "kpi_lo": 198559.4073425978,
+   "kpi_hi": 199007.7973560137,
    "revenue": null,
    "cpa": 0.1595614675851049,
    "icpa": null,
@@ -1223,27 +1223,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 17309.862935885987,
-     "Não identificados": 13953.592560869245
+     "STRONG": 17562.298437034322,
+     "Não identificados": 14157.082452381923
     },
     "optimized": {
-     "STRONG": 17810.052550015564,
-     "Não identificados": 13453.402946739665
+     "STRONG": 18069.782483036626,
+     "Não identificados": 13649.598406379619
     },
     "strategic": {
-     "STRONG": 17309.862935885987,
-     "Não identificados": 13953.592560869245
+     "STRONG": 17562.298437034322,
+     "Não identificados": 14157.082452381923
     }
    },
    "in_filter": true
   },
   {
-   "investment": 32131.884816109552,
-   "kpi": 195966.20942735128,
-   "kpi_lo": 195727.39439938648,
-   "kpi_hi": 196189.8029563379,
+   "investment": 32600.47480301115,
+   "kpi": 198824.04998150014,
+   "kpi_lo": 198581.75223437752,
+   "kpi_hi": 199050.90424945115,
    "revenue": null,
-   "cpa": 0.16396645579870495,
+   "cpa": 0.16396645579870497,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1253,25 +1253,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 17790.692461882823,
-     "Não identificados": 14341.192354226729
+     "STRONG": 18050.14006028528,
+     "Não identificados": 14550.334742725869
     },
     "optimized": {
-     "STRONG": 18304.776231960448,
-     "Não identificados": 13827.108584149104
+     "STRONG": 18571.720885343206,
+     "Não identificados": 14028.753917667946
     },
     "strategic": {
-     "STRONG": 17790.692461882823,
-     "Não identificados": 14341.192354226729
+     "STRONG": 18050.14006028528,
+     "Não identificados": 14550.334742725869
     }
    },
    "in_filter": true
   },
   {
-   "investment": 33000.31413546386,
-   "kpi": 195998.66642225522,
-   "kpi_lo": 195749.32667615832,
-   "kpi_hi": 196232.11384900034,
+   "investment": 33481.56871660604,
+   "kpi": 198856.98030757977,
+   "kpi_lo": 198604.0043568523,
+   "kpi_hi": 199093.83217596493,
    "revenue": null,
    "cpa": 0.16837009525548866,
    "icpa": null,
@@ -1283,25 +1283,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 18271.521987879652,
-     "Não identificados": 14728.792147584205
+     "STRONG": 18537.98168353623,
+     "Não identificados": 14943.587033069807
     },
     "optimized": {
-     "STRONG": 18799.49991390532,
-     "Não identificados": 14200.814221558538
+     "STRONG": 19073.659287649774,
+     "Não identificados": 14407.909428956267
     },
     "strategic": {
-     "STRONG": 18271.521987879652,
-     "Não identificados": 14728.792147584205
+     "STRONG": 18537.98168353623,
+     "Não identificados": 14943.587033069807
     }
    },
    "in_filter": true
   },
   {
-   "investment": 33868.74345481817,
-   "kpi": 196030.98894457257,
-   "kpi_lo": 195771.16808530685,
-   "kpi_hi": 196274.24944338898,
+   "investment": 34362.66263020094,
+   "kpi": 198889.77420001428,
+   "kpi_lo": 198626.16428655092,
+   "kpi_hi": 199136.58224777173,
    "revenue": null,
    "cpa": 0.1727723950032946,
    "icpa": null,
@@ -1313,27 +1313,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 18752.35151387649,
-     "Não identificados": 15116.391940941685
+     "STRONG": 19025.823306787188,
+     "Não identificados": 15336.839323413751
     },
     "optimized": {
-     "STRONG": 19294.2235958502,
-     "Não identificados": 14574.519858967973
+     "STRONG": 19575.597689956347,
+     "Não identificados": 14787.064940244589
     },
     "strategic": {
-     "STRONG": 18752.35151387649,
-     "Não identificados": 15116.391940941685
+     "STRONG": 19025.823306787188,
+     "Não identificados": 15336.839323413751
     }
    },
    "in_filter": true
   },
   {
-   "investment": 34737.17277417249,
-   "kpi": 196063.17782827592,
-   "kpi_lo": 195792.91919037516,
-   "kpi_hi": 196316.21082666935,
+   "investment": 35243.75654379583,
+   "kpi": 198922.43250493828,
+   "kpi_lo": 198648.2325952348,
+   "kpi_hi": 199179.15556789163,
    "revenue": null,
-   "cpa": 0.17717336400921455,
+   "cpa": 0.17717336400921452,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1343,25 +1343,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 19233.18103987332,
-     "Não identificados": 15503.991734299165
+     "STRONG": 19513.66493003814,
+     "Não identificados": 15730.091613757695
     },
     "optimized": {
-     "STRONG": 19788.94727779508,
-     "Não identificados": 14948.225496377408
+     "STRONG": 20077.536092262922,
+     "Não identificados": 15166.220451532912
     },
     "strategic": {
-     "STRONG": 19233.18103987332,
-     "Não identificados": 15503.991734299165
+     "STRONG": 19513.66493003814,
+     "Não identificados": 15730.091613757695
     }
    },
    "in_filter": true
   },
   {
-   "investment": 35605.602093526795,
-   "kpi": 196095.23390045573,
-   "kpi_lo": 195814.58055025604,
-   "kpi_hi": 196357.9990770355,
+   "investment": 36124.85045739073,
+   "kpi": 198954.95606150405,
+   "kpi_lo": 198670.20984994728,
+   "kpi_hi": 199221.55323024225,
    "revenue": null,
    "cpa": 0.1815730111604923,
    "icpa": null,
@@ -1373,27 +1373,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 19714.01056587015,
-     "Não identificados": 15891.59152765664
+     "STRONG": 20001.50655328909,
+     "Não identificados": 16123.343904101632
     },
     "optimized": {
-     "STRONG": 20283.67095973995,
-     "Não identificados": 15321.931133786842
+     "STRONG": 20579.47449456949,
+     "Não identificados": 15545.375962821232
     },
     "strategic": {
-     "STRONG": 19714.01056587015,
-     "Não identificados": 15891.59152765664
+     "STRONG": 20001.50655328909,
+     "Não identificados": 16123.343904101632
     }
    },
    "in_filter": true
   },
   {
-   "investment": 36474.03141288111,
-   "kpi": 196127.1579813915,
-   "kpi_lo": 195836.1527192397,
-   "kpi_hi": 196399.61526380252,
+   "investment": 37005.94437098562,
+   "kpi": 198987.34570195345,
+   "kpi_lo": 198692.09661306196,
+   "kpi_hi": 199263.77631973298,
    "revenue": null,
-   "cpa": 0.1859713452654107,
+   "cpa": 0.18597134526541068,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1403,27 +1403,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 20194.840091866983,
-     "Não identificados": 16279.191321014121
+     "STRONG": 20489.348176540043,
+     "Não identificados": 16516.596194445578
     },
     "optimized": {
-     "STRONG": 20778.39464168483,
-     "Não identificados": 15695.636771196278
+     "STRONG": 21081.412896876067,
+     "Não identificados": 15924.531474109557
     },
     "strategic": {
-     "STRONG": 20194.840091866983,
-     "Não identificados": 16279.191321014121
+     "STRONG": 20489.348176540043,
+     "Não identificados": 16516.596194445578
     }
    },
    "in_filter": true
   },
   {
-   "investment": 37342.46073223542,
-   "kpi": 196158.95088462153,
-   "kpi_lo": 195857.63624706125,
-   "kpi_hi": 196441.06044749785,
+   "investment": 37887.03828458052,
+   "kpi": 199019.60225168895,
+   "kpi_lo": 198713.89344233088,
+   "kpi_hi": 199305.8259123572,
    "revenue": null,
-   "cpa": 0.19036837505416632,
+   "cpa": 0.1903683750541663,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1433,25 +1433,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 20675.66961786382,
-     "Não identificados": 16666.7911143716
+     "STRONG": 20977.189799791,
+     "Não identificados": 16909.84848478952
     },
     "optimized": {
-     "STRONG": 21273.118323629707,
-     "Não identificados": 16069.342408605713
+     "STRONG": 21583.351299182643,
+     "Não identificados": 16303.686985397879
     },
     "strategic": {
-     "STRONG": 20675.66961786382,
-     "Não identificados": 16666.7911143716
+     "STRONG": 20977.189799791,
+     "Não identificados": 16909.84848478952
     }
    },
    "in_filter": true
   },
   {
-   "investment": 38210.89005158973,
-   "kpi": 196190.61341701212,
-   "kpi_lo": 195879.03167894713,
-   "kpi_hi": 196482.3356799512,
+   "investment": 38768.132198175415,
+   "kpi": 199051.72652934355,
+   "kpi_lo": 198735.60089093176,
+   "kpi_hi": 199347.70307528382,
    "revenue": null,
    "cpa": 0.19476410917973297,
    "icpa": null,
@@ -1463,25 +1463,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 21156.499143860652,
-     "Não identificados": 17054.390907729077
+     "STRONG": 21465.031423041954,
+     "Não identificados": 17303.100775133462
     },
     "optimized": {
-     "STRONG": 21767.842005574585,
-     "Não identificados": 16443.04804601515
+     "STRONG": 22085.28970148921,
+     "Não identificados": 16682.842496686204
     },
     "strategic": {
-     "STRONG": 21156.499143860652,
-     "Não identificados": 17054.390907729077
+     "STRONG": 21465.031423041954,
+     "Não identificados": 17303.100775133462
     }
    },
    "in_filter": true
   },
   {
-   "investment": 39079.319370944046,
-   "kpi": 196222.14637882577,
-   "kpi_lo": 195900.33955566149,
-   "kpi_hi": 196523.44200438366,
+   "investment": 39649.22611177032,
+   "kpi": 199083.71934685032,
+   "kpi_lo": 198757.21950751488,
+   "kpi_hi": 199389.40886694758,
    "revenue": null,
    "cpa": 0.19915855621871373,
    "icpa": null,
@@ -1493,25 +1493,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 21637.328669857485,
-     "Não identificados": 17441.99070108656
+     "STRONG": 21952.873046292905,
+     "Não identificados": 17696.353065477404
     },
     "optimized": {
-     "STRONG": 22262.56568751946,
-     "Não identificados": 16816.753683424584
+     "STRONG": 22587.228103795787,
+     "Não identificados": 17061.998007974526
     },
     "strategic": {
-     "STRONG": 21637.328669857485,
-     "Não identificados": 17441.99070108656
+     "STRONG": 21952.873046292905,
+     "Não identificados": 17696.353065477404
     }
    },
    "in_filter": true
   },
   {
-   "investment": 39947.74869029836,
-   "kpi": 196253.55056378857,
-   "kpi_lo": 195921.56041355166,
-   "kpi_hi": 196564.38045549547,
+   "investment": 40530.32002536521,
+   "kpi": 199115.5815095105,
+   "kpi_lo": 198778.7498362493,
+   "kpi_hi": 199430.94433713812,
    "revenue": null,
    "cpa": 0.20355172467218158,
    "icpa": null,
@@ -1523,25 +1523,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 22118.15819585432,
-     "Não identificados": 17829.59049444404
+     "STRONG": 22440.71466954386,
+     "Não identificados": 18089.60535582135
     },
     "optimized": {
-     "STRONG": 22757.289369464343,
-     "Não identificados": 17190.45932083402
+     "STRONG": 23089.166506102363,
+     "Não identificados": 17441.153519262847
     },
     "strategic": {
-     "STRONG": 22118.15819585432,
-     "Não identificados": 17829.59049444404
+     "STRONG": 22440.71466954386,
+     "Não identificados": 18089.60535582135
     }
    },
    "in_filter": true
   },
   {
-   "investment": 40816.17800965266,
-   "kpi": 196284.82675915697,
-   "kpi_lo": 195942.6947845931,
-   "kpi_hi": 196605.152059553,
+   "investment": 41411.413938960104,
+   "kpi": 199147.31381606136,
+   "kpi_lo": 198800.19241686843,
+   "kpi_hi": 199472.31052708812,
    "revenue": null,
    "cpa": 0.20794362296650895,
    "icpa": null,
@@ -1553,25 +1553,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 22598.98772185115,
-     "Não identificados": 18217.190287801513
+     "STRONG": 22928.556292794812,
+     "Não identificados": 18482.85764616529
     },
     "optimized": {
-     "STRONG": 23252.013051409212,
-     "Não identificados": 17564.164958243455
+     "STRONG": 23591.10490840893,
+     "Não identificados": 17820.309030551172
     },
     "strategic": {
-     "STRONG": 22598.98772185115,
-     "Não identificados": 18217.190287801513
+     "STRONG": 22928.556292794812,
+     "Não identificados": 18482.85764616529
     }
    },
    "in_filter": true
   },
   {
-   "investment": 41684.60732900698,
-   "kpi": 196315.97574578342,
-   "kpi_lo": 195963.7431964339,
-   "kpi_hi": 196645.75783447432,
+   "investment": 42292.507852555,
+   "kpi": 199178.91705874275,
+   "kpi_lo": 198821.54778471525,
+   "kpi_hi": 199513.5084695604,
    "revenue": null,
    "cpa": 0.2123342594541866,
    "icpa": null,
@@ -1583,25 +1583,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 23079.817247847983,
-     "Não identificados": 18604.790081158997
+     "STRONG": 23416.397916045764,
+     "Não identificados": 18876.10993650923
     },
     "optimized": {
-     "STRONG": 23746.736733354093,
-     "Não identificados": 17937.870595652887
+     "STRONG": 24093.043310715508,
+     "Não identificados": 18199.464541839494
     },
     "strategic": {
-     "STRONG": 23079.817247847983,
-     "Não identificados": 18604.790081158997
+     "STRONG": 23416.397916045764,
+     "Não identificados": 18876.10993650923
     }
    },
    "in_filter": true
   },
   {
-   "investment": 42553.036648361296,
-   "kpi": 196346.99829818122,
-   "kpi_lo": 195984.7061724387,
-   "kpi_hi": 196686.19878991405,
+   "investment": 43173.6017661499,
+   "kpi": 199210.39202336303,
+   "kpi_lo": 198842.81647078675,
+   "kpi_hi": 199554.53918893365,
    "revenue": null,
    "cpa": 0.21672364241463155,
    "icpa": null,
@@ -1613,27 +1613,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 23560.64677384482,
-     "Não identificados": 18992.389874516477
+     "STRONG": 23904.239539296723,
+     "Não identificados": 19269.362226853176
     },
     "optimized": {
-     "STRONG": 24241.460415298967,
-     "Não identificados": 18311.576233062326
+     "STRONG": 24594.98171302208,
+     "Não identificados": 18578.62005312782
     },
     "strategic": {
-     "STRONG": 23560.64677384482,
-     "Não identificados": 18992.389874516477
+     "STRONG": 23904.239539296723,
+     "Não identificados": 19269.362226853176
     }
    },
    "in_filter": true
   },
   {
-   "investment": 43421.4659677156,
-   "kpi": 196377.8951845892,
-   "kpi_lo": 196005.58423173198,
-   "kpi_hi": 196726.47592734708,
+   "investment": 44054.695679744786,
+   "kpi": 199241.73948936444,
+   "kpi_lo": 198863.99900177808,
+   "kpi_hi": 199595.40370128755,
    "revenue": null,
-   "cpa": 0.22111178005498405,
+   "cpa": 0.22111178005498408,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1643,27 +1643,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 24041.476299841648,
-     "Não identificados": 19379.989667873953
+     "STRONG": 24392.08116254767,
+     "Não identificados": 19662.614517197115
     },
     "optimized": {
-     "STRONG": 24736.184097243844,
-     "Não identificados": 18685.281870471757
+     "STRONG": 25096.92011532865,
+     "Não identificados": 18957.775564416137
     },
     "strategic": {
-     "STRONG": 24041.476299841648,
-     "Não identificados": 19379.989667873953
+     "STRONG": 24392.08116254767,
+     "Não identificados": 19662.614517197115
     }
    },
    "in_filter": true
   },
   {
-   "investment": 44289.895287069914,
-   "kpi": 196408.6671670345,
-   "kpi_lo": 196026.37788924115,
-   "kpi_hi": 196766.590240151,
+   "investment": 44935.78959333969,
+   "kpi": 199272.96022988707,
+   "kpi_lo": 198885.09590012592,
+   "kpi_hi": 199636.10301448655,
    "revenue": null,
-   "cpa": 0.22549868051089544,
+   "cpa": 0.22549868051089547,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1673,27 +1673,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 24522.30582583848,
-     "Não identificados": 19767.58946123143
+     "STRONG": 24879.922785798626,
+     "Não identificados": 20055.866807541057
     },
     "optimized": {
-     "STRONG": 25230.907779188718,
-     "Não identificados": 19058.987507881197
+     "STRONG": 25598.85851763522,
+     "Não identificados": 19336.931075704462
     },
     "strategic": {
-     "STRONG": 24522.30582583848,
-     "Não identificados": 19767.58946123143
+     "STRONG": 24879.922785798626,
+     "Não identificados": 20055.866807541057
     }
    },
    "in_filter": true
   },
   {
-   "investment": 45158.32460642423,
-   "kpi": 196439.31500139573,
-   "kpi_lo": 196047.08765573852,
-   "kpi_hi": 196806.5427136881,
+   "investment": 45816.88350693458,
+   "kpi": 199304.05501183274,
+   "kpi_lo": 198906.10768405139,
+   "kpi_hi": 199676.6381282627,
    "revenue": null,
-   "cpa": 0.22988435184730394,
+   "cpa": 0.22988435184730396,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1703,27 +1703,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 25003.135351835313,
-     "Não identificados": 20155.189254588913
+     "STRONG": 25367.764409049578,
+     "Não identificados": 20449.119097885
     },
     "optimized": {
-     "STRONG": 25725.6314611336,
-     "Não identificados": 19432.69314529063
+     "STRONG": 26100.796919941797,
+     "Não identificados": 19716.086586992784
     },
     "strategic": {
-     "STRONG": 25003.135351835313,
-     "Não identificados": 20155.189254588913
+     "STRONG": 25367.764409049578,
+     "Não identificados": 20449.119097885
     }
    },
    "in_filter": true
   },
   {
-   "investment": 46026.75392577854,
-   "kpi": 196469.8394374646,
-   "kpi_lo": 196067.71403788353,
-   "kpi_hi": 196846.33432538575,
+   "investment": 46697.97742052948,
+   "kpi": 199335.02459592762,
+   "kpi_lo": 198927.03486760266,
+   "kpi_hi": 199717.01003429762,
    "revenue": null,
-   "cpa": 0.23426880205920173,
+   "cpa": 0.23426880205920175,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1733,25 +1733,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 25483.96487783215,
-     "Não identificados": 20542.789047946393
+     "STRONG": 25855.606032300533,
+     "Não identificados": 20842.371388228945
     },
     "optimized": {
-     "STRONG": 26220.35514307848,
-     "Não identificados": 19806.398782700064
+     "STRONG": 26602.735322248373,
+     "Não identificados": 20095.242098281105
     },
     "strategic": {
-     "STRONG": 25483.96487783215,
-     "Não identificados": 20542.789047946393
+     "STRONG": 25855.606032300533,
+     "Não identificados": 20842.371388228945
     }
    },
    "in_filter": true
   },
   {
-   "investment": 46895.18324513285,
-   "kpi": 196500.24121900712,
-   "kpi_lo": 196088.2575382637,
-   "kpi_hi": 196885.96604481625,
+   "investment": 47579.071334124375,
+   "kpi": 199365.8697367843,
+   "kpi_lo": 198947.8779606967,
+   "kpi_hi": 199757.21971630317,
    "revenue": null,
    "cpa": 0.23865203907239155,
    "icpa": null,
@@ -1763,27 +1763,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 25964.794403828982,
-     "Não identificados": 20930.38884130387
+     "STRONG": 26343.44765555149,
+     "Não identificados": 21235.623678572883
     },
     "optimized": {
-     "STRONG": 26715.078825023353,
-     "Não identificados": 20180.104420109503
+     "STRONG": 27104.673724554945,
+     "Não identificados": 20474.39760956943
     },
     "strategic": {
-     "STRONG": 25964.794403828982,
-     "Não identificados": 20930.38884130387
+     "STRONG": 26343.44765555149,
+     "Não identificados": 21235.623678572883
     }
    },
    "in_filter": true
   },
   {
-   "investment": 47763.61256448717,
-   "kpi": 196530.52108382407,
-   "kpi_lo": 196108.71865543566,
-   "kpi_hi": 196925.43883377576,
+   "investment": 48460.16524771928,
+   "kpi": 199396.5911829632,
+   "kpi_lo": 198968.63746916075,
+   "kpi_hi": 199797.26815010165,
    "revenue": null,
-   "cpa": 0.2430340707442335,
+   "cpa": 0.24303407074423347,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1793,27 +1793,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 26445.623929825815,
-     "Não identificados": 21317.98863466135
+     "STRONG": 26831.28927880244,
+     "Não identificados": 21628.87596891683
     },
     "optimized": {
-     "STRONG": 27209.802506968234,
-     "Não identificados": 20553.81005751894
+     "STRONG": 27606.612126861517,
+     "Não identificados": 20853.553120857756
     },
     "strategic": {
-     "STRONG": 26445.623929825815,
-     "Não identificados": 21317.98863466135
+     "STRONG": 26831.28927880244,
+     "Não identificados": 21628.87596891683
     }
    },
    "in_filter": true
   },
   {
-   "investment": 48632.04188384148,
-   "kpi": 196560.6797638106,
-   "kpi_lo": 196129.09788396544,
-   "kpi_hi": 196964.75364636164,
+   "investment": 49341.25916131416,
+   "kpi": 199427.18967703285,
+   "kpi_lo": 198989.31389477328,
+   "kpi_hi": 199837.1563037044,
    "revenue": null,
-   "cpa": 0.2474149048643821,
+   "cpa": 0.24741490486438208,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1823,25 +1823,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 26926.453455822648,
-     "Não identificados": 21705.58842801883
+     "STRONG": 27319.130902053395,
+     "Não identificados": 22022.12825926077
     },
     "optimized": {
-     "STRONG": 27704.526188913103,
-     "Não identificados": 20927.51569492837
+     "STRONG": 28108.550529168086,
+     "Não identificados": 21232.708632146077
     },
     "strategic": {
-     "STRONG": 26926.453455822648,
-     "Não identificados": 21705.58842801883
+     "STRONG": 27319.130902053395,
+     "Não identificados": 22022.12825926077
     }
    },
    "in_filter": true
   },
   {
-   "investment": 49500.47120319579,
-   "kpi": 196590.71798501528,
-   "kpi_lo": 196149.39571446835,
-   "kpi_hi": 197003.9114290498,
+   "investment": 50222.353074909064,
+   "kpi": 199457.66595563007,
+   "kpi_lo": 199009.90773530435,
+   "kpi_hi": 199876.88513739008,
    "revenue": null,
    "cpa": 0.25179454915551436,
    "icpa": null,
@@ -1853,25 +1853,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 27407.28298181948,
-     "Não identificados": 22093.188221376306
+     "STRONG": 27806.972525304347,
+     "Não identificados": 22415.38054960471
     },
     "optimized": {
-     "STRONG": 28199.249870857984,
-     "Não identificados": 21301.221332337806
+     "STRONG": 28610.48893147466,
+     "Não identificados": 21611.8641434344
     },
     "strategic": {
-     "STRONG": 27407.28298181948,
-     "Não identificados": 22093.188221376306
+     "STRONG": 27806.972525304347,
+     "Não identificados": 22415.38054960471
     }
    },
    "in_filter": true
   },
   {
-   "investment": 50368.9005225501,
-   "kpi": 196620.63646769823,
-   "kpi_lo": 196169.6126336483,
-   "kpi_hi": 197042.91312077036,
+   "investment": 51103.44698850396,
+   "kpi": 199488.02074951882,
+   "kpi_lo": 199030.41948455566,
+   "kpi_hi": 199916.4556037816,
    "revenue": null,
    "cpa": 0.25617301127404773,
    "icpa": null,
@@ -1883,25 +1883,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 27888.112507816313,
-     "Não identificados": 22480.788014733786
+     "STRONG": 28294.8141485553,
+     "Não identificados": 22808.632839948656
     },
     "optimized": {
-     "STRONG": 28693.97355280286,
-     "Não identificados": 21674.92696974724
+     "STRONG": 29112.427333781237,
+     "Não identificados": 21991.01965472272
     },
     "strategic": {
-     "STRONG": 27888.112507816313,
-     "Não identificados": 22480.788014733786
+     "STRONG": 28294.8141485553,
+     "Não identificados": 22808.632839948656
     }
    },
    "in_filter": true
   },
   {
-   "investment": 51237.32984190441,
-   "kpi": 196650.4359263889,
-   "kpi_lo": 196189.7491243366,
-   "kpi_hi": 197081.7596529829,
+   "investment": 51984.54090209885,
+   "kpi": 199518.25478364874,
+   "kpi_lo": 199050.84963239986,
+   "kpi_hi": 199955.86864792224,
    "revenue": null,
    "cpa": 0.26055029881084935,
    "icpa": null,
@@ -1913,25 +1913,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 28368.942033813142,
-     "Não identificados": 22868.387808091265
+     "STRONG": 28782.65577180625,
+     "Não identificados": 23201.885130292594
     },
     "optimized": {
-     "STRONG": 29188.697234747735,
-     "Não identificados": 22048.632607156676
+     "STRONG": 29614.365736087806,
+     "Não identificados": 22370.175166011042
     },
     "strategic": {
-     "STRONG": 28368.942033813142,
-     "Não identificados": 22868.387808091265
+     "STRONG": 28782.65577180625,
+     "Não identificados": 23201.885130292594
     }
    },
    "in_filter": true
   },
   {
-   "investment": 52105.75916125873,
-   "kpi": 196680.11706994273,
-   "kpi_lo": 196209.80566553073,
-   "kpi_hi": 197120.45194975036,
+   "investment": 52865.63481569375,
+   "kpi": 199548.36877721275,
+   "kpi_lo": 199071.1986648197,
+   "kpi_hi": 199995.12520735088,
    "revenue": null,
    "cpa": 0.2649264192919361,
    "icpa": null,
@@ -1943,27 +1943,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 28849.771559809982,
-     "Não identificados": 23255.987601448745
+     "STRONG": 29270.49739505721,
+     "Não identificados": 23595.13742063654
     },
     "optimized": {
-     "STRONG": 29683.420916692616,
-     "Não identificados": 22422.338244566112
+     "STRONG": 30116.304138394386,
+     "Não identificados": 22749.330677299367
     },
     "strategic": {
-     "STRONG": 28849.771559809982,
-     "Não identificados": 23255.987601448745
+     "STRONG": 29270.49739505721,
+     "Não identificados": 23595.13742063654
     }
    },
    "in_filter": true
   },
   {
-   "investment": 52974.18848061304,
-   "kpi": 196709.6806015976,
-   "kpi_lo": 196229.7827324319,
-   "kpi_hi": 197158.99092781264,
+   "investment": 53746.72872928865,
+   "kpi": 199578.3634437042,
+   "kpi_lo": 199091.46706394653,
+   "kpi_hi": 200034.22621217655,
    "revenue": null,
-   "cpa": 0.26930138017916544,
+   "cpa": 0.2693013801791655,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -1973,25 +1973,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 29330.601085806815,
-     "Não identificados": 23643.587394806225
+     "STRONG": 29758.33901830816,
+     "Não identificados": 23988.389710980482
     },
     "optimized": {
-     "STRONG": 30178.144598637497,
-     "Não identificados": 22796.043881975547
+     "STRONG": 30618.242540700958,
+     "Não identificados": 23128.48618858769
     },
     "strategic": {
-     "STRONG": 29330.601085806815,
-     "Não identificados": 23643.587394806225
+     "STRONG": 29758.33901830816,
+     "Não identificados": 23988.389710980482
     }
    },
    "in_filter": true
   },
   {
-   "investment": 53842.61779996735,
-   "kpi": 196739.12721902903,
-   "kpi_lo": 196249.6807964829,
-   "kpi_hi": 197197.37749665856,
+   "investment": 54627.82264288354,
+   "kpi": 199608.2394909732,
+   "kpi_lo": 199111.65530809827,
+   "kpi_hi": 200073.1725851515,
    "revenue": null,
    "cpa": 0.2736751888709181,
    "icpa": null,
@@ -2003,27 +2003,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 29811.430611803644,
-     "Não identificados": 24031.187188163705
+     "STRONG": 30246.180641559113,
+     "Não identificados": 24381.642001324424
     },
     "optimized": {
-     "STRONG": 30672.868280582366,
-     "Não identificados": 23169.749519384983
+     "STRONG": 31120.180943007526,
+     "Não identificados": 23507.641699876014
     },
     "strategic": {
-     "STRONG": 29811.430611803644,
-     "Não identificados": 24031.187188163705
+     "STRONG": 30246.180641559113,
+     "Não identificados": 24381.642001324424
     }
    },
    "in_filter": true
   },
   {
-   "investment": 54711.047119321665,
-   "kpi": 196768.45761440546,
-   "kpi_lo": 196269.500325405,
-   "kpi_hi": 197235.61255859793,
+   "investment": 55508.916556478434,
+   "kpi": 199637.9976212822,
+   "kpi_lo": 199131.76387181718,
+   "kpi_hi": 200111.96524174415,
    "revenue": null,
-   "cpa": 0.2780478527027711,
+   "cpa": 0.27804785270277105,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -2033,25 +2033,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 30292.26013780048,
-     "Não identificados": 24418.78698152118
+     "STRONG": 30734.022264810068,
+     "Não identificados": 24774.894291668366
     },
     "optimized": {
-     "STRONG": 31167.591962527247,
-     "Não identificados": 23543.455156794415
+     "STRONG": 31622.119345314102,
+     "Não identificados": 23886.797211164336
     },
     "strategic": {
-     "STRONG": 30292.26013780048,
-     "Não identificados": 24418.78698152118
+     "STRONG": 30734.022264810068,
+     "Não identificados": 24774.894291668366
     }
    },
    "in_filter": true
   },
   {
-   "investment": 55579.47643867598,
-   "kpi": 196797.6724744422,
-   "kpi_lo": 196289.24178323476,
-   "kpi_hi": 197273.69700883186,
+   "investment": 56390.010470073335,
+   "kpi": 199667.63853136115,
+   "kpi_lo": 199151.79322590693,
+   "kpi_hi": 200150.60509021065,
    "revenue": null,
    "cpa": 0.2824193789481631,
    "icpa": null,
@@ -2063,27 +2063,27 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 30773.089663797313,
-     "Não identificados": 24806.38677487866
+     "STRONG": 31221.863888061023,
+     "Não identificados": 25168.14658201231
     },
     "optimized": {
-     "STRONG": 31662.315644472124,
-     "Não identificados": 23917.160794203854
+     "STRONG": 32124.057747620678,
+     "Não identificados": 24265.95272245266
     },
     "strategic": {
-     "STRONG": 30773.089663797313,
-     "Não identificados": 24806.38677487866
+     "STRONG": 31221.863888061023,
+     "Não identificados": 25168.14658201231
     }
    },
    "in_filter": true
   },
   {
-   "investment": 56447.90575803028,
-   "kpi": 196826.77248045514,
-   "kpi_lo": 196308.90563036004,
-   "kpi_hi": 197311.63173552268,
+   "investment": 57271.10438366822,
+   "kpi": 199697.16291246176,
+   "kpi_lo": 199171.74383746946,
+   "kpi_hi": 200189.09303166572,
    "revenue": null,
-   "cpa": 0.2867897748190508,
+   "cpa": 0.2867897748190509,
    "icpa": null,
    "roas": null,
    "iroas": null,
@@ -2093,25 +2093,25 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 31253.919189794145,
-     "Não identificados": 25193.986568236138
+     "STRONG": 31709.705511311975,
+     "Não identificados": 25561.39887235625
     },
     "optimized": {
-     "STRONG": 32157.039326416998,
-     "Não identificados": 24290.866431613285
+     "STRONG": 32625.996149927247,
+     "Não identificados": 24645.10823374098
     },
     "strategic": {
-     "STRONG": 31253.919189794145,
-     "Não identificados": 25193.986568236138
+     "STRONG": 31709.705511311975,
+     "Não identificados": 25561.39887235625
     }
    },
    "in_filter": true
   },
   {
-   "investment": 57316.335077384596,
-   "kpi": 196855.75830841364,
-   "kpi_lo": 196328.492323556,
-   "kpi_hi": 197349.41761986326,
+   "investment": 58152.19829726312,
+   "kpi": 199726.57145041134,
+   "kpi_lo": 199191.6161699412,
+   "kpi_hi": 200227.42996015295,
    "revenue": null,
    "cpa": 0.2911590474665576,
    "icpa": null,
@@ -2123,1006 +2123,1006 @@
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 31734.748715790978,
-     "Não identificados": 25581.58636159362
+     "STRONG": 32197.54713456293,
+     "Não identificados": 25954.651162700193
     },
     "optimized": {
-     "STRONG": 32651.76300836188,
-     "Não identificados": 24664.572069022724
+     "STRONG": 33127.93455223382,
+     "Não identificados": 25024.263745029304
     },
     "strategic": {
-     "STRONG": 31734.748715790978,
-     "Não identificados": 25581.58636159362
+     "STRONG": 32197.54713456293,
+     "Não identificados": 25954.651162700193
     }
    },
    "in_filter": true
   },
   {
-   "investment": 58184.76439673891,
-   "kpi": 196884.63062899298,
-   "kpi_lo": 196348.00231602037,
-   "kpi_hi": 197387.05553614485,
+   "investment": 59033.29221085802,
+   "kpi": 199755.86482566578,
+   "kpi_lo": 199211.41068312898,
+   "kpi_hi": 200265.61676271362,
    "revenue": null,
    "cpa": 0.29552720398161286,
    "icpa": 30.078265339582533,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 868.4293193543135,
-   "incremental_kpi": 28.87232057932124,
+   "incremental_investment": 881.0939135948972,
+   "incremental_kpi": 29.29337525443634,
    "pct_incrementality": 0.014664588336368365,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 32215.57824178781,
-     "Não identificados": 25969.186154951098
+     "STRONG": 32685.388757813882,
+     "Não identificados": 26347.903453044135
     },
     "optimized": {
-     "STRONG": 33146.48669030675,
-     "Não identificados": 25038.277706432156
+     "STRONG": 33629.87295454039,
+     "Não identificados": 25403.419256317626
     },
     "strategic": {
-     "STRONG": 32215.57824178781,
-     "Não identificados": 25969.186154951098
+     "STRONG": 32685.388757813882,
+     "Não identificados": 26347.903453044135
     }
    },
    "in_filter": true
   },
   {
-   "investment": 59053.193716093214,
-   "kpi": 196913.39010762598,
-   "kpi_lo": 196367.4360574083,
-   "kpi_hi": 197424.54635182477,
+   "investment": 59914.38612445291,
+   "kpi": 199785.0437133622,
+   "kpi_lo": 199231.1278332455,
+   "kpi_hi": 200303.65431945553,
    "revenue": null,
-   "cpa": 0.2998942513955846,
+   "cpa": 0.2998942513955847,
    "icpa": 30.137158000387213,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 1736.8586387086202,
-   "incremental_kpi": 57.631799212331316,
+   "incremental_investment": 1762.1878271897876,
+   "incremental_kpi": 58.47226295084448,
    "pct_incrementality": 0.02926758773531439,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 32696.407767784644,
-     "Não identificados": 26356.785948308574
+     "STRONG": 33173.23038106484,
+     "Não identificados": 26741.155743388073
     },
     "optimized": {
-     "STRONG": 33641.210372251626,
-     "Não identificados": 25411.98334384159
+     "STRONG": 34131.81135684696,
+     "Não identificados": 25782.574767605947
     },
     "strategic": {
-     "STRONG": 32696.407767784644,
-     "Não identificados": 26356.785948308574
+     "STRONG": 33173.23038106484,
+     "Não identificados": 26741.155743388073
     }
    },
    "in_filter": true
   },
   {
-   "investment": 59921.623035447534,
-   "kpi": 196942.0374045542,
-   "kpi_lo": 196386.79399386715,
-   "kpi_hi": 197461.89092759293,
+   "investment": 60795.480038047805,
+   "kpi": 199814.1087833706,
+   "kpi_lo": 199250.76807294437,
+   "kpi_hi": 200341.5435036203,
    "revenue": null,
    "cpa": 0.3042601966809036,
    "icpa": 30.196050661200168,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 2605.2879580629337,
-   "incremental_kpi": 86.2790961405608,
+   "incremental_investment": 2643.2817407846846,
+   "incremental_kpi": 87.53733295927731,
    "pct_incrementality": 0.043809385379378445,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 33177.23729378147,
-     "Não identificados": 26744.385741666054
+     "STRONG": 33661.072004315785,
+     "Não identificados": 27134.40803373202
     },
     "optimized": {
-     "STRONG": 34135.93405419651,
-     "Não identificados": 25785.688981251027
+     "STRONG": 34633.74975915354,
+     "Não identificados": 26161.730278894272
     },
     "strategic": {
-     "STRONG": 33177.23729378147,
-     "Não identificados": 26744.385741666054
+     "STRONG": 33661.072004315785,
+     "Não identificados": 27134.40803373202
     }
    },
    "in_filter": true
   },
   {
-   "investment": 60790.05235480185,
-   "kpi": 196970.57317487843,
-   "kpi_lo": 196406.07656807036,
-   "kpi_hi": 197499.09011743788,
+   "investment": 61676.573951642706,
+   "kpi": 199843.06070034544,
+   "kpi_lo": 199270.3318513547,
+   "kpi_hi": 200379.2851816505,
    "revenue": null,
-   "cpa": 0.3086250467516789,
+   "cpa": 0.30862504675167884,
    "icpa": 30.254943322014142,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 3473.7172774172473,
-   "incremental_kpi": 114.81486646480334,
+   "incremental_investment": 3524.375654379582,
+   "incremental_kpi": 116.48924993408173,
    "pct_incrementality": 0.05829036521250616,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 33658.06681977831,
-     "Não identificados": 27131.985535023534
+     "STRONG": 34148.91362756674,
+     "Não identificados": 27527.66032407596
     },
     "optimized": {
-     "STRONG": 34630.65773614138,
-     "Não identificados": 26159.394618660463
+     "STRONG": 35135.68816146011,
+     "Não identificados": 26540.885790182594
     },
     "strategic": {
-     "STRONG": 33658.06681977831,
-     "Não identificados": 27131.985535023534
+     "STRONG": 34148.91362756674,
+     "Não identificados": 27527.66032407596
     }
    },
    "in_filter": true
   },
   {
-   "investment": 61658.48167415615,
-   "kpi": 196998.9980686087,
-   "kpi_lo": 196425.28421925145,
-   "kpi_hi": 197536.14476871165,
+   "investment": 62557.66786523759,
+   "kpi": 199871.9001237759,
+   "kpi_lo": 199289.81961411555,
+   "kpi_hi": 200416.88021325535,
    "revenue": null,
    "cpa": 0.312988808464307,
    "icpa": 30.313835982823008,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 4342.146596771554,
-   "incremental_kpi": 143.23976019504698,
+   "incremental_investment": 4405.469567974473,
+   "incremental_kpi": 145.32867336455809,
    "pct_incrementality": 0.072710907973837,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 34138.89634577513,
-     "Não identificados": 27519.58532838101
+     "STRONG": 34636.75525081769,
+     "Não identificados": 27920.9126144199
     },
     "optimized": {
-     "STRONG": 35125.38141808626,
-     "Não identificados": 26533.100256069894
+     "STRONG": 35637.62656376668,
+     "Não identificados": 26920.041301470916
     },
     "strategic": {
-     "STRONG": 34138.89634577513,
-     "Não identificados": 27519.58532838101
+     "STRONG": 34636.75525081769,
+     "Não identificados": 27920.9126144199
     }
    },
    "in_filter": true
   },
   {
-   "investment": 62526.910993510464,
-   "kpi": 197027.3127307134,
-   "kpi_lo": 196444.41738323722,
-   "kpi_hi": 197573.05572219423,
+   "investment": 63438.76177883249,
+   "kpi": 199900.6277080363,
+   "kpi_lo": 199309.23180340944,
+   "kpi_hi": 200454.32945147622,
    "revenue": null,
    "cpa": 0.31735148861807283,
    "icpa": 30.372728643634883,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 5210.5759161258675,
-   "incremental_kpi": 171.5544222997505,
+   "incremental_investment": 5286.563481569369,
+   "incremental_kpi": 174.0562576249552,
    "pct_incrementality": 0.08707139123103308,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 34619.725871771974,
-     "Não identificados": 27907.18512173849
+     "STRONG": 35124.596874068644,
+     "Não identificados": 28314.164904763846
     },
     "optimized": {
-     "STRONG": 35620.10510003113,
-     "Não identificados": 26906.80589347933
+     "STRONG": 36139.56496607325,
+     "Não identificados": 27299.196812759237
     },
     "strategic": {
-     "STRONG": 34619.725871771974,
-     "Não identificados": 27907.18512173849
+     "STRONG": 35124.596874068644,
+     "Não identificados": 28314.164904763846
     }
    },
    "in_filter": true
   },
   {
-   "investment": 63395.34031286479,
-   "kpi": 197055.51780116837,
-   "kpi_lo": 196463.47649248064,
-   "kpi_hi": 197609.8238121572,
+   "investment": 64319.8556924274,
+   "kpi": 199929.24410243542,
+   "kpi_lo": 199328.568857996,
+   "kpi_hi": 200491.63374275118,
    "revenue": null,
    "cpa": 0.3217130939557426,
    "icpa": 30.431621304444924,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 6079.005235480195,
-   "incremental_kpi": 199.75949275473795,
+   "incremental_investment": 6167.65739516428,
+   "incremental_kpi": 202.67265202407788,
    "pct_incrementality": 0.10137218941328906,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 35100.55539776881,
-     "Não identificados": 28294.784915095977
+     "STRONG": 35612.43849731961,
+     "Não identificados": 28707.41719510779
     },
     "optimized": {
-     "STRONG": 36114.828781976015,
-     "Não identificados": 27280.511530888773
+     "STRONG": 36641.50336837983,
+     "Não identificados": 27678.352324047566
     },
     "strategic": {
-     "STRONG": 35100.55539776881,
-     "Não identificados": 28294.784915095977
+     "STRONG": 35612.43849731961,
+     "Não identificados": 28707.41719510779
     }
    },
    "in_filter": true
   },
   {
-   "investment": 64263.769632219104,
-   "kpi": 197083.61391500494,
-   "kpi_lo": 196482.46197609368,
-   "kpi_hi": 197646.4498664265,
+   "investment": 65200.9496060223,
+   "kpi": 199957.74995126543,
+   "kpi_lo": 199347.83121324505,
+   "kpi_hi": 200528.79392697854,
    "revenue": null,
    "cpa": 0.3260736311641502,
    "icpa": 30.4905139652584,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 6947.434554834508,
-   "incremental_kpi": 227.8556065913017,
+   "incremental_investment": 7048.751308759178,
+   "incremental_kpi": 231.1785008540915,
    "pct_incrementality": 0.11561367384381718,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 35581.38492376565,
-     "Não identificados": 28682.384708453457
+     "STRONG": 36100.28012057056,
+     "Não identificados": 29100.669485451737
     },
     "optimized": {
-     "STRONG": 36609.552463920896,
-     "Não identificados": 27654.217168298208
+     "STRONG": 37143.44177068641,
+     "Não identificados": 28057.50783533589
     },
     "strategic": {
-     "STRONG": 35581.38492376565,
-     "Não identificados": 28682.384708453457
+     "STRONG": 36100.28012057056,
+     "Não identificados": 29100.669485451737
     }
    },
    "in_filter": true
   },
   {
-   "investment": 65132.1989515734,
-   "kpi": 197111.60170235764,
-   "kpi_lo": 196501.37425987926,
-   "kpi_hi": 197682.93470644456,
+   "investment": 66082.04351961719,
+   "kpi": 199986.14589385036,
+   "kpi_lo": 199367.01930116917,
+   "kpi_hi": 200565.8108375802,
    "revenue": null,
-   "cpa": 0.3304331068747759,
+   "cpa": 0.33043310687477595,
    "icpa": 30.549406626068304,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 7815.863874188808,
-   "incremental_kpi": 255.84339394400558,
+   "incremental_investment": 7929.845222354062,
+   "incremental_kpi": 259.57444343902233,
    "pct_incrementality": 0.129796212772059,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 36062.21444976247,
-     "Não identificados": 29069.98450181093
+     "STRONG": 36588.12174382151,
+     "Não identificados": 29493.921775795672
     },
     "optimized": {
-     "STRONG": 37104.27614586577,
-     "Não identificados": 28027.922805707636
+     "STRONG": 37645.38017299298,
+     "Não identificados": 28436.663346624206
     },
     "strategic": {
-     "STRONG": 36062.21444976247,
-     "Não identificados": 29069.98450181093
+     "STRONG": 36588.12174382151,
+     "Não identificados": 29493.921775795672
     }
    },
    "in_filter": true
   },
   {
-   "investment": 66000.62827092771,
-   "kpi": 197139.48178851127,
-   "kpi_lo": 196520.21376636327,
-   "kpi_hi": 197719.2791473318,
+   "investment": 66963.13743321208,
+   "kpi": 200014.4325645937,
+   "kpi_lo": 199386.13355045608,
+   "kpi_hi": 200602.68530156373,
    "revenue": null,
-   "cpa": 0.33479152766431813,
+   "cpa": 0.3347915276643182,
    "icpa": 30.608299286880655,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 8684.293193543122,
-   "incremental_kpi": 283.7234800976148,
+   "incremental_investment": 8810.939135948958,
+   "incremental_kpi": 287.8611141823717,
    "pct_incrementality": 0.1439201714053351,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 36543.043975759305,
-     "Não identificados": 29457.58429516841
+     "STRONG": 37075.96336707246,
+     "Não identificados": 29887.174066139614
     },
     "optimized": {
-     "STRONG": 37598.99982781064,
-     "Não identificados": 28401.628443117075
+     "STRONG": 38147.31857529955,
+     "Não identificados": 28815.818857912534
     },
     "strategic": {
-     "STRONG": 36543.043975759305,
-     "Não identificados": 29457.58429516841
+     "STRONG": 37075.96336707246,
+     "Não identificados": 29887.174066139614
     }
    },
    "in_filter": true
   },
   {
-   "investment": 66869.05759028203,
-   "kpi": 197167.25479394745,
-   "kpi_lo": 196538.98091482586,
-   "kpi_hi": 197755.48399794722,
+   "investment": 67844.23134680698,
+   "kpi": 200042.61059302586,
+   "kpi_lo": 199405.1743865004,
+   "kpi_hi": 200639.41813958396,
    "revenue": null,
    "cpa": 0.3391489000552578,
    "icpa": 30.667191947694228,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 9552.722512897435,
-   "incremental_kpi": 311.4964855338076,
+   "incremental_investment": 9692.033049543856,
+   "incremental_kpi": 316.03914261450893,
    "pct_incrementality": 0.15798591194026695,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 37023.873501756134,
-     "Não identificados": 29845.18408852589
+     "STRONG": 37563.80499032341,
+     "Não identificados": 30280.426356483556
     },
     "optimized": {
-     "STRONG": 38093.72350975552,
-     "Não identificados": 28775.33408052651
+     "STRONG": 38649.25697760612,
+     "Não identificados": 29194.974369200856
     },
     "strategic": {
-     "STRONG": 37023.873501756134,
-     "Não identificados": 29845.18408852589
+     "STRONG": 37563.80499032341,
+     "Não identificados": 30280.426356483556
     }
    },
    "in_filter": true
   },
   {
-   "investment": 67737.48690963634,
-   "kpi": 197194.92133439082,
-   "kpi_lo": 196557.67612133283,
-   "kpi_hi": 197791.55006094853,
+   "investment": 68725.32526040188,
+   "kpi": 200070.6806038507,
+   "kpi_lo": 199424.1422314356,
+   "kpi_hi": 200676.01016600404,
    "revenue": null,
    "cpa": 0.3435052305164155,
    "icpa": 30.726084608506238,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 10421.151832251748,
-   "incremental_kpi": 339.1630259771773,
+   "incremental_investment": 10573.126963138753,
+   "incremental_kpi": 344.1091534393445,
    "pct_incrementality": 0.17199379359372338,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 37504.70302775298,
-     "Não identificados": 30232.78388188337
+     "STRONG": 38051.646613574376,
+     "Não identificados": 30673.678646827502
     },
     "optimized": {
-     "STRONG": 38588.4471917004,
-     "Não identificados": 29149.039717935946
+     "STRONG": 39151.19537991269,
+     "Não identificados": 29574.129880489178
     },
     "strategic": {
-     "STRONG": 37504.70302775298,
-     "Não identificados": 30232.78388188337
+     "STRONG": 38051.646613574376,
+     "Não identificados": 30673.678646827502
     }
    },
    "in_filter": true
   },
   {
-   "investment": 68605.91622899065,
-   "kpi": 197222.48202085434,
-   "kpi_lo": 196576.29979876592,
-   "kpi_hi": 197827.4781328514,
+   "investment": 69606.41917399678,
+   "kpi": 200098.6432169918,
+   "kpi_lo": 199443.0375041646,
+   "kpi_hi": 200712.46218895548,
    "revenue": null,
-   "cpa": 0.34786052546350293,
+   "cpa": 0.347860525463503,
    "icpa": 30.784977269316723,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 11289.581151606062,
-   "incremental_kpi": 366.72371244068927,
+   "incremental_investment": 11454.22087673365,
+   "incremental_kpi": 372.0717665804493,
    "pct_incrementality": 0.18594417263337748,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 37985.53255374981,
-     "Não identificados": 30620.383675240846
+     "STRONG": 38539.488236825324,
+     "Não identificados": 31066.930937171444
     },
     "optimized": {
-     "STRONG": 39083.17087364528,
-     "Não identificados": 29522.74535534538
+     "STRONG": 39653.13378221927,
+     "Não identificados": 29953.285391777503
     },
     "strategic": {
-     "STRONG": 37985.53255374981,
-     "Não identificados": 30620.383675240846
+     "STRONG": 38539.488236825324,
+     "Não identificados": 31066.930937171444
     }
    },
    "in_filter": true
   },
   {
-   "investment": 69474.34554834498,
-   "kpi": 197249.9374596843,
-   "kpi_lo": 196594.85235685375,
-   "kpi_hi": 197863.26900408798,
+   "investment": 70487.51308759167,
+   "kpi": 200126.499047638,
+   "kpi_lo": 199461.8606203912,
+   "kpi_hi": 200748.7750103976,
    "revenue": null,
-   "cpa": 0.35221479125966654,
+   "cpa": 0.3522147912596665,
    "icpa": 30.843869930128825,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 12158.010470960377,
-   "incremental_kpi": 394.1791512706459,
+   "incremental_investment": 12335.314790328548,
+   "incremental_kpi": 399.92759722667614,
    "pct_incrementality": 0.19983740240790282,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 38466.36207974664,
-     "Não identificados": 31007.98346859833
+     "STRONG": 39027.32986007628,
+     "Não identificados": 31460.18322751539
     },
     "optimized": {
-     "STRONG": 39577.89455559016,
-     "Não identificados": 29896.450992754817
+     "STRONG": 40155.072184525845,
+     "Não identificados": 30332.440903065824
     },
     "strategic": {
-     "STRONG": 38466.36207974664,
-     "Não identificados": 31007.98346859833
+     "STRONG": 39027.32986007628,
+     "Não identificados": 31460.18322751539
     }
    },
    "in_filter": true
   },
   {
-   "investment": 70342.77486769928,
-   "kpi": 197277.2882526049,
-   "kpi_lo": 196613.33420220137,
-   "kpi_hi": 197898.92345906506,
+   "investment": 71368.60700118655,
+   "kpi": 200154.2487062887,
+   "kpi_lo": 199480.61199265014,
+   "kpi_hi": 200784.94942617643,
    "revenue": null,
    "cpa": 0.3565680342160241,
    "icpa": 30.9027625909412,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 13026.439790314675,
-   "incremental_kpi": 421.529944191243,
+   "incremental_investment": 13216.408703923431,
+   "incremental_kpi": 427.67725587736527,
    "pct_incrementality": 0.21367383337685197,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 38947.191605743465,
-     "Não identificados": 31395.5832619558
+     "STRONG": 39515.17148332723,
+     "Não identificados": 31853.43551785932
     },
     "optimized": {
-     "STRONG": 40072.618237535025,
-     "Não identificados": 30270.15663016425
+     "STRONG": 40657.01058683241,
+     "Não identificados": 30711.596414354142
     },
     "strategic": {
-     "STRONG": 38947.191605743465,
-     "Não identificados": 31395.5832619558
+     "STRONG": 39515.17148332723,
+     "Não identificados": 31853.43551785932
     }
    },
    "in_filter": true
   },
   {
-   "investment": 71211.20418705359,
-   "kpi": 197304.53499676214,
-   "kpi_lo": 196631.74573832037,
-   "kpi_hi": 197934.4422762214,
+   "investment": 72249.70091478145,
+   "kpi": 200181.89279879825,
+   "kpi_lo": 199499.29203033753,
+   "kpi_hi": 200820.98622608295,
    "revenue": null,
    "cpa": 0.36092026059219673,
    "icpa": 30.961655251751637,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 13894.869109668989,
-   "incremental_kpi": 448.7766883484983,
+   "incremental_investment": 14097.502617518328,
+   "incremental_kpi": 455.3213483869139,
    "pct_incrementality": 0.22745381314011,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 39428.0211317403,
-     "Não identificados": 31783.18305531328
+     "STRONG": 40003.01310657818,
+     "Não identificados": 32246.687808203264
     },
     "optimized": {
-     "STRONG": 40567.3419194799,
-     "Não identificados": 30643.862267573684
+     "STRONG": 41158.94898913898,
+     "Não identificados": 31090.751925642464
     },
     "strategic": {
-     "STRONG": 39428.0211317403,
-     "Não identificados": 31783.18305531328
+     "STRONG": 40003.01310657818,
+     "Não identificados": 32246.687808203264
     }
    },
    "in_filter": true
   },
   {
-   "investment": 72079.6335064079,
-   "kpi": 197331.67828476726,
-   "kpi_lo": 196650.08736565796,
-   "kpi_hi": 197969.82622808407,
+   "investment": 73130.79482837635,
+   "kpi": 200209.4319264201,
+   "kpi_lo": 199517.90113974048,
+   "kpi_hi": 200856.88619391032,
    "revenue": null,
-   "cpa": 0.3652714765968318,
+   "cpa": 0.36527147659683185,
    "icpa": 31.020547912563803,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 14763.298429023303,
-   "incremental_kpi": 475.9199763536071,
+   "incremental_investment": 14978.596531113226,
+   "incremental_kpi": 482.8604760087639,
    "pct_incrementality": 0.24117768646695037,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 39908.85065773713,
-     "Não identificados": 32170.78284867076
+     "STRONG": 40490.85472982913,
+     "Não identificados": 32639.94009854721
     },
     "optimized": {
-     "STRONG": 41062.06560142478,
-     "Não identificados": 31017.56790498312
+     "STRONG": 41660.887391445554,
+     "Não identificados": 31469.907436930793
     },
     "strategic": {
-     "STRONG": 39908.85065773713,
-     "Não identificados": 32170.78284867076
+     "STRONG": 40490.85472982913,
+     "Não identificados": 32639.94009854721
     }
    },
    "in_filter": true
   },
   {
-   "investment": 72948.06282576222,
-   "kpi": 197358.71870473973,
-   "kpi_lo": 196668.3594816261,
-   "kpi_hi": 198005.0760813249,
+   "investment": 74011.88874197124,
+   "kpi": 200236.86668585052,
+   "kpi_lo": 199536.4397240665,
+   "kpi_hi": 200892.65010751085,
    "revenue": null,
-   "cpa": 0.3696216883881214,
+   "cpa": 0.36962168838812137,
    "icpa": 31.079440573375166,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 15631.727748377616,
-   "incremental_kpi": 502.9603963260797,
+   "incremental_investment": 15859.690444708123,
+   "incremental_kpi": 510.2952354391684,
    "pct_incrementality": 0.25484579532487645,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 40389.680183733966,
-     "Não identificados": 32558.382642028242
+     "STRONG": 40978.696353080086,
+     "Não identificados": 33033.192388891155
     },
     "optimized": {
-     "STRONG": 41556.78928336966,
-     "Não identificados": 31391.273542392555
+     "STRONG": 42162.825793752134,
+     "Não identificados": 31849.062948219114
     },
     "strategic": {
-     "STRONG": 40389.680183733966,
-     "Não identificados": 32558.382642028242
+     "STRONG": 40978.696353080086,
+     "Não identificados": 33033.192388891155
     }
    },
    "in_filter": true
   },
   {
-   "investment": 73816.49214511653,
-   "kpi": 197385.6568403497,
-   "kpi_lo": 196686.5624806303,
-   "kpi_hi": 198040.19259681538,
+   "investment": 74892.98265556614,
+   "kpi": 200264.19766927147,
+   "kpi_lo": 199554.9081834728,
+   "kpi_hi": 200928.27873885227,
    "revenue": null,
    "cpa": 0.3739709020743138,
    "icpa": 31.13833323418778,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 16500.15706773193,
-   "incremental_kpi": 529.89853193606,
+   "incremental_investment": 16740.78435830302,
+   "incremental_kpi": 537.6262188601274,
    "pct_incrementality": 0.26845847890794555,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 40870.5097097308,
-     "Não identificados": 32945.982435385726
+     "STRONG": 41466.53797633105,
+     "Não identificados": 33426.444679235094
     },
     "optimized": {
-     "STRONG": 42051.512965314534,
-     "Não identificados": 31764.97917980199
+     "STRONG": 42664.764196058706,
+     "Não identificados": 32228.218459507436
     },
     "strategic": {
-     "STRONG": 40870.5097097308,
-     "Não identificados": 32945.982435385726
+     "STRONG": 41466.53797633105,
+     "Não identificados": 33426.444679235094
     }
    },
    "in_filter": true
   },
   {
-   "investment": 74684.92146447084,
-   "kpi": 197412.49327086008,
-   "kpi_lo": 196704.69675409785,
-   "kpi_hi": 198075.17652968183,
+   "investment": 75774.07656916104,
+   "kpi": 200291.42546439348,
+   "kpi_lo": 199573.3069150951,
+   "kpi_hi": 200963.77285407303,
    "revenue": null,
-   "cpa": 0.3783191237142185,
+   "cpa": 0.37831912371421844,
    "icpa": 31.19722589499982,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 17368.586387086245,
-   "incremental_kpi": 556.7349624464532,
+   "incremental_investment": 17621.878271897916,
+   "incremental_kpi": 564.8540139821307,
    "pct_incrementality": 0.28201607366489423,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 41351.33923572764,
-     "Não identificados": 33333.5822287432
+     "STRONG": 41954.379599582,
+     "Não identificados": 33819.69696957904
     },
     "optimized": {
-     "STRONG": 42546.236647259415,
-     "Não identificados": 32138.684817211426
+     "STRONG": 43166.702598365286,
+     "Não identificados": 32607.373970795757
     },
     "strategic": {
-     "STRONG": 41351.33923572764,
-     "Não identificados": 33333.5822287432
+     "STRONG": 41954.379599582,
+     "Não identificados": 33819.69696957904
     }
    },
    "in_filter": true
   },
   {
-   "investment": 75553.35078382515,
-   "kpi": 197439.22857116797,
-   "kpi_lo": 196722.76269050592,
-   "kpi_hi": 198110.02862935935,
+   "investment": 76655.17048275593,
+   "kpi": 200318.55065449752,
+   "kpi_lo": 199591.63631307578,
+   "kpi_hi": 200999.13321353748,
    "revenue": null,
-   "cpa": 0.38266635931770554,
+   "cpa": 0.38266635931770543,
    "icpa": 31.256118555811963,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 18237.015706440558,
-   "incremental_kpi": 583.4702627543447,
+   "incremental_investment": 18502.972185492814,
+   "incremental_kpi": 591.9792040861789,
    "pct_incrementality": 0.2955189133268062,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 41832.16876172447,
-     "Não identificados": 33721.18202210068
+     "STRONG": 42442.22122283295,
+     "Não identificados": 34212.94925992298
     },
     "optimized": {
-     "STRONG": 43040.96032920429,
-     "Não identificados": 32512.390454620865
+     "STRONG": 43668.64100067185,
+     "Não identificados": 32986.529482084086
     },
     "strategic": {
-     "STRONG": 41832.16876172447,
-     "Não identificados": 33721.18202210068
+     "STRONG": 42442.22122283295,
+     "Não identificados": 34212.94925992298
     }
    },
    "in_filter": true
   },
   {
-   "investment": 76421.78010317947,
-   "kpi": 197465.86331184575,
-   "kpi_lo": 196740.7606754093,
-   "kpi_hi": 198144.7496396452,
+   "investment": 77536.26439635083,
+   "kpi": 200345.57381847684,
+   "kpi_lo": 199609.89676859236,
+   "kpi_hi": 201034.36057189002,
    "revenue": null,
-   "cpa": 0.38701261484619864,
+   "cpa": 0.3870126148461986,
    "icpa": 31.315011216623468,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 19105.44502579487,
-   "incremental_kpi": 610.1050034321179,
+   "incremental_investment": 19384.06609908771,
+   "incremental_kpi": 619.0023680655029,
    "pct_incrementality": 0.308967328934529,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 42312.998287721304,
-     "Não identificados": 34108.781815458155
+     "STRONG": 42930.06284608391,
+     "Não identificados": 34606.201550266924
     },
     "optimized": {
-     "STRONG": 43535.68401114917,
-     "Não identificados": 32886.0960920303
+     "STRONG": 44170.57940297842,
+     "Não identificados": 33365.68499337241
     },
     "strategic": {
-     "STRONG": 42312.998287721304,
-     "Não identificados": 34108.781815458155
+     "STRONG": 42930.06284608391,
+     "Não identificados": 34606.201550266924
     }
    },
    "in_filter": true
   },
   {
-   "investment": 77290.20942253378,
-   "kpi": 197492.39805918164,
-   "kpi_lo": 196758.69109146795,
-   "kpi_hi": 198179.34029875192,
+   "investment": 78417.35830994573,
+   "kpi": 200372.49553087805,
+   "kpi_lo": 199628.08866988518,
+   "kpi_hi": 201069.45567810873,
    "revenue": null,
    "cpa": 0.39135789621316247,
    "icpa": 31.373903877434678,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 19973.874345149183,
-   "incremental_kpi": 636.6397507679994,
+   "incremental_investment": 20265.16001268261,
+   "incremental_kpi": 645.9240804666995,
    "pct_incrementality": 0.32236164886570495,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 42793.82781371813,
-     "Não identificados": 34496.38160881564
+     "STRONG": 43417.904469334855,
+     "Não identificados": 34999.45384061087
     },
     "optimized": {
-     "STRONG": 44030.40769309404,
-     "Não identificados": 33259.801729439736
+     "STRONG": 44672.517805285,
+     "Não identificados": 33744.84050466073
     },
     "strategic": {
-     "STRONG": 42793.82781371813,
-     "Não identificados": 34496.38160881564
+     "STRONG": 43417.904469334855,
+     "Não identificados": 34999.45384061087
     }
    },
    "in_filter": true
   },
   {
-   "investment": 78158.63874188809,
-   "kpi": 197518.83337521984,
-   "kpi_lo": 196776.55431847394,
-   "kpi_hi": 198213.80133935963,
+   "investment": 79298.45222354063,
+   "kpi": 200399.3163619418,
+   "kpi_lo": 199646.21240228502,
+   "kpi_hi": 201104.4192755586,
    "revenue": null,
    "cpa": 0.3957022092845839,
    "icpa": 31.432796538246723,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 20842.303664503495,
-   "incremental_kpi": 663.0750668061955,
+   "incremental_investment": 21146.253926277506,
+   "incremental_kpi": 672.7449115304526,
    "pct_incrementality": 0.3357021988615001,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 43274.65733971497,
-     "Não identificados": 34883.98140217312
+     "STRONG": 43905.74609258581,
+     "Não identificados": 35392.70613095481
     },
     "optimized": {
-     "STRONG": 44525.13137503892,
-     "Não identificados": 33633.50736684917
+     "STRONG": 45174.456207591575,
+     "Não identificados": 34123.99601594905
     },
     "strategic": {
-     "STRONG": 43274.65733971497,
-     "Não identificados": 34883.98140217312
+     "STRONG": 43905.74609258581,
+     "Não identificados": 35392.70613095481
     }
    },
    "in_filter": true
   },
   {
-   "investment": 79027.0680612424,
-   "kpi": 197545.16981780028,
-   "kpi_lo": 196794.35073337832,
-   "kpi_hi": 198248.13348866763,
+   "investment": 80179.54613713552,
+   "kpi": 200426.0368776432,
+   "kpi_lo": 199664.2683482401,
+   "kpi_hi": 201139.25210204403,
    "revenue": null,
    "cpa": 0.4000455598794473,
    "icpa": 31.491689199058154,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 21710.73298385781,
-   "incremental_kpi": 689.4115093866458,
+   "incremental_investment": 22027.347839872404,
+   "incremental_kpi": 699.4654272318677,
    "pct_incrementality": 0.348989302053046,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 43755.486865711806,
-     "Não identificados": 35271.5811955306
+     "STRONG": 44393.58771583677,
+     "Não identificados": 35785.958421298754
     },
     "optimized": {
-     "STRONG": 45019.855056983804,
-     "Não identificados": 34007.21300425861
+     "STRONG": 45676.394609898154,
+     "Não identificados": 34503.15152723737
     },
     "strategic": {
-     "STRONG": 43755.486865711806,
-     "Não identificados": 35271.5811955306
+     "STRONG": 44393.58771583677,
+     "Não identificados": 35785.958421298754
     }
    },
    "in_filter": true
   },
   {
-   "investment": 79895.49738059672,
-   "kpi": 197571.4079405978,
-   "kpi_lo": 196812.0807103177,
-   "kpi_hi": 198282.3374684456,
+   "investment": 81060.64005073042,
+   "kpi": 200452.6576397315,
+   "kpi_lo": 199682.25688734316,
+   "kpi_hi": 201173.95488986044,
    "revenue": null,
-   "cpa": 0.4043879537702047,
+   "cpa": 0.40438795377020476,
    "icpa": 31.55058185987036,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 22579.162303212124,
-   "incremental_kpi": 715.6496321841496,
+   "incremental_investment": 22908.4417534673,
+   "incremental_kpi": 726.0861893201684,
    "pct_incrementality": 0.36222327898747286,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 44236.31639170864,
-     "Não identificados": 35659.18098888808
+     "STRONG": 44881.42933908772,
+     "Não identificados": 36179.2107116427
     },
     "optimized": {
-     "STRONG": 45514.578738928685,
-     "Não identificados": 34380.91864166804
+     "STRONG": 46178.33301220473,
+     "Não identificados": 34882.307038525694
     },
     "strategic": {
-     "STRONG": 44236.31639170864,
-     "Não identificados": 35659.18098888808
+     "STRONG": 44881.42933908772,
+     "Não identificados": 36179.2107116427
     }
    },
    "in_filter": true
   },
   {
-   "investment": 80763.92669995101,
-   "kpi": 197597.54829316091,
-   "kpi_lo": 196829.7446206404,
-   "kpi_hi": 198316.41399508427,
+   "investment": 81941.7339643253,
+   "kpi": 200479.17920576953,
+   "kpi_lo": 199700.1783963581,
+   "kpi_hi": 201208.5283658459,
    "revenue": null,
    "cpa": 0.4087293966832399,
    "icpa": 31.609474520682486,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 23447.591622566426,
-   "incremental_kpi": 741.7899847472745,
+   "incremental_investment": 23789.535667062184,
+   "incremental_kpi": 752.6077553581722,
    "pct_incrementality": 0.3754044476537408,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 44717.145917705464,
-     "Não identificados": 36046.78078224556
+     "STRONG": 45369.27096233867,
+     "Não identificados": 36572.46300198664
     },
     "optimized": {
-     "STRONG": 46009.30242087355,
-     "Não identificados": 34754.62427907747
+     "STRONG": 46680.271414511284,
+     "Não identificados": 35261.462549814016
     },
     "strategic": {
-     "STRONG": 44717.145917705464,
-     "Não identificados": 36046.78078224556
+     "STRONG": 45369.27096233867,
+     "Não identificados": 36572.46300198664
     }
    },
    "in_filter": true
   },
   {
-   "investment": 81632.35601930533,
-   "kpi": 197623.5914209503,
-   "kpi_lo": 196847.34283293245,
-   "kpi_hi": 198350.36377964538,
+   "investment": 82822.82787792021,
+   "kpi": 200505.6021291725,
+   "kpi_lo": 199718.03324924604,
+   "kpi_hi": 201242.97325143186,
    "revenue": null,
-   "cpa": 0.413069894299327,
+   "cpa": 0.41306989429932706,
    "icpa": 31.668367181494336,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 24316.02094192074,
-   "incremental_kpi": 767.833112536664,
+   "incremental_investment": 24670.62958065708,
+   "incremental_kpi": 779.030678761157,
    "pct_incrementality": 0.3885331235080799,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 45197.9754437023,
-     "Não identificados": 36434.38057560303
+     "STRONG": 45857.112585589624,
+     "Não identificados": 36965.71529233058
     },
     "optimized": {
-     "STRONG": 46504.026102818425,
-     "Não identificados": 35128.32991648691
+     "STRONG": 47182.20981681786,
+     "Não identificados": 35640.618061102345
     },
     "strategic": {
-     "STRONG": 45197.9754437023,
-     "Não identificados": 36434.38057560303
+     "STRONG": 45857.112585589624,
+     "Não identificados": 36965.71529233058
     }
    },
    "in_filter": true
   },
   {
-   "investment": 82500.78533865965,
-   "kpi": 197649.53786537662,
-   "kpi_lo": 196864.87571304312,
-   "kpi_hi": 198384.18752791107,
+   "investment": 83703.9217915151,
+   "kpi": 200531.92695924672,
+   "kpi_lo": 199735.82181719167,
+   "kpi_hi": 201277.2902626931,
    "revenue": null,
-   "cpa": 0.4174094522540838,
+   "cpa": 0.4174094522540837,
    "icpa": 31.72725984230563,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 25184.45026127505,
-   "incremental_kpi": 793.7795569629907,
+   "incremental_investment": 25551.72349425198,
+   "incremental_kpi": 805.3555088353676,
    "pct_incrementality": 0.4016096194991618,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 45678.80496969913,
-     "Não identificados": 36821.98036896051
+     "STRONG": 46344.95420884058,
+     "Não identificados": 37358.967582674515
     },
     "optimized": {
-     "STRONG": 46998.749784763306,
-     "Não identificados": 35502.03555389634
+     "STRONG": 47684.148219124436,
+     "Não identificados": 36019.773572390666
     },
     "strategic": {
-     "STRONG": 45678.80496969913,
-     "Não identificados": 36821.98036896051
+     "STRONG": 46344.95420884058,
+     "Não identificados": 37358.967582674515
     }
    },
    "in_filter": true
   },
   {
-   "investment": 83369.21465801397,
-   "kpi": 197675.38816383807,
-   "kpi_lo": 196882.34362411033,
-   "kpi_hi": 198417.88594043296,
+   "investment": 84585.01570511,
+   "kpi": 200558.15424122737,
+   "kpi_lo": 199753.54446862862,
+   "kpi_hi": 201311.4801103976,
    "revenue": null,
-   "cpa": 0.4217480761384193,
+   "cpa": 0.42174807613841925,
    "icpa": 31.78615250311829,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 26052.879580629364,
-   "incremental_kpi": 819.6298554244186,
+   "incremental_investment": 26432.817407846876,
+   "incremental_kpi": 831.5827908160247,
    "pct_incrementality": 0.41463424609293786,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 46159.634495695966,
-     "Não identificados": 37209.580162317994
+     "STRONG": 46832.79583209153,
+     "Não identificados": 37752.21987301846
     },
     "optimized": {
-     "STRONG": 47493.47346670819,
-     "Não identificados": 35875.74119130577
+     "STRONG": 48186.086621431015,
+     "Não identificados": 36398.92908367899
     },
     "strategic": {
-     "STRONG": 46159.634495695966,
-     "Não identificados": 37209.580162317994
+     "STRONG": 46832.79583209153,
+     "Não identificados": 37752.21987301846
     }
    },
    "in_filter": true
   },
   {
-   "investment": 84237.64397736828,
-   "kpi": 197701.1428497575,
-   "kpi_lo": 196899.7469265858,
-   "kpi_hi": 198451.45971258028,
+   "investment": 85466.1096187049,
+   "kpi": 200584.2845163165,
+   "kpi_lo": 199771.20156926516,
+   "kpi_hi": 201345.5435000554,
    "revenue": null,
    "cpa": 0.4260857714989764,
    "icpa": 31.845045163929722,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 26921.308899983676,
-   "incremental_kpi": 845.3845413438739,
+   "incremental_investment": 27313.911321441774,
+   "incremental_kpi": 857.7130659051388,
    "pct_incrementality": 0.42760731129729573,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 46640.464021692795,
-     "Não identificados": 37597.17995567547
+     "STRONG": 47320.63745534248,
+     "Não identificados": 38145.47216336241
     },
     "optimized": {
-     "STRONG": 47988.19714865306,
-     "Não identificados": 36249.44682871522
+     "STRONG": 48688.02502373758,
+     "Não identificados": 36778.08459496732
     },
     "strategic": {
-     "STRONG": 46640.464021692795,
-     "Não identificados": 37597.17995567547
+     "STRONG": 47320.63745534248,
+     "Não identificados": 38145.47216336241
     }
    },
    "in_filter": true
   },
   {
-   "investment": 85106.07329672259,
-   "kpi": 197726.80245261916,
-   "kpi_lo": 196917.08597825962,
-   "kpi_hi": 198484.90953458787,
+   "investment": 86347.2035322998,
+   "kpi": 200610.31832171985,
+   "kpi_lo": 199788.79348210923,
+   "kpi_hi": 201379.48113196727,
    "revenue": null,
    "cpa": 0.43042254383856926,
    "icpa": 31.903937824741206,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 27789.738219337993,
-   "incremental_kpi": 871.0441442055253,
+   "incremental_investment": 28195.00523503667,
+   "incremental_kpi": 883.7468713085225,
    "pct_incrementality": 0.4405291206862315,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 47121.29354768964,
-     "Não identificados": 37984.779749032954
+     "STRONG": 47808.479078593446,
+     "Não identificados": 38538.72445370635
     },
     "optimized": {
-     "STRONG": 48482.920830597934,
-     "Não identificados": 36623.15246612465
+     "STRONG": 49189.96342604416,
+     "Não identificados": 37157.24010625564
     },
     "strategic": {
-     "STRONG": 47121.29354768964,
-     "Não identificados": 37984.779749032954
+     "STRONG": 47808.479078593446,
+     "Não identificados": 38538.72445370635
     }
    },
    "in_filter": true
   },
   {
-   "investment": 85974.50261607689,
-   "kpi": 197752.3674980048,
-   "kpi_lo": 196934.36113428505,
-   "kpi_hi": 198518.23609160347,
+   "investment": 87228.29744589467,
+   "kpi": 200636.25619068407,
+   "kpi_lo": 199806.32056749339,
+   "kpi_hi": 201413.2937012727,
    "revenue": null,
-   "cpa": 0.43475839861661486,
+   "cpa": 0.4347583986166148,
    "icpa": 31.962830485553347,
    "roas": null,
    "iroas": null,
-   "incremental_investment": 28658.16753869229,
-   "incremental_kpi": 896.6091895911813,
+   "incremental_investment": 29076.099148631554,
+   "incremental_kpi": 909.6847402727194,
    "pct_incrementality": 0.45339997742389987,
    "extrapolated": false,
    "mix": {
     "historical": {
-     "STRONG": 47602.12307368646,
-     "Não identificados": 38372.37954239042
+     "STRONG": 48296.320701844386,
+     "Não identificados": 38931.976744050284
     },
     "optimized": {
-     "STRONG": 48977.64451254281,
-     "Não identificados": 36996.85810353408
+     "STRONG": 49691.901828350725,
+     "Não identificados": 37536.39561754395
     },
     "strategic": {
-     "STRONG": 47602.12307368646,
-     "Não identificados": 38372.37954239042
+     "STRONG": 48296.320701844386,
+     "Não identificados": 38931.976744050284
     }
    },
    "in_filter": true
@@ -3134,710 +3134,710 @@
    "curve": [
     {
      "investment": 0.0,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 576.9954311961994,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 585.409947901144,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 1153.9908623923989,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 1170.819895802288,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 1730.9862935885983,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 1756.2298437034322,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 2307.9817247847977,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 2341.639791604576,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 2884.9771559809974,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 2927.04973950572,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 3461.9725871771966,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 3512.4596874068643,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 4038.968018373396,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 4097.869635308008,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 4615.9634495695955,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 4683.279583209152,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 5192.958880765796,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 5268.689531110297,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 5769.954311961995,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 5854.09947901144,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": true
     },
     {
-     "investment": 6346.949743158194,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 6439.509426912584,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": false
     },
     {
-     "investment": 6923.945174354393,
-     "kpi": 195229.7319228377,
-     "kpi_lo": 195229.7319228377,
-     "kpi_hi": 195229.7319228377,
+     "investment": 7024.919374813729,
+     "kpi": 198076.83218004575,
+     "kpi_lo": 198076.83218004575,
+     "kpi_hi": 198076.83218004575,
      "extrapolated": false
     },
     {
-     "investment": 7500.940605550593,
-     "kpi": 195237.75741045005,
-     "kpi_lo": 195235.15501317813,
-     "kpi_hi": 195240.19393714104,
+     "investment": 7610.329322714873,
+     "kpi": 198084.9747060191,
+     "kpi_lo": 198082.33435712033,
+     "kpi_hi": 198087.446765391,
      "extrapolated": false
     },
     {
-     "investment": 8077.936036746792,
-     "kpi": 195280.39687185484,
-     "kpi_lo": 195263.96792305165,
-     "kpi_hi": 195295.77867873592,
+     "investment": 8195.739270616015,
+     "kpi": 198128.23599290272,
+     "kpi_lo": 198111.56745526282,
+     "kpi_hi": 198143.8421178008,
      "extrapolated": false
     },
     {
-     "investment": 8654.931467942992,
-     "kpi": 195322.81470017415,
-     "kpi_lo": 195292.63106803817,
-     "kpi_hi": 195351.07449975386,
+     "investment": 8781.149218517161,
+     "kpi": 198171.2724145517,
+     "kpi_lo": 198140.64860444705,
+     "kpi_hi": 198199.9443362086,
      "extrapolated": false
     },
     {
-     "investment": 9231.926899139191,
-     "kpi": 195365.0126189484,
-     "kpi_lo": 195321.1456127917,
-     "kpi_hi": 195406.0836469999,
+     "investment": 9366.559166418305,
+     "kpi": 198214.0857196414,
+     "kpi_lo": 198169.5789863116,
+     "kpi_hi": 198255.7557001853,
      "extrapolated": false
     },
     {
-     "investment": 9808.922330335392,
-     "kpi": 195406.99233389352,
-     "kpi_lo": 195349.51270992143,
-     "kpi_hi": 195460.80834404274,
+     "investment": 9951.969114319449,
+     "kpi": 198256.6776387628,
+     "kpi_lo": 198198.35977027446,
+     "kpi_hi": 198311.2784657267,
      "extrapolated": false
     },
     {
-     "investment": 10385.917761531591,
-     "kpi": 195448.75553313032,
-     "kpi_lo": 195377.73350014706,
-     "kpi_hi": 195515.2507915144,
+     "investment": 10537.379062220594,
+     "kpi": 198299.04988465513,
+     "kpi_lo": 198226.99211369088,
+     "kpi_hi": 198366.51486555734,
      "extrapolated": false
     },
     {
-     "investment": 10962.913192727789,
-     "kpi": 195490.30388741114,
-     "kpi_lo": 195405.80911245188,
-     "kpi_hi": 195569.4131674053,
+     "investment": 11122.789010121736,
+     "kpi": 198341.20415243588,
+     "kpi_lo": 198255.47716200846,
+     "kpi_hi": 198421.46710942994,
      "extrapolated": false
     },
     {
-     "investment": 11539.90862392399,
-     "kpi": 195531.63905034252,
-     "kpi_lo": 195433.74066423302,
-     "kpi_hi": 195623.29762735448,
+     "investment": 11708.19895802288,
+     "kpi": 198383.1421198267,
+     "kpi_lo": 198283.81604891975,
+     "kpi_hi": 198476.13738442006,
      "extrapolated": false
     },
     {
-     "investment": 12116.904055120189,
-     "kpi": 195572.76265860454,
-     "kpi_lo": 195461.52926144996,
-     "kpi_hi": 195676.9063049358,
+     "investment": 12293.608905924026,
+     "kpi": 198424.86544737584,
+     "kpi_lo": 198312.00989651278,
+     "kpi_hi": 198530.52785521612,
      "extrapolated": false
     },
     {
-     "investment": 12693.899486316388,
-     "kpi": 195613.67633216688,
-     "kpi_lo": 195489.1759987705,
-     "kpi_hi": 195730.24131193946,
+     "investment": 12879.018853825168,
+     "kpi": 198466.37577867764,
+     "kpi_lo": 198340.05981541923,
+     "kpi_hi": 198584.64066440525,
      "extrapolated": false
     },
     {
-     "investment": 13270.894917512587,
-     "kpi": 195654.38167450155,
-     "kpi_lo": 195516.68195971416,
-     "kpi_hi": 195783.30473864934,
+     "investment": 13464.428801726312,
+     "kpi": 198507.67474058803,
+     "kpi_lo": 198367.96690496,
+     "kpi_hi": 198638.47793275464,
      "extrapolated": false
     },
     {
-     "investment": 13847.890348708786,
-     "kpi": 195694.8802727924,
-     "kpi_lo": 195544.04821679418,
-     "kpi_hi": 195836.098654116,
+     "investment": 14049.838749627457,
+     "kpi": 198548.76394343725,
+     "kpi_lo": 198395.73225328908,
+     "kpi_hi": 198692.04175948852,
      "extrapolated": false
     },
     {
-     "investment": 14424.885779904987,
-     "kpi": 195735.17369814127,
-     "kpi_lo": 195571.27583165665,
-     "kpi_hi": 195888.6251064257,
+     "investment": 14635.248697528601,
+     "kpi": 198589.64498123917,
+     "kpi_lo": 198423.35693753496,
+     "kpi_hi": 198745.33422256107,
      "extrapolated": false
     },
     {
-     "investment": 15001.881211101187,
-     "kpi": 195775.2635057715,
-     "kpi_lo": 195598.3658552179,
-     "kpi_hi": 195940.8861229652,
+     "investment": 15220.658645429747,
+     "kpi": 198630.3194318973,
+     "kpi_lo": 198450.84202393983,
+     "kpi_hi": 198798.35737892508,
      "extrapolated": false
     },
     {
-     "investment": 15578.876642297386,
-     "kpi": 195815.1512352275,
-     "kpi_lo": 195625.31932779966,
-     "kpi_hi": 195992.88371068254,
+     "investment": 15806.06859333089,
+     "kpi": 198670.7888574079,
+     "kpi_lo": 198478.18856799675,
+     "kpi_hi": 198851.11326479667,
      "extrapolated": false
     },
     {
-     "investment": 16155.872073493583,
-     "kpi": 195854.83841057232,
-     "kpi_lo": 195652.13727926227,
-     "kpi_hi": 196044.6198563442,
+     "investment": 16391.47854123203,
+     "kpi": 198711.05480405985,
+     "kpi_lo": 198505.39761458483,
+     "kpi_hi": 198903.60389591588,
      "extrapolated": false
     },
     {
-     "investment": 16732.867504689784,
-     "kpi": 195894.3265405816,
-     "kpi_lo": 195678.8207291358,
-     "kpi_hi": 196096.0965267878,
+     "investment": 16976.888489133176,
+     "kpi": 198751.11880263174,
+     "kpi_lo": 198532.47019810235,
+     "kpi_hi": 198955.83126780344,
      "extrapolated": false
     },
     {
-     "investment": 17309.862935885983,
-     "kpi": 195933.61711893458,
-     "kpi_lo": 195705.37068674937,
-     "kpi_hi": 196147.31566917163,
+     "investment": 17562.298437034322,
+     "kpi": 198790.9823685857,
+     "kpi_lo": 198559.4073425978,
+     "kpi_hi": 199007.7973560137,
      "extrapolated": false
     },
     {
-     "investment": 17886.858367082183,
-     "kpi": 195972.71162440273,
-     "kpi_lo": 195731.78815135825,
-     "kpi_hi": 196198.27921122004,
+     "investment": 18147.708384935464,
+     "kpi": 198830.6470022586,
+     "kpi_lo": 198586.21006189892,
+     "kpi_hi": 199059.50411638367,
      "extrapolated": false
     },
     {
-     "investment": 18463.853798278382,
-     "kpi": 196011.6115210351,
-     "kpi_lo": 195758.07411226936,
-     "kpi_hi": 196248.98906146534,
+     "investment": 18733.11833283661,
+     "kpi": 198870.11418905022,
+     "kpi_lo": 198612.87935973998,
+     "kpi_hi": 199110.95348527838,
      "extrapolated": false
     },
     {
-     "investment": 19040.84922947458,
-     "kpi": 196050.31825834117,
-     "kpi_lo": 195784.2295489647,
-     "kpi_hi": 196299.44710948592,
+     "investment": 19318.528280737755,
+     "kpi": 198909.38539960864,
+     "kpi_lo": 198639.4162298871,
+     "kpi_hi": 199162.14737983258,
      "extrapolated": false
     },
     {
-     "investment": 19617.844660670784,
-     "kpi": 196088.83327147074,
-     "kpi_lo": 195810.25543122305,
-     "kpi_hi": 196349.65522614116,
+     "investment": 19903.938228638897,
+     "kpi": 198948.462090013,
+     "kpi_lo": 198665.82165626172,
+     "kpi_hi": 199213.08769818905,
      "extrapolated": false
     },
     {
-     "investment": 20194.840091866983,
-     "kpi": 196127.1579813915,
-     "kpi_lo": 195836.1527192397,
-     "kpi_hi": 196399.61526380252,
+     "investment": 20489.348176540043,
+     "kpi": 198987.34570195345,
+     "kpi_lo": 198692.09661306196,
+     "kpi_hi": 199263.77631973298,
      "extrapolated": false
     },
     {
-     "investment": 20771.835523063182,
-     "kpi": 196165.29379506377,
-     "kpi_lo": 195861.92236374484,
-     "kpi_hi": 196449.3290565814,
+     "investment": 21074.75812444119,
+     "kpi": 199026.03766290843,
+     "kpi_lo": 198718.2420648828,
+     "kpi_hi": 199314.2151053232,
      "extrapolated": false
     },
     {
-     "investment": 21348.830954259378,
-     "kpi": 196203.24210561247,
-     "kpi_lo": 195887.56530611956,
-     "kpi_hi": 196498.79842055356,
+     "investment": 21660.168072342327,
+     "kpi": 199064.53938631932,
+     "kpi_lo": 198744.2589668338,
+     "kpi_hi": 199364.40589751996,
      "extrapolated": false
     },
     {
-     "investment": 21925.826385455577,
-     "kpi": 196241.00429249697,
-     "kpi_lo": 195913.08247851068,
-     "kpi_hi": 196548.02515398027,
+     "investment": 22245.578020243473,
+     "kpi": 199102.85227176256,
+     "kpi_lo": 198770.1482646556,
+     "kpi_hi": 199414.35052080915,
      "extrapolated": false
     },
     {
-     "investment": 22502.82181665178,
-     "kpi": 196278.58172167826,
-     "kpi_lo": 195938.47480394365,
-     "kpi_hi": 196597.01103752624,
+     "investment": 22830.98796814462,
+     "kpi": 199140.9777051194,
+     "kpi_lo": 198795.9108948345,
+     "kpi_hi": 199464.05078182352,
      "extrapolated": false
     },
     {
-     "investment": 23079.81724784798,
-     "kpi": 196315.97574578342,
-     "kpi_lo": 195963.7431964339,
-     "kpi_hi": 196645.75783447432,
+     "investment": 23416.39791604576,
+     "kpi": 199178.91705874275,
+     "kpi_lo": 198821.54778471525,
+     "kpi_hi": 199513.5084695604,
      "extrapolated": false
     },
     {
-     "investment": 23656.81267904418,
-     "kpi": 196353.18770426812,
-     "kpi_lo": 195988.88856109642,
-     "kpi_hi": 196694.26729093707,
+     "investment": 24001.807863946906,
+     "kpi": 199216.67169162203,
+     "kpi_lo": 198847.0598526124,
+     "kpi_hi": 199562.72535559657,
      "extrapolated": false
     },
     {
-     "investment": 24233.808110240378,
-     "kpi": 196390.21892357658,
-     "kpi_lo": 196013.9117942539,
-     "kpi_hi": 196742.5411360652,
+     "investment": 24587.21781184805,
+     "kpi": 199254.2429495454,
+     "kpi_lo": 198872.4480079201,
+     "kpi_hi": 199611.70319429948,
      "extrapolated": false
     },
     {
-     "investment": 24810.803541436577,
-     "kpi": 196427.07071729904,
-     "kpi_lo": 196038.81378354316,
-     "kpi_hi": 196790.58108225313,
+     "investment": 25172.627759749194,
+     "kpi": 199291.63216525965,
+     "kpi_lo": 198897.71315121982,
+     "kpi_hi": 199660.44372303598,
      "extrapolated": false
     },
     {
-     "investment": 25387.798972632776,
-     "kpi": 196463.74438632716,
-     "kpi_lo": 196063.59540802022,
-     "kpi_hi": 196838.38882534142,
+     "investment": 25758.037707650336,
+     "kpi": 199328.84065862777,
+     "kpi_lo": 198922.85617438718,
+     "kpi_hi": 199708.94866237763,
      "extrapolated": false
     },
     {
-     "investment": 25964.794403828975,
-     "kpi": 196500.24121900712,
-     "kpi_lo": 196088.2575382637,
-     "kpi_hi": 196885.96604481625,
+     "investment": 26343.44765555148,
+     "kpi": 199365.8697367843,
+     "kpi_lo": 198947.8779606967,
+     "kpi_hi": 199757.21971630317,
      "extrapolated": false
     },
     {
-     "investment": 26541.789835025174,
-     "kpi": 196536.56249129045,
-     "kpi_lo": 196112.80103647665,
-     "kpi_hi": 196933.31440400632,
+     "investment": 26928.857603452623,
+     "kpi": 199402.7206942884,
+     "kpi_lo": 198972.77938492526,
+     "kpi_hi": 199805.25857239807,
      "extrapolated": false
     },
     {
-     "investment": 27118.785266221374,
-     "kpi": 196572.7094668827,
-     "kpi_lo": 196137.22675658725,
-     "kpi_hi": 196980.4355502763,
+     "investment": 27514.26755135377,
+     "kpi": 199439.39481327473,
+     "kpi_lo": 198997.56131345415,
+     "kpi_hi": 199853.06690205119,
      "extrapolated": false
     },
     {
-     "investment": 27695.780697417573,
-     "kpi": 196608.68339739006,
-     "kpi_lo": 196161.53554434757,
-     "kpi_hi": 197027.33111521837,
+     "investment": 28099.677499254914,
+     "kpi": 199475.893363602,
+     "kpi_lo": 199022.22460436932,
+     "kpi_hi": 199900.64636064862,
      "extrapolated": false
     },
     {
-     "investment": 28272.776128613776,
-     "kpi": 196644.48552246383,
-     "kpi_lo": 196185.72823743153,
-     "kpi_hi": 197074.0027148401,
+     "investment": 28685.08744715606,
+     "kpi": 199512.21760299976,
+     "kpi_lo": 199046.77010756073,
+     "kpi_hi": 199947.99858776486,
      "extrapolated": false
     },
     {
-     "investment": 28849.771559809975,
-     "kpi": 196680.11706994273,
-     "kpi_lo": 196209.80566553073,
-     "kpi_hi": 197120.45194975036,
+     "investment": 29270.497395057202,
+     "kpi": 199548.36877721275,
+     "kpi_lo": 199071.1986648197,
+     "kpi_hi": 199995.12520735088,
      "extrapolated": false
     },
     {
-     "investment": 29426.766991006174,
-     "kpi": 196715.5792559934,
-     "kpi_lo": 196233.7686504497,
-     "kpi_hi": 197166.68040534228,
+     "investment": 29855.907342958348,
+     "kpi": 199584.3481201433,
+     "kpi_lo": 199095.5111099354,
+     "kpi_hi": 200042.0278279202,
      "extrapolated": false
     },
     {
-     "investment": 30003.762422202373,
-     "kpi": 196750.87328524858,
-     "kpi_lo": 196257.61800619902,
-     "kpi_hi": 197212.68965197337,
+     "investment": 30441.317290859493,
+     "kpi": 199620.1568539918,
+     "kpi_lo": 199119.70826878943,
+     "kpi_hi": 200088.70804273133,
      "extrapolated": false
     },
     {
-     "investment": 30580.75785339857,
-     "kpi": 196786.0003509437,
-     "kpi_lo": 196281.3545390878,
-     "kpi_hi": 197258.4812451437,
+     "investment": 31026.72723876063,
+     "kpi": 199655.79618939498,
+     "kpi_lo": 199143.7909594495,
+     "kpi_hi": 200135.1674299687,
      "extrapolated": false
     },
     {
-     "investment": 31157.75328459477,
-     "kpi": 196820.96163505135,
-     "kpi_lo": 196304.9790478144,
-     "kpi_hi": 197304.0567256709,
+     "investment": 31612.13718666178,
+     "kpi": 199691.2673255625,
+     "kpi_lo": 199167.7599922617,
+     "kpi_hi": 200181.40755292028,
      "extrapolated": false
     },
     {
-     "investment": 31734.74871579097,
-     "kpi": 196855.75830841364,
-     "kpi_lo": 196328.492323556,
-     "kpi_hi": 197349.41761986326,
+     "investment": 32197.547134562923,
+     "kpi": 199726.57145041134,
+     "kpi_lo": 199191.6161699412,
+     "kpi_hi": 200227.42996015295,
      "extrapolated": false
     },
     {
-     "investment": 32311.744146987166,
-     "kpi": 196890.3915308731,
-     "kpi_lo": 196351.89515005704,
-     "kpi_hi": 197394.56543968985,
+     "investment": 32782.95708246406,
+     "kpi": 199761.70974069834,
+     "kpi_lo": 199215.36028766204,
+     "kpi_hi": 200273.23618568532,
      "extrapolated": false
     },
     {
-     "investment": 32888.73957818337,
-     "kpi": 196924.8624514016,
-     "kpi_lo": 196375.18830371616,
-     "kpi_hi": 197439.50168294867,
+     "investment": 33368.36703036521,
+     "kpi": 199796.6833621512,
+     "kpi_lo": 199238.99313314536,
+     "kpi_hi": 200318.82774915834,
      "extrapolated": false
     },
     {
-     "investment": 33465.73500937957,
-     "kpi": 196959.17220822713,
-     "kpi_lo": 196398.37255367215,
-     "kpi_hi": 197484.22783343223,
+     "investment": 33953.77697826635,
+     "kpi": 199831.4934695971,
+     "kpi_lo": 199262.51548674653,
+     "kpi_hi": 200364.2061560031,
      "extrapolated": false
     },
     {
-     "investment": 34042.73044057577,
-     "kpi": 196993.32192895949,
-     "kpi_lo": 196421.44866188854,
-     "kpi_hi": 197528.74536109105,
+     "investment": 34539.1869261675,
+     "kpi": 199866.14120709014,
+     "kpi_lo": 199285.92812154107,
+     "kpi_hi": 200409.37289760695,
      "extrapolated": false
     },
     {
-     "investment": 34619.72587177197,
-     "kpi": 197027.3127307134,
-     "kpi_lo": 196444.41738323722,
-     "kpi_hi": 197573.05572219423,
+     "investment": 35124.596874068644,
+     "kpi": 199900.6277080363,
+     "kpi_lo": 199309.23180340944,
+     "kpi_hi": 200454.32945147622,
      "extrapolated": false
     },
     {
-     "investment": 35196.721302968166,
-     "kpi": 197061.14572023065,
-     "kpi_lo": 196467.27946558053,
-     "kpi_hi": 197617.16035948886,
+     "investment": 35710.006821969786,
+     "kpi": 199934.95409531734,
+     "kpi_lo": 199332.42729112026,
+     "kpi_hi": 200499.07728139806,
      "extrapolated": false
     },
     {
-     "investment": 35773.716734164365,
-     "kpi": 197094.821994,
-     "kpi_lo": 196490.0356498527,
-     "kpi_hi": 197661.06070235616,
+     "investment": 36295.41676987093,
+     "kpi": 199969.12148141253,
+     "kpi_lo": 199355.51533641305,
+     "kpi_hi": 200543.61783759884,
      "extrapolated": false
     },
     {
-     "investment": 36350.71216536057,
-     "kpi": 197128.34263837582,
-     "kpi_lo": 196512.68667013958,
-     "kpi_hi": 197704.75816696606,
+     "investment": 36880.82671777208,
+     "kpi": 200003.13096851882,
+     "kpi_lo": 199378.49668407912,
+     "kpi_hi": 200587.95255690097,
      "extrapolated": false
     },
     {
-     "investment": 36927.707596556764,
-     "kpi": 197161.70872969468,
-     "kpi_lo": 196535.23325375788,
-     "kpi_hi": 197748.2541564295,
+     "investment": 37466.23666567322,
+     "kpi": 200036.9836486694,
+     "kpi_lo": 199401.37207204185,
+     "kpi_hi": 200632.08286287743,
      "extrapolated": false
     },
     {
-     "investment": 37504.70302775296,
-     "kpi": 197194.92133439082,
-     "kpi_lo": 196557.67612133283,
-     "kpi_hi": 197791.55006094853,
+     "investment": 38051.64661357436,
+     "kpi": 200070.6806038507,
+     "kpi_lo": 199424.1422314356,
+     "kpi_hi": 200676.01016600404,
      "extrapolated": false
     },
     {
-     "investment": 38081.69845894916,
-     "kpi": 197227.98150910955,
-     "kpi_lo": 196580.01598687496,
-     "kpi_hi": 197834.6472579646,
+     "investment": 38637.05656147551,
+     "kpi": 200104.2229061174,
+     "kpi_lo": 199446.80788668356,
+     "kpi_hi": 200719.7358638099,
      "extrapolated": false
     },
     {
-     "investment": 38658.69389014536,
-     "kpi": 197260.8903008194,
-     "kpi_lo": 196602.25355785596,
-     "kpi_hi": 197877.5471123043,
+     "investment": 39222.466509376645,
+     "kpi": 200137.61161770634,
+     "kpi_lo": 199469.3697555747,
+     "kpi_hi": 200763.2613410254,
      "extrapolated": false
     },
     {
-     "investment": 39235.68932134157,
-     "kpi": 197293.64874692264,
-     "kpi_lo": 196624.38953528326,
-     "kpi_hi": 197920.25097632388,
+     "investment": 39807.876457277795,
+     "kpi": 200170.84779114858,
+     "kpi_lo": 199491.8285493395,
+     "kpi_hi": 200806.5879697286,
      "extrapolated": false
     },
     {
-     "investment": 39812.68475253776,
-     "kpi": 197326.2578753643,
-     "kpi_lo": 196646.4246137737,
-     "kpi_hi": 197962.76019005096,
+     "investment": 40393.28640517894,
+     "kpi": 200203.93246938003,
+     "kpi_lo": 199514.18497272456,
+     "kpi_hi": 200849.7171094892,
      "extrapolated": false
     },
     {
-     "investment": 40389.680183733966,
-     "kpi": 197358.71870473973,
-     "kpi_lo": 196668.3594816261,
-     "kpi_hi": 198005.0760813249,
+     "investment": 40978.696353080086,
+     "kpi": 200236.86668585052,
+     "kpi_lo": 199536.4397240665,
+     "kpi_hi": 200892.65010751085,
      "extrapolated": false
     },
     {
-     "investment": 40966.67561493016,
-     "kpi": 197391.03224440044,
-     "kpi_lo": 196690.1948208932,
-     "kpi_hi": 198047.19996593505,
+     "investment": 41564.10630098123,
+     "kpi": 200269.6514646313,
+     "kpi_lo": 199558.59349536456,
+     "kpi_hi": 200935.3882987716,
      "extrapolated": false
     },
     {
-     "investment": 41543.671046126365,
-     "kpi": 197423.19949455908,
-     "kpi_lo": 196711.93130745197,
-     "kpi_hi": 198089.13314775715,
+     "investment": 42149.51624888238,
+     "kpi": 200302.2878205214,
+     "kpi_lo": 199580.64697235232,
+     "kpi_hi": 200977.93300616194,
      "extrapolated": false
     },
     {
-     "investment": 42120.666477322564,
-     "kpi": 197455.22144639233,
-     "kpi_lo": 196733.56961107373,
-     "kpi_hi": 198130.87691888775,
+     "investment": 42734.92619678351,
+     "kpi": 200334.7767591522,
+     "kpi_lo": 199602.60083456858,
+     "kpi_hi": 201020.28554062155,
      "extrapolated": false
     },
     {
-     "investment": 42697.661908518756,
-     "kpi": 197487.0990821429,
-     "kpi_lo": 196755.11039549272,
-     "kpi_hi": 198172.43255977702,
+     "investment": 43320.336144684654,
+     "kpi": 200367.11927709082,
+     "kpi_lo": 199624.45575542698,
+     "kpi_hi": 201062.44720127378,
      "extrapolated": false
     },
     {
-     "investment": 43274.65733971496,
-     "kpi": 197518.83337521984,
-     "kpi_lo": 196776.55431847394,
-     "kpi_hi": 198213.80133935963,
+     "investment": 43905.7460925858,
+     "kpi": 200399.3163619418,
+     "kpi_lo": 199646.21240228502,
+     "kpi_hi": 201104.4192755586,
      "extrapolated": false
     },
     {
-     "investment": 43851.652770911154,
-     "kpi": 197550.4252902977,
-     "kpi_lo": 196797.90203188028,
-     "kpi_hi": 198254.98451518398,
+     "investment": 44491.156040486945,
+     "kpi": 200431.36899244788,
+     "kpi_lo": 199667.87143651186,
+     "kpi_hi": 201146.20303936375,
      "extrapolated": false
     },
     {
-     "investment": 44428.64820210736,
-     "kpi": 197581.87578341423,
-     "kpi_lo": 196819.15418173835,
-     "kpi_hi": 198295.9833335395,
+     "investment": 45076.565988388094,
+     "kpi": 200463.27813858903,
+     "kpi_lo": 199689.43351355538,
+     "kpi_hi": 201187.7997571536,
      "extrapolated": false
     },
     {
-     "investment": 45005.64363330356,
-     "kpi": 197613.18580206684,
-     "kpi_lo": 196840.31140830397,
-     "kpi_hi": 198336.79902958247,
+     "investment": 45661.97593628924,
+     "kpi": 200495.04476168033,
+     "kpi_lo": 199710.8992830084,
+     "kpi_hi": 201229.2106820972,
      "extrapolated": false
     },
     {
-     "investment": 45582.63906449976,
-     "kpi": 197644.35628530782,
-     "kpi_lo": 196861.37434612602,
-     "kpi_hi": 198377.43282746017,
+     "investment": 46247.38588419038,
+     "kpi": 200526.66981446857,
+     "kpi_lo": 199732.26938867368,
+     "kpi_hi": 201270.43705619397,
      "extrapolated": false
     },
     {
-     "investment": 46159.63449569596,
-     "kpi": 197675.38816383807,
-     "kpi_lo": 196882.34362411033,
-     "kpi_hi": 198417.88594043296,
+     "investment": 46832.79583209152,
+     "kpi": 200558.15424122737,
+     "kpi_lo": 199753.54446862862,
+     "kpi_hi": 201311.4801103976,
      "extrapolated": false
     },
     {
-     "investment": 46736.62992689215,
-     "kpi": 197706.2823600999,
-     "kpi_lo": 196903.21986558195,
-     "kpi_hi": 198458.15957099528,
+     "investment": 47418.20577999266,
+     "kpi": 200589.49897785136,
+     "kpi_lo": 199774.72515528835,
+     "kpi_hi": 201352.34106473895,
      "extrapolated": false
     },
     {
-     "investment": 47313.62535808836,
-     "kpi": 197737.03978836825,
-     "kpi_lo": 196924.00368834706,
-     "kpi_hi": 198498.25491099473,
+     "investment": 48003.61572789381,
+     "kpi": 200620.70495194863,
+     "kpi_lo": 199795.8120754688,
+     "kpi_hi": 201393.02112844674,
      "extrapolated": false
     },
     {
-     "investment": 47890.620789284556,
-     "kpi": 197767.6613548411,
-     "kpi_lo": 196944.69570475395,
-     "kpi_hi": 198538.17314174966,
+     "investment": 48589.025675794954,
+     "kpi": 200651.77308293254,
+     "kpi_lo": 199816.8058504483,
+     "kpi_hi": 201433.52150006685,
      "extrapolated": false
     },
     {
-     "investment": 48467.616220480755,
-     "kpi": 197798.1479577283,
-     "kpi_lo": 196965.29652175296,
-     "kpi_hi": 198577.91543416516,
+     "investment": 49174.4356236961,
+     "kpi": 200682.70428211184,
+     "kpi_lo": 199837.70709602855,
+     "kpi_hi": 201473.84336758006,
      "extrapolated": false
     },
     {
-     "investment": 49044.611651676954,
-     "kpi": 197828.50048733942,
-     "kpi_lo": 196985.80674095618,
-     "kpi_hi": 198617.48294884758,
+     "investment": 49759.845571597245,
+     "kpi": 200713.49945277977,
+     "kpi_lo": 199858.5164225951,
+     "kpi_hi": 201513.98790851826,
      "extrapolated": false
     },
     {
-     "investment": 49621.60708287315,
-     "kpi": 197858.71982617048,
-     "kpi_lo": 197006.22695869557,
-     "kpi_hi": 198656.87683621745,
+     "investment": 50345.25551949839,
+     "kpi": 200744.15949030215,
+     "kpi_lo": 199879.23443517654,
+     "kpi_hi": 201553.95629007893,
      "extrapolated": false
     },
     {
-     "investment": 50198.60251406935,
-     "kpi": 197888.80684898948,
-     "kpi_lo": 197026.55776608113,
-     "kpi_hi": 198696.09823662098,
+     "investment": 50930.66546739953,
+     "kpi": 200774.6852822039,
+     "kpi_lo": 199899.86173350314,
+     "kpi_hi": 201593.74966923837,
      "extrapolated": false
     },
     {
-     "investment": 50775.59794526555,
-     "kpi": 197918.76242292064,
-     "kpi_lo": 197046.79974905777,
-     "kpi_hi": 198735.1482804403,
+     "investment": 51516.07541530067,
+     "kpi": 200805.0777082549,
+     "kpi_lo": 199920.39891206485,
+     "kpi_hi": 201633.3691928634,
      "extrapolated": false
     },
     {
-     "investment": 51352.59337646175,
-     "kpi": 197948.587407528,
-     "kpi_lo": 197066.95348846156,
-     "kpi_hi": 198774.02808820177,
+     "investment": 52101.48536320182,
+     "kpi": 200835.33764055444,
+     "kpi_lo": 199940.84656016828,
+     "kpi_hi": 201672.81599782137,
      "extrapolated": false
     },
     {
-     "investment": 51929.58880765795,
-     "kpi": 197978.28265489737,
-     "kpi_lo": 197087.01956007542,
-     "kpi_hi": 198812.7387706832,
+     "investment": 52686.89531110296,
+     "kpi": 200865.46594361463,
+     "kpi_lo": 199961.2052619932,
+     "kpi_hi": 201712.09121108902,
      "extrapolated": false
     },
     {
-     "investment": 52506.58423885415,
-     "kpi": 198007.84900971767,
-     "kpi_lo": 197106.9985346839,
-     "kpi_hi": 198851.28142901993,
+     "investment": 53272.30525900411,
+     "kpi": 200895.46347444272,
+     "kpi_lo": 199981.47559664806,
+     "kpi_hi": 201751.1959498598,
      "extrapolated": false
     },
     {
-     "investment": 53083.57967005035,
-     "kpi": 198037.28730936087,
-     "kpi_lo": 197126.89097812722,
-     "kpi_hi": 198889.65715480887,
+     "investment": 53857.715206905246,
+     "kpi": 200925.33108262238,
+     "kpi_lo": 200001.6581382249,
+     "kpi_hi": 201790.13132164982,
      "extrapolated": false
     },
     {
-     "investment": 53660.575101246555,
-     "kpi": 198066.59838396107,
-     "kpi_lo": 197146.69745135476,
-     "kpi_hi": 198927.8670302117,
+     "investment": 54443.125154806396,
+     "kpi": 200955.06961039384,
+     "kpi_lo": 200021.7534558537,
+     "kpi_hi": 201828.89842440226,
      "extrapolated": false
     },
     {
-     "investment": 54237.57053244275,
-     "kpi": 198095.7830564927,
-     "kpi_lo": 197166.4185104779,
-     "kpi_hi": 198965.9121280566,
+     "investment": 55028.53510270754,
+     "kpi": 200984.67989273323,
+     "kpi_lo": 200041.7621137557,
+     "kpi_hi": 201867.49834659076,
      "extrapolated": false
     },
     {
-     "investment": 54814.565963638954,
-     "kpi": 198124.84214284737,
-     "kpi_lo": 197186.0547068218,
-     "kpi_hi": 199003.7935119388,
+     "investment": 55613.94505060869,
+     "kpi": 201014.16275743055,
+     "kpi_lo": 200061.6846712963,
+     "kpi_hi": 201905.93216732124,
      "extrapolated": false
     },
     {
-     "investment": 55391.561394835146,
-     "kpi": 198153.7764519098,
-     "kpi_lo": 197205.60658697702,
-     "kpi_hi": 199041.5122363193,
+     "investment": 56199.35499850983,
+     "kpi": 201043.51902516684,
+     "kpi_lo": 200081.52168303708,
+     "kpi_hi": 201944.2009564323,
      "extrapolated": false
     },
     {
-     "investment": 55968.556826031345,
-     "kpi": 198182.5867856333,
-     "kpi_lo": 197225.07469285012,
-     "kpi_hi": 199079.06934662326,
+     "investment": 56784.76494641097,
+     "kpi": 201072.74950959045,
+     "kpi_lo": 200101.27369878753,
+     "kpi_hi": 201982.30577459483,
      "extrapolated": false
     },
     {
-     "investment": 56545.55225722755,
-     "kpi": 198211.27393911337,
-     "kpi_lo": 197244.45956171377,
-     "kpi_hi": 199116.46587933606,
+     "investment": 57370.17489431212,
+     "kpi": 201101.8550173921,
+     "kpi_lo": 200120.94126365543,
+     "kpi_hi": 202020.2476734097,
      "extrapolated": false
     },
     {
-     "investment": 57122.54768842375,
-     "kpi": 198239.83870066112,
-     "kpi_lo": 197263.7617262561,
-     "kpi_hi": 199153.70286209896,
+     "investment": 57955.58484221326,
+     "kpi": 201130.8363483791,
+     "kpi_lo": 200140.52491809736,
+     "kpi_hi": 202058.02769550457,
      "extrapolated": false
     }
    ],
    "observed_range": [
-    5903.103171501031,
-    92164.5618446724
+    5989.190092752088,
+    93508.62837157387
    ],
-   "current": 31734.748715790975,
+   "current": 32197.547134562927,
    "saturation": null
   }
  ]

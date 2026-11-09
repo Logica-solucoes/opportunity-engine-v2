@@ -108,14 +108,14 @@ def test_scenario_csv_has_the_table_then_the_ramp():
 
     assert head.splitlines() == [
         f"{BOM}Cenário;Investimento;KPI;KPI p5;KPI p95;CPA;Investimento incremental;KPI incremental;iCPA;Extrapolado;Notas",
-        "Atual;57316,34;196855,76;196328,49;197349,42;0,29;0,00;0,00;0,00;não;",
-        f"Recomendado;85974,50;197752,37;196934,36;198518,24;0,43;28658,17;896,61;31,96;não;{TCPA_NOTE}",
-        f"Saturação;85974,50;197752,37;196934,36;198518,24;0,43;28658,17;896,61;31,96;não;{TCPA_NOTE}",
+        "Atual;58152,20;199726,57;199191,62;200227,43;0,29;0,00;0,00;0,00;não;",
+        f"Recomendado;87228,30;200636,26;199806,32;201413,29;0,43;29076,10;909,68;31,96;não;{TCPA_NOTE}",
+        f"Saturação;87228,30;200636,26;199806,32;201413,29;0,43;29076,10;909,68;31,96;não;{TCPA_NOTE}",
     ]
     steps = ramp.splitlines()
     assert steps[:2] == [
         "Cenário;Degrau;Investimento;KPI;KPI p5;KPI p95",
-        "Recomendado;1;68779,60;197227,97;196580,01;197834,64",
+        "Recomendado;1;69782,64;200104,21;199446,80;200719,72",
     ]
     assert len(steps) == 7  # the header and 3 steps to each of recommended and saturation
 
@@ -147,7 +147,7 @@ def test_curve_csv_has_a_point_per_line_with_its_filter_flag():
         f"{BOM}Investimento;KPI;KPI p5;KPI p95;CPA;iCPA;Investimento incremental;KPI incremental;"
         "% incrementalidade;Extrapolado;No filtro"
     )
-    assert lines[1] == "0,00;195229,73;195229,73;195229,73;0,00;;0,00;0,00;0,00;sim;sim"
+    assert lines[1] == "0,00;198076,83;198076,83;198076,83;0,00;;0,00;0,00;0,00;sim;sim"
     assert len(lines) == 101
     assert {line.rsplit(";", 1)[1] for line in lines[1:]} == {"sim", "não"}
 
@@ -227,8 +227,8 @@ def test_filters_reach_the_scenario_csv(logged, finished):
     capped = logged.get(url(run, "scenario.csv", query="?target_cpa=0.3")).text
     nothing = logged.get(url(run, "scenario.csv", query="?target_cpa=0.000000001&min_budget=1")).text
 
-    assert "\nRecomendado;85974,50;" in every
-    assert "\nRecomendado;59053,19;" in capped
+    assert "\nRecomendado;87228,30;" in every
+    assert "\nRecomendado;59914,39;" in capped
     assert "\nRecomendado;" not in nothing and "\nSaturação;" in nothing
 
 

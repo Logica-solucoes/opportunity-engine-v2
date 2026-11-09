@@ -8,4 +8,6 @@ reprovam.
 Para atualizar depois de mudar o prompt ou o payload: rode `narratives.build(document, config, get_llm("gemini"))` com
 `GEMINI_API_KEY` sobre cada fixture (configs em `tests/fixtures/results/add_reports.py`), troque os blocos pelos campos
 `title`/`verdict`/`analysis`/`next_steps` (evento) e `title`/`summary`/`scenarios`/`recommendations` (global), sem `source` nem
-`grounding`, e confira que o teste continua passando. Nunca grave a chave em arquivo.
+`grounding`, grave em `gemini_payloads.json` o `payload`, o `published` e o `universe` de cada job (o teste confere a
+resposta contra o payload de onde ela saiu, não contra o motor atual) e confira que o teste continua passando. Nunca
+grave a chave em arquivo.

@@ -1,0 +1,347 @@
+{
+ "gol_anonimizada.json": {
+  "default_advertiser_CANAL_06,_CANAL_08_2025-01-20": {
+   "payload": {
+    "kpi_name": "kpi",
+    "p_value_threshold": 0.05,
+    "ci_level_pct": 95,
+    "channels": [
+     "CANAL_06",
+     "CANAL_08"
+    ],
+    "start": "2025-01-20",
+    "end": "2025-02-03",
+    "post_period_days": 14,
+    "investment_change_pct": -33.57,
+    "lift": {
+     "abs": -514400.0,
+     "ci": [
+      -671600.0,
+      -357100.0
+     ],
+     "rel_pct": -31.11
+    },
+    "p_value": 1.442e-10,
+    "post_period_investment": 140700.0,
+    "cpa_incremental": -0.2736,
+    "fit": {
+     "r2": 0.5316,
+     "wmape": null
+    },
+    "placebo_p_value": null,
+    "robustness_p_value": 1.442e-10,
+    "sufficiency_reasons": []
+   },
+   "published": [
+    "CANAL_06",
+    "CANAL_08"
+   ],
+   "names": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_04",
+    "CANAL_05",
+    "CANAL_06",
+    "CANAL_07",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10",
+    "CANAL_11",
+    "CANAL_12"
+   ]
+  },
+  "default_advertiser_CANAL_08_2025-03-03": {
+   "payload": {
+    "kpi_name": "kpi",
+    "p_value_threshold": 0.05,
+    "ci_level_pct": 95,
+    "channels": [
+     "CANAL_08"
+    ],
+    "start": "2025-03-03",
+    "end": "2025-03-17",
+    "post_period_days": 14,
+    "investment_change_pct": 239.0,
+    "lift": {
+     "abs": 611300.0,
+     "ci": [
+      423500.0,
+      799100.0
+     ],
+     "rel_pct": 79.48
+    },
+    "p_value": 1.774e-10,
+    "post_period_investment": 52810.0,
+    "cpa_incremental": 0.08638,
+    "fit": {
+     "r2": 0.4285,
+     "wmape": 0.1281
+    },
+    "placebo_p_value": 0.7609,
+    "robustness_p_value": 1.774e-10,
+    "sufficiency_reasons": []
+   },
+   "published": [
+    "CANAL_08"
+   ],
+   "names": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_04",
+    "CANAL_05",
+    "CANAL_06",
+    "CANAL_07",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10",
+    "CANAL_11",
+    "CANAL_12"
+   ]
+  },
+  "default_advertiser_CANAL_08_2025-03-17": {
+   "payload": {
+    "kpi_name": "kpi",
+    "p_value_threshold": 0.05,
+    "ci_level_pct": 95,
+    "channels": [
+     "CANAL_08"
+    ],
+    "start": "2025-03-17",
+    "end": "2025-03-31",
+    "post_period_days": 14,
+    "investment_change_pct": -64.42,
+    "lift": {
+     "abs": -633600.0,
+     "ci": [
+      -827000.0,
+      -440300.0
+     ],
+     "rel_pct": -34.36
+    },
+    "p_value": 1.323e-10,
+    "post_period_investment": 7638.0,
+    "cpa_incremental": -0.01205,
+    "fit": {
+     "r2": 0.5094,
+     "wmape": 0.2779
+    },
+    "placebo_p_value": 0.1205,
+    "robustness_p_value": 1.323e-10,
+    "sufficiency_reasons": []
+   },
+   "published": [
+    "CANAL_08"
+   ],
+   "names": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_04",
+    "CANAL_05",
+    "CANAL_06",
+    "CANAL_07",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10",
+    "CANAL_11",
+    "CANAL_12"
+   ]
+  },
+  "default_advertiser_CANAL_09_2025-07-28": {
+   "payload": {
+    "kpi_name": "kpi",
+    "p_value_threshold": 0.05,
+    "ci_level_pct": 95,
+    "channels": [
+     "CANAL_09"
+    ],
+    "start": "2025-07-28",
+    "end": "2025-08-11",
+    "post_period_days": 14,
+    "investment_change_pct": 68.4,
+    "lift": {
+     "abs": 464700.0,
+     "ci": [
+      292100.0,
+      637400.0
+     ],
+     "rel_pct": 49.11
+    },
+    "p_value": 1.319e-07,
+    "post_period_investment": 135700.0,
+    "cpa_incremental": 0.2919,
+    "fit": {
+     "r2": 0.3296,
+     "wmape": 0.1818
+    },
+    "placebo_p_value": 0.0627,
+    "robustness_p_value": 1.319e-07,
+    "sufficiency_reasons": []
+   },
+   "published": [
+    "CANAL_09"
+   ],
+   "names": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_04",
+    "CANAL_05",
+    "CANAL_06",
+    "CANAL_07",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10",
+    "CANAL_11",
+    "CANAL_12"
+   ]
+  },
+  "default_advertiser_CANAL_01,_CANAL_02,_CANAL_03,_CANAL_06,_CANAL_08,_CANAL_09,_CANAL_10_2025-11-24": {
+   "payload": {
+    "kpi_name": "kpi",
+    "p_value_threshold": 0.05,
+    "ci_level_pct": 95,
+    "channels": [
+     "CANAL_01",
+     "CANAL_02",
+     "CANAL_03",
+     "CANAL_06",
+     "CANAL_08",
+     "CANAL_09",
+     "CANAL_10"
+    ],
+    "start": "2025-11-24",
+    "end": "2025-12-08",
+    "post_period_days": 14,
+    "investment_change_pct": 88.09,
+    "lift": {
+     "abs": 1217000.0,
+     "ci": [
+      998000.0,
+      1435000.0
+     ],
+     "rel_pct": 160.1
+    },
+    "p_value": 1.015e-27,
+    "post_period_investment": 2986000.0,
+    "cpa_incremental": 2.454,
+    "fit": {
+     "r2": 0.3641,
+     "wmape": 0.2109
+    },
+    "placebo_p_value": 0.3349,
+    "robustness_p_value": 1.015e-27,
+    "sufficiency_reasons": []
+   },
+   "published": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_06",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10"
+   ],
+   "names": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_04",
+    "CANAL_05",
+    "CANAL_06",
+    "CANAL_07",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10",
+    "CANAL_11",
+    "CANAL_12"
+   ]
+  },
+  "global": {
+   "payload": {
+    "kpi_name": "kpi",
+    "revenue_mode": false,
+    "status": "inconclusive",
+    "reasons": [
+     "nenhum canal tem efeito identificável"
+    ],
+    "channels_without_identifiable_effect": 12
+   },
+   "published": [],
+   "names": [
+    "CANAL_01",
+    "CANAL_02",
+    "CANAL_03",
+    "CANAL_04",
+    "CANAL_05",
+    "CANAL_06",
+    "CANAL_07",
+    "CANAL_08",
+    "CANAL_09",
+    "CANAL_10",
+    "CANAL_11",
+    "CANAL_12"
+   ]
+  }
+ },
+ "identificavel.json": {
+  "global": {
+   "payload": {
+    "kpi_name": "Sessions",
+    "revenue_mode": false,
+    "status": "ok",
+    "reasons": [],
+    "channels_without_identifiable_effect": 1,
+    "metrics": {
+     "cv_r2": 0.07564,
+     "r2": 0.05458,
+     "media_contribution_pct": 0.8148,
+     "low_confidence": true,
+     "reallocation_suppressed": true
+    },
+    "channels": [
+     {
+      "name": "STRONG",
+      "contribution_pct": 100.0,
+      "K": 1.0
+     }
+    ],
+    "scenarios_monthly": {
+     "current": {
+      "investment": 57320.0,
+      "kpi": 196900.0,
+      "kpi_lo": 196300.0,
+      "kpi_hi": 197300.0,
+      "extrapolated": false,
+      "icpa": 0.0
+     },
+     "recommended": {
+      "investment": 85970.0,
+      "kpi": 197800.0,
+      "kpi_lo": 196900.0,
+      "kpi_hi": 198500.0,
+      "extrapolated": false,
+      "icpa": 31.96
+     },
+     "saturation": {
+      "investment": 85970.0,
+      "kpi": 197800.0,
+      "kpi_lo": 196900.0,
+      "kpi_hi": 198500.0,
+      "extrapolated": false,
+      "icpa": 31.96
+     }
+    }
+   },
+   "published": [
+    "STRONG"
+   ],
+   "names": [
+    "NOEFFECT",
+    "STRONG"
+   ]
+  }
+ }
+}
