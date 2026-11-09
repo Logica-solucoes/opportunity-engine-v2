@@ -344,26 +344,16 @@ def test_run_causal_impact_analysis_scales_pre_period_baseline_for_non_canonical
         "run_causal_impact_analysis returned None -- check stdout above for the swallowed exception"
     )
 
-    # Ground truth for the historical weekly-average baseline: mirrors the
-    # source's own weekly re-bucketing, but derives the post-period length
-    # from calendar days instead of len(post_data) * period_days.
-    event_investment_agg = agg_investment_df.copy()
-    event_investment_agg["Date"] = pd.to_datetime(event_investment_agg["Date"])
-    pre_period_end = pd.to_datetime(pre_period[1])
-    historical = event_investment_agg[event_investment_agg["Date"] <= pre_period_end].copy()
-    historical["weeks"] = historical["Date"].dt.to_period("W").dt.start_time
-    weekly = historical.groupby("weeks")["investment"].sum().reset_index()
-    weekly["historical_avg"] = weekly["investment"].rolling(window=12, min_periods=1).mean().shift(1)
-    historical_avg = weekly["historical_avg"].iloc[-1]
+    # Ground truth: the baseline is the per-row mean spend of the last 12 weeks before the event (the level the
+    # counterfactual holds), times the post rows; the post length comes from calendar days, as a cross-check.
+    historical = agg_investment_df[agg_investment_df["Date"] <= pd.to_datetime(pre_period[1])].copy()
+    weeks = historical["Date"].dt.to_period("W").dt.start_time
+    last_12 = weeks >= weeks.drop_duplicates().iloc[-12:].iloc[0]
+    per_row = historical.loc[last_12, "investment"].mean()
 
     post_period_days_span = (pd.to_datetime(post_period[1]) - pd.to_datetime(post_period[0])).days + 1  # 21 days
-    correct_periods_in_post = post_period_days_span / 7  # 3 weeks-equivalent
-    buggy_periods_in_post = (
-        post_period_days_span / period_days / 7
-    )  # old bug: len(post_data)/7 = 7/7 = 1 week-equivalent
-
-    expected_correct = historical_avg * correct_periods_in_post
-    expected_buggy = historical_avg * buggy_periods_in_post
+    expected_correct = per_row * post_period_days_span / period_days
+    expected_buggy = per_row * 7 / period_days  # old bug: one week-equivalent for the whole post period
 
     actual = results_dict["total_investment_pre_period"]
     assert actual == pytest.approx(expected_correct, rel=1e-6)

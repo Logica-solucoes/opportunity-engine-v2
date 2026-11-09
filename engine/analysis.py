@@ -7,7 +7,6 @@ import logging
 import math
 import os
 import warnings
-from datetime import timedelta
 
 import holidays
 import numpy as np
@@ -91,7 +90,7 @@ def periods_to_days(days_config, period_days, min_periods, label=""):
     raw_periods = days_config / period_days
     ceiled_periods = math.ceil(raw_periods)
     periods = max(min_periods, ceiled_periods)
-    if periods > ceiled_periods:
+    if periods > ceiled_periods and label:  # unlabelled: an internal reuse of a window already reported
         log.warning(
             f"   - AVISO: janela '{label}' configurada em {days_config} dia(s) "
             f"renderia menos que o mínimo de {min_periods} período(s) de dados "
@@ -120,6 +119,7 @@ def find_events(
         df = df.rename(columns={"Product Group": "product_group", "Date": "dates"})
 
         all_individual_events = []
+        post_window = pd.Timedelta(days=periods_to_days(post_event_days, period_days, 4)[0])
         product_groups = df["product_group"].unique()
         log.info(f"   - Analyzing {len(product_groups)} unique ad products for significant changes.")
 
@@ -137,8 +137,17 @@ def find_events(
                 # native per-row dates directly as the per-period series instead.
                 product_df["weeks"] = product_df["dates"]
             else:
-                product_df["weeks"] = product_df["dates"].dt.to_period("W-MON").dt.start_time
-            weekly_investment_df = product_df.groupby("weeks")["investment"].sum().reset_index()
+                # Monday-to-Sunday, the same week the event is labelled with, so the label is the bucket's first day
+                product_df["weeks"] = product_df["dates"].dt.to_period("W").dt.start_time
+            weekly_investment_df = (
+                product_df.groupby("weeks")
+                .agg(investment=("investment", "sum"), days=("dates", "nunique"))
+                .reset_index()
+            )
+            # the first and last weeks may hold only a few days of spend; summed as whole weeks they read as a drop
+            partial = weekly_investment_df["days"] * period_days < 7
+            edge = weekly_investment_df.index.isin([0, len(weekly_investment_df) - 1])
+            weekly_investment_df = weekly_investment_df[~(partial & edge)].reset_index(drop=True)
             if len(weekly_investment_df) < 3:
                 continue
 
@@ -171,7 +180,11 @@ def find_events(
                     f"({flagged_share:.0%})."
                 )
 
-            for _, row in significant_changes.iterrows():
+            # A sustained step stays above the lagged average for weeks: each flagged week inside the previous one's
+            # post window is the same change still showing, and its pre-period would already hold the treatment.
+            starts = significant_changes["weeks"]
+            repeats = starts < starts.shift(1) + post_window
+            for _, row in significant_changes[~repeats].iterrows():
                 all_individual_events.append(
                     {
                         "date": row["weeks"],
@@ -185,16 +198,9 @@ def find_events(
             return pd.DataFrame(), None, None
 
         individual_events_df = pd.DataFrame(all_individual_events)
-        individual_events_df["date"] = pd.to_datetime(individual_events_df["date"])
-        if period_days >= 7:
-            # Mesma guarda do agrupamento por produto acima: cada linha JÁ é um
-            # período. Re-bucketizar em semanas W-SUN rotula o evento com a
-            # segunda-feira que abre a semana -- para base semanal marcada no
-            # domingo isso vira sempre "data real - 6 dias", uma data que não
-            # existe no arquivo do cliente.
-            individual_events_df["event_week"] = individual_events_df["date"]
-        else:
-            individual_events_df["event_week"] = individual_events_df["date"].dt.to_period("W").dt.start_time
+        # each date is already a period start (a native row, or the Monday of a daily bucket): re-bucketing a
+        # Sunday-labelled weekly base into Monday weeks would label the event with a date not in the client's file
+        individual_events_df["event_week"] = pd.to_datetime(individual_events_df["date"])
 
         # Consolidate events that occur in the same week
         consolidated_events = []
@@ -290,27 +296,48 @@ HOLDOUT_FRACTION = 0.2  # the last 20% of the pre-period, out of the fit (A6)
 MIN_HOLDOUT_ROWS = 7
 
 
-def cumulative_p_value(abs_lift: float, forecast) -> tuple[float, float]:
-    """(p-value, cumulative standard error) of a cumulative impact against the forecast's own uncertainty.
+def cumulative_se(fit, steps: int) -> float:
+    """Standard deviation of the sum of the next `steps` forecast errors.
 
-    Shared by the event and its placebo, so both are judged by the same rule. Without a usable standard error the
-    effect cannot be told from noise: p is 1 and the error 0.
+    The errors share the state error at the end of the sample and every level shock before them, so they are
+    correlated: Var(Σe) = c₀ P c₀ᵀ + Σⱼ cⱼ RQRᵀ cⱼᵀ + steps·σ²_ε, with cⱼ = Z(I + T + … + T^(steps-1-j)) the weight of
+    the state shock entering at step j. Summing the per-step variances understates it by about half.
     """
-    se = np.asarray(forecast.se_mean, dtype=float)
-    se = se[np.isfinite(se)]
-    cum_se = float(np.sqrt(np.sum(se**2))) if se.size else 0.0
+    ssm = fit.model.ssm
+    design, transition = ssm["design"][0], ssm["transition"]
+    shock = ssm["selection"] @ ssm["state_cov"] @ ssm["selection"].T
+    weight = design
+    variance = steps * float(ssm["obs_cov"][0, 0])
+    for _ in range(steps - 1):
+        variance += float(weight @ shock @ weight)
+        weight = design + weight @ transition
+    variance += float(weight @ fit.predicted_state_cov[:, :, -1] @ weight)
+    return float(np.sqrt(variance)) if np.isfinite(variance) and variance > 0 else 0.0
+
+
+def cumulative_p_value(abs_lift: float, fit, steps: int) -> tuple[float, float]:
+    """(p-value, cumulative standard error) of a cumulative impact over the `steps` periods forecast by `fit`.
+
+    Shared by the event, its placebo and the robustness test, so all are judged by the same rule. Without a usable
+    standard error the effect cannot be told from noise: p is 1 and the error 0.
+    """
+    cum_se = cumulative_se(fit, steps) if steps else 0.0
     if cum_se > 0:
         return float(2 * stats.norm.sf(abs(abs_lift / cum_se))), cum_se
     return 1.0, 0.0
 
 
-def _fit_state_space(data: pd.DataFrame, features: list[str]):
+def _fit_state_space(data: pd.DataFrame, features: list[str], period_days: int):
+    # a weekly cycle exists only in daily rows: 7 weekly rows are not a cycle, and each seasonal state is one more
+    # diffuse state for a pre-period that may hold only 8 rows
     return sm.tsa.UnobservedComponents(
-        data["kpi"], "llevel", trend=True, seasonal=7, exog=data[features] if features else None
+        data["kpi"], "llevel", seasonal=7 if period_days == 1 else None, exog=data[features] if features else None
     ).fit(disp=False)
 
 
-def placebo_p_value(pre: pd.DataFrame, features: list[str], post_len: int, min_pre_periods: int) -> float | None:
+def placebo_p_value(
+    pre: pd.DataFrame, features: list[str], post_len: int, min_pre_periods: int, period_days: int = 1
+) -> float | None:
     """p-value of a fake intervention halfway through the pre-period; None when the pre-period is too short for it.
 
     The event's model fitted on the first half and read over the next `post_len` rows: a sound counterfactual finds
@@ -321,45 +348,51 @@ def placebo_p_value(pre: pd.DataFrame, features: list[str], post_len: int, min_p
     if half < min_pre_periods or len(pre) - half < post_len:
         return None
     fit_part, window = pre.iloc[:half], pre.iloc[half : half + post_len]
-    forecast = _fit_state_space(fit_part, features).get_forecast(steps=len(window), exog=window[features])
+    fit = _fit_state_space(fit_part, features, period_days)
+    forecast = fit.get_forecast(steps=len(window), exog=window[features])
     impact = float((window["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
-    return cumulative_p_value(impact, forecast)[0]
+    return cumulative_p_value(impact, fit, len(window))[0]
 
 
-def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int) -> float | None:
+def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int, period_days: int = 1) -> float | None:
     """Σ|y − ŷ| / Σ|y| of the event's model on the last HOLDOUT_FRACTION of the pre-period, left out of the fit."""
     held = int(round(len(pre) * HOLDOUT_FRACTION))
     train = len(pre) - held
     if train < min_pre_periods or held < MIN_HOLDOUT_ROWS:
         return None
     fit_part, holdout = pre.iloc[:train], pre.iloc[train:]
-    forecast = _fit_state_space(fit_part, features).get_forecast(steps=held, exog=holdout[features])
+    forecast = _fit_state_space(fit_part, features, period_days).get_forecast(steps=held, exog=holdout[features])
     actual = holdout["kpi"].to_numpy()
     total = float(np.abs(actual).sum())
     return float(np.abs(actual - np.asarray(forecast.predicted_mean)).sum() / total) if total else None
 
 
-def baseline_only_test(pre: pd.DataFrame, post: pd.DataFrame, baseline_features: list[str]) -> tuple[float, float]:
+def baseline_only_test(
+    pre: pd.DataFrame, post: pd.DataFrame, baseline_features: list[str], period_days: int = 1
+) -> tuple[float, float]:
     """(p-value, signed cumulative impact) of the event under the same model without the media features.
 
     A lift that is significant only with them is the model extrapolating its own coefficients onto a spend spike
     (they can be pure noise), not a response seen in the KPI.
     """
     exog = post[baseline_features] if baseline_features else None
-    forecast = _fit_state_space(pre, baseline_features).get_forecast(steps=len(post), exog=exog)
+    fit = _fit_state_space(pre, baseline_features, period_days)
+    forecast = fit.get_forecast(steps=len(post), exog=exog)
     impact = float((post["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
-    return cumulative_p_value(impact, forecast)[0], impact
+    return cumulative_p_value(impact, fit, len(post))[0], impact
 
 
-def _diagnostics(pre: pd.DataFrame, post: pd.DataFrame, features: list[str], media: set[str], min_pre_periods: int):
+def _diagnostics(
+    pre: pd.DataFrame, post: pd.DataFrame, features: list[str], media: set[str], min_pre_periods: int, period_days: int
+):
     """A6's three extra fits: the placebo, the out-of-sample WMAPE and the test without the media features."""
-    placebo = placebo_p_value(pre, features, len(post), min_pre_periods)
+    placebo = placebo_p_value(pre, features, len(post), min_pre_periods, period_days)
     if placebo is None:
         log.warning("   - Placebo não rodou: o pré-período é curto demais para a intervenção falsa.")
-    robust_p, robust_lift = baseline_only_test(pre, post, [f for f in features if f not in media])
+    robust_p, robust_lift = baseline_only_test(pre, post, [f for f in features if f not in media], period_days)
     return {
         "placebo_p_value": placebo,  # None: the pre-period is too short for a placebo
-        "oos_wmape": oos_wmape(pre, features, min_pre_periods),
+        "oos_wmape": oos_wmape(pre, features, min_pre_periods, period_days),
         "robust_p_value": robust_p,
         "robust_lift": robust_lift,
     }
@@ -486,22 +519,51 @@ def run_causal_impact_analysis(
             if not selected_features:
                 selected_features = list(transformed_features.keys())
 
-        log.info(f"   - Selected features for causal model: {selected_features}")
-        model = _fit_state_space(pre_data_for_model, selected_features)
+        # The treated channel's own media stays in the model: without it, holding its spend changes nothing and the
+        # lift falls back to a level forecast. The unscaled variance filter drops Hill features far from s.
+        treated = [
+            feature
+            for channel in event_channels
+            if (feature := f"{channel.replace(' ', '_')}_transformed") in transformed_features
+            and pre_data_for_model[feature].std() > 0
+        ]
+        selected_features = treated + [feature for feature in selected_features if feature not in treated]
 
-        in_sample_preds = model.get_prediction(exog=pre_data_for_model[selected_features]).predicted_mean
-        mae = np.mean(np.abs(pre_data_for_model["kpi"] - in_sample_preds))
-        mape = (mae / pre_data_for_model["kpi"].mean()) * 100 if pre_data_for_model["kpi"].mean() > 0 else 0
-        ss_res = np.sum((pre_data_for_model["kpi"] - in_sample_preds) ** 2)
-        ss_tot = np.sum((pre_data_for_model["kpi"] - np.mean(pre_data_for_model["kpi"])) ** 2)
+        log.info(f"   - Selected features for causal model: {selected_features}")
+        model = _fit_state_space(pre_data_for_model, selected_features, period_days)
+
+        # the first predictions come from the diffuse start (0, 0, …), not from the model
+        accuracy_df = pre_data_for_model[["kpi"]].copy()
+        accuracy_df["Predicted"] = model.get_prediction(exog=pre_data_for_model[selected_features]).predicted_mean
+        accuracy_df = accuracy_df.iloc[model.loglikelihood_burn :]
+        actual, in_sample_preds = accuracy_df["kpi"], accuracy_df["Predicted"]
+        mae = np.mean(np.abs(actual - in_sample_preds))
+        mape = (mae / actual.mean()) * 100 if actual.mean() > 0 else 0
+        ss_res = np.sum((actual - in_sample_preds) ** 2)
+        ss_tot = np.sum((actual - np.mean(actual)) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
+        accuracy_df = accuracy_df.reset_index().tail(90)
 
-        accuracy_df = pre_data_for_model.copy()
-        accuracy_df["Predicted"] = in_sample_preds
-        accuracy_df = accuracy_df[["kpi", "Predicted"]].reset_index().tail(90)
+        # The baseline is the last 12 buckets (weeks; native periods when weekly or coarser) before the event. The
+        # counterfactual holds the treated spend at that level and the spend delta is measured from it, so the CPA
+        # divides two numbers about the same counterfactual. A per-row mean keeps partial weeks from reading as drops.
+        pre_dates = pre_data_for_model.index.to_series()
+        buckets = pre_dates if period_days >= 7 else pre_dates.dt.to_period("W").dt.start_time
+        baseline = pre_data_for_model[buckets >= buckets.drop_duplicates().iloc[-12:].iloc[0]]
 
-        forecast = model.get_forecast(steps=len(post_data), exog=post_data[selected_features])
+        # The counterfactual cannot see the treated spend after the event: that spend is the intervention. It holds
+        # at the baseline level, carried through the same adstock and Hill as the model.
+        post_exog = post_data[selected_features].copy()
+        before_event = model_data.index < post_data.index[0]
+        for channel in event_channels:
+            feature = f"{channel.replace(' ', '_')}_transformed"
+            if feature in post_exog:
+                held = model_data[channel].where(before_event, baseline[channel].mean())
+                transformed = hill_transform(geometric_decay(held, best_alpha), best_k, best_s)
+                post_exog[feature] = pd.Series(transformed, index=model_data.index).loc[post_data.index]
+
+        forecast = model.get_forecast(steps=len(post_data), exog=post_exog)
         predicted_mean = forecast.predicted_mean
 
         impact_df = post_data[["kpi"]].copy()
@@ -512,59 +574,14 @@ def run_causal_impact_analysis(
         abs_lift = impact_df["impact"].sum()
         rel_lift = (abs_lift / predicted_mean.sum()) * 100 if predicted_mean.sum() != 0 else 0
 
-        # Significance from the state-space model's OWN forecast uncertainty,
-        # not a one-sample t-test on the daily impacts. The daily impacts are
-        # autocorrelated forecast residuals whose error grows with the horizon;
-        # a t-test treats the ~14 days as i.i.d. samples of a mean, inflating the
-        # effective N and understating the p-value (false significance). Here we
-        # test the CUMULATIVE impact against the forecast's cumulative standard
-        # error (se_mean grows with horizon), which is the counterfactual's real
-        # noise band. Cumulative SE ~ sqrt(sum se_t^2) treats the per-step errors
-        # as independent -- an approximation, but far sounder than the t-test.
-        p_value, cum_se = cumulative_p_value(abs_lift, forecast)
+        # the cumulative impact against the forecast's own joint uncertainty, not a t-test on autocorrelated residuals
+        p_value, cum_se = cumulative_p_value(abs_lift, model, len(post_data))
         impact_ci_lower = abs_lift - 1.96 * cum_se
         impact_ci_upper = abs_lift + 1.96 * cum_se
 
         event_investment_agg = event_investment_series.reset_index().rename(columns={0: "investment"})
         event_investment_agg["Date"] = pd.to_datetime(event_investment_agg["Date"])
-
-        # Calculate historical average investment up to the pre-period
-        pre_period_end_date = pd.to_datetime(pre_period[1])
-        historical_investment = event_investment_agg[event_investment_agg["Date"] <= pre_period_end_date].copy()
-
-        # Weekly aggregation for historical average calculation -- but only when
-        # the data is genuinely daily. When it's already weekly-or-coarser
-        # (period_days >= 7), re-bucketing via to_period("W") has the same
-        # boundary-misalignment risk as in find_events: use the native per-row
-        # dates directly so "historical_avg" is a per-native-period average.
-        if period_days >= 7:
-            historical_investment["weeks"] = historical_investment["Date"]
-        else:
-            historical_investment["weeks"] = historical_investment["Date"].dt.to_period("W").dt.start_time
-        weekly_investment_df = historical_investment.groupby("weeks")["investment"].sum().reset_index()
-
-        # Calculate expanding average and get the last value for the pre-event period
-        weekly_investment_df["historical_avg"] = (
-            weekly_investment_df["investment"].rolling(window=12, min_periods=1).mean().shift(1)
-        )
-
-        if not weekly_investment_df.empty and pd.notna(weekly_investment_df["historical_avg"].iloc[-1]):
-            # post_data rows are native periods. When historical_avg is a
-            # per-week average (period_days<7, re-bucketed above), each
-            # post_data row spans period_days days, so the post period spans
-            # len(post_data) * period_days / 7 weeks. When historical_avg is
-            # already per-native-period (period_days>=7, no re-bucketing),
-            # post_data's rows ARE the periods, so no conversion applies.
-            periods_in_post = len(post_data) if period_days >= 7 else len(post_data) * period_days / 7
-            total_investment_pre_period = weekly_investment_df["historical_avg"].iloc[-1] * periods_in_post
-        else:
-            # Fallback to like-for-like if historical average is not available
-            like_for_like_pre_period_end = pd.to_datetime(post_period[0]) - timedelta(days=1)
-            like_for_like_pre_period_start = like_for_like_pre_period_end - timedelta(days=len(post_data) - 1)
-            total_investment_pre_period = event_investment_agg[
-                (event_investment_agg["Date"] >= like_for_like_pre_period_start)
-                & (event_investment_agg["Date"] <= like_for_like_pre_period_end)
-            ]["investment"].sum()
+        total_investment_pre_period = baseline[event_channels].sum(axis=1).mean() * len(post_data)
 
         total_investment_post_period = event_investment_agg[event_investment_agg["Date"].isin(post_data.index)][
             "investment"
@@ -578,7 +595,8 @@ def run_causal_impact_analysis(
             if total_investment_pre_period > 0
             else 0
         )
-        cpa_incremental = total_investment_post_period / abs_lift if abs_lift != 0 else 0
+        incremental_investment = total_investment_post_period - total_investment_pre_period
+        cpa_incremental = incremental_investment / abs_lift if abs_lift != 0 else 0
 
         start_date = pd.to_datetime(post_period[0])
         end_date = pd.to_datetime(post_period[1])
@@ -640,7 +658,12 @@ def run_causal_impact_analysis(
         }
         if contested is None or contested(results_dict):
             results_dict |= _diagnostics(
-                pre_data_for_model, post_data, selected_features, set(transformed_features), min_pre_periods
+                pre_data_for_model,
+                post_data,
+                selected_features,
+                set(transformed_features),
+                min_pre_periods,
+                period_days,
             )
 
         return (
