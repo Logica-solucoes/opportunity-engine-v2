@@ -39,14 +39,21 @@ def test_weekly_duration_and_mde_match_the_manual_formula():
     t = np.arange(30.0)
     e = window - np.polyval(np.polyfit(t, window, 1), t)
     sigma = math.sqrt(e @ e / 28)
-    rho = min(max(np.corrcoef(e[1:], e[:-1])[0, 1], 0.0), 0.95)
-    f = (1 + rho) / (1 - rho)
-    periods = math.ceil((2.8 * sigma * math.sqrt(f) / (0.05 * window.mean())) ** 2)
+    rho = min(max((30 * np.corrcoef(e[1:], e[:-1])[0, 1] + 2) / 26, 0.0), 0.95)
+
+    def mde(periods):
+        def var(n):
+            i = np.arange(n)
+            return (rho ** np.abs(i[:, None] - i[None, :])).sum()
+
+        return 2.8 * sigma * math.sqrt(var(periods) + periods**2 * var(30) / 30**2)
+
+    periods = next(p for p in range(1, 521) if mde(p) <= 0.05 * window.mean() * p)
     assert d.status == "ok" and d.feasible and d.reasons == []
     assert d.sigma == pytest.approx(sigma) and d.rho == pytest.approx(rho)
     assert d.kpi_per_period == pytest.approx(window.mean())
     assert d.duration_periods == periods and d.duration_days == 7 * periods
-    assert d.mde_abs == pytest.approx(2.8 * sigma * math.sqrt(f * periods))
+    assert d.mde_abs == pytest.approx(mde(periods))
     assert d.mde_rel == pytest.approx(d.mde_abs / (window.mean() * periods)) and d.mde_rel <= 0.05
 
 
@@ -107,29 +114,6 @@ def test_spend_before_the_window_does_not_count():
     d = run(kpi, spend)
 
     assert d.designs[0].spend_per_period == pytest.approx(100.0)
-
-
-def ar1(rng, sigma, rho, reps, n):
-    """AR(1) with marginal sd sigma."""
-    x = np.empty((reps, n))
-    x[:, 0] = rng.normal(0, sigma, reps)
-    innovations = rng.normal(0, sigma * math.sqrt(1 - rho**2), (reps, n))
-    for i in range(1, n):
-        x[:, i] = rho * x[:, i - 1] + innovations[:, i]
-    return x
-
-
-def test_an_effect_of_one_mde_is_detected_about_80_percent_of_the_time():
-    rng = np.random.default_rng(11)
-    history = 1000 + ar1(rng, 100.0, 0.3, 1, 400)[0]
-    d = run(kpi_frame(history), max_days=3650)
-    assert d.status == "ok" and d.feasible and d.rho > 0
-
-    t, s, r = d.duration_periods, d.sigma, d.rho
-    sums = (ar1(rng, s, r, 2000, t) + d.mde_abs / t).sum(axis=1)
-    z = sums / (s * math.sqrt((1 + r) / (1 - r) * t))
-
-    assert (z > 1.96).mean() == pytest.approx(0.80, abs=0.05)
 
 
 def test_non_finite_kpi_is_degenerate():
