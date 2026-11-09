@@ -2,12 +2,12 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { LoadState } from '@/components/LoadState'
-import { NativeSelect } from '@/components/NativeSelect'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { meQuery, roleIn } from '@/lib/auth'
 import {
@@ -20,6 +20,9 @@ import {
   workspaceRunsQuery,
 } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
+import { backLink, rowLink } from '@/lib/links'
+
+const ALL = 'all'
 
 export const Route = createFileRoute('/_auth/w/$slug/execucoes/')({
   validateSearch: parseRunFilters,
@@ -49,7 +52,7 @@ function HistoryPage() {
       <div className="space-y-1">
         {/* a viewer's workspace home redirects here, so the link would loop */}
         {roleIn(me, slug) !== 'viewer' && (
-          <Link to="/w/$slug" params={{ slug }} className="text-sm text-muted-foreground hover:text-primary">
+          <Link to="/w/$slug" params={{ slug }} className={backLink}>
             ← Simulações
           </Link>
         )}
@@ -73,35 +76,38 @@ function HistoryPage() {
         </div>
         <div className="space-y-1">
           <Label htmlFor="filter-status">Status</Label>
-          <NativeSelect
-            id="filter-status"
-            className="h-8"
-            value={filters.status ?? ''}
-            onChange={(e) => set({ status: (e.target.value || undefined) as RunStatus | undefined })}
+          <Select
+            value={filters.status ?? ALL}
+            onValueChange={(v) => set({ status: v === ALL ? undefined : (v as RunStatus) })}
           >
-            <option value="">Todos</option>
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </NativeSelect>
+            <SelectTrigger id="filter-status" className="min-w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Todos</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label htmlFor="filter-author">Autor</Label>
-          <NativeSelect
-            id="filter-author"
-            className="h-8"
-            value={filters.author ?? ''}
-            onChange={(e) => set({ author: e.target.value || undefined })}
-          >
-            <option value="">Todos</option>
-            {authors.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select value={filters.author ?? ALL} onValueChange={(v) => set({ author: v === ALL ? undefined : v })}>
+            <SelectTrigger id="filter-author" className="min-w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Todos</SelectItem>
+              {authors.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label htmlFor="filter-from">De</Label>
@@ -162,7 +168,7 @@ function HistoryTable({ slug, runs }: { slug: string; runs: Run[] }) {
               <Link
                 to="/w/$slug/execucoes/$runId"
                 params={{ slug, runId: String(r.id) }}
-                className="font-medium hover:text-primary"
+                className={rowLink}
               >
                 #{r.id}
               </Link>

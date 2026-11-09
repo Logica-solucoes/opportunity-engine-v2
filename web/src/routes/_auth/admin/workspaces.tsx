@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
+import { textLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/admin/workspaces')({ component: Workspaces })
 
@@ -113,7 +114,7 @@ function Workspaces() {
                 </div>
               </TableCell>
               <TableCell className="text-right">
-                <Link to="/w/$slug/membros" params={{ slug: w.slug }} className="text-primary underline">
+                <Link to="/w/$slug/membros" params={{ slug: w.slug }} className={textLink}>
                   Membros
                 </Link>
               </TableCell>

@@ -5,7 +5,6 @@ import almapDark from '@/assets/logos/almap-negativo.png'
 import almapLight from '@/assets/logos/almap-positivo.png'
 import dashDark from '@/assets/logos/dash-negativo.png'
 import dashLight from '@/assets/logos/dash-positivo.png'
-import { NativeSelect } from '@/components/NativeSelect'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -15,8 +14,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { meQuery, roleIn, useLogout } from '@/lib/auth'
 import { setTheme } from '@/lib/theme'
+
+const navLink = 'text-muted-foreground transition-colors hover:text-foreground'
+const navActive = 'font-medium text-foreground'
 
 function Logo({ light, dark, alt }: { light: string; dark: string; alt: string }) {
   return (
@@ -43,28 +46,28 @@ export function AppHeader() {
         </Link>
 
         {me.workspaces.length > 0 && (
-          <NativeSelect
-            aria-label="Workspace"
-            value={slug ?? ''}
-            onChange={(e) => navigate({ to: '/w/$slug', params: { slug: e.target.value } })}
-          >
-            {!slug && <option value="">Escolha um workspace</option>}
-            {me.workspaces.map((w) => (
-              <option key={w.slug} value={w.slug}>
-                {w.name}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select value={slug ?? ''} onValueChange={(s) => navigate({ to: '/w/$slug', params: { slug: s } })}>
+            <SelectTrigger aria-label="Workspace" size="sm" className="min-w-40">
+              <SelectValue placeholder="Escolha um workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              {me.workspaces.map((w) => (
+                <SelectItem key={w.slug} value={w.slug}>
+                  {w.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         <nav className="flex gap-4 text-sm">
           {slug && roleIn(me, slug) === 'admin' && (
-            <Link to="/w/$slug/membros" params={{ slug }} className="hover:text-primary">
+            <Link to="/w/$slug/membros" params={{ slug }} className={navLink} activeProps={{ className: navActive }}>
               Membros
             </Link>
           )}
           {me.is_platform_admin && (
-            <Link to="/admin/workspaces" className="hover:text-primary">
+            <Link to="/admin/workspaces" className={navLink} activeProps={{ className: navActive }}>
               Admin
             </Link>
           )}

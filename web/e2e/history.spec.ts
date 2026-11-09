@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { addMember, createWorkspace, loggedInAdmin, newSession, runToCompletion } from './helpers'
+import { pick, addMember, createWorkspace, loggedInAdmin, newSession, runToCompletion } from './helpers'
 
 test('analyst filters the history, publishes a run and the viewer sees only that one', async ({ page, browser }) => {
   // two fake engine runs take ~50 s alone; the default 60 s timed out with the rest of the suite running
@@ -25,7 +25,7 @@ test('analyst filters the history, publishes a run and the viewer sees only that
   await expect(analystPage.getByRole('cell', { name: 'Verão' })).toBeVisible()
   await expect(analystPage).toHaveURL(/q=ver/)
 
-  await analystPage.getByLabel('Status').selectOption('failed')
+  await pick(analystPage.getByRole('combobox', { name: 'Status' }), 'Falhou')
   await expect(analystPage.getByText('Nenhuma execução com esses filtros.')).toBeVisible()
   await analystPage.getByRole('button', { name: 'Limpar filtros' }).click()
   await expect(analystPage.getByRole('cell', { name: 'Inverno' })).toBeVisible()

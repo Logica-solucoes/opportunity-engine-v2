@@ -2,6 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { ROLE_LABELS, meQuery } from '@/lib/auth'
+import { textLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/')({
   beforeLoad: ({ context: { me } }) => {
@@ -21,7 +22,7 @@ function Home() {
         (me.is_platform_admin ? (
           <p>
             Nenhum workspace ainda.{' '}
-            <Link to="/admin/workspaces" className="text-primary underline">
+            <Link to="/admin/workspaces" className={textLink}>
               Criar o primeiro
             </Link>
           </p>

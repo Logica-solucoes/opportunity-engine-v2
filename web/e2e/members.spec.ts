@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { addMember, changePassword, createWorkspace, loggedInAdmin, login, newSession, uid } from './helpers'
+import { pick, addMember, changePassword, createWorkspace, loggedInAdmin, login, newSession, uid } from './helpers'
 
 test('analyst gets a temp password, logs in and lands on the only workspace', async ({ page, browser }) => {
   await loggedInAdmin(page)
@@ -43,10 +43,10 @@ test('workspace admin changes a role and removes a member', async ({ page }) => 
   const row = page.getByRole('row', { name: new RegExp(member.email) })
   await Promise.all([
     page.waitForResponse((r) => r.request().method() === 'PATCH' && r.ok()),
-    row.getByLabel('Papel').selectOption('analyst'),
+    pick(row.getByRole('combobox', { name: 'Papel' }), 'Analista'),
   ])
   await page.reload()
-  await expect(page.getByRole('row', { name: new RegExp(member.email) }).getByLabel('Papel')).toHaveValue('analyst')
+  await expect(page.getByRole('row', { name: new RegExp(member.email) }).getByRole('combobox', { name: 'Papel' })).toHaveValue('analyst')
 
   await page
     .getByRole('row', { name: new RegExp(member.email) })
@@ -102,8 +102,8 @@ test('the role select stays disabled while the change is saving', async ({ page 
     await route.fallback()
   })
 
-  const select = page.getByRole('row', { name: new RegExp(member.email) }).getByLabel('Papel')
-  await select.selectOption('analyst')
+  const select = page.getByRole('row', { name: new RegExp(member.email) }).getByRole('combobox', { name: 'Papel' })
+  await pick(select, 'Analista')
   await expect(select).toBeDisabled()
   release()
   await expect(select).toBeEnabled()

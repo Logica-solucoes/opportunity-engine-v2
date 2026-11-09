@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
-import { NativeSelect } from '@/components/NativeSelect'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
 import { fieldErrors } from '@/lib/params'
@@ -141,10 +141,15 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
             </div>
             <div className="space-y-1">
               <Label htmlFor="ga4.metric">Métrica</Label>
-              <NativeSelect id="ga4.metric" name="ga4.metric" defaultValue={google?.ga4.metric ?? 'count'}>
-                <option value="count">Contagem de eventos</option>
-                <option value="revenue">Receita (purchase_revenue)</option>
-              </NativeSelect>
+              <Select name="ga4.metric" defaultValue={google?.ga4.metric ?? 'count'}>
+                <SelectTrigger id="ga4.metric" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="count">Contagem de eventos</SelectItem>
+                  <SelectItem value="revenue">Receita (purchase_revenue)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </fieldset>

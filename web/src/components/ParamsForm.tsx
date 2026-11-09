@@ -2,12 +2,12 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { LoadState } from '@/components/LoadState'
-import { NativeSelect } from '@/components/NativeSelect'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/auth'
 import {
@@ -226,21 +226,18 @@ function ParamField({
         <Label htmlFor={id}>{field.label}</Label>
       </div>
       {schema.enum ? (
-        <NativeSelect
-          id={id}
-          className="w-full"
-          value={String(value)}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          {schema.enum.map((option) => (
-            <option key={option} value={option}>
-              {ENUM_LABELS[option] ?? option}
-            </option>
-          ))}
-        </NativeSelect>
+        <Select value={String(value)} disabled={disabled} onValueChange={onChange}>
+          <SelectTrigger id={id} className="w-full" aria-invalid={error ? true : undefined} aria-describedby={describedBy}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {schema.enum.map((option) => (
+              <SelectItem key={option} value={option}>
+                {ENUM_LABELS[option] ?? option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
         schema.type !== 'boolean' && (
           <Input

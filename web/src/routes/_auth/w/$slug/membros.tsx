@@ -3,7 +3,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { LoadState } from '@/components/LoadState'
-import { NativeSelect } from '@/components/NativeSelect'
 import { TempPasswordDialog } from '@/components/TempPasswordDialog'
 import {
   AlertDialog,
@@ -18,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { type Me, ROLE_LABELS, type Role, errorMessage, meQuery, roleIn } from '@/lib/auth'
@@ -41,6 +41,7 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
   const key = ['members', slug]
   const base = `/w/${slug}/members`
   const members = useQuery({ queryKey: key, queryFn: () => api<Member[]>(base) })
+  const [newRole, setNewRole] = useState<Role>('analyst')
   const [temp, setTemp] = useState<{ password: string; email: string } | null>(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: key })
 
@@ -72,9 +73,14 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
         email: String(form.get('email')),
         // blank means "link an existing account", and the api refuses an empty name
         name: String(form.get('name') ?? '').trim() || undefined,
-        role: form.get('role') as Role,
+        role: newRole,
       },
-      { onSuccess: () => formEl.reset() },
+      {
+        onSuccess: () => {
+          formEl.reset()
+          setNewRole('analyst')
+        },
+      },
     )
   }
 
@@ -95,13 +101,18 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
         )}
         <div className="space-y-2">
           <Label htmlFor="m-role">Papel</Label>
-          <NativeSelect id="m-role" name="role" defaultValue="analyst">
-            {ROLES.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select value={newRole} onValueChange={(v) => setNewRole(v as Role)}>
+            <SelectTrigger id="m-role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button type="submit" disabled={add.isPending}>
           Adicionar
@@ -136,19 +147,22 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
                 {m.user_id === me.id ? (
                   ROLE_LABELS[m.role]
                 ) : (
-                  <NativeSelect
-                    aria-label="Papel"
+                  <Select
                     value={m.role}
-                    // arrow keys fire change on every step: one PATCH at a time, in order
                     disabled={changeRole.isPending}
-                    onChange={(e) => changeRole.mutate({ id: m.user_id, role: e.target.value as Role })}
+                    onValueChange={(v) => changeRole.mutate({ id: m.user_id, role: v as Role })}
                   >
-                    {ROLES.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                    <SelectTrigger aria-label="Papel" size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </TableCell>
               <TableCell className="text-right">

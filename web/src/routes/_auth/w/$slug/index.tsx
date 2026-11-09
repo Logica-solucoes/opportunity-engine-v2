@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { meQuery, roleIn } from '@/lib/auth'
 import { formatDate, simulationsQuery } from '@/lib/simulations'
+import { rowLink, textLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/w/$slug/')({
   // the run history is all a viewer sees in a workspace
@@ -45,7 +46,7 @@ function WorkspaceHome() {
       {canEdit ? (
         <SimulationList slug={slug} />
       ) : (
-        <Link to="/w/$slug/execucoes" params={{ slug }} className="text-primary hover:underline">
+        <Link to="/w/$slug/execucoes" params={{ slug }} className={textLink}>
           Ver execuções publicadas
         </Link>
       )}
@@ -74,7 +75,7 @@ function SimulationList({ slug }: { slug: string }) {
               <Link
                 to="/w/$slug/simulacoes/$id"
                 params={{ slug, id: String(s.id) }}
-                className="font-medium hover:text-primary"
+                className={rowLink}
               >
                 {s.name}
               </Link>

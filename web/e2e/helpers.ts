@@ -1,9 +1,11 @@
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { type Browser, expect, type Page } from '@playwright/test'
+import { type Browser, expect, type Locator, type Page } from '@playwright/test'
 import { ROOT, pyEnv } from './env'
 
 export const NEW_PASSWORD = 'senha-nova-e2e-123'
+
+const ROLE_NAMES = { admin: 'Admin', analyst: 'Analista', viewer: 'Leitor' }
 
 export const uid = () => Math.random().toString(36).slice(2, 8)
 
@@ -57,7 +59,7 @@ export async function addMember(page: Page, slug: string, role: 'admin' | 'analy
   await page.getByLabel('E-mail').fill(email)
   await page.getByLabel('Nome').fill('Pessoa E2E')
   // .first(): the form's select comes before the per-row role selects
-  await page.getByLabel('Papel').first().selectOption(role)
+  await pick(page.getByRole('combobox', { name: 'Papel' }).first(), ROLE_NAMES[role])
   await page.getByRole('button', { name: 'Adicionar' }).click()
   const temp = (await page.getByTestId('temp-password').textContent())!.trim()
   await page.getByRole('button', { name: 'Fechar' }).click()
@@ -112,8 +114,13 @@ export async function configureGoogle(page: Page, slug: string) {
   await page.getByLabel('Customer ids').fill('123-456-7890, 2222222222')
   await page.getByLabel('Dataset do GA4').fill('proj-teste.analytics_123')
   await page.getByLabel('Evento do KPI').fill('purchase')
-  await page.getByLabel('Métrica').selectOption('revenue')
+  await pick(page.getByRole('combobox', { name: 'Métrica' }), 'Receita (purchase_revenue)')
   await page.getByRole('button', { name: 'Salvar' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('row').filter({ hasText: slug }).getByText('configurado')).toBeVisible()
+}
+
+export async function pick(trigger: Locator, option: string) {
+  await trigger.click()
+  await trigger.page().getByRole('option', { name: option, exact: true }).click()
 }

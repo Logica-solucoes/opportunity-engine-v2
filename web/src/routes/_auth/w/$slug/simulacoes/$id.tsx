@@ -5,7 +5,6 @@ import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
 import { GoogleImport } from '@/components/GoogleImport'
-import { NativeSelect } from '@/components/NativeSelect'
 import { ParamsForm } from '@/components/ParamsForm'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -14,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
@@ -36,6 +36,7 @@ import {
   simulationQuery,
   simulationsQuery,
 } from '@/lib/simulations'
+import { backLink, rowLink, textLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/w/$slug/simulacoes/$id')({ component: SimulationPage })
 
@@ -83,7 +84,7 @@ function SimulationDetail({
   return (
     <div className="space-y-8">
       <div className="space-y-1">
-        <Link to="/w/$slug" params={{ slug }} className="text-sm text-muted-foreground hover:text-primary">
+        <Link to="/w/$slug" params={{ slug }} className={backLink}>
           ← Simulações
         </Link>
         <h1 className="text-2xl font-semibold">{sim.name}</h1>
@@ -176,7 +177,7 @@ function FileCard({
             {problem ?? errorMessage(upload.error)}
           </p>
         )}
-        <a href={spec.template} download className="text-sm text-primary hover:underline">
+        <a href={spec.template} download className={textLink}>
           Baixar template
         </a>
       </CardContent>
@@ -228,14 +229,18 @@ function MappingForm({
                   return (
                     <div key={field} className="space-y-1">
                       <Label htmlFor={id}>{FIELD_LABELS[field] ?? field}</Label>
-                      <NativeSelect id={id} name={id} required defaultValue={initialColumn(sim, spec, field)}>
-                        <option value="">Escolha a coluna</option>
-                        {file.columns.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </NativeSelect>
+                      <Select name={id} required defaultValue={initialColumn(sim, spec, field) || undefined}>
+                        <SelectTrigger id={id} className="w-full">
+                          <SelectValue placeholder="Escolha a coluna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {file.columns.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )
                 })}
@@ -359,7 +364,7 @@ function ValidationBlock({
               <Link
                 to="/w/$slug/execucoes/$runId"
                 params={{ slug, runId: String(activeRun.id) }}
-                className="text-primary hover:underline"
+                className={textLink}
               >
                 Acompanhar
               </Link>
@@ -397,7 +402,7 @@ function RunList({ slug, runs }: { slug: string; runs: Run[] }) {
                 <Link
                   to="/w/$slug/execucoes/$runId"
                   params={{ slug, runId: String(r.id) }}
-                  className="font-medium hover:text-primary"
+                  className={rowLink}
                 >
                   #{r.id}
                 </Link>

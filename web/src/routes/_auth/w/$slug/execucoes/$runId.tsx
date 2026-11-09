@@ -8,6 +8,7 @@ import { meQuery, roleIn } from '@/lib/auth'
 import { GROUNDING_LABELS, resultsQuery } from '@/lib/results'
 import { type Run, STATUS_LABELS, isPublishable, runQuery } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
+import { backLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/w/$slug/execucoes/$runId')({ component: RunRoute })
 
@@ -60,12 +61,12 @@ function RunLayout() {
           <Link
             to="/w/$slug/simulacoes/$id"
             params={{ slug, id: String(run.simulation.id) }}
-            className="text-sm text-muted-foreground hover:text-primary"
+            className={backLink}
           >
             ← {run.simulation.name}
           </Link>
         ) : (
-          <Link to="/w/$slug/execucoes" params={{ slug }} className="text-sm text-muted-foreground hover:text-primary">
+          <Link to="/w/$slug/execucoes" params={{ slug }} className={backLink}>
             ← Execuções
           </Link>
         )}
