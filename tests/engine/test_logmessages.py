@@ -109,3 +109,17 @@ def test_absolute_paths_are_reduced_to_the_file_name(received):
         ("warning", "Image file not found at abc.csv. It will be omitted."),
         ("info", "Saved to 'report.html' and x.png"),
     ]
+
+
+def test_english_elasticity_lines_are_translated_and_windows_paths_hidden(received):
+    log = logging.getLogger("engine.sample")
+    with forward_logs(lambda level, message: received.append((level, message))):
+        log.info("   - Stage 1: Modeling Organic Baseline...")
+        log.info("   - Total Marketing Contribution: 15,756,327.43 (149.05% of Total)")
+        log.info(r"   - Simulation data exported for UI: C:\Users\x\Temp\tmp1\response_curve_data.csv")
+        log.warning(r"Falha ao ler C:\Users\x\Temp\dados.csv agora")
+    assert received == [
+        ("info", "   - Etapa 1: modelando o baseline orgânico..."),
+        ("info", "   - Contribuição total de marketing: 15,756,327.43 (149.05% do total)"),
+        ("warning", "Falha ao ler dados.csv agora"),
+    ]

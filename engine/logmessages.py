@@ -277,8 +277,41 @@ _RULES = [
         "   - Não foi possível identificar as semanas de maior eficiência.",
     ),
     (
-        r"Found optimal historical mix from top\s*(.*)",
-        "   - Combinação ótima histórica encontrada a partir das melhores {0}",
+        r"Found optimal historical mix from top\s*(\d+)\s*weeks",
+        "   - Combinação ótima histórica encontrada a partir das {0} melhores semanas.",
+    ),
+    (
+        r"Stage 1: Modeling Organic Baseline",
+        "   - Etapa 1: modelando o baseline orgânico...",
+    ),
+    (
+        r"Stage 2: Optimizing Marketing Response",
+        "   - Etapa 2: otimizando a resposta de mídia sobre o ganho incremental...",
+    ),
+    (
+        r"WARNING: Optimization did not converge",
+        "   - AVISO: a otimização não convergiu por completo; o ajuste pode ser menos preciso.",
+    ),
+    (
+        r"Marketing Model R² \(in-sample on lift\):\s*(.*)",
+        "   - R² do modelo de mídia (na amostra, sobre o ganho): {0}",
+    ),
+    (
+        r"Marketing Model R² \(walk-forward CV\):\s*(.*)",
+        "   - R² do modelo de mídia (validação walk-forward): {0}",
+    ),
+    (
+        r"Total Marketing Contribution:\s*(\S+)\s*\(([\d.]+%) of Total\)",
+        "   - Contribuição total de marketing: {0} ({1} do total)",
+    ),
+    (r"^\s*- Simulation data exported for UI:", None),
+    (
+        r"SKIPPED: Insufficient data for causal impact analysis.*Pre-period data points:\s*(\d+).*min required:\s*(\d+)",
+        "   - DESCONSIDERADO: histórico insuficiente antes do evento ({0} períodos; mínimo {1}).",
+    ),
+    (
+        r"--- Historical Contribution Split \(Elasticity\) ---",
+        "   --- Divisão da contribuição histórica (elasticidade) ---",
     ),
     (
         r"(\d+) channel\(s\) not identifiable, contribution not published",
@@ -345,8 +378,11 @@ def translate_line(line: str) -> str | None:
 _ABSOLUTE_PATH = re.compile(r"""(?<![\w/.:])/(?:[^/\s'"]+/)+([^/\s'"]+)""")
 
 
+_WINDOWS_PATH = re.compile(r"""[A-Za-z]:\\(?:[^\\\s'"]+\\)*([^\\\s'"]+)""")
+
+
 def _without_paths(message: str) -> str:
-    return _ABSOLUTE_PATH.sub(r"\1", message)
+    return _WINDOWS_PATH.sub(r"\1", _ABSOLUTE_PATH.sub(r"\1", message))
 
 
 _LEVELS = {logging.INFO: "info", logging.WARNING: "warning", logging.ERROR: "error", logging.CRITICAL: "error"}
