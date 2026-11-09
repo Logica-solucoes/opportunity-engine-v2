@@ -107,7 +107,7 @@ function CausalView({
 
       {causal.events.length > 0 && (
         <div className="grid items-start gap-5 md:grid-cols-[18rem_minmax(0,1fr)] print:block print:space-y-6">
-          <section aria-label="Eventos" className="space-y-2">
+          <section aria-label="Eventos" className={cn("space-y-2", listed.length === 0 && "md:col-span-2")}>
             <ToggleGroup
               type="single"
               variant="outline"
@@ -166,7 +166,7 @@ function CausalView({
           </section>
           {selected ? (
             <EventDetail event={selected} report={reports?.events[selected.id]} />
-          ) : (
+          ) : listed.length > 0 ? (
             <Empty className="border">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -176,7 +176,7 @@ function CausalView({
                 <EmptyDescription>Escolha um evento na lista para ver o impacto, os gráficos e a análise.</EmptyDescription>
               </EmptyHeader>
             </Empty>
-          )}
+          ) : null}
         </div>
       )}
     </div>
