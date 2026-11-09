@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { TriangleAlert } from 'lucide-react'
+import { Warning } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { ExportBar } from '@/components/ExportBar'
 import { NarrativeCard } from '@/components/NarrativeCard'
@@ -65,7 +65,7 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
 function Inconclusive({ title = 'Análise de elasticidade inconclusiva', lines }: { title?: string; lines: string[] }) {
   return (
     <Alert>
-      <TriangleAlert />
+      <Warning />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
         <ul className="list-disc pl-5">
@@ -133,7 +133,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
         <div className="min-w-0 space-y-8">
           {metrics?.low_confidence && (
             <Alert>
-              <TriangleAlert />
+              <Warning />
               <AlertTitle>Baixa confiança</AlertTitle>
               <AlertDescription>
                 O modelo explica pouco fora da amostra (CV R² {formatDecimal(metrics.cv_r2)}). Use as curvas como
@@ -165,7 +165,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
               </h2>
               {metrics?.reallocation_suppressed && (
                 <Alert>
-                  <TriangleAlert />
+                  <Warning />
                   <AlertDescription>
                     O motor não confia na redistribuição entre canais desta execução: leia o otimizado e o estratégico
                     como hipótese, não como recomendação.

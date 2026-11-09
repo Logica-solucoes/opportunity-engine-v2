@@ -1,4 +1,4 @@
-import { FileSpreadsheet } from 'lucide-react'
+import { FileCsv } from '@phosphor-icons/react'
 import type { DragEvent } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +30,7 @@ export function FileDrop({
         disabled && 'opacity-50',
       )}
     >
-      <FileSpreadsheet aria-hidden className="size-8" />
+      <FileCsv aria-hidden className="size-8" />
       <p>
         Arraste o CSV ou{' '}
         <label htmlFor={id} className="cursor-pointer font-medium text-primary hover:underline">

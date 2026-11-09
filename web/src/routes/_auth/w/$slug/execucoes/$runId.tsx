@@ -1,6 +1,6 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
-import { CircleX } from 'lucide-react'
+import { XCircle } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -80,7 +80,7 @@ function RunLayout() {
 
       {run.status === 'failed' && run.error && (
         <Alert variant="destructive">
-          <CircleX />
+          <XCircle />
           <AlertTitle>Falhou</AlertTitle>
           <AlertDescription>{run.error}</AlertDescription>
         </Alert>

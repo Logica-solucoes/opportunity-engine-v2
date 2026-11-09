@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { Moon, Sun, User } from 'lucide-react'
+import { Moon, Sun, User } from '@phosphor-icons/react'
 import almapDark from '@/assets/logos/almap-negativo.png'
 import almapLight from '@/assets/logos/almap-positivo.png'
 import dashDark from '@/assets/logos/dash-negativo.png'

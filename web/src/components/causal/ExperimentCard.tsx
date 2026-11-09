@@ -1,4 +1,4 @@
-import { FlaskConical } from 'lucide-react'
+import { Flask } from '@phosphor-icons/react'
 import {
   type ExperimentDesign,
   TEST_TYPE_LABELS,
@@ -12,7 +12,7 @@ export function ExperimentCard({ design }: { design: ExperimentDesign }) {
   return (
     <section aria-label="Desenho de experimento" className="break-inside-avoid space-y-3 rounded-md border p-4">
       <h3 className="flex items-center gap-2 font-medium">
-        <FlaskConical className="size-4" /> Desenho de experimento
+        <Flask className="size-4" /> Desenho de experimento
       </h3>
       {design.status !== 'ok' ? (
         <p className="text-sm text-muted-foreground">{design.reasons.map(reasonLabel).join(' ')}</p>

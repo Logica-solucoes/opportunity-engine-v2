@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { TriangleAlert } from 'lucide-react'
+import { Warning } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { ExportBar } from '@/components/ExportBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -71,7 +71,7 @@ function CausalView({
 
       {causal.status !== 'ok' && (
         <Alert>
-          <TriangleAlert />
+          <Warning />
           <AlertTitle>Análise causal inconclusiva</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-5">

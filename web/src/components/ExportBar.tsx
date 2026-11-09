@@ -1,4 +1,4 @@
-import { Download, Printer } from 'lucide-react'
+import { DownloadSimple, Printer } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 
 // a plain link: the browser downloads with the session cookie and the API's file name, no fetch or Blob
@@ -8,7 +8,7 @@ export function ExportBar({ links }: { links: [label: string, href: string][] })
       {links.map(([label, href]) => (
         <Button key={label} asChild variant="outline" size="sm">
           <a href={href} download>
-            <Download />
+            <DownloadSimple />
             {label}
           </a>
         </Button>

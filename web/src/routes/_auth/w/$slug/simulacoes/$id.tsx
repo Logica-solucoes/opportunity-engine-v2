@@ -1,6 +1,6 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { CircleX, Info, TriangleAlert } from 'lucide-react'
+import { XCircle, Info, Warning } from '@phosphor-icons/react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
@@ -39,7 +39,7 @@ import {
 
 export const Route = createFileRoute('/_auth/w/$slug/simulacoes/$id')({ component: SimulationPage })
 
-const LEVEL_ICONS: Record<Check['level'], typeof Info> = { error: CircleX, warning: TriangleAlert, info: Info }
+const LEVEL_ICONS: Record<Check['level'], typeof Info> = { error: XCircle, warning: Warning, info: Info }
 
 function SimulationPage() {
   const { slug, id } = Route.useParams()
