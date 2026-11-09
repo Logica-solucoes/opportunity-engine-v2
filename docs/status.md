@@ -21,5 +21,6 @@ Grep em `web/src`, sem screenshots; confirmar na auditoria. Regra: tudo vira pri
 7. **Cor fora dos tokens:** só `text-amber-600 dark:text-amber-400` em `detalhes.tsx:12`; criar token `warning`.
 8. **Primitivos que provavelmente faltam em `ui/`** (hoje 13): `select`, `tabs`, `skeleton`, `tooltip`, `separator`, `textarea`, `switch`, `sonner` (toast), `popover`.
 9. **Ícones:** 11 arquivos importam `lucide-react` (3 em `ui/`: `dropdown-menu`, `dialog`, `checkbox`); a troca para Phosphor mexe nos 11.
+10. **Bug: o `FileDrop` não abre o seletor de arquivo** (`simulacoes/$id`, cards Investimento/Performance/Trends; relatado pelo usuário em 09/nov/2026, com screenshot). Pendente: diagnosticar (`<label>` sem `<input type="file">` associado? clique/drop sem handler?) e corrigir junto com o item 5.
 
 Já está bom: nenhum `<input>`, `<button>`, `<table>` ou `<textarea>` cru fora de `ui/`, nenhum `style={{}}` fora de `chart.tsx`, nenhum `confirm()`/`alert()`, valores arbitrários de Tailwind só em `ui/` (mais um `max-h-[32rem]` em `CausalTab`).
