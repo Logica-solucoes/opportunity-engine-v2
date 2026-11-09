@@ -70,6 +70,32 @@ def test_a_channel_outside_the_published_set_fails_case_insensitively():
     ]
 
 
+@pytest.mark.parametrize("text", ["Queda de 31,1% no KPI.", "Redução de 1.234 no KPI.", "Aumento de R$ 3,4M."])
+def test_a_direction_that_agrees_with_the_sign_passes(text):
+    assert _issues(text) == []
+
+
+@pytest.mark.parametrize(
+    "text, value",
+    [("Aumento de 31,1% no KPI.", "31,1%"), ("Alta de 1.234 no KPI.", "1.234"), ("Queda de R$ 3,4M.", "R$ 3,4M")],
+)
+def test_a_direction_that_inverts_the_sign_fails(text, value):
+    assert _issues(text) == [{"kind": "number", "value": value}]
+
+
+@pytest.mark.parametrize("text", ["p-valor < 0,05.", "p < 0,02.", "p-valor menor que 0,05."])
+def test_a_p_value_bound_passes_when_a_published_p_value_is_below_it(text):
+    assert _issues(text) == []
+
+
+def test_a_p_value_bound_with_nothing_below_it_fails():
+    assert _issues("p-valor < 0,0001.") == [{"kind": "number", "value": "0,0001"}]
+
+
+def test_published_channels_are_compared_case_insensitively():
+    assert check("O CANAL_02 respondeu.", {}, {"CANAL_02"}, {"Canal_02", "CANAL_03"}) == []
+
+
 def test_a_channel_name_inside_another_word_is_not_a_mention():
     assert _issues("XCANAL_02 e CANAL_02X") == []
 

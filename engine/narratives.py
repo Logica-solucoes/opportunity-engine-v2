@@ -6,6 +6,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -64,6 +65,7 @@ RULES = """Regras:
 - O KPI se chama "{kpi}".
 - Escreva datas como DD/MM/AAAA.
 - Escreva números no formato brasileiro (vírgula decimal, ponto de milhar), com no máximo 2 casas decimais; valores em reais com R$.
+- Escreva p-valores abaixo de 0,0001 como "p < 0,0001".
 """
 EVENT_PROMPT = (
     "Escreva um relatório curto sobre um evento de investimento em mídia. O efeito no KPI foi estimado por um modelo "
@@ -77,6 +79,8 @@ NOT_OK_RULE = (
     "A análise não é conclusiva (veja status e reasons). Explique só por que ela não é conclusiva e não sugira "
     "valores de investimento."
 )
+CAVEAT_RULE = "A análise tem ressalvas (veja reasons): apresente os valores, sempre junto dessas ressalvas."
+P_FLOOR = 0.0001
 
 
 def _sig(obj: Any) -> Any:
@@ -103,6 +107,16 @@ def _day(iso: str) -> str:
     return f"{day}/{month}/{year}"
 
 
+def _p(value: float) -> str:
+    return f"< {_br(P_FLOOR, 4)}" if value < P_FLOOR else _br(value, 4)
+
+
+def _days_between(start: str | None, end: str | None) -> int | None:
+    if not start or not end:
+        return None
+    return (date.fromisoformat(end[:10]) - date.fromisoformat(start[:10])).days
+
+
 def text_of(obj: Any) -> str:
     if isinstance(obj, str):
         return obj
@@ -123,6 +137,7 @@ def event_payload(event: dict, kpi: str, p_value_threshold: float, sufficiency_r
             "channels": event["channels"],
             "start": event.get("start"),
             "end": event.get("end"),
+            "post_period_days": _days_between(event.get("start"), event.get("end")),
             "investment_change_pct": event.get("investment_change_pct"),
             "lift": event.get("lift"),
             "p_value": event.get("p_value"),
@@ -153,7 +168,12 @@ def _global_payload(document: dict, config: EngineConfig, kpi: str, revenue: boo
         "reasons": [ELASTICITY_REASONS.get(r, r) for r in elasticity.get("reasons") or []],
         "channels_without_identifiable_effect": sum(1 for c in channels if not c.get("identifiable")),
     }
-    if elasticity["status"] != "ok":
+    # the narrative follows the Elasticity tab: whatever `scenario` serves (a short history included) gets described
+    try:
+        answer = scenario(document, ScenarioFilters(), config.max_budget_step)
+    except EngineError:
+        answer = None
+    if answer is None and elasticity["status"] != "ok":
         return payload
     metrics = elasticity.get("metrics") or {}
     keys = ("cv_r2", "r2", "media_contribution_pct", "low_confidence", "reallocation_suppressed")
@@ -163,9 +183,7 @@ def _global_payload(document: dict, config: EngineConfig, kpi: str, revenue: boo
         for c in channels
         if c.get("identifiable")
     ]
-    try:
-        answer = scenario(document, ScenarioFilters(), config.max_budget_step)
-    except EngineError:
+    if answer is None:
         return payload
     revenue = answer.get("revenue_mode", revenue)
     payload["revenue_mode"] = revenue
@@ -201,7 +219,7 @@ def deterministic_event(p: dict) -> dict:
         if None not in ci:
             verdict += f", IC {CI_LEVEL_PCT}% [{_br(ci[0], 0)}; {_br(ci[1], 0)}]"
         if p.get("p_value") is not None:
-            verdict += f", p-valor {_br(p['p_value'], 4)}"
+            verdict += f", p-valor {_p(p['p_value'])}"
         verdict += "."
     fit = p.get("fit") or {}
     facts = []
@@ -220,7 +238,7 @@ def deterministic_event(p: dict) -> dict:
 
 def deterministic_global(p: dict) -> dict:
     scenarios = p.get("scenarios_monthly") or {}
-    if p["status"] != "ok" or not scenarios:
+    if not scenarios:
         reasons = [ELASTICITY_REASONS.get(r, r) for r in p["reasons"]] or ["não há curva de resposta para simular"]
         summary = "A análise de elasticidade não é conclusiva: " + "; ".join(reasons) + "."
         if p["channels_without_identifiable_effect"]:
@@ -236,9 +254,12 @@ def deterministic_global(p: dict) -> dict:
         if s.get("kpi_lo") is not None and s.get("kpi_hi") is not None:
             text += f" (faixa de {_br(s['kpi_lo'], 0)} a {_br(s['kpi_hi'], 0)})"
         rows.append({"name": SCENARIO_LABELS[name], "analysis": text + "."})
+    summary = "Valores mensais da curva de resposta, sem filtros de meta."
+    if p["reasons"]:
+        summary += " Ressalva: " + "; ".join(p["reasons"]) + "."
     return {
         "title": "Elasticidade do investimento",
-        "summary": "Valores mensais da curva de resposta, sem filtros de meta.",
+        "summary": summary,
         "scenarios": rows,
         "recommendations": [],
     }
@@ -260,11 +281,17 @@ def _feedback(issues: list[dict]) -> str:
     return f"\n\nSua resposta anterior foi recusada. Corrija:\n{lines}"
 
 
+def _status_rule(payload: dict) -> str:
+    if payload.get("status", "ok") == "ok":
+        return ""
+    return CAVEAT_RULE if payload.get("scenarios_monthly") else NOT_OK_RULE
+
+
 def _ask(llm: LLM, kind: Kind, payload: dict, published: set[str], names: set[str]) -> tuple[dict | None, dict]:
     prompt = kind.prompt.format(
         channels=", ".join(sorted(published)) or "nenhum",
         kpi=payload["kpi_name"],
-        status_rule="" if payload.get("status", "ok") == "ok" else NOT_OK_RULE,
+        status_rule=_status_rule(payload),
         data=json.dumps(payload, ensure_ascii=False, indent=2),
     )
     first: list[dict] = []

@@ -46,7 +46,11 @@ Toda narrativa que chega à tela passa por `engine/grounding.py` antes de ser pu
 - **Números.** Todo número do texto (formato pt-BR: `R$ 3,4M`, `89,7%`, `-0,17x`, `1.234`, `3,41 milhões`) tem que casar com um valor do payload, arredondado com a mesma quantidade de casas escrita. Percentual casa também com a fração (`0,897` ↔ `89,7%`).
 - **Datas.** `DD/MM/AAAA` (o prompt pede esse formato) ou por extenso (`20 de janeiro de 2025`): com ano, tem que ser um dia publicado; sem ano, qualquer dia publicado com o mesmo dia e mês. Data ISO no payload conta como publicada.
 - **Canais.** Só canais publicados. Membro de grupo publicado conta como publicado. Um canal conhecido pelo run mas não publicado (não identificado, evento rejeitado) é reprovado.
-- **Limites aceitos:** inteiro até 12 sem unidade nem casa decimal passa sem conferência (contagens como "3 canais"); um número derivado que não está no payload, como "28 dias" (duração do período, que o payload não traz), é reprovado; e um canal inventado que o run não conhece (ex.: "Meta" quando o run só tem "META") não é pego.
+- **Sinal.** "Aumento/alta/crescimento/ganho/elevação de N" e "queda/redução/diminuição/perda/recuo/retração de N" (palavra logo antes de "de" e do número) fixam o sinal: "aumento de 31,1%" numa queda de 31,1% reprova. Sem essa forma (ex.: "variação de 31%", "a queda do CPA para R$ 10"), o módulo basta, como antes.
+- **P-valor como limite.** "p < 0,0001" (também "p-valor menor que", "inferior a") passa se algum valor do payload estiver em [0, limite). O texto determinístico e o prompt escrevem assim todo p-valor abaixo de 0,0001, em vez de "0,0000".
+- **Duração.** O payload do evento leva `post_period_days` (fim − início, em dias), então "28 dias" de um evento de 28 dias passa.
+- **Canais sem caixa.** Publicado e conhecido comparam com `casefold`: "Canal_02" na validação e "CANAL_02" publicado são o mesmo canal.
+- **Limites aceitos:** inteiro até 12 sem unidade nem casa decimal passa sem conferência (contagens como "3 canais"); outro número derivado que não está no payload (ex.: duração do pré-período) é reprovado; e um canal inventado que o run não conhece (ex.: "Facebook" num run sem ele) não é pego, porque o checador só sabe os nomes do run.
 - **Regeneração.** Reprovado → uma nova chamada com a lista dos problemas no prompt. Reprovado de novo → `grounding.status = "blocked"` e o texto determinístico (`narratives.deterministic_event` / `deterministic_global`, montado só com números do payload, então passa no checador por construção).
 - **Erro do LLM que não é resposta ruim nem recusa** (ex.: `http_400`) para as chamadas como indisponível: não vira `blocked`.
 - **`temperature=0`** no `generate_json` (ver adaptador acima).
@@ -54,11 +58,11 @@ Toda narrativa que chega à tela passa por `engine/grounding.py` antes de ser pu
 - **Worker liga o LLM.** O `api/launcher.py` não força mais `LLM_PROVIDER=none`. Com a chave no `.env` do servidor, o run chama o Gemini: até 2 chamadas por narrativa (uma por evento publicado e uma global), de até 60 s cada, e um orçamento total de `LLM_BUDGET_S` = 300 s, checado entre relatórios (pior caso ~420 s, dentro do watchdog de 20 min). Passado o orçamento, os relatórios restantes saem determinísticos.
 - **Payload.** Floats arredondados a 4 algarismos significativos (sem `238.99107106472343%`), e o prompt traz a regra de formato pt-BR.
 
+**Histórico curto (`cv_in_sample`).** A narrativa global segue a aba Elasticidade: se o `engine.scenario` serve o planner, o payload leva métricas, canais e cenários, e o prompt troca "não é conclusiva" por `CAVEAT_RULE` (apresentar os valores com as ressalvas de `reasons`). O texto determinístico termina com "Ressalva: …". Quando o `scenario` recusa, nada muda.
+
 **Ceilings abertos (não corrigidos):**
-- `abs()` deixa passar sinal invertido: "aumento de 31,1%" numa queda de mesmo módulo passa.
 - Um percentual pode vir de uma razão não relacionada no payload e passar.
-- Com `cv_in_sample`, o texto diz "não conclusiva" mesmo com a aba mostrando o planner (texto, não número).
-- P-valor "0,0000" é cosmético, não reprovado.
+- O sinal só é conferido na forma "palavra de direção + de + número"; "o KPI subiu 31,1%" numa queda ainda passa pelo módulo.
 
 **Verificado com chave real** (08/nov/2026, fixtures `gol_anonimizada` e `identificavel`, `narratives.build` com Gemini): antes das correções, 159 s, os 5 eventos inventaram números na primeira tentativa (ex.: "1,44") e só passaram na regeneração, com floats crus, e a global leu "12" como "12 registros não mapeados". Depois, 63 s, os 7 relatórios passaram na primeira tentativa, sem float cru e com "12 canais sem efeito identificável" correto.
 

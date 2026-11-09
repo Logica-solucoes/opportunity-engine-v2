@@ -193,7 +193,7 @@ Roda dentro do `validate`, sobre o spend **sem os períodos parciais** (o mesmo 
 - **Erro interno não derruba o run.** Exceção fora do LLM (no payload ou no texto determinístico) vira log `ERROR` com `exc_info` e `reports = null`. Erro do LLM fica dentro do relatório e nunca sobe.
 - **Checador.** Números pt-BR casam com o payload pelo arredondamento escrito; percentual casa com a fração; datas em `DD/MM/AAAA` ou por extenso (ver desvio abaixo); canais só os publicados.
 - **Desvio do plano: datas por extenso.** "20 de janeiro de 2025" também é conferida (com ano: dia publicado; sem ano: qualquer dia publicado com o mesmo dia e mês). O prompt pede `DD/MM/AAAA`, mas o modelo escreve por extenso (commit `b0f8636`).
-- **Limites aceitos (não são bug):** inteiro até 12 sem unidade passa sem conferência; número derivado como "28 dias" (duração do período, sem `period_days` no payload) é reprovado; canal inventado que o run não conhece ("Meta" com `META` no run) não é pego.
+- **Limites aceitos (não são bug):** inteiro até 12 sem unidade passa sem conferência; número derivado fora do payload é reprovado (desde 08/nov/2026 o evento leva `post_period_days`, então "28 dias" passa); canal inventado que o run não conhece ("Facebook" num run sem ele) não é pego. Sinal por palavra de direção, p-valor como limite ("p < 0,0001"), canais por `casefold` e a narrativa do histórico curto: `docs/decisoes/llm.md` › Grounding.
 - **Fixtures.** `tests/fixtures/results/add_reports.py` preenche `reports` nos JSON versionados com `llm=None` (o que o `generate_fixtures.py` gravaria). Na próxima regeneração completa, o `engine.run` já inclui `reports`.
 - **`logmessages.py` sem mudança.** As linhas novas já saem em pt-BR; as regras antigas dos HTMLs viraram inofensivas.
 

@@ -2,6 +2,7 @@
 
 import itertools
 import json
+from pathlib import Path
 
 from engine import grounding, narratives
 from engine.config import EngineConfig
@@ -24,6 +25,7 @@ EVENT = {
     "placebo": {"p_value": 0.62, "passed": True},
     "robustness": {"p_value": 0.01, "passed": True},
 }
+FIXTURES = Path(__file__).parents[1] / "fixtures" / "results"
 REJECTED = {**EVENT, "id": "Adv_CANAL_02_2025-03-01", "channels": ["CANAL_02"], "status": "rejected"}
 
 
@@ -185,6 +187,38 @@ def test_payload_floats_are_rounded_to_four_significant_digits():
     assert payload["lift"] == {"abs": -1235.0, "ci": [-2010.0, -458.7], "rel_pct": 239.0}
     assert payload["post_period_investment"] == 3_412_000.0
     assert "incremental_investment" not in payload
+
+
+def test_the_event_duration_is_in_the_payload_so_it_can_be_cited():
+    payload = narratives.event_payload(EVENT, "Pedidos", 0.05, [])
+    assert payload["post_period_days"] == 28
+    assert grounding.check("Em 28 dias o KPI caiu.", payload, {"CANAL_01"}, {"CANAL_01"}) == []
+
+
+def test_a_tiny_p_value_is_written_as_a_bound_that_passes_the_grounding():
+    payload = narratives.event_payload({**EVENT, "p_value": 0.00001}, "Pedidos", 0.05, [])
+    text = narratives.text_of(narratives.deterministic_event(payload))
+    assert "p-valor < 0,0001" in text and "0,0000" not in text
+    assert grounding.check(text, payload, {"CANAL_01"}, {"CANAL_01"}) == []
+
+
+def _short_history():
+    document = json.loads((FIXTURES / "identificavel.json").read_text(encoding="utf-8"))
+    document["elasticity"] = {**document["elasticity"], "status": "inconclusive", "reasons": ["cv_in_sample"]}
+    return document
+
+
+def test_a_short_history_still_narrates_the_planner_with_a_caveat():
+    document = _short_history()
+    payload = narratives.global_payload(document, CONFIG, "Pedidos", False)
+    assert payload["scenarios_monthly"] and payload["channels"]
+    text = narratives.text_of(narratives.deterministic_global(payload))
+    assert "não é conclusiva" not in text and "não foi validado fora da amostra" in text
+    assert grounding.check(text, payload, {"STRONG"}, narratives.universe(document)) == []
+
+    llm = FakeLLM([json.dumps(GLOBAL_NARRATIVE)])
+    _build({**document, "causal": None}, llm)
+    assert narratives.NOT_OK_RULE not in llm.calls[0] and narratives.CAVEAT_RULE in llm.calls[0]
 
 
 def test_the_deterministic_text_calls_the_spend_post_period():

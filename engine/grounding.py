@@ -44,6 +44,14 @@ MONTHS = [
 WORD_DATE = re.compile(r"\b(\d{1,2}) de (" + "|".join(MONTHS) + r"|marco)(?: de (\d{4}))?\b", re.IGNORECASE)
 ISO_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 SMALL_COUNT = 12
+# "aumento de 31,1%" right before the number states its sign; only this "<word> de <number>" form, so "a queda do CPA
+# para R$ 10" (a positive value) is not read as a negative one
+DIRECTION = re.compile(
+    r"\b(?:(?P<up>aumento|alta|crescimento|ganho|elevação)|(?P<down>queda|redução|diminuição|perda|recuo|retração))"
+    r"\s+de\s+$",
+    re.IGNORECASE,
+)
+P_BOUND = re.compile(r"\bp(?:-valor)?\s*(?:<|menor que|inferior a)\s*$", re.IGNORECASE)
 
 
 def _leaves(obj: Any, numbers: list[float], days: set[str]) -> None:
@@ -62,10 +70,13 @@ def _leaves(obj: Any, numbers: list[float], days: set[str]) -> None:
         numbers.append(float(obj[:4]))  # the year of a published date may be written on its own
 
 
-def _matches(written: float, decimals: int, scale: float, percent: bool, numbers: list[float]) -> bool:
+def _matches(written: float, decimals: int, scale: float, percent: bool, numbers: list[float], signed: bool) -> bool:
+    """`signed`: the text stated the sign (a minus or a direction word), so the magnitude alone does not match."""
     tolerance = 0.5 * 10**-decimals + 1e-9  # the written number is the payload value rounded to the digits shown
     for value in numbers:
-        candidates = [value, abs(value)] + ([value * 100, abs(value * 100)] if percent else [])
+        candidates = [value] + ([value * 100] if percent else [])
+        if not signed:
+            candidates += [abs(c) for c in candidates]
         if any(abs(c / scale - written) <= tolerance for c in candidates):
             return True
     return False
@@ -103,13 +114,22 @@ def check(text: str, payload: Any, published: set[str], universe: set[str]) -> l
         # ponytail: small bare integers are counts and ordinals ("3 canais", "2 semanas"); an invented one passes
         if not unit and not m["currency"] and not decimals and written <= SMALL_COUNT:
             continue
-        if any(s in "-−" for s in (m["sign"] + m["sign2"])):
+        scale = SCALES.get(unit, 1)
+        before = rest[: m.start()]
+        if P_BOUND.search(before):  # "p < 0,0001": some published p-value is below the bound
+            if not any(0 <= value < written * scale for value in numbers):
+                issues.append({"kind": "number", "value": m[0].strip()})
+            continue
+        signed = any(s in "-−" for s in (m["sign"] + m["sign2"]))
+        direction = DIRECTION.search(before) if not signed else None
+        if signed or (direction and direction["down"]):
             written = -written
-        if not _matches(written, decimals, SCALES.get(unit, 1), unit == "%", numbers):
+        if not _matches(written, decimals, scale, unit == "%", numbers, signed or bool(direction)):
             issues.append({"kind": "number", "value": m[0].strip()})
 
-    for name in sorted(universe - published):
-        # ponytail: only channels the run knows; an invented one ("Meta") is not caught
+    cited = {name.casefold() for name in published}
+    for name in sorted(n for n in universe if n.casefold() not in cited):
+        # ponytail: only channels the run knows; an invented one ("Facebook" in a run without it) is not caught
         if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE):
             issues.append({"kind": "channel", "value": name})
     return issues
