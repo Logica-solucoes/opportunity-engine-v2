@@ -297,27 +297,48 @@ HOLDOUT_FRACTION = 0.2  # the last 20% of the pre-period, out of the fit (A6)
 MIN_HOLDOUT_ROWS = 7
 
 
-def cumulative_p_value(abs_lift: float, forecast) -> tuple[float, float]:
-    """(p-value, cumulative standard error) of a cumulative impact against the forecast's own uncertainty.
+def cumulative_se(fit, steps: int) -> float:
+    """Standard deviation of the sum of the next `steps` forecast errors.
 
-    Shared by the event and its placebo, so both are judged by the same rule. Without a usable standard error the
-    effect cannot be told from noise: p is 1 and the error 0.
+    The errors share the state error at the end of the sample and every level shock before them, so they are
+    correlated: Var(Σe) = c₀ P c₀ᵀ + Σⱼ cⱼ RQRᵀ cⱼᵀ + steps·σ²_ε, with cⱼ = Z(I + T + … + T^(steps-1-j)) the weight of
+    the state shock entering at step j. Summing the per-step variances understates it by about half.
     """
-    se = np.asarray(forecast.se_mean, dtype=float)
-    se = se[np.isfinite(se)]
-    cum_se = float(np.sqrt(np.sum(se**2))) if se.size else 0.0
+    ssm = fit.model.ssm
+    design, transition = ssm["design"][0], ssm["transition"]
+    shock = ssm["selection"] @ ssm["state_cov"] @ ssm["selection"].T
+    weight = design
+    variance = steps * float(ssm["obs_cov"][0, 0])
+    for _ in range(steps - 1):
+        variance += float(weight @ shock @ weight)
+        weight = design + weight @ transition
+    variance += float(weight @ fit.predicted_state_cov[:, :, -1] @ weight)
+    return float(np.sqrt(variance)) if np.isfinite(variance) and variance > 0 else 0.0
+
+
+def cumulative_p_value(abs_lift: float, fit, steps: int) -> tuple[float, float]:
+    """(p-value, cumulative standard error) of a cumulative impact over the `steps` periods forecast by `fit`.
+
+    Shared by the event, its placebo and the robustness test, so all are judged by the same rule. Without a usable
+    standard error the effect cannot be told from noise: p is 1 and the error 0.
+    """
+    cum_se = cumulative_se(fit, steps) if steps else 0.0
     if cum_se > 0:
         return float(2 * stats.norm.sf(abs(abs_lift / cum_se))), cum_se
     return 1.0, 0.0
 
 
-def _fit_state_space(data: pd.DataFrame, features: list[str]):
+def _fit_state_space(data: pd.DataFrame, features: list[str], period_days: int):
+    # a weekly cycle exists only in daily rows: 7 weekly rows are not a cycle, and each seasonal state is one more
+    # diffuse state for a pre-period that may hold only 8 rows
     return sm.tsa.UnobservedComponents(
-        data["kpi"], "llevel", trend=True, seasonal=7, exog=data[features] if features else None
+        data["kpi"], "llevel", seasonal=7 if period_days == 1 else None, exog=data[features] if features else None
     ).fit(disp=False)
 
 
-def placebo_p_value(pre: pd.DataFrame, features: list[str], post_len: int, min_pre_periods: int) -> float | None:
+def placebo_p_value(
+    pre: pd.DataFrame, features: list[str], post_len: int, min_pre_periods: int, period_days: int = 1
+) -> float | None:
     """p-value of a fake intervention halfway through the pre-period; None when the pre-period is too short for it.
 
     The event's model fitted on the first half and read over the next `post_len` rows: a sound counterfactual finds
@@ -328,45 +349,51 @@ def placebo_p_value(pre: pd.DataFrame, features: list[str], post_len: int, min_p
     if half < min_pre_periods or len(pre) - half < post_len:
         return None
     fit_part, window = pre.iloc[:half], pre.iloc[half : half + post_len]
-    forecast = _fit_state_space(fit_part, features).get_forecast(steps=len(window), exog=window[features])
+    fit = _fit_state_space(fit_part, features, period_days)
+    forecast = fit.get_forecast(steps=len(window), exog=window[features])
     impact = float((window["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
-    return cumulative_p_value(impact, forecast)[0]
+    return cumulative_p_value(impact, fit, len(window))[0]
 
 
-def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int) -> float | None:
+def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int, period_days: int = 1) -> float | None:
     """Σ|y − ŷ| / Σ|y| of the event's model on the last HOLDOUT_FRACTION of the pre-period, left out of the fit."""
     held = int(round(len(pre) * HOLDOUT_FRACTION))
     train = len(pre) - held
     if train < min_pre_periods or held < MIN_HOLDOUT_ROWS:
         return None
     fit_part, holdout = pre.iloc[:train], pre.iloc[train:]
-    forecast = _fit_state_space(fit_part, features).get_forecast(steps=held, exog=holdout[features])
+    forecast = _fit_state_space(fit_part, features, period_days).get_forecast(steps=held, exog=holdout[features])
     actual = holdout["kpi"].to_numpy()
     total = float(np.abs(actual).sum())
     return float(np.abs(actual - np.asarray(forecast.predicted_mean)).sum() / total) if total else None
 
 
-def baseline_only_test(pre: pd.DataFrame, post: pd.DataFrame, baseline_features: list[str]) -> tuple[float, float]:
+def baseline_only_test(
+    pre: pd.DataFrame, post: pd.DataFrame, baseline_features: list[str], period_days: int = 1
+) -> tuple[float, float]:
     """(p-value, signed cumulative impact) of the event under the same model without the media features.
 
     A lift that is significant only with them is the model extrapolating its own coefficients onto a spend spike
     (they can be pure noise), not a response seen in the KPI.
     """
     exog = post[baseline_features] if baseline_features else None
-    forecast = _fit_state_space(pre, baseline_features).get_forecast(steps=len(post), exog=exog)
+    fit = _fit_state_space(pre, baseline_features, period_days)
+    forecast = fit.get_forecast(steps=len(post), exog=exog)
     impact = float((post["kpi"].to_numpy() - np.asarray(forecast.predicted_mean)).sum())
-    return cumulative_p_value(impact, forecast)[0], impact
+    return cumulative_p_value(impact, fit, len(post))[0], impact
 
 
-def _diagnostics(pre: pd.DataFrame, post: pd.DataFrame, features: list[str], media: set[str], min_pre_periods: int):
+def _diagnostics(
+    pre: pd.DataFrame, post: pd.DataFrame, features: list[str], media: set[str], min_pre_periods: int, period_days: int
+):
     """A6's three extra fits: the placebo, the out-of-sample WMAPE and the test without the media features."""
-    placebo = placebo_p_value(pre, features, len(post), min_pre_periods)
+    placebo = placebo_p_value(pre, features, len(post), min_pre_periods, period_days)
     if placebo is None:
         log.warning("   - Placebo não rodou: o pré-período é curto demais para a intervenção falsa.")
-    robust_p, robust_lift = baseline_only_test(pre, post, [f for f in features if f not in media])
+    robust_p, robust_lift = baseline_only_test(pre, post, [f for f in features if f not in media], period_days)
     return {
         "placebo_p_value": placebo,  # None: the pre-period is too short for a placebo
-        "oos_wmape": oos_wmape(pre, features, min_pre_periods),
+        "oos_wmape": oos_wmape(pre, features, min_pre_periods, period_days),
         "robust_p_value": robust_p,
         "robust_lift": robust_lift,
     }
@@ -494,21 +521,33 @@ def run_causal_impact_analysis(
                 selected_features = list(transformed_features.keys())
 
         log.info(f"   - Selected features for causal model: {selected_features}")
-        model = _fit_state_space(pre_data_for_model, selected_features)
+        model = _fit_state_space(pre_data_for_model, selected_features, period_days)
 
-        in_sample_preds = model.get_prediction(exog=pre_data_for_model[selected_features]).predicted_mean
-        mae = np.mean(np.abs(pre_data_for_model["kpi"] - in_sample_preds))
-        mape = (mae / pre_data_for_model["kpi"].mean()) * 100 if pre_data_for_model["kpi"].mean() > 0 else 0
-        ss_res = np.sum((pre_data_for_model["kpi"] - in_sample_preds) ** 2)
-        ss_tot = np.sum((pre_data_for_model["kpi"] - np.mean(pre_data_for_model["kpi"])) ** 2)
+        # the first predictions come from the diffuse start (0, 0, …), not from the model
+        accuracy_df = pre_data_for_model[["kpi"]].copy()
+        accuracy_df["Predicted"] = model.get_prediction(exog=pre_data_for_model[selected_features]).predicted_mean
+        accuracy_df = accuracy_df.iloc[model.loglikelihood_burn :]
+        actual, in_sample_preds = accuracy_df["kpi"], accuracy_df["Predicted"]
+        mae = np.mean(np.abs(actual - in_sample_preds))
+        mape = (mae / actual.mean()) * 100 if actual.mean() > 0 else 0
+        ss_res = np.sum((actual - in_sample_preds) ** 2)
+        ss_tot = np.sum((actual - np.mean(actual)) ** 2)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
+        accuracy_df = accuracy_df.reset_index().tail(90)
 
-        accuracy_df = pre_data_for_model.copy()
-        accuracy_df["Predicted"] = in_sample_preds
-        accuracy_df = accuracy_df[["kpi", "Predicted"]].reset_index().tail(90)
+        # The counterfactual cannot see the treated spend after the event: that spend is the intervention. It holds
+        # at its pre-period mean, carried through the same adstock and Hill as the model.
+        post_exog = post_data[selected_features].copy()
+        before_event = model_data.index < post_data.index[0]
+        for channel in event_channels:
+            feature = f"{channel.replace(' ', '_')}_transformed"
+            if feature in post_exog:
+                held = model_data[channel].where(before_event, pre_data_for_model[channel].mean())
+                transformed = hill_transform(geometric_decay(held, best_alpha), best_k, best_s)
+                post_exog[feature] = pd.Series(transformed, index=model_data.index).loc[post_data.index]
 
-        forecast = model.get_forecast(steps=len(post_data), exog=post_data[selected_features])
+        forecast = model.get_forecast(steps=len(post_data), exog=post_exog)
         predicted_mean = forecast.predicted_mean
 
         impact_df = post_data[["kpi"]].copy()
@@ -519,16 +558,8 @@ def run_causal_impact_analysis(
         abs_lift = impact_df["impact"].sum()
         rel_lift = (abs_lift / predicted_mean.sum()) * 100 if predicted_mean.sum() != 0 else 0
 
-        # Significance from the state-space model's OWN forecast uncertainty,
-        # not a one-sample t-test on the daily impacts. The daily impacts are
-        # autocorrelated forecast residuals whose error grows with the horizon;
-        # a t-test treats the ~14 days as i.i.d. samples of a mean, inflating the
-        # effective N and understating the p-value (false significance). Here we
-        # test the CUMULATIVE impact against the forecast's cumulative standard
-        # error (se_mean grows with horizon), which is the counterfactual's real
-        # noise band. Cumulative SE ~ sqrt(sum se_t^2) treats the per-step errors
-        # as independent -- an approximation, but far sounder than the t-test.
-        p_value, cum_se = cumulative_p_value(abs_lift, forecast)
+        # the cumulative impact against the forecast's own joint uncertainty, not a t-test on autocorrelated residuals
+        p_value, cum_se = cumulative_p_value(abs_lift, model, len(post_data))
         impact_ci_lower = abs_lift - 1.96 * cum_se
         impact_ci_upper = abs_lift + 1.96 * cum_se
 
@@ -647,7 +678,12 @@ def run_causal_impact_analysis(
         }
         if contested is None or contested(results_dict):
             results_dict |= _diagnostics(
-                pre_data_for_model, post_data, selected_features, set(transformed_features), min_pre_periods
+                pre_data_for_model,
+                post_data,
+                selected_features,
+                set(transformed_features),
+                min_pre_periods,
+                period_days,
             )
 
         return (

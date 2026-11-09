@@ -54,7 +54,10 @@ def noise_run(request, tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def injected_run(tmp_path_factory):
-    return _module_run(tmp_path_factory, "injected", dataset_config(), with_a_pulse_in_the_pre_period)
+    # the pulse widens the counterfactual's joint error band until the event itself is not significant, and the
+    # placebo only runs for an event the primary gates kept
+    config = {**dataset_config(), "require_statistical_significance": False}
+    return _module_run(tmp_path_factory, "injected", config, with_a_pulse_in_the_pre_period)
 
 
 @pytest.fixture(scope="module")

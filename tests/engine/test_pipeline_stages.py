@@ -37,6 +37,7 @@ def test_gates_record_their_reasons(tmp_path):
     assert events and not any(e.passed for e in events)
     assert any("not_significant" in e.reasons for e in events)
     assert not any(e.selected for e in events)
+    assert not any("placebo_p_value" in e.results_data for e in events if e.results_data)  # no A6 fits once out
 
 
 def test_selected_is_capped_by_max_events_to_analyze(tmp_path):
@@ -183,7 +184,7 @@ def test_the_extra_a6_fits_run_only_for_events_the_primary_gates_kept(synthetic_
     analysed = [e for e in synthetic_computed.events if e.results_data]
     kept = [e for e in analysed if not set(e.reasons) - later]
 
-    assert kept and len(kept) < len(analysed)
+    assert kept  # the rejected side (no extra fits) is checked in test_gates_record_their_reasons
     for event in analysed:
         diagnosed = {"placebo_p_value", "oos_wmape", "robust_p_value"} <= event.results_data.keys()
         assert diagnosed == (event in kept), event.event_id
