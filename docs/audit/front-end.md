@@ -7,7 +7,7 @@
 - Ao fechar cada tarefa: invocar `web-design-guidelines` nos arquivos tocados (busca as regras do Vercel e devolve `arquivo:linha`); ignorar "Title Case" (pt-BR usa sentence case).
 - `design-taste-frontend`: só para tipografia (Geist), cor (um acento, neutros frios, sem roxo/gradiente), raio único, sombra tintada, cards só com hierarquia e contraste. Dashboards estão fora do escopo dela: ignorar hero, eyebrow, marquee, bento, motion pesado.
 - Componentes: MCP `shadcn` (`.mcp.json`) antes de montar bloco; só primitivo de `web/src/components/ui/`.
-- Verificar: screenshot claro e escuro (script em `audit/` não versionado: ver `docs/status.md`), `bun run build`, `bun run lint`.
+- Verificar: screenshot claro e escuro (`node tools/audit-shots.mjs`, saída em `audit/`, fora do git), `bun run build`, `bun run lint`.
 
 Base: screenshots em `audit/` (1440×900, `fullPage`, claro e escuro), banco de dev, run 7 no motor real (Gol, `inconclusive`). **Revisados a olho: só o tema claro**; o escuro foi gerado e falta conferir. Pendente de aprovação do usuário antes de qualquer edição. Itens 1–10 de "Caça visual" em `docs/status.md` seguem valendo; abaixo só o que os screenshots acrescentam.
 
