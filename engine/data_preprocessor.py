@@ -23,24 +23,30 @@ def iqr_bounds(series):
     return Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
 
 
+OUTLIER_WINDOW = 7  # periods; a run of 4 or more is part of the baseline, so a post window of 4+ periods survives
+
+
 def treat_outliers(df, column):
-    """Identifies and caps outliers in a specified column using the 1.5 * IQR rule."""
-    lower_bound, upper_bound = iqr_bounds(df[column])
-    df[column] = np.where(df[column] > upper_bound, upper_bound, df[column])
-    df[column] = np.where(df[column] < lower_bound, lower_bound, df[column])
+    """Caps the rows of `column` (in date order) whose distance to a centred rolling median is outside the 1.5 * IQR
+    fences of those distances. Fences on the raw series would cut every real lift and level shift."""
+    values = df[column]
+    baseline = values.rolling(OUTLIER_WINDOW, center=True, min_periods=1).median()
+    lower, upper = iqr_bounds(values - baseline)
+    df[column] = baseline + (values - baseline).clip(lower, upper)
     return df
 
 
-def geometric_decay(series, alpha):
-    """Applies geometric decay for ad-stock."""
-    return series.ewm(alpha=alpha, adjust=False).mean()
+def ewm_smooth(series, weight):
+    """y_t = weight * x_t + (1 - weight) * y_{t-1}: `weight` is the share of today, not the carry-over
+    (analysis.geometric_decay is the unnormalized one, where alpha is the carry-over)."""
+    return series.ewm(alpha=weight, adjust=False).mean()
 
 
 def find_best_alpha(investment_series, kpi_series):
-    """Finds the best adstock alpha for a single channel."""
+    """Finds the best ewm_smooth weight for a single channel."""
     correlations = {}
     for alpha in np.arange(0.1, 1.0, 0.1):
-        adstocked_series = geometric_decay(investment_series, alpha)
+        adstocked_series = ewm_smooth(investment_series, alpha)
         correlations[alpha] = adstocked_series.corr(kpi_series)
 
     best_alpha = max(correlations, key=correlations.get)
@@ -213,7 +219,9 @@ def detect_cadence(dates):
       - <= 1.5 dia    -> 1  (diário)
       - 6 a 8 dias    -> 7  (semanal; tolera feriados/re-ancoramentos que
                              deslocam o dia da semana em +-1 dia)
-      - 27 a 31 dias  -> 30 (mensal; cobre a variação natural de dias no mês)
+      - mais de 28 até 31 dias -> 30 (mensal; a mediana de meses de calendário
+                             nunca é 28, e 28 exato é dado de 4 semanas, que
+                             fica 28 e não ganha o fator de um mês)
     Fora dessas faixas, retorna a mediana bruta arredondada (ex: cadência
     quinzenal ~14 dias não tem faixa própria e sai como valor bruto,
     conforme pedido no plano: "ou valor bruto se não bater em nenhum").
@@ -234,7 +242,7 @@ def detect_cadence(dates):
         return 1
     if 6 <= median_days <= 8:
         return 7
-    if 27 <= median_days <= 31:
+    if 28 < median_days <= 31:
         return 30
     return int(round(median_days))
 
@@ -334,6 +342,16 @@ def parse_investment_columns(df, date_col, channel_col, investment_col, date_for
     return df, investment_raw_values
 
 
+def _merge_dates(df, date_col):
+    """One row per date (and channel): numbers summed, any other column keeps its first value."""
+    keys = [date_col] + [c for c in ("Product Group",) if c in df.columns]
+    numeric = [c for c in df.select_dtypes("number").columns if c not in keys]
+    how = {c: ("sum" if c in numeric else "first") for c in df.columns if c not in keys}
+    if not how:
+        return df.drop_duplicates(keys).reset_index(drop=True)
+    return df.groupby(keys, sort=False, as_index=False).agg(how)[list(df.columns)]
+
+
 def drop_partial_periods(df, date_col, cadence):
     """
     Descarta linhas cuja data representa um período "parcial" (mais curto
@@ -347,7 +365,9 @@ def drop_partial_periods(df, date_col, cadence):
     uma data extra entre duas datas normais), as duas datas vizinhas à data
     extra também ficam com só UM dos lados curto -- mas elas não são
     parciais, é a data espremida entre as duas que é. Exigir os dois lados
-    curtos isola corretamente só essa data extra.
+    curtos isola corretamente só essa data extra. Ela não é apagada: é o
+    segundo pedaço do período da data anterior (os rótulos são o início do
+    período), então seus valores são somados nessa data.
 
     Nas pontas da série (primeira/última data), só existe um vizinho para
     comparar, então a checagem usa só a distância disponível (ex: um
@@ -388,6 +408,25 @@ def drop_partial_periods(df, date_col, cadence):
     if not stub_dates:
         log.debug(f"   - Nenhum período parcial encontrado (cadência={cadence} dia(s), limiar={threshold:.1f} dia(s)).")
         return df.reset_index(drop=True)
+
+    # A stub in the middle is the second piece of a period the export cut in two (at 1/1): the date before it starts
+    # the same period, so it is summed there instead of leaving that date holding a fraction of a period.
+    kept_dates = unique_dates[~unique_dates.isin(stub_dates)]
+    merged_into = {}
+    for d in stub_dates:
+        before = kept_dates[kept_dates < d]
+        if d < unique_dates.iloc[-1] and not before.empty:
+            merged_into[d] = before.max()
+    if merged_into:
+        log.info(
+            "   - Períodos partidos somados ao período anterior: "
+            + ", ".join(f"{d:%d/%m/%Y} → {to:%d/%m/%Y}" for d, to in sorted(merged_into.items()))
+        )
+        df = _merge_dates(df.assign(**{date_col: dates.replace(merged_into)}), date_col)
+        dates = pd.to_datetime(df[date_col])
+        stub_dates = [d for d in stub_dates if d not in merged_into]
+        if not stub_dates:
+            return df
 
     mask = dates.isin(stub_dates)
     dropped_str = ", ".join(pd.Timestamp(d).strftime("%d/%m/%Y") for d in sorted(stub_dates))
@@ -823,6 +862,7 @@ def load_and_prepare_data(config, paths):
         outlier_config = config["treat_outliers"]
         if outlier_config:
             log.info("   - Applying outlier treatment...")
+            kpi_df = kpi_df.sort_values("Date").reset_index(drop=True)
             if isinstance(outlier_config, list):
                 # Treat specific columns listed in config
                 for col in outlier_config:
@@ -864,7 +904,7 @@ def load_and_prepare_data(config, paths):
             if column in correlation_matrix and correlation_matrix[column][kpi_col] < 0:
                 log.info(f"     - Applying adstock to '{column}' due to negative correlation.")
                 best_alpha, _ = find_best_alpha(merged_for_corr[column], merged_for_corr[kpi_col])
-                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = geometric_decay(
+                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = ewm_smooth(
                     daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"],
                     best_alpha,
                 )
