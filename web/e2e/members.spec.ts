@@ -19,7 +19,7 @@ test('analyst gets a temp password, logs in and lands on the only workspace', as
   await analystPage.goto('/admin/workspaces')
   await expect(analystPage.getByText('Página não encontrada.')).toBeVisible()
   await analystPage.goto(`/w/${slug}/membros`)
-  await expect(analystPage.getByText('Sem permissão')).toBeVisible()
+  await expect(analystPage.getByText('Sem permissão', { exact: true })).toBeVisible()
 })
 
 test('five wrong passwords lock the account', async ({ page, browser }) => {
@@ -46,7 +46,7 @@ test('workspace admin changes a role and removes a member', async ({ page }) => 
     pick(row.getByRole('combobox', { name: 'Papel' }), 'Analista'),
   ])
   await page.reload()
-  await expect(page.getByRole('row', { name: new RegExp(member.email) }).getByRole('combobox', { name: 'Papel' })).toHaveValue('analyst')
+  await expect(page.getByRole('row', { name: new RegExp(member.email) }).getByRole('combobox', { name: 'Papel' })).toHaveText(/Analista/)
 
   await page
     .getByRole('row', { name: new RegExp(member.email) })
@@ -107,7 +107,7 @@ test('the role select stays disabled while the change is saving', async ({ page 
   await expect(select).toBeDisabled()
   release()
   await expect(select).toBeEnabled()
-  await expect(select).toHaveValue('analyst')
+  await expect(select).toHaveText(/Analista/)
 })
 
 test('a member removed mid-session sees not found and loses the workspace in the header', async ({ page, browser }) => {

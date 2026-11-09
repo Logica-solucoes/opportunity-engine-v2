@@ -67,7 +67,7 @@ test('platform admin configures, edits and removes the google connector', async 
   await expect(row.getByText('configurado')).toBeVisible()
   await row.getByRole('button', { name: 'Conector Google' }).click()
   await expect(page.getByLabel('Customer ids')).toHaveValue('1234567890, 2222222222')
-  await expect(page.getByLabel('Métrica')).toHaveValue('revenue')
+  await expect(page.getByRole('combobox', { name: 'Métrica' })).toHaveText(/Receita/)
 
   await page.getByLabel('Customer ids').fill('1234567890, 1234567890')
   await page.getByRole('button', { name: 'Salvar' }).click()

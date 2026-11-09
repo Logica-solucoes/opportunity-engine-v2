@@ -61,7 +61,7 @@ test('the causal tab downloads the events csv and prints with the run header', a
   await expect(page.getByRole('link', { name: 'Baixar CSV' })).toBeHidden()
   await expect(page.getByRole('region', { name: 'Evento selecionado' }).locator('.recharts-surface').first()).toBeVisible()
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(255, 255, 255)')
-  expect(await page.evaluate(() => getComputedStyle(document.body).color)).toBe('rgb(32, 33, 36)')
+  expect(await page.evaluate(() => getComputedStyle(document.body).color)).toBe('rgb(28, 31, 38)')
   await expect.poll(() => chartsPastTheEdge(page)).toBe(0)
   await savePdf(page, 'causal.pdf')
 })
