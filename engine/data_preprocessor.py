@@ -790,8 +790,8 @@ def guess_kpi_col(file_path, user_kpi):
 @dataclass
 class PreparedData:
     kpi_df: pd.DataFrame
-    investment_df: pd.DataFrame  # the adstock already applied to channels that move against the KPI
-    spend_df: pd.DataFrame  # the same spend before that adstock: what was actually spent (A6 measures its variation)
+    investment_df: pd.DataFrame  # the spend as sent (PRE-6 removed the negative-correlation adstock)
+    spend_df: pd.DataFrame  # the same spend: kept apart so a future transform cannot leak into what A6 and the MMM read
     trends_df: pd.DataFrame
     controls_df: pd.DataFrame  # Date plus the bcb series asked in config["controls"] (empty without them)
     correlation_matrix: pd.DataFrame
@@ -819,7 +819,7 @@ def load_and_prepare_data(config, paths):
             if check.level == "error":
                 raise EngineError(check.message, check.id)
         kpi_df, trends_df = raw.kpi_df, raw.trends_df
-        # before partial periods and the negative-correlation adstock: from here on a group is a plain channel
+        # before partial periods: from here on a group is a plain channel
         daily_investment_df = apply_channel_groups(raw.investment_df, config["channel_groups"])
         controls_df = read_controls(paths.get("bcb_file"), config["controls"])
 

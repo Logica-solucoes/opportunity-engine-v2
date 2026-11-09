@@ -344,7 +344,10 @@ def fit_media_params(spend, lift):
         # whole data -- "saturation" stops being modeled at all. Capping s near
         # the historical max keeps the inflection inside the range the curve is
         # actually calibrated against.
-        + [(spend[col].mean() * HILL_S_MIN_OF_MEAN, max(spend[col].max() * 3, spend[col].mean() * 2)) for col in spend.columns]
+        + [
+            (spend[col].mean() * HILL_S_MIN_OF_MEAN, max(spend[col].max() * 3, spend[col].mean() * 2))
+            for col in spend.columns
+        ]
     )
     initial_params = [0.5] * n + [1.0] * n + [spend[col].mean() for col in spend.columns]
 
@@ -655,6 +658,8 @@ def generate_aggregated_response_curve(
     mkt_model = elasticity_results["model"]
     mkt_scaler = elasticity_results["scaler"]
     organic_baseline_mean = elasticity_results["organic_baseline_mean"]
+    # the band's level varies per resample; a hand-built MMM without samples keeps the fixed level
+    band_level = elasticity_results.get("baseline_samples", organic_baseline_mean)
 
     avg_daily_spend = {col: df[col].mean() for col in active_spend_cols}
     total_avg_daily_spend = sum(avg_daily_spend.values())
@@ -728,7 +733,7 @@ def generate_aggregated_response_curve(
             simulated_daily_spend = _capped_channel_spend(total_spend * mix.get(col, 0), col)
             simulated_adstocked = simulated_daily_spend * adstock_multipliers[col]
             mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
-        return kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features)
+        return kpi_band(band_level, coef_samples, mkt_scaler, mkt_features)
 
     def is_extrapolated(total_spend, mix):
         # outside the observed spend, total or any channel's share of it (A8)
@@ -1058,6 +1063,8 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
     mkt_model = elasticity_results["model"]
     mkt_scaler = elasticity_results["scaler"]
     organic_baseline_mean = elasticity_results["organic_baseline_mean"]
+    # the band's level varies per resample; a hand-built MMM without samples keeps the fixed level
+    band_level = elasticity_results.get("baseline_samples", organic_baseline_mean)
 
     avg_daily_spend = {col: df[col].mean() for col in active_spend_cols}
     historical_max_daily_spend = {col: df[col].max() for col in active_spend_cols}
@@ -1104,7 +1111,7 @@ def generate_individual_response_curves(elasticity_results, config, output_dir=N
                 mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
 
             predicted_kpi = predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
-            kpi_lo, kpi_hi = kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features)
+            kpi_lo, kpi_hi = kpi_band(band_level, coef_samples, mkt_scaler, mkt_features)
             observed = historical_min_daily_spend[target_channel] <= spend <= historical_max_daily_spend[target_channel]
             individual_curves.append(
                 {

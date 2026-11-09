@@ -111,6 +111,7 @@ const REASON_LABELS: Record<string, string> = {
   coef_ci_includes_zero: 'O intervalo do efeito inclui zero',
   coef_ci_too_wide: 'O intervalo do efeito é largo demais',
   collinearity: 'Investimento colinear com outro canal',
+  hill_at_bound: 'O canal nunca ficou sem investimento e a curva não se firmou: efeito não medido a partir de zero',
   short_history: 'Histórico curto demais para desenhar um experimento (menos de 30 períodos)',
   degenerate_kpi: 'O KPI não varia o bastante para estimar o ruído',
   duration_capped: 'Nem no prazo máximo o teste detecta o efeito-alvo',
