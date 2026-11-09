@@ -35,6 +35,7 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
     )
   const elasticity = query.data.elasticity
   const report = query.data.reports?.global
+  const parsed = (report?.scenarios ?? []).map((s) => ({ ...s, metric: parseScenario(s.analysis) }))
   const refused = !!elasticity && scenarioRefused(elasticity)
   return (
     <section aria-label="Elasticidade" className="space-y-5">
@@ -42,9 +43,11 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
       {report && !refused && (
         <NarrativeCard
           report={report}
-          paragraphs={[report.summary, ...report.scenarios.map((s) => `${s.name}: ${s.analysis}`)]}
+          paragraphs={[report.summary, ...parsed.filter((p) => !p.metric).map((p) => `${p.name}: ${p.analysis}`)]}
           items={report.recommendations}
-        />
+        >
+          <ScenarioMetrics scenarios={parsed} />
+        </NarrativeCard>
       )}
       {!elasticity ? (
         <Empty className="border">
@@ -68,6 +71,32 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
         </div>
       )}
     </section>
+  )
+}
+
+// "Investimento mensal de R$ 1,00 e Vendas de 2 (faixa de 3 a 4)": the strings are the payload's, only split for layout
+const SCENARIO_TEXT = /^Investimento mensal de (.+?) e (.+?) de (.+?) \(faixa de (.+?) a (.+?)\)\.?$/
+function parseScenario(text: string) {
+  const m = SCENARIO_TEXT.exec(text.trim())
+  return m && { investment: m[1], kpi: m[2], value: m[3], lo: m[4], hi: m[5] }
+}
+
+function ScenarioMetrics({ scenarios }: { scenarios: { name: string; metric: ReturnType<typeof parseScenario> }[] }) {
+  const shown = scenarios.filter((s) => s.metric)
+  if (shown.length === 0) return null
+  return (
+    <div className="grid gap-3 pt-1 sm:grid-cols-3">
+      {shown.map(({ name, metric: m }) => (
+        <div key={name} className="space-y-0.5 rounded-lg bg-muted/50 px-3 py-2.5">
+          <p className="text-xs font-medium text-muted-foreground">{name}</p>
+          <p className="text-xl font-semibold tabular-nums tracking-tight">{m!.value}</p>
+          <p className="text-xs text-muted-foreground">
+            {m!.kpi} · faixa {m!.lo} a {m!.hi}
+          </p>
+          <p className="text-xs tabular-nums text-muted-foreground">Investimento mensal {m!.investment}</p>
+        </div>
+      ))}
+    </div>
   )
 }
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Info } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,10 +10,12 @@ export function NarrativeCard({
   report,
   paragraphs,
   items,
+  children,
 }: {
   report: ReportBase
   paragraphs: string[]
   items: string[]
+  children?: ReactNode
 }) {
   return (
     <Card role="region" aria-label="Análise" size="sm" className="break-inside-avoid">
@@ -37,6 +40,7 @@ export function NarrativeCard({
         {paragraphs.filter(Boolean).map((p, n) => (
           <p key={`${n}-${p}`}>{p}</p>
         ))}
+        {children}
         {items.length > 0 && (
           <ul className="list-disc space-y-1 pl-5">
             {items.map((i, n) => (

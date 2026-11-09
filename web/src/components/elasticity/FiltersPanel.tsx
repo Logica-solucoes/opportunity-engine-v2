@@ -8,14 +8,14 @@ import { formatDecimal, formatInteger, formatMoney, formatPct } from '@/lib/resu
 import { FILTER_LABELS, type Filters } from '@/lib/scenario'
 
 type Key = keyof Filters
-// [key, label, revenue mode only, how the printed summary shows it]
-const FIELDS: [Key, string, boolean, (v: number) => string][] = [
-  ['target_cpa', FILTER_LABELS.target_cpa, false, formatMoney],
-  ['target_icpa', FILTER_LABELS.target_icpa, false, formatMoney],
-  ['min_roas', FILTER_LABELS.min_roas, true, formatDecimal],
-  ['min_iroas', FILTER_LABELS.min_iroas, true, formatDecimal],
-  ['min_kpi', FILTER_LABELS.min_kpi, false, formatInteger],
-  ['min_incrementality_pct', FILTER_LABELS.min_incrementality_pct, false, formatPct],
+// [key, label, revenue mode only, how the printed summary shows it, prefix, suffix, placeholder]
+const FIELDS: [Key, string, boolean, (v: number) => string, string?, string?, string?][] = [
+  ['target_cpa', FILTER_LABELS.target_cpa, false, formatMoney, 'R$', undefined, '0,00'],
+  ['target_icpa', FILTER_LABELS.target_icpa, false, formatMoney, 'R$', undefined, '0,00'],
+  ['min_roas', FILTER_LABELS.min_roas, true, formatDecimal, undefined, 'x', '0,00'],
+  ['min_iroas', FILTER_LABELS.min_iroas, true, formatDecimal, undefined, 'x', '0,00'],
+  ['min_kpi', FILTER_LABELS.min_kpi, false, formatInteger, undefined, undefined, '0'],
+  ['min_incrementality_pct', FILTER_LABELS.min_incrementality_pct, false, formatPct, undefined, '%', '0'],
 ]
 
 type Props = {
@@ -36,7 +36,12 @@ export function FiltersPanel({ filters, onChange, bounds, revenueMode, errors }:
         <CardTitle className="text-sm">Filtros</CardTitle>
         <CardDescription className="text-xs">Valores mensais</CardDescription>
         <CardAction>
-          <Button variant="ghost" size="xs" onClick={() => onChange({})}>
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={Object.values(filters).every((v) => v == null)}
+            onClick={() => onChange({})}
+          >
             Limpar
           </Button>
         </CardAction>
@@ -58,19 +63,33 @@ export function FiltersPanel({ filters, onChange, bounds, revenueMode, errors }:
             </p>
           </div>
         )}
-        {FIELDS.filter(([, , revenueOnly]) => revenueMode || !revenueOnly).map(([key, label]) => (
+        {FIELDS.filter(([, , revenueOnly]) => revenueMode || !revenueOnly).map(([key, label, , , prefix, suffix, placeholder]) => (
           <div key={key} className="space-y-1.5">
             <Label htmlFor={key}>{label}</Label>
-            <Input
-              id={key}
-              type="number"
-              inputMode="decimal"
-              autoComplete="off"
-              min={0}
-              className="tabular-nums"
-              value={filters[key] ?? ''}
-              onChange={(e) => set(key, e.target.value === '' ? undefined : Number(e.target.value))}
-            />
+            <div className="relative">
+              {prefix && (
+                <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-xs text-muted-foreground">
+                  {prefix}
+                </span>
+              )}
+              <Input
+                id={key}
+                name={key}
+                type="number"
+                inputMode="decimal"
+                autoComplete="off"
+                min={0}
+                placeholder={placeholder}
+                className={`tabular-nums placeholder:text-muted-foreground/50 ${prefix ? 'pl-8' : ''} ${suffix ? 'pr-7' : ''}`}
+                value={filters[key] ?? ''}
+                onChange={(e) => set(key, e.target.value === '' ? undefined : Number(e.target.value))}
+              />
+              {suffix && (
+                <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs text-muted-foreground">
+                  {suffix}
+                </span>
+              )}
+            </div>
           </div>
         ))}
         {errors.length > 0 && (

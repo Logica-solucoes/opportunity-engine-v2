@@ -37,12 +37,12 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
         <CardDescription className="text-xs">Valores mensais</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Table className="tabular-nums">
+        <Table className="tabular-nums [&_td]:px-2 [&_th]:px-2">
           <TableHeader>
             <Row>
-              <TableHead />
+              <TableHead className="w-24" />
               {columns.map(([name, r]) => (
-                <TableHead key={name} className="text-right">
+                <TableHead key={name} className="whitespace-normal text-right">
                   {name} {r?.extrapolated && <Badge variant="warning">extrapolado</Badge>}
                 </TableHead>
               ))}
@@ -51,10 +51,23 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
           <TableBody>
             {lines.map(([label, show]) => (
               <Row key={label}>
-                <TableCell className="text-muted-foreground">{label}</TableCell>
+                <TableCell className="whitespace-normal text-muted-foreground">{label}</TableCell>
                 {columns.map(([name, r]) => (
-                  <TableCell key={name} className="text-right">
-                    {r ? show(r) : label === 'Investimento' ? 'Nenhum ponto da curva atende aos filtros' : ''}
+                  <TableCell key={name} className="whitespace-normal text-right">
+                    {r ? (
+                      show(r)
+                        .split(' – ')
+                        .map((part, i) => (
+                          <span key={i} className="block">
+                            {i > 0 && '– '}
+                            {part}
+                          </span>
+                        ))
+                    ) : label === 'Investimento' ? (
+                      'Nenhum ponto da curva atende aos filtros'
+                    ) : (
+                      ''
+                    )}
                   </TableCell>
                 ))}
               </Row>
