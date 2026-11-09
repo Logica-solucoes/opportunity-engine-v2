@@ -362,9 +362,31 @@ _RULES = [
 ]
 
 
+_NP_SCALAR = re.compile(r"np\.(?:float|int)\d*\(([-+\d.eE]+)\)")
+_PY_DICT = re.compile(r"\{([^{}]*)\}")
+
+
+def _pt_number(text: str) -> str:
+    return f"{float(text):.2f}".replace(".", ",")
+
+
+def _dict_text(m: re.Match) -> str:
+    items = re.findall(r"'([^']*)':\s*(?:np\.\w+\()?([-+\d.eE]+)\)?", m.group(1))
+    if not items:
+        return m.group(0)
+    return ", ".join(f"{k}: {_pt_number(v)}" for k, v in items)
+
+
+def _plain_python(text: str) -> str:
+    """Python reprs (`np.float64(0.61)`, `{'A': 0.61}`) leak from f-strings of numpy values; show them as pt-BR text."""
+    text = _PY_DICT.sub(_dict_text, text)
+    return _NP_SCALAR.sub(lambda m: _pt_number(m.group(1)), text)
+
+
 def translate_line(line: str) -> str | None:
     if not line.strip():
         return line
+    line = _plain_python(line)
     for pattern, template in _RULES:
         m = re.search(pattern, line)
         if m:

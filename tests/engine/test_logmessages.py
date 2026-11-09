@@ -123,3 +123,9 @@ def test_english_elasticity_lines_are_translated_and_windows_paths_hidden(receiv
         ("info", "   - Contribuição total de marketing: 15,756,327.43 (149.05% do total)"),
         ("warning", "Falha ao ler dados.csv agora"),
     ]
+
+
+def test_translate_line_numpy_scalar_and_dict_reprs():
+    line = "   - Calculated channel investment proportions: {'YOUTUBE': np.float64(0.6145), 'META': 0.3855}"
+    assert translate_line(line) == "   - Proporção de investimento calculada por canal: YOUTUBE: 0,61, META: 0,39"
+    assert translate_line("x np.float64(1.5) y") == "x 1,50 y"
