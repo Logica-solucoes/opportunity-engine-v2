@@ -15,7 +15,7 @@ identifiable synthetic no event). Add one when a dataset gets there.
 
 What a screen can assume
 - Read `status` and `reasons` (run level, per section, per event); never recompute a gate.
-- `null` means "not produced": `experiment_design` (A7; `inconclusive` runs carry it since A7, but these fixtures were not regenerated yet, so they still have `null`); `placebo.passed` is `null` when the
+- `null` means "not produced": `experiment_design` (A7; filled on the `inconclusive` fixtures since their 08/nov/2026 regeneration, `null` on `falha.json`); `placebo.passed` is `null` when the
   pre-period was too short to run it; `placebo`, `robustness` and `fit.wmape` are `null` on an event the primary
   gates (significance, direction, fit) already rejected, since those fits only run for events still in contention.
 - A hidden channel's spend is pooled under `"Não identificados"` in every mix.
