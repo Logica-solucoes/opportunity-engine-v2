@@ -9,6 +9,7 @@ Como ler:
 - Os ids repetem entre áreas (há um `F1` no MMM e outro no planner). Cite sempre a área junto com o id.
 - `arquivo:linha` se refere ao código em 08/nov/2026. As linhas mudam com qualquer edição.
 - Vários achados são o mesmo defeito visto de áreas diferentes. As referências cruzadas estão marcadas com "ver também".
+- Achado já corrigido traz a linha **Corrigido em …**. Os demais seguem abertos: vários mudam o estimando ou a paridade com o protótipo e dependem da Data Science (A10).
 
 ---
 
@@ -82,11 +83,13 @@ Como ler:
 - Afirmação: o `read_csv_robust` (linha 614) chama o `pd.read_csv` com `decimal='.'`, então `1.500` vira 1.5, e o `robust_numeric_parsing` devolve colunas numéricas sem mexer. Mesmo quando a coluna fica texto (por exemplo com `R$ `), `1.500` não vota em `_digit_group_vote` (linhas 509–511), o empate vai para us e o ponto vira decimal. Abaixo de 1000 fica certo, de 1000 em diante é dividido por 1000. A corrupção não é monotônica, nenhum check dispara, e a API repassa o arquivo cru, então afeta curvas, CPA, baseline e eventos.
 - Evidência: arquivo `;` pt-BR. Só inteiros: `float64 → [850.0, 1.5, 12.3, 2.0]`. Com `R$`: `str → [850.0, 1.5, 12.3, 2.0]`. Com uma linha `2.000,50` a mais: `[850.0, 1500.0, 12300.0, 2000.5]`. O verificador reproduziu com arquivos próprios: o erro depende dos dados e só gera um warning no log.
 - Correção sugerida: ler o CSV com `dtype=str` (pelo menos nas colunas de valor mapeadas) para a detecção sempre rodar. Votar br quando o delimitador for `;` ou quando todo valor com separador casar com `^\d{1,3}(\.\d{3})+$`. Se continuar ambíguo, levantar um check `value_ambiguous_format` em vez de supor us.
+- **Corrigido em 08/nov/2026:** os CSV são lidos com `dtype=str`, e dois ou mais valores no padrão `^[1-9]\d{0,2}(\.\d{3})+$`, sem vírgula na coluna, votam pt-BR (um valor isolado segue ambíguo, US com aviso). Testes em `tests/engine/test_data_preprocessor.py`. Ver `docs/decisoes/engine.md` › `validate`.
 
 **PRE-2 — Investimento e KPI com a mesma cadência mas rótulos de data diferentes não têm data em comum, e nada avisa** — média — `engine/inputs.py:308` — confirmado — chega ao results.json
 - Afirmação: o `cadence_check` só compara as cadências. Gasto semanal com data na segunda e KPI semanal com data no domingo (as mesmas semanas) passam no validate sem nenhum check. Os joins seguintes são por data exata: inner no pré-processamento (`data_preprocessor.py:853`) e no causal, left com `fillna(0)` no MMM (`elasticity_analysis.py:330`), o que zera o KPI. O run termina `inconclusive / no_identifiable_channel` mesmo com o KPI função linear exata do gasto. O usuário recebe um diagnóstico errado.
 - Evidência: `period_days: 7 | common dates KPI x investment: 0`, `validate checks: []`. O `engine.run` com KPI $= 100 + 0.1\cdot$gasto deslocado um dia dá `status: inconclusive`, elasticidade `['no_identifiable_channel']`. O verificador reproduziu e também obteve `causal ['no_event_passed_gates']`.
 - Correção sugerida: depois da poda, medir a fração das datas do KPI presentes no investimento e dar erro (`dates_not_aligned`) abaixo de uns 80%. Opcional: oferecer reancorar os rótulos semanais num mesmo dia da semana.
+- **Corrigido em 08/nov/2026:** check `dates_not_aligned` (erro) quando menos de 80% das datas do KPI, dentro do período do investimento, existem no investimento. Testes em `tests/engine/test_validate_checks.py`.
 
 **PRE-3 — Semana partida na virada do ano mantém um pedaço como período inteiro e gera um evento falso de −57%** — média — `engine/data_preprocessor.py:380` — confirmado — chega ao results.json
 - Afirmação: é o caso que a docstring diz tratar: uma semana em duas linhas (29–31/dez e 1–4/jan). O `drop_partial_periods` apaga só a data do meio e mantém o outro pedaço, com 3/7 da semana, como período completo. Com gasto constante, o `find_events` marca uma queda de −57% nessa data, bem além dos 30% do padrão. Como o KPI também está parcial, o evento "menos gasto → menos KPI" parece coerente. Os 4/7 da semana apagados somem dos totais.

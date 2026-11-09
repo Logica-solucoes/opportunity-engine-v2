@@ -56,7 +56,8 @@ def read_controls(path: Path | None, controls: list[str]) -> pd.DataFrame:
 
 def _read(paths: dict, key: str) -> pd.DataFrame:
     try:
-        return read_csv_robust(paths[key])
+        # as text: pandas would read "1.500" as 1.5 before robust_numeric_parsing could see the pt-BR format
+        return read_csv_robust(paths[key], dtype=str)
     except (KeyError, TypeError, OSError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError) as e:
         raise EngineError(
             f"O arquivo {_FILE_LABEL[key]} não foi encontrado ou não pôde ser lido. Envie o arquivo novamente.",

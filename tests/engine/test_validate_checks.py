@@ -36,6 +36,23 @@ def test_cadence_mismatch(tmp_path):
     assert not report.ok and "cadence_mismatch" in _by_id(report)
 
 
+def test_weekly_labels_on_different_weekdays_are_an_error(tmp_path):
+    investment, kpi = clean_rows(70)
+    weekly = days(70)[::7]
+    inv = [(d, c, v) for d, c, v in investment if d in weekly]
+    shifted = [(d, v) for d, v in zip(days(71)[1::7], [v for d, v in kpi if d in weekly])]
+    report = validate(write_inputs(tmp_path, inv, shifted), _config())
+    check = _by_id(report)["dates_not_aligned"]
+    assert not report.ok and check.level == "error" and check.details["shared_ratio"] == 0
+
+
+def test_kpi_dates_outside_the_investment_range_do_not_count_as_misaligned(tmp_path):
+    investment, kpi = clean_rows(40)
+    first_half = set(days(40)[:20])
+    report = validate(write_inputs(tmp_path, [r for r in investment if r[0] in first_half], kpi), _config())
+    assert "dates_not_aligned" not in _by_id(report)
+
+
 def test_partial_period_dropped_is_info_with_counts(tmp_path):
     investment, kpi = clean_rows(28)
     weekly = days(28)[::7]
@@ -151,13 +168,18 @@ def test_validate_under_10s_730_days_15_channels(tmp_path):
     assert report.ok
 
 
-def test_validate_reports_columns_it_cannot_interpret_instead_of_raising(tmp_path):
+def test_numeric_channel_codes_are_read_as_channel_names(tmp_path):
     investment, kpi = clean_rows()
     numeric_codes = [(d, 1 if c == "SEARCH" else 2, v) for d, c, v in investment]
-    report = validate(write_inputs(tmp_path / "a", numeric_codes, kpi), _config())
+    report = validate(write_inputs(tmp_path, numeric_codes, kpi), _config())
+    assert report.ok and report.channels == ["1", "2"]
+
+
+def test_validate_reports_columns_it_cannot_interpret_instead_of_raising(tmp_path):
+    investment, kpi = clean_rows()
+    twin_headers = write_inputs(tmp_path, investment, kpi, kpi_header=("date", "Sessions", "Sessions "))
+    report = validate(twin_headers, _config())
     assert not report.ok and [c.id for c in report.checks] == ["column_unusable"]
-    twin_headers = write_inputs(tmp_path / "b", investment, kpi, kpi_header=("date", "Sessions", "Sessions "))
-    assert not validate(twin_headers, _config()).ok
 
 
 def test_run_turns_columns_it_cannot_interpret_into_an_engine_error(monkeypatch, tmp_path):
@@ -165,8 +187,7 @@ def test_run_turns_columns_it_cannot_interpret_into_an_engine_error(monkeypatch,
 
     monkeypatch.setenv("LLM_PROVIDER", "none")
     investment, kpi = clean_rows()
-    numeric_codes = [(d, 1 if c == "SEARCH" else 2, v) for d, c, v in investment]
-    paths = write_inputs(tmp_path / "in", numeric_codes, kpi)
+    paths = write_inputs(tmp_path / "in", investment, kpi, kpi_header=("date", "Sessions", "Sessions "))
     with pytest.raises(EngineError) as exc:
         engine.run(paths, _config(), tmp_path / "out", lambda level, message: None)
     assert exc.value.check_id == "column_unusable"

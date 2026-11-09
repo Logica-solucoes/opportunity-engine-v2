@@ -236,7 +236,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
 
 - **BRD:** Technical Details (todas); Phase 2 Week 4; Capabilities › Mathematical audit; Improvement Requests › Calculation memory.
 - **Depende de:** A2–A9.
-- **Hoje:** auditoria interna de julho em `docs/superpowers/plans/2026-07-08-statistical-audit-findings.md`: F1–F7, F11–F13 e F15 corrigidos; F9 parcial; F8 e F10 adiados; F14, F16 e F17 anotados. O original é `upstream/main` (`rafahm-google/opportunity-engine`).
+- **Hoje:** auditoria interna de julho em `docs/superpowers/plans/2026-07-08-statistical-audit-findings.md`: F1–F7, F11–F13 e F15 corrigidos; F9 parcial; F8 e F10 adiados; F14, F16 e F17 anotados. O original é `upstream/main` (`rafahm-google/opportunity-engine`). **Auditoria independente de 08/nov/2026:** `docs/audit/formulas-do-motor.md` cataloga 94 fórmulas e 40 achados confirmados por um segundo agente (8 altos, entre eles o contrafactual causal que usa o gasto real pós-evento e o erro-padrão acumulado que ignora a correlação); PRE-1 e PRE-2 já corrigidos, o resto é insumo da A10.
 - **Fazer:**
   - **Gerador sintético** (`tests/synthetic.py`): KPI = baseline (calendário + trend) + Σ Hill(adstock(spend)) + ruído, com lift e K conhecidos. Rodar o motor e medir a recuperação.
   - **Controle white noise:** nenhum efeito publicado.

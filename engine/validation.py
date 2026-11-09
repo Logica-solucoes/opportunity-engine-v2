@@ -53,6 +53,33 @@ def check_partial(investment_df: pd.DataFrame, kpi_df: pd.DataFrame, inv_cadence
     return checks, kept_inv, kept_kpi
 
 
+ALIGNED_MIN = 0.8
+
+
+def check_aligned(investment_df: pd.DataFrame, kpi_df: pd.DataFrame) -> list[Check]:
+    """Every join downstream is on the exact date: weekly spend dated on Mondays and a KPI dated on Sundays share no
+    row, and the MMM would read a KPI of zeros. Only KPI dates inside the investment's range count."""
+    start, end = investment_df["Date"].min(), investment_df["Date"].max()
+    kpi_dates = set(kpi_df.loc[kpi_df["Date"].between(start, end), "Date"])
+    if not kpi_dates:
+        shared = 0.0
+    else:
+        shared = len(kpi_dates & set(investment_df["Date"])) / len(kpi_dates)
+    if shared >= ALIGNED_MIN:
+        return []
+    return [
+        Check(
+            id="dates_not_aligned",
+            level="error",
+            message=(
+                f"Só {shared:.0%} das datas do arquivo de performance aparecem no arquivo de investimento. Os dois "
+                "precisam usar as mesmas datas (no semanal, o mesmo dia da semana para cada semana)."
+            ),
+            details={"shared_ratio": round(shared, 4)},
+        )
+    ]
+
+
 def _gaps(dates: pd.Series, period_days: int) -> list[pd.Timestamp]:
     unique = pd.Series(pd.to_datetime(dates).unique()).sort_values().reset_index(drop=True)
     missing = []
@@ -293,6 +320,8 @@ def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None, pd.DataFram
     checks = [mismatch] if mismatch else []
     partial, kept_inv, kept_kpi = check_partial(inv, kpi, inv_cadence, kpi_cadence)
     checks += partial
+    if not mismatch and not kept_inv.empty and not kept_kpi.empty:
+        checks += check_aligned(kept_inv, kept_kpi)
     checks += check_missing_dates(inv, kpi, inv_cadence)
     checks += check_outliers(kept_kpi)
     return checks, inv_cadence, kept_inv

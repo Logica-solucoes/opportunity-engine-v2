@@ -139,6 +139,16 @@ def test_robust_numeric_parsing_us_format():
     assert result.tolist() == [63115.13, 34816.26, 102.21, 0.0]
 
 
+def test_robust_numeric_parsing_br_whole_numbers_with_a_thousands_dot():
+    s = pd.Series(["850", "1.500", "12.300"])
+    assert robust_numeric_parsing(s).tolist() == [850.0, 1500.0, 12300.0]
+
+
+def test_robust_numeric_parsing_a_leading_zero_keeps_the_dot_decimal():
+    s = pd.Series(["0.125", "0.250"])
+    assert robust_numeric_parsing(s).tolist() == [0.125, 0.25]
+
+
 def test_robust_numeric_parsing_currency_symbol():
     s = pd.Series(["R$ 63.115,13", "R$ 34.816,26"])
     result = robust_numeric_parsing(s)
@@ -485,6 +495,29 @@ def test_load_and_prepare_data_handles_br_locale_semicolon_investment_file(tmp_p
     assert daily_investment_df["investment"].tolist() == [1234.56, 2345.67, 3456.78]
     assert kpi_df["kpi"].tolist() == [100.0, 150.0, 200.0]
     assert (daily_investment_df["Product Group"] == "GOOGLE").all()
+
+
+def test_load_and_prepare_data_reads_br_whole_numbers_as_thousands(tmp_path):
+    """pandas alone reads '1.500' as 1.5; every value must reach the locale detection as text."""
+    investment_path = _write_csv(
+        tmp_path / "investment.csv",
+        "dates;product_group;total_revenue\n2025-01-01;GOOGLE;850\n2025-01-02;GOOGLE;1.500\n2025-01-03;GOOGLE;12.300\n",
+    )
+    performance_path = _write_csv(
+        tmp_path / "performance.csv", "date;kpi\n2025-01-01;900\n2025-01-02;1.200\n2025-01-03;2.400\n"
+    )
+    config = {
+        "investment_file_path": investment_path,
+        "performance_file_path": performance_path,
+        "performance_kpi_column": "kpi",
+        "date_formats": {"investment_file": "%Y-%m-%d", "performance_file": "%Y-%m-%d"},
+        "treat_outliers": False,
+    }
+
+    kpi_df, daily_investment_df, _, _ = load_and_prepare_data(config)
+
+    assert daily_investment_df["investment"].tolist() == [850.0, 1500.0, 12300.0]
+    assert kpi_df["kpi"].tolist() == [900.0, 1200.0, 2400.0]
 
 
 def test_load_and_prepare_data_normalizes_channel_case(tmp_path):

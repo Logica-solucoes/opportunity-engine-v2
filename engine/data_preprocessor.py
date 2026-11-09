@@ -4,6 +4,7 @@ This module handles all data loading, validation, cleaning, and pre-processing.
 
 import csv
 import logging
+import re
 from dataclasses import dataclass
 
 import numpy as np
@@ -487,6 +488,7 @@ def resolve_column(df, configured_name, hint_key, description):
 
 
 _NULL_TOKENS = {"", "-", "n/a", "na", "null", "none", "nan"}
+_BR_WHOLE = re.compile(r"^-?[1-9]\d{0,2}(\.\d{3})+$")
 
 
 def _digit_group_vote(value):
@@ -536,6 +538,10 @@ def _detect_number_format(values):
         return "br", True
     if votes["us"] > votes["br"]:
         return "us", True
+    # "1.500", "12.300" and no comma anywhere: a pt-BR whole-number export. A US file almost never writes every value
+    # with exactly three decimals, and a leading zero ("0.125") keeps the dot as decimal; one value alone stays ambiguous
+    if len(with_separator) >= 2 and all(_BR_WHOLE.match(v) for v in with_separator):
+        return "br", True
     return "us", False  # tie (including no unambiguous signal at all)
 
 
