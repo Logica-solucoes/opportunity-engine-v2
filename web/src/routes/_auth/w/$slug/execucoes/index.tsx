@@ -62,7 +62,7 @@ function HistoryPage() {
           <Input
             id="filter-q"
             type="search"
-            placeholder="Buscar pelo nome"
+            placeholder="Buscar pelo nome…"
             className="w-56"
             value={q}
             onChange={(e) => {

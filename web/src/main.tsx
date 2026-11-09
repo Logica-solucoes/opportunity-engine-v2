@@ -1,5 +1,6 @@
 import './index.css'
-import '@fontsource-variable/inter'
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Link, RouterProvider, createRouter } from '@tanstack/react-router'

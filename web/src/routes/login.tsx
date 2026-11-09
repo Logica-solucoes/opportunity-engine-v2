@@ -41,7 +41,7 @@ function Login() {
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">E-mail</Label>
-          <Input id="email" name="email" type="email" autoComplete="username" required autoFocus />
+          <Input id="email" name="email" type="email" autoComplete="username" spellCheck={false} required autoFocus />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Senha</Label>

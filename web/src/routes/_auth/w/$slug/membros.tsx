@@ -84,7 +84,7 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
       <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
         <div className="space-y-2">
           <Label htmlFor="m-email">E-mail</Label>
-          <Input id="m-email" name="email" type="email" required />
+          <Input id="m-email" name="email" type="email" autoComplete="off" spellCheck={false} required />
         </div>
         {/* only the platform admin creates accounts; a workspace admin links existing ones */}
         {me.is_platform_admin && (

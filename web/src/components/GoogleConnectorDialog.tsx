@@ -105,7 +105,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
               id="ads.customer_ids"
               name="ads.customer_ids"
               required
-              placeholder="123-456-7890, 987-654-3210"
+              placeholder="123-456-7890, 987-654-3210…"
               defaultValue={google?.ads.customer_ids.join(', ')}
             />
             <p className="text-xs text-muted-foreground">Separados por vírgula; o spend das contas é somado.</p>

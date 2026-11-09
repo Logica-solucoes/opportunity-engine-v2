@@ -9,7 +9,7 @@ export const Route = createFileRoute('/_auth/w/$slug/execucoes/$runId/detalhes')
 
 const LEVEL_CLASS: Record<LogLine['level'], string> = {
   info: '',
-  warning: 'text-amber-600 dark:text-amber-400',
+  warning: 'text-warning',
   error: 'text-destructive',
 }
 
