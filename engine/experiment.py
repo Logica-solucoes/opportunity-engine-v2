@@ -1,8 +1,10 @@
 """Experiment designer (A7): how long a test must run to see the target lift, and the budget it puts at risk.
 
-Provisional formula until Data Science signs it off: MDE of the KPI summed over T periods at 95% confidence and 80%
-power, 2.8 * sigma * sqrt(f * T), with sigma the residual noise of the KPI around trend (+ day of week on daily data)
-and f the AR(1) variance factor of those residuals.
+Provisional formula until Data Science signs it off: the test reads the KPI summed over T periods against T times the
+mean of the window, at 95% confidence and 80% power, so MDE = 2.8 * sqrt(Var(test sum) + T^2 Var(window mean)), with
+sigma the residual noise of the KPI around trend (+ day of week on daily data) and the exact AR(1) variance of finite
+sums. The covariance between the window and the test is left out: it only shrinks the variance, and the test may not
+start right after the window.
 """
 
 import math
@@ -30,14 +32,21 @@ def _noise(window: pd.DataFrame, daily: bool) -> tuple[float, float]:
     e = y - x @ beta
     sigma = math.sqrt(float(e @ e) / (len(y) - x.shape[1]))
     rho = float(np.corrcoef(e[1:], e[:-1])[0, 1]) if sigma > 0 else 0.0
+    # Kendall / Marriott-Pope with a fitted trend: the lag-1 estimate of the residuals is biased by -(2+4rho)/n
+    rho = (len(e) * rho + 2) / (len(e) - 4)
     return sigma, min(max(rho if math.isfinite(rho) else 0.0, 0.0), MAX_RHO)
+
+
+def _sum_variance(rho: float, n):
+    """Var of the sum of n AR(1) periods with unit marginal variance (exact; (1+rho)/(1-rho) * n only as n grows)."""
+    return n * (1 + rho) / (1 - rho) - 2 * rho * (1 - rho**n) / (1 - rho) ** 2
 
 
 def _assumptions(target_lift: float) -> list[str]:
     pct = f"{target_lift * 100:g}".replace(".", ",")
     return [
-        "O efeito mínimo detectável vem do ruído do KPI em torno da tendência e do dia da semana; a mídia fica "
-        "dentro desse ruído, então a estimativa é conservadora.",
+        "O efeito mínimo detectável vem do ruído do KPI em torno da tendência e do dia da semana, e a leitura "
+        "compara o KPI do teste com a média da janela de histórico; uma tendência forte vicia essa comparação.",
         f"A duração é a mesma para todos os canais: o efeito-alvo é {pct}% do KPI total, e desligar um canal "
         "pequeno dificilmente move tanto.",
         "Fórmula provisória (95% de confiança, 80% de poder, correção de autocorrelação AR(1)) até a validação "
@@ -66,14 +75,17 @@ def design(
     if not math.isfinite(sigma) or sigma <= 1e-9 * mean:
         return ExperimentDesign(status="insufficient_history", reasons=["degenerate_kpi"], **base)
 
-    f = (1 + rho) / (1 - rho)
-    periods = max(1, math.ceil((Z * sigma * math.sqrt(f) / (target_lift * mean)) ** 2))
     max_periods = max_days // period_days
     if max_periods < 1:
         return ExperimentDesign(status="insufficient_history", reasons=["duration_capped"], **base)
-    feasible = periods <= max_periods
-    periods = min(periods, max_periods)
-    mde_abs = Z * sigma * math.sqrt(f * periods)
+    n = len(window)
+    t = np.arange(1, max_periods + 1, dtype=float)
+    mde = Z * sigma * np.sqrt(_sum_variance(rho, t) + t**2 * _sum_variance(rho, n) / n**2)
+    # no closed form for T, and the window-mean term puts a floor under the relative MDE, so it may never reach the lift
+    hits = np.flatnonzero(mde <= target_lift * mean * t)
+    feasible = hits.size > 0
+    periods = int(hits[0]) + 1 if feasible else max_periods
+    mde_abs = float(mde[periods - 1])
 
     in_window = spend_df[spend_df["Date"].isin(window["Date"])]
     per_period = (in_window.groupby("Product Group")["investment"].sum() / len(window)).sort_values(kind="stable")
