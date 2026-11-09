@@ -70,6 +70,8 @@ Toda narrativa que chega à tela passa por `engine/grounding.py` antes de ser pu
 - `tests/engine/test_narratives_live.py` roda `narratives.build` com o Gemini nas fixtures e exige nenhum relatório `blocked` e nenhum float cru. Ele só roda com `LLM_LIVE=1` e `GEMINI_API_KEY`. Na CI fica em `.github/workflows/llm-live.yml` (manual e semanal, com o secret `GEMINI_API_KEY`), fora do gate de PR, porque custa chamadas e o texto varia.
 - `tests/fixtures/llm/gemini_answers.json` guarda respostas reais do Gemini, e o `test_grounding_real_answers.py` as confere offline: todas passam e as mutações (número, canal, data inventados) reprovam. Isso pega um checador que endureça e passe a bloquear prosa real. Para atualizar, veja o README da pasta.
 
+Desde 09/nov/2026 cada resposta gravada é conferida contra o payload de onde saiu (`tests/fixtures/llm/gemini_payloads.json`), não contra o que o motor atual monta: uma correção que muda número publicado (o mês de 365,25/12 dias, a auditoria matemática) não invalida a prosa real. Regrave respostas e payloads juntos quando houver chave (README da pasta).
+
 Ainda pendente: `api/gemini.py` → `llm/` (abaixo). Qualidade do texto em outros datasets não foi medida.
 
 ## Como adicionar um provedor

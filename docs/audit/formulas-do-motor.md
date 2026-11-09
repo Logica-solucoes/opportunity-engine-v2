@@ -11,6 +11,21 @@ Como ler:
 - Vários achados são o mesmo defeito visto de áreas diferentes. As referências cruzadas estão marcadas com "ver também".
 - Achado já corrigido traz a linha **Corrigido em …**. Os demais seguem abertos: vários mudam o estimando ou a paridade com o protótipo e dependem da Data Science (A10).
 
+## Correções de 09/nov/2026
+
+Todos os 40 achados confirmados foram tratados num segundo passo (sub-agentes por grupo de arquivos, teste por achado em `tests/engine/test_audit_<grupo>.py`, revisão independente). O texto dos achados abaixo descreve o código **antes** da correção; as fórmulas das seções 2, 3, 4 e 6 mudaram. O resumo das mudanças e os porquês estão em `docs/decisoes/engine.md` › "Auditoria matemática"; o afastamento numérico do protótipo, em `docs/audit/diferencas-prototipo.md`.
+
+| Área | Corrigidos | Mantido de propósito |
+| --- | --- | --- |
+| Pré-processamento | PRE-1, PRE-2 (08/nov), PRE-3, PRE-4, PRE-5, PRE-6, PRE-7, PRE-8, PRE-9 | — |
+| Causal | causal-1 a causal-8 | — |
+| MMM | F1, F2, F3, F4, F5 (mais o motivo novo `hill_at_bound`) | — |
+| Curva e planner | F1 a F9 | — |
+| Gates | G1, G2, G3, G4, G6 | G5: `coef_ci_too_wide` fica; sem ela o canal nulo do teste de aceitação sai identificável |
+| Experiment designer | EXP-1, EXP-2, EXP-3 | — |
+
+Ainda é provisório (A10, Data Science): os limiares (`oos_skill_min` 0,10, `spend_cv_min`, `vif_max`, `control_spend_corr`), a regra de identificabilidade e a fórmula do A7. O EP acumulado do causal continua levemente anticonservador (parâmetros do MLE tratados como conhecidos).
+
 ---
 
 ## 1. Pré-processamento

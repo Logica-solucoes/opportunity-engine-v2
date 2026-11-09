@@ -28,7 +28,20 @@ def _issues(answer, payload, published, names, extra=""):
     return grounding.check(narratives.text_of(answer) + " " + extra, payload, published, names)
 
 
-@pytest.mark.parametrize("name", ANSWERS)
+# the audit fixes (09/nov/2026) left the Gol with no published event, so its recorded event answers have no job; they
+# must be recorded again with a key (LLM_LIVE=1, README in tests/fixtures/llm) together with gemini_payloads.json
+STALE = {"gol_anonimizada.json"}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param(n, marks=pytest.mark.xfail(reason="record the Gol answers again after the audit", strict=True))
+        if n in STALE
+        else n
+        for n in ANSWERS
+    ],
+)
 def test_every_answer_still_has_a_job(name):
     document = json.loads((FIXTURES / "results" / name).read_text(encoding="utf-8"))
     keys = {key for key, *_ in narratives.jobs(document, EngineConfig.from_input(CONFIGS[name]))}
