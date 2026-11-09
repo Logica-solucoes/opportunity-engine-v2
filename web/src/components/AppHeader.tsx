@@ -1,10 +1,12 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { Moon, Sun, User } from '@phosphor-icons/react'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
+import { ClockCounterClockwise, Desktop, Flask, Key, Moon, ShieldCheck, SignOut, Sun, User, UsersThree } from '@phosphor-icons/react'
 import almapDark from '@/assets/logos/almap-negativo.png'
 import almapLight from '@/assets/logos/almap-positivo.png'
 import dashDark from '@/assets/logos/dash-negativo.png'
 import dashLight from '@/assets/logos/dash-positivo.png'
+import { CommandMenu } from '@/components/CommandMenu'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,18 +18,39 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { meQuery, roleIn, useLogout } from '@/lib/auth'
+import { isActive, workspaceRunsQuery } from '@/lib/runs'
+import { cn } from '@/lib/utils'
 import { setTheme } from '@/lib/theme'
 
-// data-status (set by the router) beats the base color; activeProps className would lose to text-muted-foreground
-const navLink =
-  '-mb-3 border-b-2 border-transparent pb-3 text-muted-foreground transition-colors hover:text-foreground data-[status=active]:border-primary data-[status=active]:font-medium data-[status=active]:text-foreground'
+const divider = <span aria-hidden className="hidden h-6 w-px shrink-0 bg-border md:block" />
+
+const navLink = (active: boolean) =>
+  cn(
+    'flex items-center gap-1.5 border-b-2 px-3 transition-colors hover:text-foreground',
+    active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground',
+  )
 
 function Logo({ light, dark, alt }: { light: string; dark: string; alt: string }) {
   return (
     <>
-      <img src={light} alt={alt} className="h-8 w-auto dark:hidden" />
-      <img src={dark} alt={alt} className="hidden h-8 w-auto dark:block" />
+      <img src={light} alt={alt} className="h-7 w-auto dark:hidden" />
+      <img src={dark} alt={alt} className="hidden h-7 w-auto dark:block" />
     </>
+  )
+}
+
+// polls only while something runs (workspaceRunsQuery); the link goes straight to the run being followed
+function RunningBadge({ slug }: { slug: string }) {
+  const { data: runs } = useQuery(workspaceRunsQuery(slug))
+  const active = runs?.filter((r) => isActive(r.status)) ?? []
+  if (active.length === 0) return null
+  return (
+    <Link to="/w/$slug/execucoes/$runId" params={{ slug, runId: String(active[0].id) }} aria-label="Acompanhar execução em andamento">
+      <Badge variant="info" className="gap-1.5">
+        <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" />
+        {active.length === 1 ? '1 rodando' : `${active.length} rodando`}
+      </Badge>
+    </Link>
   )
 }
 
@@ -36,15 +59,20 @@ export function AppHeader() {
   const { slug } = useParams({ strict: false })
   const navigate = useNavigate()
   const logout = useLogout()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const role = slug ? roleIn(me, slug) : undefined
+  const base = `/w/${slug}`
 
   return (
-    <header className="border-b bg-card print:hidden">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3">
+    <header className="z-30 border-b bg-card md:sticky md:top-0 print:hidden">
+      <div className="mx-auto flex max-w-460 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-12 xl:px-14 md:h-14 md:py-0">
         <Link to="/" className="flex shrink-0 items-center gap-3">
           <Logo light={dashLight} dark={dashDark} alt="DASH" />
           <span className="h-6 w-px bg-border" />
           <Logo light={almapLight} dark={almapDark} alt="AlmapBBDO" />
         </Link>
+
+        {divider}
 
         {me.workspaces.length > 0 && (
           <Select value={slug ?? ''} onValueChange={(s) => navigate({ to: '/w/$slug', params: { slug: s } })}>
@@ -61,20 +89,39 @@ export function AppHeader() {
           </Select>
         )}
 
-        <nav className="flex gap-4 text-sm">
-          {slug && roleIn(me, slug) === 'admin' && (
-            <Link to="/w/$slug/membros" params={{ slug }} className={navLink}>
+        {divider}
+
+        <nav className="flex gap-1 self-stretch text-sm">
+          {slug && role && role !== 'viewer' && (
+            <Link to="/w/$slug" params={{ slug }} className={navLink(pathname === base || pathname.startsWith(`${base}/simulacoes`))}>
+              <Flask aria-hidden />
+              Simulações
+            </Link>
+          )}
+          {slug && role && (
+            <Link to="/w/$slug/execucoes" params={{ slug }} className={navLink(pathname.startsWith(`${base}/execucoes`))}>
+              <ClockCounterClockwise aria-hidden />
+              Execuções
+            </Link>
+          )}
+          {slug && role === 'admin' && (
+            <Link to="/w/$slug/membros" params={{ slug }} className={navLink(pathname.startsWith(`${base}/membros`))}>
+              <UsersThree aria-hidden />
               Membros
             </Link>
           )}
           {me.is_platform_admin && (
-            <Link to="/admin/workspaces" className={navLink}>
+            <Link to="/admin/workspaces" className={navLink(pathname.startsWith('/admin'))}>
+              <ShieldCheck aria-hidden />
               Admin
             </Link>
           )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {slug && role && <RunningBadge slug={slug} />}
+          <CommandMenu />
+          {divider}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Tema">
@@ -83,9 +130,18 @@ export function AppHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('light')}>
+                <Sun aria-hidden />
+                Claro
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('dark')}>
+                <Moon aria-hidden />
+                Escuro
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('system')}>
+                <Desktop aria-hidden />
+                Sistema
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -95,16 +151,20 @@ export function AppHeader() {
                 <User />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-auto min-w-60">
               <DropdownMenuLabel>
                 {me.name}
-                <div className="text-xs font-normal text-muted-foreground">{me.email}</div>
+                <div className="font-normal break-all text-muted-foreground">{me.email}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate({ to: '/trocar-senha', search: { redirect: undefined } })}>
+                <Key aria-hidden />
                 Trocar senha
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => logout.mutate()}>Sair</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => logout.mutate()}>
+                <SignOut aria-hidden />
+                Sair
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
