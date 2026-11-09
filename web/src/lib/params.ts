@@ -22,7 +22,7 @@ export type FieldSchema = {
 }
 export type ConfigSchema = FieldSchema & { $defs?: Record<string, FieldSchema> }
 
-type FieldSpec = { path: string; label: string; help?: string }
+type FieldSpec = { path: string; label: string; help?: string; advanced?: boolean }
 export type FormField = FieldSpec & { schema: FieldSchema; nullable: boolean }
 export type FormGroup = { title: string; fields: FormField[] }
 // numbers stay strings while typed ("1." and "0.0" are valid moments), and become numbers only in the PUT body
@@ -47,10 +47,10 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
   {
     title: 'Metas financeiras',
     fields: [
-      { path: 'financial_targets.target_cpa', label: 'CPA alvo', help: 'Vazio = sem meta.' },
-      { path: 'financial_targets.target_icpa', label: 'iCPA alvo', help: 'Vazio = sem meta.' },
-      { path: 'financial_targets.target_roas', label: 'ROAS alvo', help: 'Vazio = sem meta.' },
-      { path: 'financial_targets.target_iroas', label: 'iROAS alvo', help: 'Vazio = sem meta.' },
+      { path: 'financial_targets.target_cpa', label: 'CPA alvo', help: 'Deixe vazio para não usar esta meta.' },
+      { path: 'financial_targets.target_icpa', label: 'iCPA alvo', help: 'Deixe vazio para não usar esta meta.' },
+      { path: 'financial_targets.target_roas', label: 'ROAS alvo', help: 'Deixe vazio para não usar esta meta.' },
+      { path: 'financial_targets.target_iroas', label: 'iROAS alvo', help: 'Deixe vazio para não usar esta meta.' },
     ],
   },
   {
@@ -66,20 +66,22 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
       { path: 'p_value_threshold', label: 'p-valor máximo' },
       { path: 'min_pre_period_days', label: 'Pré-período mínimo (dias)' },
       { path: 'post_event_days', label: 'Pós-evento (dias)', help: 'Janela medida depois de cada evento.' },
-      { path: 'r_squared_threshold', label: 'R² mínimo' },
-      { path: 'increase_threshold_percent', label: 'Aumento mínimo para evento (%)' },
-      { path: 'decrease_threshold_percent', label: 'Queda mínima para evento (%)' },
-      { path: 'max_events_to_analyze', label: 'Máximo de eventos analisados' },
-      { path: 'require_statistical_significance', label: 'Exigir significância' },
+      { path: 'r_squared_threshold', label: 'R² mínimo', advanced: true },
+      { path: 'increase_threshold_percent', label: 'Aumento mínimo para evento (%)', advanced: true },
+      { path: 'decrease_threshold_percent', label: 'Queda mínima para evento (%)', advanced: true },
+      { path: 'max_events_to_analyze', label: 'Máximo de eventos analisados', advanced: true },
+      { path: 'require_statistical_significance', label: 'Exigir significância', advanced: true },
       {
         path: 'require_logical_direction',
         label: 'Exigir direção lógica',
+        advanced: true,
         help: 'O efeito precisa ir na direção da mudança de investimento.',
       },
-      { path: 'require_model_fit', label: 'Exigir bom ajuste' },
+      { path: 'require_model_fit', label: 'Exigir bom ajuste', advanced: true },
       {
         path: 'controls',
         label: 'Controles macro (Banco Central)',
+        advanced: true,
         help: 'Buscados na hora de rodar. Um controle que anda junto com o investimento do evento é descartado.',
       },
     ],
@@ -155,6 +157,20 @@ function fromForm(field: FormField, value: FormValue): unknown {
   if (field.schema.type === 'boolean' || field.schema.enum || field.schema.type === 'array') return value
   return value === '' ? null : Number(value)
 }
+
+// a number field holding text that is not a number (the input is text, so the browser does not catch it)
+export const invalidNumbers = (layout: FormGroup[], values: Record<string, FormValue>) =>
+  allFields(layout)
+    .filter((f) => !f.schema.enum && f.schema.type !== 'boolean' && f.schema.type !== 'array')
+    .filter((f) => {
+      const v = String(values[f.path])
+      return v !== '' && !Number.isFinite(Number(v))
+    })
+    .map((f) => f.path)
+
+// "0.2" is stored, "0,2" is shown
+export const toDisplay = (value: string) => value.replace('.', ',')
+export const fromDisplay = (text: string) => text.replace(',', '.')
 
 const allFields = (layout: FormGroup[]) => layout.flatMap((group) => group.fields)
 
