@@ -17,7 +17,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
-import { formatCompact, formatMoney } from '@/lib/results'
+import { formatAxisMoney, formatCompact, formatMoney, formatSmallMoney } from '@/lib/results'
 import { type CurveRow, type Mix, type Scenario, type TableRow, splitExtrapolated } from '@/lib/scenario'
 
 const investmentAxis = (
@@ -47,17 +47,17 @@ export function SaturationChart({ scenario }: { scenario: Scenario }) {
     ...split[i],
     filtered_out: r.in_filter ? null : r.kpi,
   }))
-  const marks: [string, TableRow | null, string][] = [
-    ['Atual', scenario.current, 'var(--chart-3)'],
-    ['Recomendado', scenario.recommended, 'var(--chart-4)'],
-    ['Saturação', scenario.saturation, 'var(--chart-5)'],
+  const marks: [string, TableRow | null, string, 'top' | 'bottom'][] = [
+    ['Atual', scenario.current, 'var(--chart-5)', 'top'],
+    ['Recomendado', scenario.recommended, 'var(--chart-1)', 'top'],
+    ['Saturação', scenario.saturation, 'var(--chart-3)', 'bottom'],
   ]
   return (
     <ChartContainer config={saturationConfig} className="h-80 w-full">
-      <ComposedChart data={data} margin={{ left: 4, right: 4 }}>
+      <ComposedChart data={data} margin={{ left: 4, right: 40, top: 20 }}>
         <CartesianGrid vertical={false} />
         {investmentAxis}
-        <YAxis domain={['auto', 'auto']} tickFormatter={formatCompact} width={56} />
+        <YAxis domain={[0, 'auto']} allowDataOverflow tickFormatter={formatCompact} width={56} />
         <Area dataKey="band" stroke="none" fill="var(--color-band)" fillOpacity={0.2} isAnimationActive={false} />
         <Line dataKey="observed" stroke="var(--color-observed)" strokeWidth={2} dot={false} isAnimationActive={false} />
         <Line
@@ -77,7 +77,7 @@ export function SaturationChart({ scenario }: { scenario: Scenario }) {
           isAnimationActive={false}
         />
         {marks.map(
-          ([label, row, color]) =>
+          ([label, row, color, position]) =>
             row?.kpi != null && (
               <ReferenceDot
                 key={label}
@@ -86,7 +86,7 @@ export function SaturationChart({ scenario }: { scenario: Scenario }) {
                 r={5}
                 fill={color}
                 stroke="var(--background)"
-                label={{ value: label, position: 'top', fontSize: 11 }}
+                label={{ value: label, position, fontSize: 11, fill: 'var(--foreground)' }}
               />
             ),
         )}
@@ -105,9 +105,20 @@ export function IcpaChart({ curve }: { curve: CurveRow[] }) {
       <ComposedChart data={curve}>
         <CartesianGrid vertical={false} />
         {investmentAxis}
-        <YAxis tickFormatter={formatCompact} width={56} />
+        <YAxis tickFormatter={formatAxisMoney} width={64} />
         <Line dataKey="icpa" stroke="var(--color-icpa)" strokeWidth={2} dot={false} connectNulls={false} />
-        <ChartTooltip content={<ChartTooltipContent labelFormatter={moneyLabel} />} />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              labelFormatter={moneyLabel}
+              formatter={(v) => (
+                <span className="tabular-nums">
+                  iCPA <b className="font-medium">{formatSmallMoney(Number(v))}</b>
+                </span>
+              )}
+            />
+          }
+        />
       </ComposedChart>
     </ChartContainer>
   )
@@ -115,7 +126,7 @@ export function IcpaChart({ curve }: { curve: CurveRow[] }) {
 
 const revenueConfig = {
   revenue: { label: 'Receita', color: 'var(--chart-1)' },
-  roas: { label: 'ROAS', color: 'var(--chart-3)' },
+  roas: { label: 'ROAS', color: 'var(--chart-2)' },
 } satisfies ChartConfig
 
 export function RevenueChart({ curve }: { curve: CurveRow[] }) {
@@ -136,9 +147,9 @@ export function RevenueChart({ curve }: { curve: CurveRow[] }) {
 }
 
 const mixConfig = {
-  historical: { label: 'Histórico', color: 'var(--chart-2)' },
-  optimized: { label: 'Otimizado', color: 'var(--chart-1)' },
-  strategic: { label: 'Estratégico', color: 'var(--chart-4)' },
+  historical: { label: 'Histórico', color: 'var(--chart-4)' },
+  optimized: { label: 'Otimizado', color: 'var(--chart-2)' },
+  strategic: { label: 'Estratégico', color: 'var(--chart-3)' },
 } satisfies ChartConfig
 
 export function MixChart({ mix }: { mix: Partial<Mix> }) {

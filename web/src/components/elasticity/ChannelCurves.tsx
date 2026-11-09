@@ -31,9 +31,9 @@ function ChannelChart({ channel }: { channel: ChannelCurve }) {
           <Area dataKey="band" stroke="none" fill="var(--color-band)" fillOpacity={0.2} isAnimationActive={false} />
           <Line dataKey="observed" stroke="var(--color-observed)" strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="extrapolated" stroke="var(--color-extrapolated)" strokeWidth={2} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
-          {channel.current != null && <ReferenceLine x={channel.current} stroke="var(--chart-3)" label={{ value: 'Atual', fontSize: 10 }} />}
+          {channel.current != null && <ReferenceLine x={channel.current} stroke="var(--chart-5)" label={{ value: 'Atual', fontSize: 10, fill: 'var(--foreground)' }} />}
           {channel.saturation != null && (
-            <ReferenceLine x={channel.saturation} stroke="var(--chart-5)" label={{ value: 'Saturação', fontSize: 10 }} />
+            <ReferenceLine x={channel.saturation} stroke="var(--chart-3)" label={{ value: 'Saturação', fontSize: 10, fill: 'var(--foreground)' }} />
           )}
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => formatMoney(p[0]?.payload?.investment)} />} />
         </ComposedChart>
@@ -43,8 +43,8 @@ function ChannelChart({ channel }: { channel: ChannelCurve }) {
 }
 
 const compareConfig = {
-  current: { label: 'Atual', color: 'var(--chart-3)' },
-  saturation: { label: 'Saturação', color: 'var(--chart-5)' },
+  current: { label: 'Atual', color: 'var(--chart-5)' },
+  saturation: { label: 'Saturação', color: 'var(--chart-3)' },
 } satisfies ChartConfig
 
 export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; hidden: ChannelFit[] }) {
@@ -57,6 +57,7 @@ export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; 
               <ChannelChart key={c.name} channel={c} />
             ))}
           </div>
+          <p className="text-xs font-medium text-muted-foreground">Investimento mensal atual × no ponto de saturação, por canal</p>
           <ChartContainer config={compareConfig} className="h-56 w-full">
             <BarChart data={channels.map((c) => ({ name: c.name, current: c.current, saturation: c.saturation }))}>
               <CartesianGrid vertical={false} />

@@ -142,6 +142,8 @@ const pct = fmt({ minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const money = fmt({ style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const decimal = fmt({ minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const compact = fmt({ notation: 'compact', maximumFractionDigits: 1 })
+const axisMoney = fmt({ style: 'currency', currency: 'BRL', maximumSignificantDigits: 2 })
+const smallMoney = fmt({ style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumSignificantDigits: 3 })
 const pValue = fmt({ maximumFractionDigits: 3 })
 const share = fmt({ style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
@@ -154,6 +156,8 @@ export const formatSignedPct = (v: Num) => or(v, (n) => `${signedPct.format(n)}%
 export const formatPct = (v: Num) => or(v, (n) => `${pct.format(n)}%`)
 export const formatMoney = (v: Num) => or(v, money.format)
 export const formatDecimal = (v: Num) => or(v, decimal.format)
+export const formatAxisMoney = (v: Num) => or(v, axisMoney.format)
+export const formatSmallMoney = (v: Num) => or(v, smallMoney.format)
 export const formatCompact = (v: Num) => or(v, compact.format)
 export const formatPValue = (v: Num) => or(v, (n) => (n < 0.001 ? '< 0,001' : `= ${pValue.format(n)}`))
 
