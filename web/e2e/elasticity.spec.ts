@@ -36,7 +36,8 @@ test('an identifiable run shows the planner and filters go to the scenario', asy
   const table = page.getByRole('region', { name: 'Cenários' })
   for (const column of ['Atual', 'Recomendado', 'Saturação']) await expect(table).toContainText(column)
   await expect(table).toContainText('R$')
-  await expect(page.getByText('Baixa confiança')).toBeVisible()
+  // since the out-of-sample cv_r2 (audit MMM-F5) the identifiable synthetic is no longer low confidence
+  await expect(page.getByText('Baixa confiança')).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Curva de saturação' }).locator('.recharts-surface')).toBeVisible()
   await expect(page.getByRole('region', { name: 'Mix por canal' })).toContainText('não confia na redistribuição')
 

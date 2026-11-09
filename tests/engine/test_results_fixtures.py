@@ -74,7 +74,7 @@ def test_fixtures_cover_what_the_screens_must_show():
     gol = _load("gol_anonimizada.json")
     events = gol["causal"]["events"]
     # since the audit fixes (09/nov/2026) the skill gate demotes every Gol event (high_oos_wmape): no fixture has a
-    # published event; the E2E injects one where a screen needs it
+    # published event; the E2E serves e2e_gol_publicado.json, the Gol as written before the fixes
     assert events and all(e["status"] == "rejected" for e in events)
     assert gol["sufficiency"]["reasons"] == ["high_oos_wmape"]
     assert gol["elasticity"]["reasons"] == ["no_identifiable_channel"]

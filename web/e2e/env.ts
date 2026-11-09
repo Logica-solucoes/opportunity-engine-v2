@@ -21,8 +21,9 @@ export const pyEnv = {
   ENGINE_FAKE: '1',
   FAKE_ENGINE_STEP_SECONDS: '1',
   FAKE_ENGINE_FAIL: '',
-  // every E2E run returns the anonymized Gol from the A1, so the result tabs have real events to show
-  FAKE_ENGINE_RESULTS: join(ROOT, 'tests', 'fixtures', 'results', 'gol_anonimizada.json'),
+  // every E2E run returns the anonymized Gol as the engine wrote it before the audit fixes (08/nov/2026): the current
+  // Gol publishes no event, and the screens need published ones. The current document is covered by tests/api
+  FAKE_ENGINE_RESULTS: join(ROOT, 'tests', 'fixtures', 'results', 'e2e_gol_publicado.json'),
   // no Google credentials even if the dev shell has some: the import reaches BigQuery's client and comes back
   // with "sem credenciais", which is the whole path short of a real dataset
   GOOGLE_APPLICATION_CREDENTIALS: join(tmpdir(), 'gem-e2e-no-such-credentials.json'),

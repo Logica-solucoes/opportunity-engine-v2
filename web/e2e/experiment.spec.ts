@@ -5,7 +5,7 @@ import { ROOT } from './env'
 import { createWorkspace, loggedInAdmin, runToCompletion } from './helpers'
 
 const FIXTURES = join(ROOT, 'tests', 'fixtures', 'results')
-const gol = JSON.parse(readFileSync(join(FIXTURES, 'gol_anonimizada.json'), 'utf-8'))
+const gol = JSON.parse(readFileSync(join(FIXTURES, 'e2e_gol_publicado.json'), 'utf-8'))
 const design = {
   status: 'ok', reasons: [], period_days: 1, target_lift: 0.05, sigma: 120, rho: 0.3, kpi_per_period: 3000,
   duration_periods: 42, duration_days: 42, feasible: true, mde_abs: 6200, mde_rel: 0.049,
