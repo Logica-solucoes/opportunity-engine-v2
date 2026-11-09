@@ -1,4 +1,7 @@
-"""A9: real Gemini answers (tests/fixtures/llm) against the payloads the engine builds from the fixtures, offline."""
+"""A9: real Gemini answers (tests/fixtures/llm) against the payloads they were written from, offline.
+
+The payloads are frozen next to the answers: a fix that moves a published number (say, the monthly scale) must not
+turn real prose into a checker failure; the live contract is test_narratives_live.py."""
 
 import json
 from pathlib import Path
@@ -11,25 +14,25 @@ from tests.fixtures.results.add_reports import CONFIGS
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 ANSWERS = json.loads((FIXTURES / "llm" / "gemini_answers.json").read_text(encoding="utf-8"))
+PAYLOADS = json.loads((FIXTURES / "llm" / "gemini_payloads.json").read_text(encoding="utf-8"))
 
-
-def _cases():
-    for name, answers in ANSWERS.items():
-        document = json.loads((FIXTURES / "results" / name).read_text(encoding="utf-8"))
-        names = narratives.universe(document)
-        for key, _, payload, published in narratives.jobs(document, EngineConfig.from_input(CONFIGS[name])):
-            yield pytest.param(answers[key], payload, published, names, id=f"{name}:{key}")
-
-
-CASES = list(_cases())
+CASES = [
+    pytest.param(answer, job["payload"], set(job["published"]), set(job["names"]), id=f"{name}:{key}")
+    for name, answers in ANSWERS.items()
+    for key, answer in answers.items()
+    for job in [PAYLOADS[name][key]]
+]
 
 
 def _issues(answer, payload, published, names, extra=""):
     return grounding.check(narratives.text_of(answer) + " " + extra, payload, published, names)
 
 
-def test_every_answer_has_a_job():
-    assert len(CASES) == sum(len(a) for a in ANSWERS.values())
+@pytest.mark.parametrize("name", ANSWERS)
+def test_every_answer_still_has_a_job(name):
+    document = json.loads((FIXTURES / "results" / name).read_text(encoding="utf-8"))
+    keys = {key for key, *_ in narratives.jobs(document, EngineConfig.from_input(CONFIGS[name]))}
+    assert keys == set(ANSWERS[name])
 
 
 @pytest.mark.parametrize("answer, payload, published, names", CASES)
