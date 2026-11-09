@@ -2,9 +2,10 @@
 
 Direção (decidida em 09/nov): shadcn `radix-nova` de verdade, sóbrio, neutros frios, coral da Almap só como acento (CTA, aba ativa, foco). Status com cores semânticas próprias. Menos texto: dica em tooltip, título só onde orienta. Ordem da demo: **resultados → parâmetros → workspace → resto** (o resto só se sobrar tempo). Base: `docs/audit/front-end.md` e itens 1–10 de `docs/status.md`.
 
-Regras: só primitivo shadcn (`bunx shadcn@latest add`), consultar o MCP do shadcn (`.mcp.json`, reiniciar a sessão para carregar) antes de montar bloco; `Write`/`Edit` em `web/src/routes/**`; screenshot (claro e escuro) antes de dar cada tarefa por pronta; `bun run build` e `bun run lint` verdes; um commit por tarefa.
+Skills e checklist: `docs/audit/front-end.md` (seção "Como usar"). Regras: só primitivo shadcn (`bunx shadcn@latest add`), consultar o MCP do shadcn (`.mcp.json`, reiniciar a sessão para carregar) antes de montar bloco; `Write`/`Edit` em `web/src/routes/**`; screenshot (claro e escuro) antes de dar cada tarefa por pronta; `bun run build` e `bun run lint` verdes; um commit por tarefa.
 
 ## T0 Fundação (primeiro; tudo depende dela)
+0. `index.html`: `color-scheme` e `theme-color`; `text-balance` nos títulos; `autoComplete`/`spellCheck` nos inputs; `…` nos placeholders.
 1. Tokens em `index.css`: neutros frios, `--success/--warning/--info` (+ foreground) claro/escuro, coral só em `--primary`/`--ring`, raio único (hoje 0.75rem; testar 0.5rem), sombras mínimas.
 2. Fonte: Geist Sans + Geist Mono (`@fontsource-variable/geist`, `geist-mono`), `tabular-nums` nas tabelas e números.
 3. Ícones: lucide → Phosphor nos 11 arquivos; `components.json` `iconLibrary`.

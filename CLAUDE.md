@@ -126,6 +126,10 @@ Tone: Dense system — ferramenta interna de análise, densa e sóbria.
 
 Pick UI from this stack only. At the start of a UI task, offer once to scout the `ui-sources` catalog for components that fit this tone; load that skill for the scouting pass or when the stack can't cover a need. Ícones, tema e fontes são trocados juntos no B10, não peça a peça.
 
+## Refino do front-end
+
+Para qualquer tarefa de UI (tela, componente, tema), leia `docs/audit/front-end.md` (achados por tela e skills de design a usar) e `docs/superpowers/plans/2026-11-09-refino-front.md` (ordem T0–T4 e regras). Sob demanda, não antes.
+
 ## Estado atual
 
 Histórico por item, pendências e o plano do refino do front-end estão em `docs/status.md`: **leia sob demanda**, só quando a tarefa pedir (contexto de um item `A*`/`B*`, o que falta, o refino visual). Resumo: B0–B9, B11 (sem servidor) e A0–A9 concluídos; auditoria matemática do motor tratada em 09/nov/2026; faltam A10 (Data Science), paridade no servidor, B10 (visual) e o que depende do servidor no B11. Próxima fase: refino do front-end (lucide→Phosphor, Inter→Geist, tudo em primitivos shadcn), auditoria antes de editar.
