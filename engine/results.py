@@ -136,7 +136,7 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
         rel_pct=_num(data["relative_lift_pct"]),
     )
     event.p_value = _num(data["p_value"])
-    event.incremental_investment = _num(data["total_investment_post_period"])
+    event.incremental_investment = _num(data["total_investment_post_period"] - data["total_investment_pre_period"])
     event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
     event.series = _series(outcome)
     return event
@@ -181,6 +181,10 @@ SCENARIO_SOURCES = {
     "strategic_reallocation": "strategic_reallocation_point",
 }
 MIX_VARIANTS = {"historical": "Historical", "optimized": "Optimized", "strategic": "Strategic"}
+TARGETS_UNREACHABLE_NOTE = (
+    "Nenhum orçamento acima do atual atinge as metas financeiras definidas; o limite estratégico fica no "
+    "investimento de hoje."
+)
 
 
 def _icpa(point: dict) -> float | None:
@@ -246,6 +250,9 @@ def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
         if steps:
             # the curve uses the strategic mix; the scenario may not (max_efficiency), so the landing step is its own
             steps[-1].update(kpi=kpi, kpi_lo=kpi_lo, kpi_hi=kpi_hi)
+        notes = [note] if changes else []
+        if "targets_unreachable" in point.get("Reasons", []):
+            notes.append(TARGETS_UNREACHABLE_NOTE)
         scenarios.append(
             Scenario(
                 name=name,
@@ -258,7 +265,7 @@ def _scenarios(computed: "Computed", rows: list[ResponseRow]) -> list[Scenario]:
                 incremental_kpi=_num(point.get("Incremental_KPI")),
                 extrapolated=_flag(point.get("Extrapolated")),
                 ramp=steps,
-                notes=[note] if changes else [],
+                notes=notes,
             )
         )
     return scenarios

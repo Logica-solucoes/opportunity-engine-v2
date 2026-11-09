@@ -249,6 +249,7 @@ Para cada item: **BRD** (seções a ler) · **Hoje** (estado do código em `bbad
     - fallback in-sample do CV.
   - Calibrar os thresholds dos gates e o **histórico mínimo** de dados (o BRD pede para confirmar na semana 4).
   - Relatório em `docs/audit/2026-11-auditoria-matematica-m2.md`: método, datasets, critérios, resultado e lista de correções com evidência.
+- **Status:** 🟡 correções feitas em 09/nov/2026: os 40 achados confirmados de `docs/audit/formulas-do-motor.md` foram tratados (39 corrigidos, G5 mantido de propósito), com teste por achado, e a paridade com o protótipo virou regressão contra o próprio motor (`docs/decisoes/engine.md` › Paridade e › Auditoria matemática; deltas em `docs/audit/diferencas-prototipo.md`). Falta: os critérios numéricos da Data Science, o gerador sintético de aceite com eles, a calibração dos limiares e do histórico mínimo, e o relatório `docs/audit/2026-11-auditoria-matematica-m2.md`.
 - **Aceite:** critérios numéricos definidos **antes** de rodar, por exemplo "lift recuperado dentro do IC 95% em ≥ 90% dos cenários sintéticos" e "0 eventos publicados no white noise em 50 seeds". Todos aprovados ou desvio justificado no relatório.
 - **Em aberto:** os critérios numéricos (dono: Data Science). Cobrar antes de 9/nov.
 

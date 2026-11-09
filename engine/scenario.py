@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from engine.errors import EngineError
 
-DAYS_PER_MONTH = 30
+DAYS_PER_MONTH = 365.25 / 12
 NO_CURVE = "Esta execução não tem curva de resposta para simular cenários."
 NOT_CONCLUSIVE = "A análise de elasticidade desta execução não é conclusiva; não há cenário para simular."
 # a curve built from channels the engine could not identify, or no model at all; a short history (cv_in_sample) still
@@ -164,11 +164,15 @@ def _saturation_index(curve: list[dict], start_investment: float) -> int | None:
     return idx[position] if position < len(idx) else None
 
 
-def _table_row(point: dict, base: dict, max_step: float, curve: list[dict], note: str) -> dict:
+def _table_row(point: dict, base: dict, max_step: float, curve: list[dict], note: str, reference: dict) -> dict:
+    """`reference` is the curve's own value at today's spend: the increments of a curve point leave the gain of
+    reallocating today's budget out (audit F4)."""
     incremental_investment = point["investment"] - base["investment"]
-    incremental_kpi = point["kpi"] - base["kpi"]
+    incremental_kpi = point["kpi"] - reference["kpi"]
     incremental_revenue = (
-        point["revenue"] - base["revenue"] if point["revenue"] is not None and base["revenue"] is not None else None
+        point["revenue"] - reference["revenue"]
+        if point["revenue"] is not None and reference["revenue"] is not None
+        else None
     )
     changes = not math.isclose(point["investment"], base["investment"])
     return {
@@ -246,7 +250,8 @@ def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) ->
     if elasticity.get("status") == "failed" or REFUSED_REASONS & set(elasticity.get("reasons") or []):
         raise EngineError(NOT_CONCLUSIVE)
     rows = elasticity.get("response_curve") or []
-    current = next((s for s in elasticity.get("scenarios") or [] if s["name"] == "current"), None)
+    scenarios = {s["name"]: s for s in elasticity.get("scenarios") or []}
+    current = scenarios.get("current")
     period_days = (results.get("validation") or {}).get("period_days")
     usable = rows and all(row["investment"] is not None and row["kpi"] is not None for row in rows)
     if not usable or current is None or current.get("kpi") is None or not period_days:
@@ -271,20 +276,27 @@ def scenario(results: dict, filters: ScenarioFilters, max_budget_step: float) ->
         "extrapolated": current.get("extrapolated"),
     }
     base["revenue"] = base["kpi"] * revenue_per_kpi if revenue_per_kpi is not None else None
+    # the curve keeps the historical mix whenever the run publishes no strategic_reallocation (suppressed), so today's
+    # point on the curve is that scenario when there is one, the current one otherwise
+    reallocation = scenarios.get("strategic_reallocation")
+    reference = dict(base)
+    if reallocation and reallocation.get("kpi") is not None:
+        reference["kpi"] = reallocation["kpi"] * factor
+        reference["revenue"] = reference["kpi"] * revenue_per_kpi if revenue_per_kpi is not None else None
 
     index = _saturation_index(curve, base["investment"])
     saturation = curve[index] if index is not None else (recommended or curve[-1])
 
     note = bid_note(revenue_mode)
-    current_row = _table_row(base, base, max_budget_step, curve, note)
+    current_row = _table_row(base, base, max_budget_step, curve, note, base)
     current_row["icpa"] = 0.0
     current_row["iroas"] = 0.0 if revenue_mode else None
     return {
         "unit": "month",
         "revenue_mode": revenue_mode,
         "current": current_row,
-        "recommended": _table_row(recommended, base, max_budget_step, curve, note) if recommended else None,
-        "saturation": _table_row(saturation, base, max_budget_step, curve, note),
+        "recommended": _table_row(recommended, base, max_budget_step, curve, note, reference) if recommended else None,
+        "saturation": _table_row(saturation, base, max_budget_step, curve, note, reference),
         "curve": curve,
         "channels": _channels(elasticity, rows, base["investment"], factor),
     }

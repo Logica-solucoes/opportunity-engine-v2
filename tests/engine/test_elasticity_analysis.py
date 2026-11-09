@@ -140,7 +140,7 @@ class TestBootstrapCoefficients(unittest.TestCase):
         single_fit = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X, y)
         self.assertEqual(single_fit.coef_[1], 0.0)
 
-        boot_coef = bootstrap_coefficients(X, y, n_bootstrap=300, seed=42).mean(axis=0)
+        boot_coef = bootstrap_coefficients(X, y, n_bootstrap=300, seed=42)[0].mean(axis=0)
         self.assertGreater(boot_coef[1], 0.0)
 
     def test_reproducible_with_a_fixed_seed(self):
@@ -148,11 +148,12 @@ class TestBootstrapCoefficients(unittest.TestCase):
         X = rng.uniform(1, 10, (40, 2))
         y = X[:, 0] + X[:, 1] + rng.normal(0, 1.0, 40)
 
-        result_a = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
-        result_b = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
-        np.testing.assert_array_equal(result_a, result_b)
+        coefs_a, intercepts_a = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
+        coefs_b, intercepts_b = bootstrap_coefficients(X, y, n_bootstrap=50, seed=7)
+        np.testing.assert_array_equal(coefs_a, coefs_b)
+        np.testing.assert_array_equal(intercepts_a, intercepts_b)
 
-    def test_the_mean_is_bit_identical_to_the_original_averaging_loop(self):
+    def test_blocks_of_one_row_are_the_iid_row_bootstrap(self):
         rng = np.random.default_rng(1)
         X = rng.uniform(1, 10, (40, 3))
         y = X @ np.array([1.0, 0.5, 0.0]) + rng.normal(0, 1.0, 40)
@@ -160,20 +161,19 @@ class TestBootstrapCoefficients(unittest.TestCase):
         coefs = np.zeros((30, 3))
         for b in range(30):
             idx = loop_rng.integers(0, 40, 40)
-            coefs[b] = Ridge(alpha=1.0, positive=True, fit_intercept=False).fit(X[idx], y[idx]).coef_
+            coefs[b] = Ridge(alpha=1.0, positive=True).fit(X[idx], y[idx]).coef_
 
-        np.testing.assert_array_equal(
-            bootstrap_coefficients(X, y, n_bootstrap=30, seed=5).mean(axis=0), coefs.mean(axis=0)
-        )
+        np.testing.assert_array_equal(bootstrap_coefficients(X, y, n_bootstrap=30, seed=5, block=1)[0], coefs)
 
     def test_returns_one_row_per_resample(self):
         rng = np.random.default_rng(2)
         X = rng.uniform(1, 10, (30, 3))
         y = X.sum(axis=1)
 
-        samples = bootstrap_coefficients(X, y, n_bootstrap=20, seed=1)
+        samples, intercepts = bootstrap_coefficients(X, y, n_bootstrap=20, seed=1)
 
         self.assertEqual(samples.shape, (20, 3))
+        self.assertEqual(intercepts.shape, (20,))
         self.assertTrue((samples >= 0).all())  # positive Ridge
 
 

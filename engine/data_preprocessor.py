@@ -23,28 +23,17 @@ def iqr_bounds(series):
     return Q1 - 1.5 * IQR, Q3 + 1.5 * IQR
 
 
+OUTLIER_WINDOW = 7  # periods; a run of 4 or more is part of the baseline, so a post window of 4+ periods survives
+
+
 def treat_outliers(df, column):
-    """Identifies and caps outliers in a specified column using the 1.5 * IQR rule."""
-    lower_bound, upper_bound = iqr_bounds(df[column])
-    df[column] = np.where(df[column] > upper_bound, upper_bound, df[column])
-    df[column] = np.where(df[column] < lower_bound, lower_bound, df[column])
+    """Caps the rows of `column` (in date order) whose distance to a centred rolling median is outside the 1.5 * IQR
+    fences of those distances. Fences on the raw series would cut every real lift and level shift."""
+    values = df[column]
+    baseline = values.rolling(OUTLIER_WINDOW, center=True, min_periods=1).median()
+    lower, upper = iqr_bounds(values - baseline)
+    df[column] = baseline + (values - baseline).clip(lower, upper)
     return df
-
-
-def geometric_decay(series, alpha):
-    """Applies geometric decay for ad-stock."""
-    return series.ewm(alpha=alpha, adjust=False).mean()
-
-
-def find_best_alpha(investment_series, kpi_series):
-    """Finds the best adstock alpha for a single channel."""
-    correlations = {}
-    for alpha in np.arange(0.1, 1.0, 0.1):
-        adstocked_series = geometric_decay(investment_series, alpha)
-        correlations[alpha] = adstocked_series.corr(kpi_series)
-
-    best_alpha = max(correlations, key=correlations.get)
-    return best_alpha, correlations[best_alpha]
 
 
 DATE_FORMAT_CANDIDATES = [
@@ -213,7 +202,9 @@ def detect_cadence(dates):
       - <= 1.5 dia    -> 1  (diário)
       - 6 a 8 dias    -> 7  (semanal; tolera feriados/re-ancoramentos que
                              deslocam o dia da semana em +-1 dia)
-      - 27 a 31 dias  -> 30 (mensal; cobre a variação natural de dias no mês)
+      - mais de 28 até 31 dias -> 30 (mensal; a mediana de meses de calendário
+                             nunca é 28, e 28 exato é dado de 4 semanas, que
+                             fica 28 e não ganha o fator de um mês)
     Fora dessas faixas, retorna a mediana bruta arredondada (ex: cadência
     quinzenal ~14 dias não tem faixa própria e sai como valor bruto,
     conforme pedido no plano: "ou valor bruto se não bater em nenhum").
@@ -234,7 +225,7 @@ def detect_cadence(dates):
         return 1
     if 6 <= median_days <= 8:
         return 7
-    if 27 <= median_days <= 31:
+    if 28 < median_days <= 31:
         return 30
     return int(round(median_days))
 
@@ -271,8 +262,17 @@ def suggest_causal_config(daily_investment_df):
         if cadence >= 7:
             bucket_key = product_df["Date"]
         else:
-            bucket_key = product_df["Date"].dt.to_period("W-MON").dt.start_time
-        period_investment = product_df.assign(_bucket=bucket_key).groupby("_bucket")["investment"].sum().reset_index()
+            bucket_key = product_df["Date"].dt.to_period("W").dt.start_time
+        period_investment = (
+            product_df.assign(_bucket=bucket_key)
+            .groupby("_bucket")
+            .agg(investment=("investment", "sum"), days=("Date", "nunique"))
+            .reset_index()
+        )
+        # the same buckets as analysis.find_events: partial edge weeks would read as drops
+        partial = period_investment["days"] * cadence < 7
+        edge = period_investment.index.isin([0, len(period_investment) - 1])
+        period_investment = period_investment[~(partial & edge)].reset_index(drop=True)
         if len(period_investment) < 3:
             continue
 
@@ -334,6 +334,16 @@ def parse_investment_columns(df, date_col, channel_col, investment_col, date_for
     return df, investment_raw_values
 
 
+def _merge_dates(df, date_col):
+    """One row per date (and channel): numbers summed, any other column keeps its first value."""
+    keys = [date_col] + [c for c in ("Product Group",) if c in df.columns]
+    numeric = [c for c in df.select_dtypes("number").columns if c not in keys]
+    how = {c: ("sum" if c in numeric else "first") for c in df.columns if c not in keys}
+    if not how:
+        return df.drop_duplicates(keys).reset_index(drop=True)
+    return df.groupby(keys, sort=False, as_index=False).agg(how)[list(df.columns)]
+
+
 def drop_partial_periods(df, date_col, cadence):
     """
     Descarta linhas cuja data representa um período "parcial" (mais curto
@@ -347,7 +357,9 @@ def drop_partial_periods(df, date_col, cadence):
     uma data extra entre duas datas normais), as duas datas vizinhas à data
     extra também ficam com só UM dos lados curto -- mas elas não são
     parciais, é a data espremida entre as duas que é. Exigir os dois lados
-    curtos isola corretamente só essa data extra.
+    curtos isola corretamente só essa data extra. Ela não é apagada: é o
+    segundo pedaço do período da data anterior (os rótulos são o início do
+    período), então seus valores são somados nessa data.
 
     Nas pontas da série (primeira/última data), só existe um vizinho para
     comparar, então a checagem usa só a distância disponível (ex: um
@@ -388,6 +400,25 @@ def drop_partial_periods(df, date_col, cadence):
     if not stub_dates:
         log.debug(f"   - Nenhum período parcial encontrado (cadência={cadence} dia(s), limiar={threshold:.1f} dia(s)).")
         return df.reset_index(drop=True)
+
+    # A stub in the middle is the second piece of a period the export cut in two (at 1/1): the date before it starts
+    # the same period, so it is summed there instead of leaving that date holding a fraction of a period.
+    kept_dates = unique_dates[~unique_dates.isin(stub_dates)]
+    merged_into = {}
+    for d in stub_dates:
+        before = kept_dates[kept_dates < d]
+        if d < unique_dates.iloc[-1] and not before.empty:
+            merged_into[d] = before.max()
+    if merged_into:
+        log.info(
+            "   - Períodos partidos somados ao período anterior: "
+            + ", ".join(f"{d:%d/%m/%Y} → {to:%d/%m/%Y}" for d, to in sorted(merged_into.items()))
+        )
+        df = _merge_dates(df.assign(**{date_col: dates.replace(merged_into)}), date_col)
+        dates = pd.to_datetime(df[date_col])
+        stub_dates = [d for d in stub_dates if d not in merged_into]
+        if not stub_dates:
+            return df
 
     mask = dates.isin(stub_dates)
     dropped_str = ", ".join(pd.Timestamp(d).strftime("%d/%m/%Y") for d in sorted(stub_dates))
@@ -759,8 +790,8 @@ def guess_kpi_col(file_path, user_kpi):
 @dataclass
 class PreparedData:
     kpi_df: pd.DataFrame
-    investment_df: pd.DataFrame  # the adstock already applied to channels that move against the KPI
-    spend_df: pd.DataFrame  # the same spend before that adstock: what was actually spent (A6 measures its variation)
+    investment_df: pd.DataFrame  # the spend as sent (PRE-6 removed the negative-correlation adstock)
+    spend_df: pd.DataFrame  # the same spend: kept apart so a future transform cannot leak into what A6 and the MMM read
     trends_df: pd.DataFrame
     controls_df: pd.DataFrame  # Date plus the bcb series asked in config["controls"] (empty without them)
     correlation_matrix: pd.DataFrame
@@ -788,7 +819,7 @@ def load_and_prepare_data(config, paths):
             if check.level == "error":
                 raise EngineError(check.message, check.id)
         kpi_df, trends_df = raw.kpi_df, raw.trends_df
-        # before partial periods and the negative-correlation adstock: from here on a group is a plain channel
+        # before partial periods: from here on a group is a plain channel
         daily_investment_df = apply_channel_groups(raw.investment_df, config["channel_groups"])
         controls_df = read_controls(paths.get("bcb_file"), config["controls"])
 
@@ -823,6 +854,7 @@ def load_and_prepare_data(config, paths):
         outlier_config = config["treat_outliers"]
         if outlier_config:
             log.info("   - Applying outlier treatment...")
+            kpi_df = kpi_df.sort_values("Date").reset_index(drop=True)
             if isinstance(outlier_config, list):
                 # Treat specific columns listed in config
                 for col in outlier_config:
@@ -846,29 +878,9 @@ def load_and_prepare_data(config, paths):
             daily_investment_df[["Date", "Product Group", "investment"]].sort_values(by="Date").reset_index(drop=True)
         )
 
+        # No adstock here: the MMM fits its own, once. Smoothing the channels that move against the KPI (picked on
+        # that same correlation) fired on half of the null channels and leaked into every published amount (PRE-6).
         spend_df = daily_investment_df.copy()
-        log.info("   - Data loaded and columns renamed successfully.")
-
-        kpi_col = "kpi"
-
-        # --- Adstock Transformation ---
-        log.info("   - Checking for negative correlations and applying adstock where needed...")
-        investment_pivot = daily_investment_df.pivot_table(
-            index="Date", columns="Product Group", values="investment"
-        ).fillna(0)
-        merged_for_corr = pd.merge(kpi_df, investment_pivot, on="Date", how="inner")
-
-        correlation_matrix = merged_for_corr.corr(numeric_only=True)
-
-        for column in investment_pivot.columns:
-            if column in correlation_matrix and correlation_matrix[column][kpi_col] < 0:
-                log.info(f"     - Applying adstock to '{column}' due to negative correlation.")
-                best_alpha, _ = find_best_alpha(merged_for_corr[column], merged_for_corr[kpi_col])
-                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = geometric_decay(
-                    daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"],
-                    best_alpha,
-                )
-
         log.info("   - Data preparation complete.")
 
         # --- Final Correlation Matrix (for display) ---

@@ -163,7 +163,7 @@ def test_the_new_gates_have_provisional_defaults_and_reach_the_legacy_dict():
     config = EngineConfig()
     assert config.gate_threshold("vif_max") == 10.0
     legacy = config.to_legacy_dict()
-    assert legacy["spend_cv_min"] == 0.10 and legacy["oos_wmape_max"] == 0.30
+    assert legacy["spend_cv_min"] == 0.10 and legacy["oos_wmape_max"] == 0.30 and legacy["oos_skill_min"] == 0.10
 
 
 def test_the_vif_limit_must_be_above_one():
@@ -176,7 +176,7 @@ def test_the_vif_limit_must_be_above_one():
         )
 
 
-@pytest.mark.parametrize("name", ["spend_cv_min", "oos_wmape_max"])
+@pytest.mark.parametrize("name", ["spend_cv_min", "oos_wmape_max", "oos_skill_min"])
 def test_the_a6_limits_are_in_zero_one(name):
     with pytest.raises(EngineError) as raised:
         EngineConfig.from_input({"gate_thresholds": {name: 1.5}})

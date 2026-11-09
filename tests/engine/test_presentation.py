@@ -228,7 +228,7 @@ class TestSaveCausalChartData(unittest.TestCase):
 
 class TestComparativeSaturationMdMonthlyFactor(unittest.TestCase):
     """Fase 3: the summary table's kpi_projections extrapolation must scale
-    by 30/period_days, not a flat 30, so weekly/monthly cadence data isn't
+    by (365.25/12)/period_days (audit F9), so weekly/monthly cadence data isn't
     overstated by ~30/period_days x."""
 
     def _run(self, period_days, tmp_path):
@@ -251,25 +251,25 @@ class TestComparativeSaturationMdMonthlyFactor(unittest.TestCase):
         with open(tmp_path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def test_weekly_cadence_scales_by_30_over_7(self):
+    def test_weekly_cadence_scales_by_a_month_over_7(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_path = os.path.join(tmp_dir, "out.md")
             content = self._run(7, out_path)
-        # Daily_Investment=1000 * (30/7) ~= 4285.71 -> "R$ 4.3k", not "R$ 30.0k"
+        # Daily_Investment=1000 * (30.4375/7) ~= 4348.21 -> "R$ 4.3k", not "R$ 30.4k"
         self.assertIn("R$ 4.3k", content)
-        self.assertNotIn("R$ 30.0k", content)
+        self.assertNotIn("R$ 30.4k", content)
 
-    def test_daily_cadence_matches_old_flat_30_behavior(self):
+    def test_daily_cadence_scales_by_a_365_25_over_12_day_month(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_path = os.path.join(tmp_dir, "out.md")
             content = self._run(1, out_path)
-        self.assertIn("R$ 30.0k", content)
+        self.assertIn("R$ 30.4k", content)
 
-    def test_default_period_days_preserves_flat_30_for_backward_compat(self):
+    def test_default_period_days_is_daily(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             out_path = os.path.join(tmp_dir, "out.md")
             content = self._run(None, out_path)
-        self.assertIn("R$ 30.0k", content)
+        self.assertIn("R$ 30.4k", content)
 
 
 if __name__ == "__main__":

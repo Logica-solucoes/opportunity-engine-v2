@@ -73,9 +73,13 @@ def test_fixtures_cover_what_the_screens_must_show():
     assert [_load(n)["status"] for n in NAMES] == ["inconclusive", "inconclusive", "failed", "inconclusive"]
     gol = _load("gol_anonimizada.json")
     events = gol["causal"]["events"]
-    assert any(e["status"] == "published" for e in events) and any(e["status"] == "rejected" for e in events)
+    # since the audit fixes (09/nov/2026) the skill gate demotes every Gol event (high_oos_wmape): no fixture has a
+    # published event; the E2E serves e2e_gol_publicado.json, the Gol as written before the fixes
+    assert events and all(e["status"] == "rejected" for e in events)
+    assert gol["sufficiency"]["reasons"] == ["high_oos_wmape"]
     assert gol["elasticity"]["reasons"] == ["no_identifiable_channel"]
     assert any("collinearity" in c["reasons"] for c in gol["elasticity"]["channels"])  # block_per_channel
+    assert any("hill_at_bound" in c["reasons"] for c in gol["elasticity"]["channels"])
     assert _load("gol_inconclusiva.json")["causal"]["reasons"] == ["no_eligible_events"]
     assert _load("falha.json")["elasticity"]["reasons"] == ["model_failed"]
     channels = {c["name"]: c for c in _load("identificavel.json")["elasticity"]["channels"]}

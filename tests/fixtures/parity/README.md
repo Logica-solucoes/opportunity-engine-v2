@@ -1,3 +1,22 @@
+# Parity and regression goldens
+
+**Since 09/nov/2026 the engine no longer matches the prototype on purpose** (math audit fixes,
+`docs/audit/diferencas-prototipo.md`). `tests/engine/test_parity.py` and `test_parity_real.py` now compare against the
+engine's own goldens:
+
+- `engine_snapshot.json` (versioned): every number of `compute()` on the synthetic dataset, plus the library versions.
+- `real/gol_engine.json` (confidential, not versioned): the same on `exemplo_csv/Gol`.
+
+Regenerate both, only with approval and after reading the deltas it prints, on Linux x86-64 under the pins of
+`mise.toml` (a container on Windows works):
+
+    mise run parity-golden    # python -m tests.fixtures.parity.make_engine_goldens
+
+The prototype's own numbers stay below as history: `snapshot.json` and `real/gol.json` are what the deltas are measured
+against.
+
+---
+
 # Parity snapshot
 
 `snapshot.json` holds the numbers the **frozen prototype** (`opportunity-engine`, HEAD `6146b7f`) produces on the

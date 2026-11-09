@@ -53,21 +53,45 @@ def test_safe_quotes_what_excel_would_run():
 def test_a_rejected_event_has_its_verdict_and_reasons_but_no_numbers():
     assert exports.events_csv(load(IDENTIFIABLE)) == (
         f"{BOM}{EVENTS_HEADER}\n"
-        "synthetic_STRONG_2024-09-02;STRONG;02/09/2024;16/09/2024;rejeitado;"
-        "Reprovado no placebo: o modelo acha efeito numa data sem intervenção;;;;;;;;;;;;\n"
+        "synthetic_NOEFFECT,_STRONG_2024-01-15;NOEFFECT + STRONG;;;rejeitado;A análise do evento falhou;;;;;;;;;;;;\n"
+        "synthetic_STRONG_2024-08-05;STRONG;05/08/2024;18/08/2024;rejeitado;"
+        "O efeito só aparece com as variáveis de mídia do modelo;;;;;;;;;;;;\n"
     )
 
 
+PUBLISHED = {
+    "id": "adv_A_2025-01-20",
+    "channels": ["A", "B"],
+    "status": "published",
+    "reasons": [],
+    "start": "2025-01-20",
+    "end": "2025-02-03",
+    "lift": {"abs": -514366.04, "ci": [-671610.99, -357121.10], "rel_pct": -31.11},
+    "p_value": 1.44e-10,
+    "investment_change_pct": -33.57,
+    "incremental_investment": -140739.15,
+    "cpa_incremental": 0.27,
+    "fit": {"r2": 0.5316, "wmape": None},
+    "placebo": None,
+    "robustness": {"p_value": 1.44e-10},
+}
+
+
 def test_a_published_event_has_its_numbers():
+    # since the audit fixes no fixture has a published event (the Gol's are all demoted), so the row is hand-built
+    line = exports.events_csv({"causal": {"events": [PUBLISHED]}}).splitlines()[1]
+
+    assert line == (
+        "adv_A_2025-01-20;A + B;20/01/2025;03/02/2025;publicado;;"
+        "-514366,04;-671610,99;-357121,10;-31,11;1,44e-10;-33,57;-140739,15;0,27;0,5316;;;1,44e-10"
+    )
+
+
+def test_the_gol_events_export_with_the_failed_ones_undated():
     lines = exports.events_csv(load(GOL)).splitlines()
 
-    assert len(lines) == 53  # the header and the Gol's 52 events
-    assert (
-        "default_advertiser_CANAL_06,_CANAL_08_2025-01-20;CANAL_06 + CANAL_08;20/01/2025;03/02/2025;publicado;;"
-        "-514366,04;-671610,99;-357121,10;-31,11;1,44e-10;-33,57;140739,15;-0,27;0,5316;;;1,44e-10"
-    ) in lines
-    # analysis_failed comes without dates
-    assert "default_advertiser_CANAL_02_2025-01-06;CANAL_02;;;rejeitado;A análise do evento falhou;;;;;;;;;;;;" in lines
+    assert len(lines) == 32  # the header and the Gol's 31 events
+    assert "default_advertiser_CANAL_01_2025-01-13;CANAL_01;;;rejeitado;A análise do evento falhou;;;;;;;;;;;;" in lines
 
 
 def test_channel_names_cannot_run_as_a_formula():
@@ -108,14 +132,14 @@ def test_scenario_csv_has_the_table_then_the_ramp():
 
     assert head.splitlines() == [
         f"{BOM}Cenário;Investimento;KPI;KPI p5;KPI p95;CPA;Investimento incremental;KPI incremental;iCPA;Extrapolado;Notas",
-        "Atual;57316,34;196855,76;196328,49;197349,42;0,29;0,00;0,00;0,00;não;",
-        f"Recomendado;85974,50;197752,37;196934,36;198518,24;0,43;28658,17;896,61;31,96;não;{TCPA_NOTE}",
-        f"Saturação;85974,50;197752,37;196934,36;198518,24;0,43;28658,17;896,61;31,96;não;{TCPA_NOTE}",
+        "Atual;58152,20;198731,29;198124,38;199343,39;0,29;0,00;0,00;0,00;não;",
+        f"Recomendado;87228,30;204995,97;203986,04;206045,37;0,43;29076,10;6264,68;4,64;não;{TCPA_NOTE}",
+        f"Saturação;87228,30;204995,97;203986,04;206045,37;0,43;29076,10;6264,68;4,64;não;{TCPA_NOTE}",
     ]
     steps = ramp.splitlines()
     assert steps[:2] == [
         "Cenário;Degrau;Investimento;KPI;KPI p5;KPI p95",
-        "Recomendado;1;68779,60;197227,97;196580,01;197834,64",
+        "Recomendado;1;69782,64;201540,05;200853,23;202258,64",
     ]
     assert len(steps) == 7  # the header and 3 steps to each of recommended and saturation
 
@@ -147,7 +171,9 @@ def test_curve_csv_has_a_point_per_line_with_its_filter_flag():
         f"{BOM}Investimento;KPI;KPI p5;KPI p95;CPA;iCPA;Investimento incremental;KPI incremental;"
         "% incrementalidade;Extrapolado;No filtro"
     )
-    assert lines[1] == "0,00;195229,73;195229,73;195229,73;0,00;;0,00;0,00;0,00;sim;sim"
+    assert (
+        lines[1] == "0,00;92200,24;78537,67;106020,87;0,00;;0,00;0,00;0,00;sim;sim"
+    )  # the zero-media KPI and its band
     assert len(lines) == 101
     assert {line.rsplit(";", 1)[1] for line in lines[1:]} == {"sim", "não"}
 
@@ -217,7 +243,7 @@ def test_the_events_csv_is_the_documents_events(logged, finished):
 def test_the_gol_still_exports_its_events(logged, finished):
     r = logged.get(url(finished(document=GOL), "events.csv"))
 
-    assert r.status_code == 200 and len(r.text.splitlines()) == 53
+    assert r.status_code == 200 and len(r.text.splitlines()) == 32
 
 
 def test_filters_reach_the_scenario_csv(logged, finished):
@@ -227,8 +253,8 @@ def test_filters_reach_the_scenario_csv(logged, finished):
     capped = logged.get(url(run, "scenario.csv", query="?target_cpa=0.3")).text
     nothing = logged.get(url(run, "scenario.csv", query="?target_cpa=0.000000001&min_budget=1")).text
 
-    assert "\nRecomendado;85974,50;" in every
-    assert "\nRecomendado;59053,19;" in capped
+    assert "\nRecomendado;87228,30;" in every
+    assert "\nRecomendado;59033,29;" in capped
     assert "\nRecomendado;" not in nothing and "\nSaturação;" in nothing
 
 

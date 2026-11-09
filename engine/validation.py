@@ -21,6 +21,8 @@ OVERLAP_CORRELATION = 0.95
 OVERLAP_RATIO_MIN = 0.9  # the smaller total over the larger: 0.9-1.1 either way round
 MIN_COLLINEARITY_PERIODS = 30  # with fewer dates two channels correlate near ±1 by chance; A6/A10 calibrate
 MAX_FINITE_VIF = 1e6  # above this (or negative, R² rounded past 1): perfect collinearity, reported as None
+MIN_WEEKS_FOR_WEEKDAY = 5
+MIN_OUTLIER_SHARE = 0.01  # an outlier also departs from its local level by more than 1% of the KPI's median
 CADENCE_LABEL = {1: "diária", 7: "semanal", 30: "mensal"}
 
 
@@ -41,8 +43,9 @@ def check_partial(investment_df: pd.DataFrame, kpi_df: pd.DataFrame, inv_cadence
                 id="partial_period_dropped",
                 level="info",
                 message=(
-                    f"{dropped_inv + dropped_kpi} período(s) parcial(is) serão descartados "
-                    f"({dropped_inv} no investimento, {dropped_kpi} na performance)."
+                    f"{dropped_inv + dropped_kpi} data(s) de período parcial saem da série "
+                    f"({dropped_inv} no investimento, {dropped_kpi} na performance): nas pontas, o período é "
+                    "descartado; no meio (ex.: semana partida na virada do ano), os valores são somados ao período."
                 ),
                 details={"investment": int(dropped_inv), "performance": int(dropped_kpi)},
             )
@@ -84,6 +87,10 @@ def _gaps(dates: pd.Series, period_days: int) -> list[pd.Timestamp]:
     unique = pd.Series(pd.to_datetime(dates).unique()).sort_values().reset_index(drop=True)
     missing = []
     for before, after in itertools.pairwise(unique):
+        if period_days == 30:  # calendar months, not 30-day steps
+            steps = (after.year - before.year) * 12 + after.month - before.month
+            missing.extend(before + pd.DateOffset(months=k) for k in range(1, steps))
+            continue
         steps = round((after - before).days / period_days)
         missing.extend(before + pd.Timedelta(days=period_days * k) for k in range(1, steps))
     return missing
@@ -106,18 +113,40 @@ def check_missing_dates(investment_df: pd.DataFrame, kpi_df: pd.DataFrame, perio
     ]
 
 
-def check_outliers(kpi_df: pd.DataFrame) -> list[Check]:
+def _kpi_residual(kpi_df: pd.DataFrame, period_days: int) -> pd.Series:
+    """The KPI minus its local level and, daily, minus each weekday's median: fences on the raw series miss a spike on
+    a trend and flag the ends of a strong one. The level is the mean of the medians of the `window` periods just
+    before and just after, never the point itself (a median that includes it piles residuals at zero and narrows the
+    IQR). The first and last `window` points have no level: a one-sided median lags the trend and, daily, the weekday."""
+    kpi = kpi_df.sort_values("Date").set_index("Date")["kpi"]
+    window = 7 if period_days == 1 else 3
+    before = kpi.shift(1).rolling(window).median()
+    after = kpi[::-1].shift(1).rolling(window).median()[::-1]
+    residual = kpi - (before + after) / 2
+    if period_days == 1:
+        weekday = residual.groupby(residual.index.dayofweek)
+        # with few weeks the weekday's median is the spike itself
+        residual -= weekday.transform("median").where(weekday.transform("count") >= MIN_WEEKS_FOR_WEEKDAY, 0)
+    return residual
+
+
+def check_outliers(kpi_df: pd.DataFrame, period_days: int) -> list[Check]:
     if kpi_df.empty:
         return []
-    lower, upper = iqr_bounds(kpi_df["kpi"])
-    hit = kpi_df[(kpi_df["kpi"] > upper) | (kpi_df["kpi"] < lower)].sort_values("Date")
+    residual = _kpi_residual(kpi_df, period_days)
+    lower, upper = iqr_bounds(residual)
+    # on an almost noiseless KPI the IQR is ~0 and the small shift a spike leaves on its neighbours' level would count
+    tolerance = MIN_OUTLIER_SHARE * float(kpi_df["kpi"].abs().median())
+    hit = residual[((residual > upper) | (residual < lower)) & (residual.abs() > tolerance)].reset_index()
     if hit.empty:
         return []
     return [
         Check(
             id="outliers",
             level="info",
-            message=f"{len(hit)} ponto(s) do KPI fora da faixa esperada (1,5 × IQR).",
+            message=(
+                f"{len(hit)} ponto(s) do KPI fora da faixa esperada (1,5 × IQR, descontadas tendência e sazonalidade)."
+            ),
             details={"count": int(len(hit)), "dates": _iso(hit["Date"].head(MAX_LISTED_DATES))},
         )
     ]
@@ -284,10 +313,12 @@ def check_groups(
             )
         )
     grouped = spend_matrix(apply_channel_groups(kept_inv, config.channel_groups))
-    open_pairs = _not_overlap(_pairs_over(grouped, config), overlapping)
+    pairs = _pairs_over(grouped, config)
+    open_pairs = _not_overlap(pairs, overlapping)
     vif_channels = high_vif(grouped, config, overlapping)
-    unresolved = sorted({name for p in open_pairs for name in (p["a"], p["b"])} | set(vif_channels))
-    if config.block_per_channel or not unresolved:
+    # overlap twins only warn (the analyst picks one), but they stay unresolved: A5 must not publish either one alone
+    unresolved = sorted({name for p in pairs for name in (p["a"], p["b"])} | set(vif_channels))
+    if config.block_per_channel or not (open_pairs or vif_channels):
         return checks, unresolved
     members = {" + ".join(group): group for group in config.channel_groups}
     suggested_groups = sorted(
@@ -323,7 +354,7 @@ def _series_checks(raw: RawInputs) -> tuple[list[Check], int | None, pd.DataFram
     if not mismatch and not kept_inv.empty and not kept_kpi.empty:
         checks += check_aligned(kept_inv, kept_kpi)
     checks += check_missing_dates(inv, kpi, inv_cadence)
-    checks += check_outliers(kept_kpi)
+    checks += check_outliers(kept_kpi, kpi_cadence)
     return checks, inv_cadence, kept_inv
 
 

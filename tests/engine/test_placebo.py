@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -20,10 +18,12 @@ def _pre(n=120, seed=0, step_at=None, step=0.0, noise=1.0):
 
 
 def test_cumulative_p_value_tests_the_lift_against_the_accumulated_forecast_error():
-    p, cum_se = cumulative_p_value(10.0, SimpleNamespace(se_mean=np.array([3.0, 4.0])))
+    fit = sm.tsa.UnobservedComponents(_pre()["kpi"], "llevel").fit(disp=False)
+    p, cum_se = cumulative_p_value(10.0, fit, 1)
 
-    assert cum_se == 5.0 and p == pytest.approx(2 * stats.norm.sf(2.0))
-    assert cumulative_p_value(10.0, SimpleNamespace(se_mean=np.array([]))) == (1.0, 0.0)
+    assert cum_se == pytest.approx(fit.get_forecast(steps=1).se_mean.iloc[0])
+    assert p == pytest.approx(2 * stats.norm.sf(10.0 / cum_se))
+    assert cumulative_p_value(10.0, fit, 0) == (1.0, 0.0)
 
 
 def test_the_placebo_rejects_a_step_in_the_pre_period():

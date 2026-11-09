@@ -111,7 +111,7 @@ def test_event_fields_come_from_the_results_data(synthetic_computed):
     event = results._causal(with_events(synthetic_computed, [outcome()])).events[0]
     assert (event.start, event.end) == ("2024-06-03", "2024-06-16")
     assert event.lift.abs == 120.0 and event.lift.ci == (80.0, 160.0) and event.lift.rel_pct == 12.5
-    assert event.incremental_investment == 420.0 and event.cpa_incremental == 3.5
+    assert event.incremental_investment == 220.0 and event.cpa_incremental == 3.5  # post 420 − baseline 200
     assert event.fit.r2 == 0.6 and event.fit.mae == 5.0 and event.fit.mape == 4.0 and event.fit.wmape is None
     assert event.placebo is None and event.channels == ["YOUTUBE"]
 

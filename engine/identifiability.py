@@ -9,7 +9,14 @@ def assess(mmm: dict, collinear: set[str] = frozenset()) -> dict[str, dict]:
     """{channel: {"ci": (p2.5, p97.5), "identifiable": bool, "reasons": [...]}}, the CI in KPI units over the period.
 
     The Ridge is positive, so a contribution is never negative: "the CI crosses zero" is p2.5 == 0. A channel the
-    collinearity gate left open (block_per_channel) is never identifiable, whatever its CI.
+    collinearity gate left open (block_per_channel) is never identifiable, whatever its CI, and neither is one whose
+    floor under the observed spend the Hill bound set (mmm["unmeasured_floor"]): the bootstrap holds Hill fixed, so its
+    CI misses that the level at zero spend is not in the data.
+
+    hi - lo <= point is a precision rule: the 95% half-width at most half the contribution, about point/se >= 3.92
+    against the 1.96 of "clear of zero", so every channel that fails coef_ci_includes_zero also fails it (G5). It stays
+    on purpose: the bootstrap holds the adstock/Hill fitted on the same rows, and with only the zero test a no-effect
+    channel came out identifiable at point/se ~2.5 in 2 of the 3 acceptance seeds.
     """
     totals = np.asarray(mmm["channel_totals"])
     contributions = np.asarray(mmm["coef_samples"]) * totals
@@ -24,6 +31,8 @@ def assess(mmm: dict, collinear: set[str] = frozenset()) -> dict[str, dict]:
             reasons.append("coef_ci_too_wide")
         if name in collinear:
             reasons.append("collinearity")
+        if name in mmm.get("unmeasured_floor", ()):
+            reasons.append("hill_at_bound")
         verdicts[name] = {"ci": (float(lo[i]), float(hi[i])), "identifiable": not reasons, "reasons": reasons}
     return verdicts
 
