@@ -36,23 +36,6 @@ def treat_outliers(df, column):
     return df
 
 
-def ewm_smooth(series, weight):
-    """y_t = weight * x_t + (1 - weight) * y_{t-1}: `weight` is the share of today, not the carry-over
-    (analysis.geometric_decay is the unnormalized one, where alpha is the carry-over)."""
-    return series.ewm(alpha=weight, adjust=False).mean()
-
-
-def find_best_alpha(investment_series, kpi_series):
-    """Finds the best ewm_smooth weight for a single channel."""
-    correlations = {}
-    for alpha in np.arange(0.1, 1.0, 0.1):
-        adstocked_series = ewm_smooth(investment_series, alpha)
-        correlations[alpha] = adstocked_series.corr(kpi_series)
-
-    best_alpha = max(correlations, key=correlations.get)
-    return best_alpha, correlations[best_alpha]
-
-
 DATE_FORMAT_CANDIDATES = [
     "%Y-%m-%d",
     "%d/%m/%Y",
@@ -895,29 +878,9 @@ def load_and_prepare_data(config, paths):
             daily_investment_df[["Date", "Product Group", "investment"]].sort_values(by="Date").reset_index(drop=True)
         )
 
+        # No adstock here: the MMM fits its own, once. Smoothing the channels that move against the KPI (picked on
+        # that same correlation) fired on half of the null channels and leaked into every published amount (PRE-6).
         spend_df = daily_investment_df.copy()
-        log.info("   - Data loaded and columns renamed successfully.")
-
-        kpi_col = "kpi"
-
-        # --- Adstock Transformation ---
-        log.info("   - Checking for negative correlations and applying adstock where needed...")
-        investment_pivot = daily_investment_df.pivot_table(
-            index="Date", columns="Product Group", values="investment"
-        ).fillna(0)
-        merged_for_corr = pd.merge(kpi_df, investment_pivot, on="Date", how="inner")
-
-        correlation_matrix = merged_for_corr.corr(numeric_only=True)
-
-        for column in investment_pivot.columns:
-            if column in correlation_matrix and correlation_matrix[column][kpi_col] < 0:
-                log.info(f"     - Applying adstock to '{column}' due to negative correlation.")
-                best_alpha, _ = find_best_alpha(merged_for_corr[column], merged_for_corr[kpi_col])
-                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = ewm_smooth(
-                    daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"],
-                    best_alpha,
-                )
-
         log.info("   - Data preparation complete.")
 
         # --- Final Correlation Matrix (for display) ---

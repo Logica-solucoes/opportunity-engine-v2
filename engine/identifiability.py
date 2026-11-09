@@ -10,6 +10,11 @@ def assess(mmm: dict, collinear: set[str] = frozenset()) -> dict[str, dict]:
 
     The Ridge is positive, so a contribution is never negative: "the CI crosses zero" is p2.5 == 0. A channel the
     collinearity gate left open (block_per_channel) is never identifiable, whatever its CI.
+
+    hi - lo <= point is a precision rule: the 95% half-width at most half the contribution, about point/se >= 3.92
+    against the 1.96 of "clear of zero", so every channel that fails coef_ci_includes_zero also fails it (G5). It stays
+    on purpose: the bootstrap holds the adstock/Hill fitted on the same rows, and with only the zero test a no-effect
+    channel came out identifiable at point/se ~2.5 in 2 of the 3 acceptance seeds.
     """
     totals = np.asarray(mmm["channel_totals"])
     contributions = np.asarray(mmm["coef_samples"]) * totals

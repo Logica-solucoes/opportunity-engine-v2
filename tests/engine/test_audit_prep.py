@@ -103,8 +103,7 @@ def test_pre8_calendar_months_still_snap_to_30():
     assert detect_cadence(pd.Series(pd.date_range("2025-01-31", periods=12, freq="ME"))) == 30
 
 
-def test_pre9_preprocessor_smoothing_has_its_own_name():
-    s = pd.Series([0.0, 100.0, 0.0, 0.0, 50.0])
-
+def test_pre9_the_preprocessor_has_no_second_geometric_decay():
+    # its only caller was the negative-correlation adstock, removed by PRE-6: only analysis.geometric_decay is left
     assert not hasattr(data_preprocessor, "geometric_decay")
-    pd.testing.assert_series_equal(data_preprocessor.ewm_smooth(s, 0.3), s.ewm(alpha=0.3, adjust=False).mean())
+    assert not hasattr(data_preprocessor, "ewm_smooth")
