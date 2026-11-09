@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Fragment } from 'react'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,7 +10,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { BlockSkeleton } from '@/components/LoadState'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/auth'
 import { configSchemaQuery, displayValue, fieldErrors, getPath, visibleLayout } from '@/lib/params'
@@ -21,7 +24,7 @@ import { textLink } from '@/lib/links'
 
 export function RunDetails({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boolean }) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <Publication slug={slug} run={run} canEdit={canEdit} />
       <Params run={run} />
       <Inputs slug={slug} run={run} canEdit={canEdit} />
@@ -42,36 +45,40 @@ function Publication({ slug, run, canEdit }: { slug: string; run: Run; canEdit: 
   const publishable = isPublishable(run.status)
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-lg font-medium">Publicação</h2>
-      <p className="text-sm">
-        {run.published_at
-          ? `Publicada por ${run.published_by_name ?? '—'} em ${formatDate(run.published_at)}.`
-          : 'Não publicada. Leitores ainda não veem esta execução.'}
-      </p>
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>Publicação</CardTitle>
+        <CardDescription>
+          {run.published_at
+            ? `Publicada por ${run.published_by_name ?? '—'} em ${formatDate(run.published_at)}.`
+            : 'Não publicada. Leitores ainda não veem esta execução.'}
+        </CardDescription>
+      </CardHeader>
       {canEdit && (
-        <div className="flex flex-wrap items-center gap-3">
-          {run.published_at ? (
-            <Button variant="outline" disabled={toggle.isPending} onClick={() => toggle.mutate(false)}>
-              Despublicar
-            </Button>
-          ) : (
-            <Button disabled={!publishable || toggle.isPending} onClick={() => toggle.mutate(true)}>
-              Publicar
-            </Button>
-          )}
+        <CardContent className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {run.published_at ? (
+              <Button variant="outline" size="sm" disabled={toggle.isPending} onClick={() => toggle.mutate(false)}>
+                Despublicar
+              </Button>
+            ) : (
+              <Button size="sm" disabled={!publishable || toggle.isPending} onClick={() => toggle.mutate(true)}>
+                Publicar
+              </Button>
+            )}
+            {!isActive(run.status) && <Rerun slug={slug} run={run} />}
+          </div>
           {!run.published_at && !publishable && (
-            <p className="text-sm text-muted-foreground">Só execuções concluídas podem ser publicadas.</p>
+            <p className="text-xs text-muted-foreground">Só execuções concluídas podem ser publicadas.</p>
           )}
-          {!isActive(run.status) && <Rerun slug={slug} run={run} />}
           {toggle.isError && (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(toggle.error)}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage(toggle.error)}</AlertDescription>
+            </Alert>
           )}
-        </div>
+        </CardContent>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -99,7 +106,9 @@ function Rerun({ slug, run }: { slug: string; run: Run }) {
   return (
     <AlertDialog onOpenChange={(open) => !open && restore.reset()}>
       <AlertDialogTrigger asChild>
-        <Button variant="outline">Rodar de novo</Button>
+        <Button variant="outline" size="sm">
+          Rodar de novo
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -109,12 +118,14 @@ function Rerun({ slug, run }: { slug: string; run: Run }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         {restore.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {/* pydantic's per-field 422: the engine's parameters changed since this run */}
-            {fieldErrors(restore.error)
-              ? 'Os parâmetros desta execução não valem mais para o motor atual.'
-              : errorMessage(restore.error)}
-          </p>
+          <Alert variant="destructive">
+            {/* the per-field 422 of pydantic: the engine parameters changed since this run */}
+            <AlertDescription>
+              {fieldErrors(restore.error)
+                ? 'Os parâmetros desta execução não valem mais para o motor atual.'
+                : errorMessage(restore.error)}
+            </AlertDescription>
+          </Alert>
         )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -130,43 +141,64 @@ function Rerun({ slug, run }: { slug: string; run: Run }) {
 
 function Params({ run }: { run: Run }) {
   const { data: schema } = useQuery(configSchemaQuery)
-  if (!schema) return null
+  if (!schema) return <BlockSkeleton className="h-48" />
   const mapping = run.config.column_mapping ?? {}
+  const mapped = FILES.flatMap((spec) =>
+    Object.entries(mapping[spec.key] ?? {}).map(([field, column]) => ({ spec, field, column })),
+  )
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">Parâmetros</h2>
-      <div className="grid gap-6 md:grid-cols-2">
-        {visibleLayout(schema).map((group) => (
-          <div key={group.title} className="space-y-1">
-            <h3 className="text-sm font-medium">{group.title}</h3>
-            <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-              {group.fields.map((field) => (
-                <Fragment key={field.path}>
-                  <dt className="text-muted-foreground">{field.label}</dt>
-                  <dd>{displayValue(field, getPath(run.config, field.path))}</dd>
-                </Fragment>
-              ))}
-            </dl>
-          </div>
-        ))}
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">Mapeamento de colunas</h3>
-          <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
-            {FILES.flatMap((spec) =>
-              Object.entries(mapping[spec.key] ?? {}).map(([field, column]) => (
-                <Fragment key={`${spec.key}.${field}`}>
-                  <dt className="text-muted-foreground">
-                    {spec.label} · {FIELD_LABELS[field] ?? field}
-                  </dt>
-                  <dd className="font-mono text-xs">{column}</dd>
-                </Fragment>
-              )),
-            )}
-          </dl>
-        </div>
-      </div>
-    </section>
+    <>
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Parâmetros</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-x-10 gap-y-6 md:grid-cols-2">
+          {visibleLayout(schema).map((group) => (
+            <div key={group.title} className="space-y-1">
+              <h3 className="text-sm font-medium">{group.title}</h3>
+              <dl className="divide-y text-sm">
+                {group.fields.map((field) => (
+                  <div key={field.path} className="flex items-baseline justify-between gap-4 py-1.5">
+                    <dt className="text-muted-foreground">{field.label}</dt>
+                    <dd className="text-right font-medium tabular-nums">
+                      {displayValue(field, getPath(run.config, field.path))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      {mapped.length > 0 && (
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Mapeamento de colunas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Arquivo</TableHead>
+                  <TableHead>Campo</TableHead>
+                  <TableHead>Coluna</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mapped.map(({ spec, field, column }) => (
+                  <TableRow key={`${spec.key}.${field}`}>
+                    <TableCell className="text-muted-foreground">{spec.label}</TableCell>
+                    <TableCell>{FIELD_LABELS[field] ?? field}</TableCell>
+                    <TableCell className="font-mono text-xs">{column}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </>
   )
 }
 
@@ -174,35 +206,49 @@ function Params({ run }: { run: Run }) {
 const RUN_INPUTS = [...FILES, { key: 'bcb_file', label: 'Séries do Banco Central' }]
 
 function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boolean }) {
+  const inputs = RUN_INPUTS.flatMap((spec) => {
+    const input = run.inputs[spec.key]
+    return input ? [{ spec, input }] : []
+  })
+  if (inputs.length === 0) return null
   return (
-    <section className="space-y-2">
-      <h2 className="text-lg font-medium">Entradas</h2>
-      <ul className="space-y-1 text-sm">
-        {RUN_INPUTS.map((spec) => {
-          const input = run.inputs[spec.key]
-          if (!input) return null
-          return (
-            <li key={spec.key} className="flex flex-wrap items-baseline gap-x-3">
-              <span className="font-medium">{spec.label}</span>
-              {/* the api serves the raw csv to analysts only */}
-              {canEdit ? (
-                <a
-                  href={`/api/w/${slug}/runs/${run.id}/inputs/${spec.key}`}
-                  download
-                  className={textLink}
-                >
-                  {input.filename}
-                </a>
-              ) : (
-                <span>{input.filename}</span>
-              )}
-              <code className="text-xs text-muted-foreground" title={input.sha256}>
-                {input.sha256.slice(0, 12)}
-              </code>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>Entradas</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Entrada</TableHead>
+              <TableHead>Arquivo</TableHead>
+              <TableHead className="text-right">SHA-256</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {inputs.map(({ spec, input }) => (
+              <TableRow key={spec.key}>
+                <TableCell className="font-medium">{spec.label}</TableCell>
+                <TableCell>
+                  {/* the api serves the raw csv to analysts only */}
+                  {canEdit ? (
+                    <a href={`/api/w/${slug}/runs/${run.id}/inputs/${spec.key}`} download className={textLink}>
+                      {input.filename}
+                    </a>
+                  ) : (
+                    input.filename
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <code className="font-mono text-xs text-muted-foreground" title={input.sha256}>
+                    {input.sha256.slice(0, 12)}
+                  </code>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   )
 }

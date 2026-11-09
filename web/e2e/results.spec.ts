@@ -39,6 +39,7 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   await expect(detail.locator('.recharts-surface')).toHaveCount(0)
 
   await analystPage.getByRole('tab', { name: 'Detalhes' }).click()
+  await analystPage.getByRole('button', { name: /Log da execução/ }).click()
   await expect(analystPage.getByRole('log', { name: 'Log da execução' })).toBeVisible()
   await analystPage.getByRole('button', { name: 'Publicar' }).click()
   await expect(analystPage.getByText(/Publicada por/)).toBeVisible()

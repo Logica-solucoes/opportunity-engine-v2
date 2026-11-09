@@ -1,7 +1,10 @@
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import { CaretDown, Warning } from '@phosphor-icons/react'
 import { RunDetails } from '@/components/RunDetails'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { meQuery, roleIn } from '@/lib/auth'
 import { type LogLine, isActive, runQuery, useRunLog } from '@/lib/runs'
 
@@ -36,9 +39,10 @@ function DetailsTab() {
       <RunDetails slug={slug} run={run} canEdit={canEdit} />
       <LogPanel lines={log.lines} active={active} ended={log.state === 'ended'} />
       {log.state === 'lost' && (
-        <p role="alert" className="text-sm text-destructive">
-          Não foi possível acompanhar o log.
-        </p>
+        <Alert variant="destructive">
+          <Warning />
+          <AlertDescription>Não foi possível acompanhar o log.</AlertDescription>
+        </Alert>
       )}
     </div>
   )
@@ -54,34 +58,44 @@ function LogPanel({ lines, active, ended }: { lines: LogLine[]; active: boolean;
     if (el && atEnd.current) el.scrollTop = el.scrollHeight
   }, [lines])
 
+  // open while the run is going so the progress is visible; a finished run's log starts closed
+  const [open, setOpen] = useState(active)
   const last = lines.at(-1)
   return (
-    <section className="space-y-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h2 className="text-lg font-medium">Log</h2>
-        {active && last && <Elapsed since={last.ts} />}
-      </div>
-      <div
-        ref={box}
-        role="log"
-        aria-label="Log da execução"
-        onScroll={(e) => {
-          const el = e.currentTarget
-          atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
-        }}
-        className="h-96 overflow-auto rounded-md border bg-muted/30 p-3 font-mono text-xs leading-relaxed"
-      >
-        {/* a finished run's backlog may arrive after the run itself: "no lines" waits for the stream's end */}
-        {lines.length === 0 && (active || ended) && (
-          <p className="text-muted-foreground">{active ? 'Aguardando o início da execução…' : 'Nenhuma linha de log.'}</p>
-        )}
-        {lines.map((line) => (
-          <div key={line.id} className={LEVEL_CLASS[line.level]}>
-            <span className="text-muted-foreground">{formatTime(line.ts)}</span> {line.message}
-          </div>
-        ))}
-      </div>
-    </section>
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl ring-1 ring-foreground/10">
+      <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 px-4 py-3 text-sm font-medium">
+        <span>
+          Log da execução{' '}
+          {lines.length > 0 && <span className="ml-1 font-normal tabular-nums text-muted-foreground">{lines.length} linhas</span>}
+        </span>
+        <span className="flex items-center gap-3">
+          {active && last && <Elapsed since={last.ts} />}
+          <CaretDown className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pb-4">
+        <div
+          ref={box}
+          role="log"
+          aria-label="Log da execução"
+          onScroll={(e) => {
+            const el = e.currentTarget
+            atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
+          }}
+          className="h-96 overflow-auto rounded-lg bg-muted/40 p-3 font-mono text-xs leading-relaxed"
+        >
+          {/* a finished run's backlog may arrive after the run itself: "no lines" waits for the stream's end */}
+          {lines.length === 0 && (active || ended) && (
+            <p className="text-muted-foreground">{active ? 'Aguardando o início da execução…' : 'Nenhuma linha de log.'}</p>
+          )}
+          {lines.map((line) => (
+            <div key={line.id} className={LEVEL_CLASS[line.level]}>
+              <span className="text-muted-foreground">{formatTime(line.ts)}</span> {line.message}
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -93,5 +107,5 @@ function Elapsed({ since }: { since: string }) {
   }, [])
   // the browser's clock and the server's can disagree by a few seconds; never show a negative time
   const seconds = Math.max(0, Math.round((now - Date.parse(since)) / 1000))
-  return <p className="text-sm text-muted-foreground">Etapa em andamento há {seconds} s</p>
+  return <span className="text-xs font-normal tabular-nums text-muted-foreground">Etapa em andamento há {seconds} s</span>
 }
