@@ -1,4 +1,6 @@
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
@@ -29,48 +31,59 @@ export function FiltersPanel({ filters, onChange, bounds, revenueMode, errors }:
   const budget: [number, number] | null = bounds && [filters.min_budget ?? bounds[0], filters.max_budget ?? bounds[1]]
 
   return (
-    <aside aria-label="Filtros" className="space-y-4 print:hidden">
-      <h2 className="text-sm font-medium">Filtros (valores mensais)</h2>
-      {bounds && budget && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Orçamento</p>
-          <Slider
-            thumbLabels={['Orçamento mínimo', 'Orçamento máximo']}
-            min={bounds[0]}
-            max={bounds[1]}
-            step={1}
-            value={budget}
-            onValueChange={([min, max]) => onChange({ ...filters, min_budget: min, max_budget: max })}
-          />
-          <p className="text-xs text-muted-foreground">
-            {formatMoney(budget[0])} – {formatMoney(budget[1])}
-          </p>
-        </div>
-      )}
-      {FIELDS.filter(([, , revenueOnly]) => revenueMode || !revenueOnly).map(([key, label]) => (
-        <div key={key} className="space-y-1">
-          <Label htmlFor={key}>{label}</Label>
-          <Input
-            id={key}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            value={filters[key] ?? ''}
-            onChange={(e) => set(key, e.target.value === '' ? undefined : Number(e.target.value))}
-          />
-        </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={() => onChange({})}>
-        Limpar
-      </Button>
-      {errors.length > 0 && (
-        <ul role="alert" className="text-sm text-destructive">
-          {errors.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
-      )}
-    </aside>
+    <Card size="sm" role="complementary" aria-label="Filtros" className="print:hidden">
+      <CardHeader>
+        <CardTitle className="text-sm">Filtros</CardTitle>
+        <CardDescription className="text-xs">Valores mensais</CardDescription>
+        <CardAction>
+          <Button variant="ghost" size="xs" onClick={() => onChange({})}>
+            Limpar
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {bounds && budget && (
+          <div className="space-y-2">
+            <Label>Orçamento</Label>
+            <Slider
+              thumbLabels={['Orçamento mínimo', 'Orçamento máximo']}
+              min={bounds[0]}
+              max={bounds[1]}
+              step={1}
+              value={budget}
+              onValueChange={([min, max]) => onChange({ ...filters, min_budget: min, max_budget: max })}
+            />
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {formatMoney(budget[0])} – {formatMoney(budget[1])}
+            </p>
+          </div>
+        )}
+        {FIELDS.filter(([, , revenueOnly]) => revenueMode || !revenueOnly).map(([key, label]) => (
+          <div key={key} className="space-y-1.5">
+            <Label htmlFor={key}>{label}</Label>
+            <Input
+              id={key}
+              type="number"
+              inputMode="decimal"
+              autoComplete="off"
+              min={0}
+              className="tabular-nums"
+              value={filters[key] ?? ''}
+              onChange={(e) => set(key, e.target.value === '' ? undefined : Number(e.target.value))}
+            />
+          </div>
+        ))}
+        {errors.length > 0 && (
+          <Alert variant="destructive">
+            <ul>
+              {errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

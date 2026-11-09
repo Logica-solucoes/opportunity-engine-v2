@@ -5,6 +5,8 @@ import { BlockSkeleton } from '@/components/LoadState'
 import { ExportBar } from '@/components/ExportBar'
 import { NarrativeCard } from '@/components/NarrativeCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { ChartCard } from './ChartCard'
 import { ApiError } from '@/lib/api'
 import { type Elasticity, formatDecimal, reasonLabel, resultsQuery } from '@/lib/results'
 import {
@@ -26,32 +28,38 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
   if (query.isPending) return <BlockSkeleton className="h-64" />
   if (query.isError)
     return (
-      <p role="alert" className="text-sm text-destructive">
-        Não foi possível carregar o resultado.
-      </p>
+      <Alert variant="destructive">
+        <Warning />
+        <AlertDescription>Não foi possível carregar o resultado.</AlertDescription>
+      </Alert>
     )
   const elasticity = query.data.elasticity
   const report = query.data.reports?.global
+  const refused = !!elasticity && scenarioRefused(elasticity)
   return (
-    <section aria-label="Elasticidade">
-      {report && (
-        <div className="mb-6">
-          <NarrativeCard
-            report={report}
-            paragraphs={[report.summary, ...report.scenarios.map((s) => `${s.name}: ${s.analysis}`)]}
-            items={report.recommendations}
-          />
-        </div>
+    <section aria-label="Elasticidade" className="space-y-5">
+      {/* a refused run says it once, with the labeled reasons: the default narrative would repeat it */}
+      {report && !refused && (
+        <NarrativeCard
+          report={report}
+          paragraphs={[report.summary, ...report.scenarios.map((s) => `${s.name}: ${s.analysis}`)]}
+          items={report.recommendations}
+        />
       )}
       {!elasticity ? (
-        <p className="text-sm text-muted-foreground">Sem análise de elasticidade nesta execução.</p>
-      ) : scenarioRefused(elasticity) ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyTitle>Sem análise de elasticidade</EmptyTitle>
+            <EmptyDescription>Esta execução não trouxe análise de elasticidade.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : refused ? (
         <Inconclusive
           title={elasticity.status === 'failed' ? 'Análise de elasticidade falhou' : undefined}
           lines={elasticity.reasons.map(reasonLabel)}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {elasticity.status !== 'ok' && (
             <Inconclusive title="Análise de elasticidade não validada" lines={elasticity.reasons.map(reasonLabel)} />
           )}
@@ -65,11 +73,11 @@ export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) 
 
 function Inconclusive({ title = 'Análise de elasticidade inconclusiva', lines }: { title?: string; lines: string[] }) {
   return (
-    <Alert>
+    <Alert variant="warning">
       <Warning />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
-        <ul className="list-disc pl-5">
+        <ul className="list-disc pl-4">
           {lines.map((l) => (
             <li key={l}>{l}</li>
           ))}
@@ -95,9 +103,10 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
     if (query.isPending) return <BlockSkeleton className="h-64" />
     if (error?.status === 409) return <Inconclusive title="Sem cenário para simular" lines={[error.detail]} />
     return (
-      <p role="alert" className="text-sm text-destructive">
-        Não foi possível carregar o cenário.
-      </p>
+      <Alert variant="destructive">
+        <Warning />
+        <AlertDescription>Não foi possível carregar o cenário.</AlertDescription>
+      </Alert>
     )
   }
 
@@ -123,7 +132,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
         }
       />
       <FiltersSummary filters={filters} />
-      <div className="grid gap-6 md:grid-cols-[18rem_minmax(0,1fr)] print:block">
+      <div className="grid items-start gap-5 md:grid-cols-[17rem_minmax(0,1fr)] print:block">
         <FiltersPanel
           filters={filters}
           onChange={setFilters}
@@ -131,9 +140,9 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
           revenueMode={scenario.revenue_mode}
           errors={!error ? [] : error.status === 422 ? filterErrors(error.body) : ['Não foi possível atualizar o cenário.']}
         />
-        <div className="min-w-0 space-y-8">
+        <div className="min-w-0 space-y-5">
           {metrics?.low_confidence && (
-            <Alert>
+            <Alert variant="warning">
               <Warning />
               <AlertTitle>Baixa confiança</AlertTitle>
               <AlertDescription>
@@ -143,29 +152,26 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
             </Alert>
           )}
           <ScenarioTable scenario={scenario} />
-          <section aria-label="Curva de saturação" className="space-y-2">
-            <h2 className="text-lg font-semibold">Curva de saturação</h2>
+          <ChartCard title="Curva de saturação">
             <SaturationChart scenario={scenario} />
-          </section>
-          <div className={scenario.revenue_mode ? 'grid gap-6 lg:grid-cols-2' : undefined}>
-            <section aria-label="iCPA" className="space-y-2">
-              <h2 className="text-lg font-semibold">iCPA</h2>
+          </ChartCard>
+          <div className={scenario.revenue_mode ? 'grid gap-5 lg:grid-cols-2' : undefined}>
+            <ChartCard title="iCPA">
               <IcpaChart curve={scenario.curve} />
-            </section>
+            </ChartCard>
             {scenario.revenue_mode && (
-              <section aria-label="Receita e ROAS" className="space-y-2">
-                <h2 className="text-lg font-semibold">Receita e ROAS</h2>
+              <ChartCard title="Receita e ROAS">
                 <RevenueChart curve={scenario.curve} />
-              </section>
+              </ChartCard>
             )}
           </div>
           {mixRow.mix && Object.keys(mixRow.mix).length > 0 && (
-            <section aria-label="Mix por canal" className="space-y-2">
-              <h2 className="text-lg font-semibold">
-                Mix por canal{scenario.recommended ? ' no ponto recomendado' : ' no ponto de saturação'}
-              </h2>
+            <ChartCard
+              title={`Mix por canal${scenario.recommended ? ' no ponto recomendado' : ' no ponto de saturação'}`}
+              label="Mix por canal"
+            >
               {metrics?.reallocation_suppressed && (
-                <Alert>
+                <Alert variant="warning">
                   <Warning />
                   <AlertDescription>
                     O motor não confia na redistribuição entre canais desta execução: leia o otimizado e o estratégico
@@ -174,7 +180,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
                 </Alert>
               )}
               <MixChart mix={mixRow.mix} />
-            </section>
+            </ChartCard>
           )}
           <ChannelCurves channels={scenario.channels} hidden={hidden} />
         </div>

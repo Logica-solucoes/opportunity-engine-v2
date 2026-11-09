@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow as Row } from '@/components/ui/table'
 import { formatDecimal, formatInteger, formatMoney, formatSigned } from '@/lib/results'
 import type { Scenario, TableRow } from '@/lib/scenario'
@@ -30,58 +31,69 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
   const ramp = columns.find(([name]) => name === open)?.[1]?.ramp
 
   return (
-    <section aria-label="Cenários" className="space-y-3">
-      <Table>
-        <TableHeader>
-          <Row>
-            <TableHead />
-            {columns.map(([name, r]) => (
-              <TableHead key={name} className="text-right">
-                {name} {r?.extrapolated && <Badge variant="outline">extrapolado</Badge>}
-              </TableHead>
-            ))}
-          </Row>
-        </TableHeader>
-        <TableBody>
-          {lines.map(([label, show]) => (
-            <Row key={label}>
-              <TableCell className="text-muted-foreground">{label}</TableCell>
+    <Card role="region" aria-label="Cenários" size="sm" className="break-inside-avoid">
+      <CardHeader>
+        <CardTitle className="text-sm">Cenários</CardTitle>
+        <CardDescription className="text-xs">Valores mensais</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Table className="tabular-nums">
+          <TableHeader>
+            <Row>
+              <TableHead />
               {columns.map(([name, r]) => (
-                <TableCell key={name} className="text-right tabular-nums">
-                  {r ? show(r) : label === 'Investimento' ? 'Nenhum ponto da curva atende aos filtros' : ''}
+                <TableHead key={name} className="text-right">
+                  {name} {r?.extrapolated && <Badge variant="warning">extrapolado</Badge>}
+                </TableHead>
+              ))}
+            </Row>
+          </TableHeader>
+          <TableBody>
+            {lines.map(([label, show]) => (
+              <Row key={label}>
+                <TableCell className="text-muted-foreground">{label}</TableCell>
+                {columns.map(([name, r]) => (
+                  <TableCell key={name} className="text-right">
+                    {r ? show(r) : label === 'Investimento' ? 'Nenhum ponto da curva atende aos filtros' : ''}
+                  </TableCell>
+                ))}
+              </Row>
+            ))}
+            <Row>
+              <TableCell className="text-muted-foreground">Rampa</TableCell>
+              {columns.map(([name, r]) => (
+                <TableCell key={name} className="text-right">
+                  {r?.ramp && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      aria-expanded={open === name}
+                      onClick={() => setOpen(open === name ? null : name)}
+                    >
+                      {r.ramp.length} degraus
+                    </Button>
+                  )}
                 </TableCell>
               ))}
             </Row>
-          ))}
-          <Row>
-            <TableCell className="text-muted-foreground">Rampa</TableCell>
-            {columns.map(([name, r]) => (
-              <TableCell key={name} className="text-right">
-                {r?.ramp && (
-                  <Button variant="link" size="sm" aria-expanded={open === name} onClick={() => setOpen(open === name ? null : name)}>
-                    {r.ramp.length} degraus
-                  </Button>
-                )}
-              </TableCell>
+          </TableBody>
+        </Table>
+        {ramp && (
+          <ol aria-label={`Degraus até ${open}`} className="space-y-1 rounded-lg bg-muted/50 p-3 text-sm">
+            {ramp.map((s) => (
+              <li key={s.step} className="tabular-nums">
+                {s.step}. {formatMoney(s.investment)} → KPI {formatInteger(s.kpi)}
+                {s.kpi_lo != null && s.kpi_hi != null && ` (${formatInteger(s.kpi_lo)} – ${formatInteger(s.kpi_hi)})`}
+              </li>
             ))}
-          </Row>
-        </TableBody>
-      </Table>
-      {ramp && (
-        <ol aria-label={`Degraus até ${open}`} className="space-y-1 text-sm">
-          {ramp.map((s) => (
-            <li key={s.step} className="tabular-nums">
-              {s.step}. {formatMoney(s.investment)} → KPI {formatInteger(s.kpi)}
-              {s.kpi_lo != null && s.kpi_hi != null && ` (${formatInteger(s.kpi_lo)} – ${formatInteger(s.kpi_hi)})`}
-            </li>
-          ))}
-        </ol>
-      )}
-      {notes.map((n) => (
-        <p key={n} className="text-sm text-muted-foreground">
-          {n}
-        </p>
-      ))}
-    </section>
+          </ol>
+        )}
+        {notes.map((n) => (
+          <p key={n} className="text-xs text-muted-foreground">
+            {n}
+          </p>
+        ))}
+      </CardContent>
+    </Card>
   )
 }

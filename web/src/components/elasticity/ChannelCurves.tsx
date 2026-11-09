@@ -1,5 +1,6 @@
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from 'recharts'
 import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartCard } from './ChartCard'
 import { type ChannelFit, formatCompact, formatMoney, reasonLabel } from '@/lib/results'
 import { type ChannelCurve, splitExtrapolated } from '@/lib/scenario'
 
@@ -17,7 +18,7 @@ function ChannelChart({ channel }: { channel: ChannelCurve }) {
     ...split[i],
   }))
   return (
-    <figure className="space-y-1 rounded-lg border p-3">
+    <figure className="space-y-1 rounded-lg bg-muted/30 p-3">
       <figcaption className="text-sm font-medium">{channel.name}</figcaption>
       <ChartContainer config={curveConfig} className="h-44 w-full">
         <ComposedChart data={data}>
@@ -48,8 +49,7 @@ const compareConfig = {
 
 export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; hidden: ChannelFit[] }) {
   return (
-    <section aria-label="Canais" className="space-y-4">
-      <h2 className="text-lg font-semibold">Canais</h2>
+    <ChartCard title="Canais">
       {channels.length > 0 && (
         <>
           <div className="grid gap-3 lg:grid-cols-2">
@@ -72,10 +72,12 @@ export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; 
       )}
       {hidden.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">Sem efeito identificável (fora das curvas, do mix e dos cenários)</h3>
-          <ul className="space-y-1 text-sm">
+          <h3 className="text-xs font-medium text-muted-foreground">
+            Sem efeito identificável (fora das curvas, do mix e dos cenários)
+          </h3>
+          <ul className="divide-y rounded-lg border text-sm">
             {hidden.map((c) => (
-              <li key={c.name}>
+              <li key={c.name} className="px-3 py-1.5">
                 <span className="font-medium">{c.name}</span>
                 <span className="text-muted-foreground"> — {c.reasons.map(reasonLabel).join('; ') || 'não identificável'}</span>
               </li>
@@ -83,6 +85,6 @@ export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; 
           </ul>
         </div>
       )}
-    </section>
+    </ChartCard>
   )
 }
