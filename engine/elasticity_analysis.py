@@ -520,36 +520,26 @@ def cap_channel_mix_share(mix, historical_mix, max_share):
     recommended mix under collinear spend data."""
     if max_share is None or max_share >= 1.0:
         return dict(mix)
+    capped = cap_channel_share_per_channel(mix, {k: max_share for k in mix}, historical_mix)
+    # too few channels for max_share to be feasible (2 channels, 40%): the cap gives, the budget is never dropped
+    return fill_unallocated_share(capped, {k: 1.0 for k in mix})
 
-    capped = dict(mix)
-    fixed = set()  # channels already capped -- excluded from receiving more excess
-    for _ in range(len(capped)):
-        over = {k for k, v in capped.items() if k not in fixed and v > max_share}
-        if not over:
-            break
 
-        excess = sum(capped[k] - max_share for k in over)
-        for k in over:
-            capped[k] = max_share
-            fixed.add(k)
-
-        under_keys = [k for k in capped if k not in fixed]
-        if not under_keys:
-            # Too few channels for max_share to be feasible (e.g. 2 channels,
-            # 40% cap can't sum to 100%) -- nothing left to redistribute into.
-            break
-
-        weights = {k: capped[k] for k in under_keys}
-        if sum(weights.values()) <= 0:
-            weights = {k: historical_mix.get(k, 0) for k in under_keys}
-        if sum(weights.values()) <= 0:
-            weights = {k: 1.0 for k in under_keys}
-
-        total_weight = sum(weights.values())
-        for k in under_keys:
-            capped[k] += excess * (weights[k] / total_weight)
-
-    return capped
+def fill_unallocated_share(mix, ceilings):
+    """Hands the share the caps left out back to the channels: first to those still under `ceilings`, in proportion to
+    their headroom, then past the ceilings (pro rata to them) when the channels together cannot absorb it."""
+    leftover = 1.0 - sum(mix.values())
+    if leftover <= 1e-12:
+        return mix
+    headroom = {k: max(0.0, ceilings[k] - v) for k, v in mix.items()}
+    room = sum(headroom.values())
+    if room >= leftover:
+        return {k: v + leftover * headroom[k] / room for k, v in mix.items()}
+    full = {k: v + headroom[k] for k, v in mix.items()}
+    total = sum(ceilings.values())
+    weights = ceilings if total > 0 else {k: 1.0 for k in mix}
+    total = total if total > 0 else len(mix)
+    return {k: v + (leftover - room) * weights[k] / total for k, v in full.items()}
 
 
 def cap_channel_share_per_channel(mix, per_channel_max_share, historical_mix):
@@ -594,10 +584,13 @@ def cap_channel_share_per_channel(mix, per_channel_max_share, historical_mix):
     return capped
 
 
-def generate_aggregated_response_curve(elasticity_results, config, optimized_mix=None, output_dir=None):
+def generate_aggregated_response_curve(
+    elasticity_results, config, optimized_mix=None, output_dir=None, suppress_reallocation=False
+):
     """
     Generates an aggregated response curve (Total Investment vs. Total KPI)
     based on the Two-Stage Elasticity model, scaling budget using the optimized mixes.
+    `suppress_reallocation` (a channel the run cannot identify, A5) keeps the historical mix, as a weak CV does.
     """
     df = elasticity_results["dataframe"]
     active_spend_cols = elasticity_results["spend_cols"]
@@ -633,7 +626,7 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     # channels aren't identified), and a ">0" test would flip the recommendation
     # on and off on noise. Require the model to explain a real share of held-out
     # variance before trusting it to move budget between channels.
-    trust_reallocation = trusts_reallocation(cv_r2, config)
+    trust_reallocation = trusts_reallocation(cv_r2, config) and not suppress_reallocation
 
     limit_factor = config["investment_limit_factor"]
     multipliers = np.linspace(0, limit_factor, 100)
@@ -740,14 +733,16 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
         # makes the simulated response flat past the absolute cap, but doesn't
         # stop the optimizer from still *reporting* an allocation past it (see
         # cap_channel_share_per_channel's docstring).
-        per_channel_max_share = {
-            col: min(
-                max_channel_mix_share,
-                (historical_max_daily_spend.get(col, 0) * per_channel_limit_factor) / total_budget,
-            )
+        absolute_share = {
+            col: historical_max_daily_spend.get(col, 0) * per_channel_limit_factor / total_budget
             for col in active_spend_cols
         }
-        return cap_channel_share_per_channel(raw_mix, per_channel_max_share, historical_mix)
+        # the caps never drop budget (audit F6): past an infeasible share cap the channels' absolute caps take it, and
+        # past those the spend goes where the response is flat, in rows is_extrapolated already flags
+        share_cap = max(max_channel_mix_share, 1.0 / len(active_spend_cols))
+        per_channel_max_share = {col: min(share_cap, absolute_share[col]) for col in active_spend_cols}
+        capped = cap_channel_share_per_channel(raw_mix, per_channel_max_share, historical_mix)
+        return fill_unallocated_share(capped, absolute_share)
 
     # --- NEW: Strategic Reallocation (Same Baseline Budget, Dynamically Optimized Elasticity Mix) ---
     reallocated_optimal_mix = optimize_spend_mix_for_budget(total_avg_daily_spend, previous_optimal_mix=historical_mix)
@@ -802,7 +797,9 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
         simulation_results.append(res_dict)
 
     res_df = pd.DataFrame(simulation_results)
-    res_df["Incremental_KPI"] = (res_df["Projected_Total_KPIs"] - baseline_kpi).clip(lower=0)
+    # increments are measured on the curve itself (its mix at today's budget): the gain of reallocating today's
+    # budget is the strategic_reallocation scenario, not a return on extra budget (audit F4)
+    res_df["Incremental_KPI"] = (res_df["Projected_Total_KPIs"] - reallocated_kpi).clip(lower=0)
     res_df["Incremental_Investment"] = (res_df["Daily_Investment"] - total_avg_daily_spend).clip(lower=0)
 
     optimization_target = config["optimization_target"].upper()
@@ -824,32 +821,29 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
         )
     baseline_revenue = baseline_kpi * conversion_rate * avg_ticket
     res_df["Projected_Revenue"] = res_df["Projected_Total_KPIs"] * conversion_rate * avg_ticket
-    res_df["Incremental_Revenue"] = res_df["Projected_Revenue"] - baseline_revenue
+    res_df["Incremental_Revenue"] = res_df["Projected_Revenue"] - reallocated_kpi * conversion_rate * avg_ticket
     res_df["Incremental_ROI"] = (res_df["Incremental_Revenue"] / res_df["Incremental_Investment"]).fillna(0)
 
     res_df["iCPA"] = (res_df["Incremental_Investment"] / res_df["Incremental_KPI"]).fillna(0)
     res_df["iCPA"] = res_df["iCPA"].replace([np.inf, -np.inf], np.nan)
 
-    # Max Efficiency Point
+    # Max Efficiency Point: the knee of the curve in both modes. On a concave curve the best average iROAS from
+    # today's spend is always the first grid point above it, so revenue mode answered "spend 2% more" (audit F5).
     curve_segment = res_df[res_df["Daily_Investment"] >= total_avg_daily_spend].copy()
     if len(curve_segment) > 5:
-        if revenue_mode and "Incremental_ROI" in curve_segment.columns:
-            max_efficiency_idx = curve_segment["Incremental_ROI"].idxmax()
-        else:
-            x = curve_segment["Daily_Investment"].values
-            y = curve_segment["Projected_Total_KPIs"].values
-            x_norm = (x - x.min()) / (x.max() - x.min() + 1e-9)
-            y_norm = (y - y.min()) / (y.max() - y.min() + 1e-9)
-            distances = np.abs(y_norm - x_norm) / np.sqrt(2)
-            max_efficiency_idx = curve_segment.index[np.argmax(distances)]
-
-        max_eff_investment = curve_segment.loc[max_efficiency_idx, "Daily_Investment"]
+        x = curve_segment["Daily_Investment"].values
+        y = curve_segment["Projected_Total_KPIs"].values
+        x_norm = (x - x.min()) / (x.max() - x.min() + 1e-9)
+        y_norm = (y - y.min()) / (y.max() - y.min() + 1e-9)
+        distances = np.abs(y_norm - x_norm) / np.sqrt(2)
+        max_eff_investment = x[np.argmax(distances)]
     else:
         max_eff_investment = total_avg_daily_spend
 
-    # Evaluate Max Efficiency Point using its specific Optimized Mix!
+    # Evaluate Max Efficiency Point using its specific Optimized Mix! Its increment is on that same mix (audit F4).
     opt_kpi = simulate_kpi(max_eff_investment, optimized_mix)
-    inc_opt_kpi = max(0, opt_kpi - baseline_kpi)
+    today_optimized_kpi = simulate_kpi(total_avg_daily_spend, optimized_mix)
+    inc_opt_kpi = max(0, opt_kpi - today_optimized_kpi)
     inc_opt_inv = max(0, max_eff_investment - total_avg_daily_spend)
 
     eff_optimal_mix = optimize_spend_mix_for_budget(max_eff_investment, previous_optimal_mix=reallocated_optimal_mix)
@@ -868,7 +862,7 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     if revenue_mode:
         max_efficiency_point["Projected_Revenue"] = opt_kpi * conversion_rate * avg_ticket
         max_efficiency_point["Incremental_Revenue"] = max(
-            0, max_efficiency_point["Projected_Revenue"] - baseline_revenue
+            0, max_efficiency_point["Projected_Revenue"] - today_optimized_kpi * conversion_rate * avg_ticket
         )
         max_efficiency_point["Incremental_ROI"] = (
             max_efficiency_point["Incremental_Revenue"] / inc_opt_inv if inc_opt_inv > 0 else 0
@@ -917,7 +911,9 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
         if max_icpa != float("inf"):
             valid_points_df = valid_points_df[(valid_points_df["iCPA"] > 0) & (valid_points_df["iCPA"] <= max_icpa)]
 
-    if revenue_mode or min_roas > 0 or min_iroas > 0:
+    # outside revenue mode revenue needs no ticket (0 by default) and ROAS targets would reject every point, as
+    # analysis.run_opportunity_projection already knows (audit F3)
+    if revenue_mode:
         if "ROAS" not in valid_points_df.columns and "Projected_Revenue" in valid_points_df.columns:
             valid_points_df["ROAS"] = (
                 valid_points_df["Projected_Revenue"] / valid_points_df["Daily_Investment"]
@@ -933,9 +929,16 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
     # --- UNIVERSAL FINANCIAL FILTER LOGIC END ---
 
     if strategic_limit_point is None:
-        limit_factor = config["investment_limit_factor"]
-        strategic_limit_idx = (np.abs(multipliers - limit_factor)).argmin()
-        strategic_limit_point = res_df.iloc[strategic_limit_idx].to_dict()
+        # no budget above today's meets the targets: stay where we are, never "spend the most" (audit F3)
+        strategic_limit_point = {
+            "Daily_Investment": total_avg_daily_spend,
+            "Projected_Total_KPIs": baseline_kpi,
+            "Incremental_Investment": 0,
+            "Incremental_KPI": 0,
+            **{f"Spend_{col}_Strategic": avg_daily_spend[col] for col in active_spend_cols},
+            "Reasons": ["targets_unreachable"],
+        }
+        with_guardrails(strategic_limit_point, historical_mix)
 
     strategic_limit_point["Scenario"] = "Limite Estratégico"
     strategic_limit_inv = strategic_limit_point["Daily_Investment"]
@@ -962,7 +965,7 @@ def generate_aggregated_response_curve(elasticity_results, config, optimized_mix
             "marketing_contribution_of_kpi_pct": float(
                 elasticity_results.get("marketing_contribution_of_kpi_pct", 0.0)
             ),
-            "low_confidence": bool(not trust_reallocation),
+            "low_confidence": bool(not trusts_reallocation(cv_r2, config)),
             "reallocation_suppressed": bool(not trust_reallocation),
         }
         with open(
