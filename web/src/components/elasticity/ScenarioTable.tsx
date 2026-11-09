@@ -42,7 +42,7 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
             <Row>
               <TableHead className="w-24" />
               {columns.map(([name, r]) => (
-                <TableHead key={name} className="whitespace-normal text-right">
+                <TableHead key={name} className="whitespace-normal">
                   {name} {r?.extrapolated && <Badge variant="warning">extrapolado</Badge>}
                 </TableHead>
               ))}
@@ -53,7 +53,7 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
               <Row key={label}>
                 <TableCell className="whitespace-normal text-muted-foreground">{label}</TableCell>
                 {columns.map(([name, r]) => (
-                  <TableCell key={name} className="whitespace-normal text-right">
+                  <TableCell key={name} className="whitespace-normal">
                     {r ? (
                       show(r)
                         .split(' – ')
@@ -75,7 +75,7 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
             <Row>
               <TableCell className="text-muted-foreground">Rampa</TableCell>
               {columns.map(([name, r]) => (
-                <TableCell key={name} className="text-right">
+                <TableCell key={name}>
                   {r?.ramp && (
                     <Button
                       variant="link"

@@ -52,7 +52,7 @@ export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; 
     <ChartCard title="Canais">
       {channels.length > 0 && (
         <>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
             {channels.map((c) => (
               <ChannelChart key={c.name} channel={c} />
             ))}

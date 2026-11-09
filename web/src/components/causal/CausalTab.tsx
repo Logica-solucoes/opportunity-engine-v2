@@ -78,7 +78,7 @@ function CausalView({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <ExportBar links={causal.events.length > 0 ? [['Baixar CSV', csvHref]] : []} />
 
       {experiment && <ExperimentCard design={experiment} />}
@@ -107,7 +107,10 @@ function CausalView({
 
       {causal.events.length > 0 && (
         <div className="grid items-start gap-5 md:grid-cols-[18rem_minmax(0,1fr)] print:block print:space-y-6">
-          <section aria-label="Eventos" className={cn("space-y-2", listed.length === 0 && "md:col-span-2")}>
+          <section
+            aria-label="Eventos"
+            className={cn('space-y-2 md:sticky md:top-18 print:static', listed.length === 0 && 'md:col-span-2')}
+          >
             <ToggleGroup
               type="single"
               variant="outline"
@@ -138,7 +141,7 @@ function CausalView({
               </Empty>
             ) : (
               // on paper the whole list, not a scroll box
-              <ScrollArea className="rounded-lg border [&>[data-slot=scroll-area-viewport]]:max-h-[34rem] print:[&>[data-slot=scroll-area-viewport]]:max-h-none">
+              <ScrollArea className="rounded-lg border [&>[data-slot=scroll-area-viewport]]:max-h-[calc(100svh-8rem)] print:[&>[data-slot=scroll-area-viewport]]:max-h-none">
                 <ul className="space-y-0.5 p-1">
                   {listed.map((e) => (
                     <li key={e.id}>

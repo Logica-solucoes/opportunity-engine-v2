@@ -162,13 +162,15 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
       />
       <FiltersSummary filters={filters} />
       <div className="grid items-start gap-5 md:grid-cols-[17rem_minmax(0,1fr)] print:block">
-        <FiltersPanel
-          filters={filters}
-          onChange={setFilters}
-          bounds={bounds}
-          revenueMode={scenario.revenue_mode}
-          errors={!error ? [] : error.status === 422 ? filterErrors(error.body) : ['Não foi possível atualizar o cenário.']}
-        />
+        <div className="md:sticky md:top-18 md:max-h-[calc(100svh-5.5rem)] md:overflow-y-auto print:static">
+          <FiltersPanel
+            filters={filters}
+            onChange={setFilters}
+            bounds={bounds}
+            revenueMode={scenario.revenue_mode}
+            errors={!error ? [] : error.status === 422 ? filterErrors(error.body) : ['Não foi possível atualizar o cenário.']}
+          />
+        </div>
         <div className="min-w-0 space-y-5">
           {metrics?.low_confidence && (
             <Alert variant="warning">

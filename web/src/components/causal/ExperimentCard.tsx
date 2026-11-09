@@ -18,9 +18,9 @@ function byChannel(designs: ExperimentCell[]) {
 }
 
 function Cell({ cell }: { cell?: ExperimentCell }) {
-  if (!cell) return <TableCell className="text-right text-muted-foreground">—</TableCell>
+  if (!cell) return <TableCell className="text-muted-foreground">—</TableCell>
   return (
-    <TableCell className="text-right tabular-nums">
+    <TableCell className="tabular-nums">
       <div>{formatMoney(cell.budget_at_risk)}</div>
       <div className="text-xs text-muted-foreground">
         {cell.step != null && `+${formatShare(cell.step)} · `}
@@ -65,8 +65,8 @@ export function ExperimentCard({ design }: { design: ExperimentDesign }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Canal</TableHead>
-                <TableHead className="text-right">Desligar canal</TableHead>
-                <TableHead className="text-right">Aumentar orçamento</TableHead>
+                <TableHead>Desligar canal</TableHead>
+                <TableHead>Aumentar orçamento</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

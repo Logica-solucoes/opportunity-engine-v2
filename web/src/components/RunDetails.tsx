@@ -24,7 +24,7 @@ import { textLink } from '@/lib/links'
 
 export function RunDetails({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boolean }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Publication slug={slug} run={run} canEdit={canEdit} />
       <Params run={run} />
       <Inputs slug={slug} run={run} canEdit={canEdit} />
@@ -222,7 +222,7 @@ function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boole
             <TableRow>
               <TableHead>Entrada</TableHead>
               <TableHead>Arquivo</TableHead>
-              <TableHead className="text-right">SHA-256</TableHead>
+              <TableHead>SHA-256</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -239,7 +239,7 @@ function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boole
                     input.filename
                   )}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell>
                   <code className="font-mono text-xs text-muted-foreground" title={input.sha256}>
                     {input.sha256.slice(0, 12)}
                   </code>
