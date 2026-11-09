@@ -15,9 +15,9 @@ test('analyst gets a temp password, logs in and lands on the only workspace', as
   await expect(analystPage.getByRole('link', { name: 'Admin' })).toHaveCount(0)
 
   await analystPage.goto(`/w/${other}`)
-  await expect(analystPage.getByText('Página não encontrada.')).toBeVisible()
+  await expect(analystPage.getByText('Página não encontrada', { exact: true })).toBeVisible()
   await analystPage.goto('/admin/workspaces')
-  await expect(analystPage.getByText('Página não encontrada.')).toBeVisible()
+  await expect(analystPage.getByText('Página não encontrada', { exact: true })).toBeVisible()
   await analystPage.goto(`/w/${slug}/membros`)
   await expect(analystPage.getByText('Sem permissão', { exact: true })).toBeVisible()
 })
