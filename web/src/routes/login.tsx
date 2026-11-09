@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import type { FormEvent } from 'react'
 import { AuthCard } from '@/components/AuthCard'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,20 +38,20 @@ function Login() {
   }
 
   return (
-    <AuthCard title="Entrar">
+    <AuthCard title="Entrar" description="Use seu e-mail e senha para acessar.">
       <form onSubmit={submit} className="space-y-4">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="email">E-mail</Label>
           <Input id="email" name="email" type="email" autoComplete="username" spellCheck={false} required autoFocus />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="password">Senha</Label>
           <Input id="password" name="password" type="password" autoComplete="current-password" required />
         </div>
         {login.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(login.error)}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{errorMessage(login.error)}</AlertDescription>
+          </Alert>
         )}
         <Button type="submit" className="w-full" disabled={login.isPending}>
           Entrar

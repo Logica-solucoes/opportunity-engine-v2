@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { AuthCard } from '@/components/AuthCard'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -42,30 +43,33 @@ function ChangePassword() {
   }
 
   return (
-    <AuthCard title={me.must_change_password ? 'Defina sua senha' : 'Trocar senha'}>
+    <AuthCard
+      title={me.must_change_password ? 'Defina sua senha' : 'Trocar senha'}
+      description={me.must_change_password ? 'Sua senha atual é temporária e precisa ser trocada.' : undefined}
+    >
       <form onSubmit={submit} className="space-y-4">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="current">Senha atual</Label>
-          <Input id="current" name="current" type="password" autoComplete="current-password" required />
+          <Input id="current" name="current" type="password" autoComplete="current-password" required autoFocus />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="new">Nova senha</Label>
           <Input id="new" name="new" type="password" autoComplete="new-password" minLength={12} required />
           <p className="text-xs text-muted-foreground">Mínimo de 12 caracteres.</p>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="confirm">Confirme a nova senha</Label>
           <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required />
         </div>
         {mismatch && (
-          <p role="alert" className="text-sm text-destructive">
-            As senhas não conferem.
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>As senhas não conferem.</AlertDescription>
+          </Alert>
         )}
         {change.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(change.error)}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>{errorMessage(change.error)}</AlertDescription>
+          </Alert>
         )}
         <Button type="submit" className="w-full" disabled={change.isPending}>
           Salvar
