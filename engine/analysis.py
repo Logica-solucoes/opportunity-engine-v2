@@ -20,6 +20,8 @@ from sklearn.linear_model import LassoCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import MinMaxScaler
 
+from engine.sufficiency import seasonal_naive_wmape
+
 warnings.filterwarnings("ignore", category=OptimizeWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -367,6 +369,19 @@ def oos_wmape(pre: pd.DataFrame, features: list[str], min_pre_periods: int, peri
     return float(np.abs(actual - np.asarray(forecast.predicted_mean)).sum() / total) if total else None
 
 
+NAIVE_SEASON = {1: 7, 7: 52, 30: 12}
+
+
+def oos_naive_wmape(pre: pd.DataFrame, min_pre_periods: int, period_days: int = 1) -> float | None:
+    """The seasonal-naive WMAPE on the same holdout as `oos_wmape`: what the model's skill is measured against (G3)."""
+    held = int(round(len(pre) * HOLDOUT_FRACTION))
+    train = len(pre) - held
+    if train < min_pre_periods or held < MIN_HOLDOUT_ROWS:
+        return None
+    kpi = pre["kpi"].to_numpy()
+    return seasonal_naive_wmape(kpi[:train], kpi[train:], NAIVE_SEASON.get(period_days, 1))
+
+
 def baseline_only_test(
     pre: pd.DataFrame, post: pd.DataFrame, baseline_features: list[str], period_days: int = 1
 ) -> tuple[float, float]:
@@ -393,6 +408,7 @@ def _diagnostics(
     return {
         "placebo_p_value": placebo,  # None: the pre-period is too short for a placebo
         "oos_wmape": oos_wmape(pre, features, min_pre_periods, period_days),
+        "oos_naive_wmape": oos_naive_wmape(pre, min_pre_periods, period_days),
         "robust_p_value": robust_p,
         "robust_lift": robust_lift,
     }

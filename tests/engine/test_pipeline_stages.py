@@ -136,7 +136,7 @@ def _passing(event_id, group="YOUTUBE"):
 def test_an_insufficient_run_demotes_the_passing_events_as_new_outcomes(synthetic_prepared):
     good = _passing("e1")
     bad = pipeline.EventOutcome("e2", "YOUTUBE", "2024-10-28", {"oos_wmape": 0.1}, reasons=["not_significant"])
-    limits = {"spend_cv_min": 0.99, "oos_wmape_max": 0.3}  # YOUTUBE varies ~0.3 on the short synthetic
+    limits = {"spend_cv_min": 0.99, "oos_wmape_max": 0.3, "oos_skill_min": 0.1}  # YOUTUBE varies ~0.3 on the short synthetic
 
     events, verdict = pipeline.judge_sufficiency(synthetic_prepared, [good, bad], {"cv_out_of_sample": True}, limits)
 
@@ -148,7 +148,7 @@ def test_an_insufficient_run_demotes_the_passing_events_as_new_outcomes(syntheti
 
 def test_an_in_sample_cv_fails_the_run_but_keeps_the_events(synthetic_prepared):
     good = _passing("e1")
-    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3}
+    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3, "oos_skill_min": 0.1}
 
     events, verdict = pipeline.judge_sufficiency(synthetic_prepared, [good], {"cv_out_of_sample": False}, limits)
 
@@ -172,7 +172,7 @@ def test_a_lift_significant_only_with_the_media_features_is_model_dependent():
 def test_the_spend_variation_is_measured_before_the_adstock(synthetic_prepared):
     smoothed = synthetic_prepared.investment_df.assign(investment=1.0)  # what the adstock can flatten a channel to
     prepared = dataclasses.replace(synthetic_prepared, investment_df=smoothed)
-    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3}
+    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3, "oos_skill_min": 0.1}
 
     _, verdict = pipeline.judge_sufficiency(prepared, [_passing("e1")], {"cv_out_of_sample": True}, limits)
 

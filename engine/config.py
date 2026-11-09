@@ -142,6 +142,7 @@ class EngineConfig(Strict):
         legacy["control_spend_corr"] = self.gate_threshold("control_spend_corr")
         legacy["spend_cv_min"] = self.gate_threshold("spend_cv_min")
         legacy["oos_wmape_max"] = self.gate_threshold("oos_wmape_max")
+        legacy["oos_skill_min"] = self.gate_threshold("oos_skill_min")
         return legacy
 
     def gate_threshold(self, name: str) -> float:

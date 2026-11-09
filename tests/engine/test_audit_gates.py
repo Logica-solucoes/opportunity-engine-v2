@@ -107,11 +107,31 @@ def test_g3_the_fifth_argument_is_the_ceiling_not_the_skill_threshold():
 
 def test_g3_the_gate_still_fires_through_the_current_pipeline(synthetic_prepared):
     poor = pipeline.EventOutcome("e1", "YOUTUBE", "2024-10-28", {"oos_wmape": 0.9}, passed=True, selected=True)
-    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3}
+    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3, "oos_skill_min": 0.1}
 
     _, verdict = pipeline.judge_sufficiency(synthetic_prepared, [poor], {"cv_out_of_sample": True}, limits)
 
     assert verdict.reasons == ["high_oos_wmape"]
+
+
+def test_g3_with_a_naive_benchmark_the_pipeline_judges_skill_not_the_ceiling(synthetic_prepared):
+    noisy_but_skilled = pipeline.EventOutcome(
+        "e1", "YOUTUBE", "2024-10-28", {"oos_wmape": 0.9, "oos_naive_wmape": 1.2}, passed=True, selected=True
+    )
+    limits = {"spend_cv_min": 0.1, "oos_wmape_max": 0.3, "oos_skill_min": 0.1}
+
+    _, verdict = pipeline.judge_sufficiency(synthetic_prepared, [noisy_but_skilled], {"cv_out_of_sample": True}, limits)
+
+    assert "high_oos_wmape" not in verdict.reasons
+
+
+def test_g3_the_naive_benchmark_uses_the_oos_holdout():
+    from engine.analysis import oos_naive_wmape
+
+    week = [10.0, 20, 30, 40, 50, 60, 70]
+    pre = pd.DataFrame({"kpi": week * 10})
+    assert oos_naive_wmape(pre, min_pre_periods=14) == 0.0  # a pure weekly pattern is repeated exactly
+    assert oos_naive_wmape(pre.iloc[:20], min_pre_periods=14) is None  # holdout under 7 rows
 
 
 def _cadences(spend: np.ndarray) -> dict[str, pd.DataFrame]:

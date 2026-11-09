@@ -227,13 +227,22 @@ def judge_sufficiency(
     """The run-level verdict (A6). A causal reason demotes every passing event to insufficient_run, as new outcomes:
     the analysed ones stay as they were."""
     validated = [
-        {"channels": [c for c in e.product_group.split(", ") if c], "oos_wmape": e.results_data.get("oos_wmape")}
+        {
+            "channels": [c for c in e.product_group.split(", ") if c],
+            "oos_wmape": e.results_data.get("oos_wmape"),
+            "naive_wmape": e.results_data.get("oos_naive_wmape"),
+        }
         for e in events
         if e.passed
     ]
     cv_out_of_sample = mmm["cv_out_of_sample"] if mmm else None
     verdict = sufficiency.assess(
-        validated, prepared.spend_df, cv_out_of_sample, cfg["spend_cv_min"], cfg["oos_wmape_max"]
+        validated,
+        prepared.spend_df,
+        cv_out_of_sample,
+        cfg["spend_cv_min"],
+        cfg["oos_wmape_max"],
+        oos_skill_min=cfg["oos_skill_min"],
     )
     if verdict.passed:
         log.info(f"Dados suficientes: {verdict.validated_events} evento(s) validado(s).")
