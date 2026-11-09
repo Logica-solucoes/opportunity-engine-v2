@@ -20,7 +20,7 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   // the first published event of the Gol: CANAL_06 + CANAL_08, 20/01/2025, -31,1%
   const detail = analystPage.getByRole('region', { name: 'Evento selecionado' })
   await expect(detail).toContainText('CANAL_06, CANAL_08')
-  await expect(detail).toContainText('Queda significativa')
+  await expect(detail).toContainText('Queda de')
   await expect(detail).toContainText('-31,1%')
   await expect(detail.locator('.recharts-surface').first()).toBeVisible()
 
@@ -47,5 +47,5 @@ test('causal tab shows published events and keeps rejected ones without numbers'
   const viewerPage = await newSession(browser, viewer)
   await viewerPage.goto(detailsUrl.replace(/\/detalhes$/, ''))
   await expect(viewerPage).toHaveURL(/\/causal$/)
-  await expect(viewerPage.getByRole('region', { name: 'Evento selecionado' })).toContainText('Queda significativa')
+  await expect(viewerPage.getByRole('region', { name: 'Evento selecionado' })).toContainText('Queda de')
 })

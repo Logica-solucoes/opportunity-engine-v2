@@ -41,7 +41,7 @@ export function EventDetail({ event, report }: { event: CausalEvent; report?: Ev
       {published && report && (
         <NarrativeCard report={report} paragraphs={[report.verdict, report.analysis]} items={report.next_steps} />
       )}
-      {published ? <Published event={event} /> : <Rejected event={event} />}
+      {published ? <Published event={event} withSummary={!report} /> : <Rejected event={event} />}
     </section>
   )
 }
@@ -67,16 +67,19 @@ function Rejected({ event }: { event: CausalEvent }) {
   )
 }
 
-function Published({ event }: { event: CausalEvent }) {
+// the narrative already states lift, CI and p; the short summary only stands in when there is none
+function Published({ event, withSummary }: { event: CausalEvent; withSummary: boolean }) {
   const { lift, series, fit } = event
   const ci = lift?.ci
   return (
     <div className="space-y-4">
-      <p className="text-sm">
-        {(lift?.abs ?? 0) >= 0 ? 'Aumento significativo' : 'Queda significativa'} de{' '}
-        <strong>{formatSigned(lift?.abs)}</strong> no KPI ({formatSignedPct(lift?.rel_pct)}), IC 95% [
-        {formatInteger(ci?.[0])}; {formatInteger(ci?.[1])}], p {formatPValue(event.p_value)}.
-      </p>
+      {withSummary && (
+        <p className="text-sm">
+          {(lift?.abs ?? 0) >= 0 ? 'Aumento significativo' : 'Queda significativa'} de{' '}
+          <strong>{formatSigned(lift?.abs)}</strong> no KPI ({formatSignedPct(lift?.rel_pct)}), IC 95% [
+          {formatInteger(ci?.[0])}; {formatInteger(ci?.[1])}], p {formatPValue(event.p_value)}.
+        </p>
+      )}
       <Card size="sm" className="break-inside-avoid">
         <CardContent className="grid gap-3 sm:grid-cols-3 sm:divide-x">
           <Metric label="Lift" value={`${formatSigned(lift?.abs)} · ${formatSignedPct(lift?.rel_pct)}`} />
