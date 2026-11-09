@@ -1053,9 +1053,12 @@ def get_kpi_for_investment(investment, model):
     return model.get("base_kpi", 0) + (saturated_response * model["scaler"])
 
 
-def find_optimal_historical_mix(kpi_df, daily_investment_df):
+def find_optimal_historical_mix(kpi_df, daily_investment_df, organic_baseline):
     """
     Analyzes historical data to find the investment mix from the most efficient periods.
+
+    Efficiency is the KPI above `organic_baseline` (the MMM's stage-1 forecast, by Date) per R$: on the total KPI the
+    organic level dominates and the "most efficient" weeks were just the ones that spent least (audit F8).
     """
     log.info("   - - Analyzing historical data to find the optimal investment mix...")
 
@@ -1067,6 +1070,8 @@ def find_optimal_historical_mix(kpi_df, daily_investment_df):
     # Merge with KPI data
     merged_df = pd.merge(kpi_df, investment_pivot, on="Date", how="inner")
     merged_df.set_index("Date", inplace=True)
+    merged_df["kpi"] -= organic_baseline.reindex(merged_df.index).to_numpy()
+    merged_df = merged_df.dropna(subset=["kpi"])
 
     # Resample to weekly frequency
     weekly_df = merged_df.resample("W-MON").sum()
@@ -1074,11 +1079,11 @@ def find_optimal_historical_mix(kpi_df, daily_investment_df):
     # Calculate total investment and a rolling efficiency ratio to find sustained high-performance periods
     weekly_df["Total_Investment"] = weekly_df[investment_pivot.columns].sum(axis=1)
 
-    # Use a 4-week rolling window to smooth out anomalies and capture sustained impact
-    rolling_kpi = weekly_df["kpi"].rolling(window=4, min_periods=1).sum()
-    rolling_investment = weekly_df["Total_Investment"].rolling(window=4, min_periods=1).sum()
-
-    weekly_df["Efficiency_Ratio"] = (rolling_kpi / rolling_investment).fillna(0)
+    # Use a 4-week rolling window to smooth out anomalies and capture sustained impact; the mix comes from the same
+    # window as the ratio, not from its last week alone
+    rolling = weekly_df.rolling(window=4, min_periods=1).sum()
+    weekly_df[investment_pivot.columns] = rolling[investment_pivot.columns]
+    weekly_df["Efficiency_Ratio"] = (rolling["kpi"] / rolling["Total_Investment"]).fillna(0)
 
     # Filter out weeks with no investment
     weekly_df = weekly_df[weekly_df["Total_Investment"] > 0]
