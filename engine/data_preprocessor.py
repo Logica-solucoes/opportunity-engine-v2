@@ -846,29 +846,9 @@ def load_and_prepare_data(config, paths):
             daily_investment_df[["Date", "Product Group", "investment"]].sort_values(by="Date").reset_index(drop=True)
         )
 
+        # No adstock here: the MMM fits its own, once. Smoothing the channels that move against the KPI (picked on
+        # that same correlation) fired on half of the null channels and leaked into every published amount (PRE-6).
         spend_df = daily_investment_df.copy()
-        log.info("   - Data loaded and columns renamed successfully.")
-
-        kpi_col = "kpi"
-
-        # --- Adstock Transformation ---
-        log.info("   - Checking for negative correlations and applying adstock where needed...")
-        investment_pivot = daily_investment_df.pivot_table(
-            index="Date", columns="Product Group", values="investment"
-        ).fillna(0)
-        merged_for_corr = pd.merge(kpi_df, investment_pivot, on="Date", how="inner")
-
-        correlation_matrix = merged_for_corr.corr(numeric_only=True)
-
-        for column in investment_pivot.columns:
-            if column in correlation_matrix and correlation_matrix[column][kpi_col] < 0:
-                log.info(f"     - Applying adstock to '{column}' due to negative correlation.")
-                best_alpha, _ = find_best_alpha(merged_for_corr[column], merged_for_corr[kpi_col])
-                daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"] = geometric_decay(
-                    daily_investment_df.loc[daily_investment_df["Product Group"] == column, "investment"],
-                    best_alpha,
-                )
-
         log.info("   - Data preparation complete.")
 
         # --- Final Correlation Matrix (for display) ---
