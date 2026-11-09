@@ -1,8 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useBlocker } from '@tanstack/react-router'
-import { CaretDown, Info, Sparkle } from '@phosphor-icons/react'
+import { CaretDown, Info } from '@phosphor-icons/react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { FieldGrid, FormSection } from '@/components/FormSection'
+import { GeminiIcon } from '@/components/GeminiIcon'
 import { LoadState } from '@/components/LoadState'
 import {
   AlertDialog,
@@ -16,8 +18,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +33,7 @@ import {
   type ConfigSchema,
   ENUM_LABELS,
   type FormField,
+  type FormGroup,
   type FormValue,
   type GeminiAnswer,
   type Suggestion,
@@ -149,16 +153,30 @@ function ParamsFields({
   return (
     <TooltipProvider>
       {/* noValidate: the API is the one that validates, and its 422 lands on each field */}
-      <form onSubmit={submit} noValidate className="space-y-4">
-        {layout.map((group) => (
-          <GroupCard
-            key={group.title}
-            title={group.title}
-            fields={group.fields}
-            hasIssue={(f) => Boolean(state.origin[f.path] || errors?.[f.path] || badInput.includes(f.path))}
-            render={(f) => <ParamField key={f.path} {...fieldProps(f)} />}
-          />
-        ))}
+      <form onSubmit={submit} noValidate className="mx-auto max-w-7xl space-y-4">
+        <Card className="[--card-spacing:--spacing(6)]">
+          <CardHeader className="border-b">
+            <CardTitle>Parâmetros do motor</CardTitle>
+            <CardDescription>Os valores salvos valem para o próximo Rodar. O selo marca o que veio de sugestão.</CardDescription>
+            <CardAction>
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => gemini.mutate()}>
+                <GeminiIcon />
+                {gemini.isPending ? 'Consultando o Gemini…' : 'Sugerir com Gemini'}
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {layout.map((group) => (
+              <ParamSection
+                key={group.title}
+                group={group}
+                hasIssue={(f) => Boolean(state.origin[f.path] || errors?.[f.path] || badInput.includes(f.path))}
+                hasError={(f) => Boolean(errors?.[f.path] || badInput.includes(f.path))}
+                render={(f) => <ParamField key={f.path} {...fieldProps(f)} />}
+              />
+            ))}
+          </CardContent>
+        </Card>
         {general && (
           <p role="alert" className="text-sm text-destructive">
             {stray.length > 0
@@ -166,13 +184,9 @@ function ParamsFields({
               : errorMessage(save.error)}
           </p>
         )}
-        <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background/90 px-1 py-3 backdrop-blur">
+        <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background/90 px-1 pt-6 pb-2 backdrop-blur">
           <Button type="submit" disabled={busy}>
             Salvar parâmetros
-          </Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => gemini.mutate()}>
-            <Sparkle aria-hidden />
-            {gemini.isPending ? 'Consultando o Gemini…' : 'Sugerir com Gemini'}
           </Button>
           {dirty && <Badge variant="warning">Alterações não salvas</Badge>}
         </div>
@@ -193,62 +207,48 @@ function ParamsFields({
   )
 }
 
-function GroupCard({
-  title,
-  fields,
+function ParamSection({
+  group,
   hasIssue,
+  hasError,
   render,
 }: {
-  title: string
-  fields: FormField[]
+  group: FormGroup
   hasIssue: (field: FormField) => boolean
+  hasError: (field: FormField) => boolean
   render: (field: FormField) => ReactNode
 }) {
-  const basic = fields.filter((f) => !f.advanced)
-  const advanced = fields.filter((f) => f.advanced)
+  const basic = group.fields.filter((f) => !f.advanced)
+  const advanced = group.fields.filter((f) => f.advanced)
   const [open, setOpen] = useState(false)
   // an error or a suggestion inside the collapsed part must not stay hidden
   const forced = advanced.some(hasIssue)
 
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Fields fields={basic} render={render} />
-        {advanced.length > 0 && (
-          <Collapsible open={open || forced} onOpenChange={setOpen} className="space-y-4">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="group/adv -ml-2">
-                <CaretDown aria-hidden className="transition-transform group-data-[state=open]/adv:rotate-180" />
-                Avançado
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4">
-              <Fields fields={advanced} render={render} />
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-      </CardContent>
-    </Card>
+    <FormSection title={group.title} description={group.description} forceOpen={group.fields.some(hasError)}>
+      <Fields fields={basic} render={render} />
+      {advanced.length > 0 && (
+        <Collapsible open={open || forced} onOpenChange={setOpen} className="space-y-5">
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className="group/adv -ml-2 text-muted-foreground">
+              <CaretDown aria-hidden className="transition-transform group-data-[state=open]/adv:rotate-180" />
+              Avançado
+              <span className="tabular-nums">({advanced.length})</span>
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Fields fields={advanced} render={render} />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </FormSection>
   )
 }
 
-// inputs share a 3-column grid; switches and checkbox groups get rows of their own below
+// one grid for everything: inputs first, then switches, then the checkbox groups on rows of their own
 function Fields({ fields, render }: { fields: FormField[]; render: (field: FormField) => ReactNode }) {
-  const isSwitch = (f: FormField) => f.schema.type === 'boolean'
-  const isGroup = (f: FormField) => f.schema.type === 'array'
-  const inputs = fields.filter((f) => !isSwitch(f) && !isGroup(f))
-  const switches = fields.filter(isSwitch)
-  const groups = fields.filter(isGroup)
-  return (
-    <>
-      {inputs.length > 0 && <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">{inputs.map(render)}</div>}
-      {switches.length > 0 && <div className="divide-y rounded-lg border px-3">{switches.map(render)}</div>}
-      {groups.map(render)}
-    </>
-  )
+  const kind = (f: FormField) => (f.schema.type === 'array' ? 2 : f.schema.type === 'boolean' ? 1 : 0)
+  return <FieldGrid>{[...fields].sort((a, b) => kind(a) - kind(b)).map(render)}</FieldGrid>
 }
 
 function Help({ text, label }: { text: string; label: string }) {
@@ -290,39 +290,43 @@ function ParamField({
   const details = (
     <>
       {origin && (
-        <Badge variant="info">{origin.source === 'gemini' ? 'Sugerido pelo Gemini' : 'Sugerido pelos dados'}</Badge>
+        <Badge variant="info" className="w-fit">
+          {origin.source === 'gemini' && <GeminiIcon className="size-3" />}
+          {origin.source === 'gemini' ? 'Sugerido pelo Gemini' : 'Sugerido pelos dados'}
+        </Badge>
       )}
       {reason && (
-        <p id={`${id}-note`} className="text-xs text-muted-foreground">
+        <FieldDescription id={`${id}-note`} className="text-xs">
           {reason}
-        </p>
+        </FieldDescription>
       )}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+        <FieldError id={`${id}-error`} className="text-sm">
           {error}
-        </p>
+        </FieldError>
       )}
     </>
   )
   const label = (
     <div className="flex items-center gap-1.5">
-      <Label htmlFor={id}>{field.label}</Label>
+      <FieldLabel htmlFor={id} className="text-muted-foreground">
+        {field.label}
+      </FieldLabel>
       {field.help && <Help text={field.help} label={field.label} />}
     </div>
   )
+  const box = 'rounded-lg border border-input px-3 dark:bg-input/30'
 
   if (schema.type === 'array') {
     const selected = Array.isArray(value) ? value : []
     const options = schema.items?.enum ?? []
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
-          <p id={id} className="text-sm font-medium">
-            {field.label}
-          </p>
+      <FieldSet className="col-span-full gap-2" aria-describedby={describedBy}>
+        <FieldLegend variant="label" className="mb-0 flex items-center gap-1.5 text-muted-foreground">
+          {field.label}
           {field.help && <Help text={field.help} label={field.label} />}
-        </div>
-        <div role="group" aria-labelledby={id} aria-describedby={describedBy} className="flex flex-wrap gap-x-6 gap-y-2">
+        </FieldLegend>
+        <div className={`flex min-h-8 flex-wrap items-center gap-x-6 gap-y-2 py-1.5 ${box}`}>
           {options.map((option) => (
             <div key={option} className="flex items-center gap-2">
               <Checkbox
@@ -338,24 +342,25 @@ function ParamField({
           ))}
         </div>
         {details}
-      </div>
+      </FieldSet>
     )
   }
 
   if (schema.type === 'boolean') {
     return (
-      <div className="py-2.5">
-        <div className="flex items-center justify-between gap-4">
-          {label}
+      <Field data-invalid={error ? true : undefined}>
+        {label}
+        <div className={`flex h-8 items-center gap-2.5 ${box}`}>
           <Switch id={id} checked={value === true} disabled={disabled} aria-describedby={describedBy} onCheckedChange={onChange} />
+          <span className="text-sm text-muted-foreground">{value === true ? 'Ativado' : 'Desativado'}</span>
         </div>
-        {(origin || error) && <div className="mt-1 space-y-1">{details}</div>}
-      </div>
+        {details}
+      </Field>
     )
   }
 
   return (
-    <div className="space-y-1.5">
+    <Field data-invalid={error ? true : undefined}>
       {label}
       {schema.enum ? (
         <Select value={String(value)} disabled={disabled} onValueChange={onChange}>
@@ -377,7 +382,7 @@ function ParamField({
           type="text"
           inputMode="decimal"
           autoComplete="off"
-          className="tabular-nums"
+          className="text-center tabular-nums"
           placeholder={field.nullable ? (field.path.startsWith('financial_targets') ? 'Sem meta' : 'Opcional') : undefined}
           value={toDisplay(String(value))}
           aria-invalid={error ? true : undefined}
@@ -387,6 +392,6 @@ function ParamField({
         />
       )}
       {details}
-    </div>
+    </Field>
   )
 }

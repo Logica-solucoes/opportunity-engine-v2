@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Info } from '@phosphor-icons/react'
+import { GeminiIcon } from '@/components/GeminiIcon'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -21,6 +22,7 @@ export function NarrativeCard({
     <Card role="region" aria-label="Análise" size="sm" className="break-inside-avoid">
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
+          {report.source === 'llm' && <GeminiIcon />}
           {report.title}
           {report.source === 'deterministic' && (
             <Tooltip>

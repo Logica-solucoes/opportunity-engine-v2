@@ -1,7 +1,10 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { CheckCircle, FileCsv, Info, Play, Sliders, Warning, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, FileCsv, Flask, Info, Play, Sliders, Warning, XCircle } from '@phosphor-icons/react'
+import { FieldGrid, FormSection } from '@/components/FormSection'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { type FormEvent, useEffect, useState } from 'react'
+import { PageHeader } from '@/components/PageHeader'
 import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
 import { GoogleImport } from '@/components/GoogleImport'
@@ -40,7 +43,7 @@ import {
   simulationQuery,
   simulationsQuery,
 } from '@/lib/simulations'
-import { backLink, rowLink, textLink } from '@/lib/links'
+import { rowLink, textLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/w/$slug/simulacoes/$id')({
   validateSearch: (search: Record<string, unknown>): { etapa?: Etapa } => ({
@@ -141,28 +144,28 @@ function SimulationView({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Link to="/w/$slug" params={{ slug }} className={backLink}>
-          ← Simulações
-        </Link>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold">{sim.name}</h1>
+      <Tabs value={etapa} onValueChange={go} className="flex-col gap-5">
+        <PageHeader
+          slug={slug}
+          trail={[{ label: 'Simulações', link: { to: '/w/$slug', params: { slug } } }, { label: sim.name }]}
+          title={sim.name}
+          icon={Flask}
+        />
+        {/* the title scrolls away; the tabs line, with Rodar, stays in reach from any step */}
+        <div className="z-20 flex flex-wrap items-center justify-between gap-x-4 border-b bg-background/90 backdrop-blur md:sticky md:top-14">
+          <TabsList variant="line" aria-label="Etapas da simulação" className="h-11 w-auto justify-start gap-4 rounded-none p-0">
+            {ETAPAS.map((e) => (
+              <TabsTrigger
+                key={e.value}
+                value={e.value}
+                className="h-11 flex-none rounded-none px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
+              >
+                {e.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
           <RunAction slug={slug} gate={gate} busy={busy} />
         </div>
-      </div>
-
-      <Tabs value={etapa} onValueChange={go} className="flex-col gap-5">
-        <TabsList variant="line" aria-label="Etapas da simulação" className="h-9 w-full justify-start gap-4 rounded-none border-b p-0">
-          {ETAPAS.map((e) => (
-            <TabsTrigger
-              key={e.value}
-              value={e.value}
-              className="h-9 flex-none rounded-none px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
-            >
-              {e.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
 
         {/* forceMount: the parameters typed and not yet saved survive a trip to another step */}
         <TabsContent value="arquivos" forceMount className="space-y-4 data-[state=inactive]:hidden">
@@ -174,7 +177,11 @@ function SimulationView({
           {google && <GoogleImport slug={slug} sim={sim} busy={busy} onSaved={onSaved} />}
         </TabsContent>
 
-        <TabsContent value="mapeamento" forceMount className="space-y-4 data-[state=inactive]:hidden">
+        <TabsContent
+          value="mapeamento"
+          forceMount
+          className={`grid items-start gap-4 data-[state=inactive]:hidden ${sim.validation ? 'xl:grid-cols-[3fr_2fr]' : ''}`}
+        >
           {sim.files.investment && sim.files.performance ? (
             <MappingForm key={filesKey} slug={slug} sim={sim} busy={busy} onSaved={onSaved} />
           ) : (
@@ -340,26 +347,28 @@ function MappingForm({
 
   return (
     <form onSubmit={submit}>
-      <Card>
-        <CardHeader>
+      <Card className="[--card-spacing:--spacing(6)]">
+        <CardHeader className="border-b">
           <CardTitle>Mapeamento de colunas</CardTitle>
           <CardDescription>Diga qual coluna de cada arquivo tem cada informação.</CardDescription>
         </CardHeader>
-        <CardContent className="divide-y">
+        <CardContent className="grid gap-x-10 gap-y-8 2xl:grid-cols-2">
           {uploaded.map((spec) => {
             const file = sim.files[spec.kind]!
             return (
-              <fieldset key={spec.kind} className="grid gap-3 py-4 first:pt-0 last:pb-0 lg:grid-cols-[10rem_1fr]">
-                <legend className="sr-only">{spec.label}</legend>
-                <div aria-hidden className="pt-1 text-sm font-medium">
-                  {spec.label}
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
+              <FormSection
+                key={spec.kind}
+                title={spec.label}
+                description={`Colunas de ${file.filename}`}
+              >
+                <FieldGrid className="sm:grid-cols-2">
                   {Object.keys(file.suggested).map((field) => {
                     const id = `${spec.key}.${field}`
                     return (
-                      <div key={field} className="space-y-1.5">
-                        <Label htmlFor={id}>{FIELD_LABELS[field] ?? field}</Label>
+                      <Field key={field}>
+                        <FieldLabel htmlFor={id} className="text-muted-foreground">
+                          {FIELD_LABELS[field] ?? field}
+                        </FieldLabel>
                         <Select name={id} required defaultValue={initialColumn(sim, spec, field) || undefined}>
                           <SelectTrigger id={id} className="w-full">
                             <SelectValue placeholder="Escolha a coluna" />
@@ -372,11 +381,11 @@ function MappingForm({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
+                      </Field>
                     )
                   })}
-                </div>
-              </fieldset>
+                </FieldGrid>
+              </FormSection>
             )
           })}
         </CardContent>
@@ -447,11 +456,7 @@ type Gate = ReturnType<typeof useRunGate>
 function RunAction({ slug, gate, busy }: { slug: string; gate: Gate; busy: boolean }) {
   const { reason, activeRun, start } = gate
   return (
-    <div className="flex flex-col items-end gap-1.5">
-      <Button disabled={Boolean(reason) || busy || gate.isPending} onClick={gate.run}>
-        <Play aria-hidden weight="fill" />
-        Rodar
-      </Button>
+    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
       {reason && (
         <p className="text-xs text-muted-foreground">
           {reason}{' '}
@@ -462,6 +467,10 @@ function RunAction({ slug, gate, busy }: { slug: string; gate: Gate; busy: boole
           )}
         </p>
       )}
+      <Button size="sm" disabled={Boolean(reason) || busy || gate.isPending} onClick={gate.run}>
+        <Play aria-hidden weight="fill" />
+        Rodar
+      </Button>
       {start.isError && (
         <p role="alert" className="text-sm text-destructive">
           {errorMessage(start.error)}
@@ -473,7 +482,7 @@ function RunAction({ slug, gate, busy }: { slug: string; gate: Gate; busy: boole
 
 function ValidationResult({ report, gate }: { report: ValidationReport; gate: Gate }) {
   return (
-    <Card>
+    <Card className="[--card-spacing:--spacing(6)]">
       <CardHeader>
         <CardTitle>Validação</CardTitle>
         {report.channels.length > 0 && (

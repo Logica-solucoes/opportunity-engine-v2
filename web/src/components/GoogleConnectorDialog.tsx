@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { FormSection } from '@/components/FormSection'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { api } from '@/lib/api'
@@ -86,8 +87,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
         </DialogDescription>
       </DialogHeader>
       <form id="google-connector" onSubmit={submit} className="space-y-4">
-        <fieldset className="space-y-3">
-          <legend className="mb-2 text-sm font-medium">Google Ads</legend>
+        <FormSection title="Google Ads">
           <div className="grid gap-1.5">
             <Label htmlFor="ads.dataset">Dataset do Google Ads</Label>
             <Input
@@ -112,9 +112,8 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
             <p className="text-xs text-muted-foreground">Separados por vírgula; o spend das contas é somado.</p>
             {hint('ads.customer_ids')}
           </div>
-        </fieldset>
-        <fieldset className="space-y-3">
-          <legend className="mb-2 text-sm font-medium">GA4</legend>
+        </FormSection>
+        <FormSection title="GA4">
           <div className="grid gap-1.5">
             <Label htmlFor="ga4.dataset">Dataset do GA4</Label>
             <Input
@@ -153,7 +152,7 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
               </Select>
             </div>
           </div>
-        </fieldset>
+        </FormSection>
       </form>
       {(save.isError && !hinted) || remove.isError ? (
         <Alert variant="destructive">

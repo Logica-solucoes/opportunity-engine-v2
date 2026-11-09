@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { Trash } from '@phosphor-icons/react'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -39,13 +40,7 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
   })
 
   return (
-    <section className="flex flex-wrap items-center justify-between gap-4 border-t pt-6">
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium">Zona de perigo</h2>
-        <p className="text-sm text-muted-foreground">
-          Apaga a simulação, todas as execuções dela e os arquivos enviados. Não dá para desfazer.
-        </p>
-      </div>
+    <section className="flex justify-end border-t pt-4">
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {
@@ -55,7 +50,8 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="outline" className="text-destructive hover:text-destructive">
+          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+            <Trash aria-hidden />
             Apagar simulação
           </Button>
         </AlertDialogTrigger>
@@ -63,10 +59,10 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
           <AlertDialogHeader>
             <AlertDialogTitle>Apagar {sim.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              As execuções e os arquivos somem junto. Digite o nome da simulação para confirmar.
+              Apaga também as execuções e os arquivos enviados, sem como desfazer. Digite o nome da simulação para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-1">
+          <div className="space-y-2.5">
             <Label htmlFor="confirm-name">Nome da simulação</Label>
             <Input id="confirm-name" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
           </div>

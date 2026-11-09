@@ -24,28 +24,30 @@ export type ConfigSchema = FieldSchema & { $defs?: Record<string, FieldSchema> }
 
 type FieldSpec = { path: string; label: string; help?: string; advanced?: boolean }
 export type FormField = FieldSpec & { schema: FieldSchema; nullable: boolean }
-export type FormGroup = { title: string; fields: FormField[] }
+export type FormGroup = { title: string; description: string; fields: FormField[] }
 // numbers stay strings while typed ("1." and "0.0" are valid moments), and become numbers only in the PUT body
 export type FormValue = string | boolean | string[]
 export type FormState = { values: Record<string, FormValue>; origin: Suggestions; edited: Set<string> }
 
 // which fields show, in which group and with which pt-BR label; type, limits and defaults come from the schema
-const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
+const FORM_LAYOUT: { title: string; description: string; fields: FieldSpec[] }[] = [
   {
     title: 'Objetivo',
+    description: 'O que o motor otimiza e como o KPI vira resultado de negócio.',
     fields: [
       { path: 'optimization_target', label: 'Otimizar para' },
       { path: 'kpi_is_monetary', label: 'KPI é valor em dinheiro' },
       { path: 'average_ticket', label: 'Ticket médio' },
       {
         path: 'conversion_rate_from_kpi_to_bo',
-        label: 'Taxa de conversão do KPI para o negócio',
+        label: 'Conversão do KPI em negócio',
         help: 'Fração do KPI que vira resultado de negócio (1 = tudo).',
       },
     ],
   },
   {
     title: 'Metas financeiras',
+    description: 'Metas de eficiência usadas nos cenários. Campo vazio, meta desligada.',
     fields: [
       { path: 'financial_targets.target_cpa', label: 'CPA alvo', help: 'Deixe vazio para não usar esta meta.' },
       { path: 'financial_targets.target_icpa', label: 'iCPA alvo', help: 'Deixe vazio para não usar esta meta.' },
@@ -55,6 +57,7 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
   },
   {
     title: 'Orçamento',
+    description: 'Quanto o planejador pode mexer no investimento.',
     fields: [
       { path: 'investment_limit_factor', label: 'Fator limite de investimento' },
       { path: 'max_budget_step', label: 'Passo máximo de orçamento', help: 'Maior variação por passo (0,2 = 20%).' },
@@ -62,6 +65,7 @@ const FORM_LAYOUT: { title: string; fields: FieldSpec[] }[] = [
   },
   {
     title: 'Causal',
+    description: 'Critérios para aceitar um evento de investimento como efeito real.',
     fields: [
       { path: 'p_value_threshold', label: 'p-valor máximo' },
       { path: 'min_pre_period_days', label: 'Pré-período mínimo (dias)' },
@@ -136,6 +140,7 @@ function resolve(schema: ConfigSchema, path: string): { schema: FieldSchema; nul
 export function visibleLayout(schema: ConfigSchema): FormGroup[] {
   return FORM_LAYOUT.map((group) => ({
     title: group.title,
+    description: group.description,
     fields: group.fields.flatMap((spec) => {
       const found = resolve(schema, spec.path)
       return found ? [{ ...spec, ...found }] : []
