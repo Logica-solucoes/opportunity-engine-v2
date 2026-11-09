@@ -18,8 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { meQuery, roleIn, useLogout } from '@/lib/auth'
 import { setTheme } from '@/lib/theme'
 
-const navLink = 'text-muted-foreground transition-colors hover:text-foreground'
-const navActive = 'font-medium text-foreground'
+// data-status (set by the router) beats the base color; activeProps className would lose to text-muted-foreground
+const navLink =
+  '-mb-3 border-b-2 border-transparent pb-3 text-muted-foreground transition-colors hover:text-foreground data-[status=active]:border-primary data-[status=active]:font-medium data-[status=active]:text-foreground'
 
 function Logo({ light, dark, alt }: { light: string; dark: string; alt: string }) {
   return (
@@ -62,12 +63,12 @@ export function AppHeader() {
 
         <nav className="flex gap-4 text-sm">
           {slug && roleIn(me, slug) === 'admin' && (
-            <Link to="/w/$slug/membros" params={{ slug }} className={navLink} activeProps={{ className: navActive }}>
+            <Link to="/w/$slug/membros" params={{ slug }} className={navLink}>
               Membros
             </Link>
           )}
           {me.is_platform_admin && (
-            <Link to="/admin/workspaces" className={navLink} activeProps={{ className: navActive }}>
+            <Link to="/admin/workspaces" className={navLink}>
               Admin
             </Link>
           )}
