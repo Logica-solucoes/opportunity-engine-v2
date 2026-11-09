@@ -17,6 +17,7 @@ import { errorMessage } from '@/lib/auth'
 import { configSchemaQuery, displayValue, fieldErrors, getPath, visibleLayout } from '@/lib/params'
 import { type Run, isActive, isPublishable, runQuery, workspaceRunsQuery } from '@/lib/runs'
 import { FIELD_LABELS, FILES, type Simulation, formatDate, simulationQuery } from '@/lib/simulations'
+import { textLink } from '@/lib/links'
 
 export function RunDetails({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boolean }) {
   return (
@@ -188,7 +189,7 @@ function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boole
                 <a
                   href={`/api/w/${slug}/runs/${run.id}/inputs/${spec.key}`}
                   download
-                  className="text-primary hover:underline"
+                  className={textLink}
                 >
                   {input.filename}
                 </a>

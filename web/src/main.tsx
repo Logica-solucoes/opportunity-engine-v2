@@ -10,6 +10,7 @@ import { ApiError } from './lib/api'
 import { errorMessage, meQuery } from './lib/auth'
 import { applyTheme } from './lib/theme'
 import { routeTree } from './routeTree.gen'
+import { textLink } from '@/lib/links'
 
 // mutations show their own failure inline or in a toast, so only failed loads get the generic one
 function onApiError(error: unknown, { fromQuery = false, skipAuthRedirect = false } = {}) {
@@ -44,7 +45,7 @@ const router = createRouter({
   defaultNotFoundComponent: () => (
     <div className="p-10 text-center">
       <p className="mb-4 text-lg">Página não encontrada.</p>
-      <Link to="/" className="text-primary underline">
+      <Link to="/" className={textLink}>
         Voltar ao início
       </Link>
     </div>
@@ -52,7 +53,7 @@ const router = createRouter({
   defaultErrorComponent: () => (
     <div className="p-10 text-center">
       <p className="mb-4 text-lg">Algo deu errado.</p>
-      <button type="button" onClick={() => window.location.reload()} className="text-primary underline">
+      <button type="button" onClick={() => window.location.reload()} className={textLink}>
         Recarregar a página
       </button>
     </div>

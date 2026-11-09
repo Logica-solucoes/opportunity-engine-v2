@@ -1,6 +1,7 @@
 import { FileCsv } from '@phosphor-icons/react'
 import type { DragEvent } from 'react'
 import { cn } from '@/lib/utils'
+import { textLink } from '@/lib/links'
 
 // drag & drop area adapted from blocks.so file-upload-04, minus its fake progress bar
 export function FileDrop({
@@ -33,7 +34,7 @@ export function FileDrop({
       <FileCsv aria-hidden className="size-8" />
       <p>
         Arraste o CSV ou{' '}
-        <label htmlFor={id} className="cursor-pointer font-medium text-primary hover:underline">
+        <label htmlFor={id} className={`cursor-pointer font-medium ${textLink}`}>
           escolha o arquivo
         </label>
       </p>
