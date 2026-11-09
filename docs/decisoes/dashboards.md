@@ -54,6 +54,17 @@ O cartão "Análise" aparece no evento publicado (aba Causal) e no topo da Elast
 
 O card aparece quando o `results.json` traz `experiment_design` (só run `inconclusive`), logo abaixo da barra de export e acima do resumo: o run inconclusivo da Gol não tem lift publicável, e o desenho do teste é o que o analista leva dali. Com `insufficient_history` mostra só os motivos (`short_history`, `degenerate_kpi`, `duration_capped` quando o teto é menor que um período), sem número. Com `feasible: false` mostra o aviso de que nem no prazo máximo o teste detecta o alvo, e a duração e o MDE exibidos são os do teto. As premissas (fórmula provisória até a Data Science validar) ficam sempre visíveis na lista do card. O card mora dentro da aba Causal, então um run sem `causal` não o mostra.
 
+## Refino do front: tabelas, formulários e cabeçalhos (09/nov/2026)
+
+- **Escala de fonte.** Tudo é rem, então a escala vai em `html { font-size }` (`index.css`): 106,25% a partir de 1280px e 112,5% a partir de 1800px. O conteúdo vai até 115rem; os trilhos laterais listrados (`StripedPattern` da Magic UI, só em `_auth.tsx`, nunca no login) ocupam o que sobra, com no mínimo 2rem.
+- **Tabelas pelo `DataTable`.** Ordenação por coluna (no cliente), menu "Colunas" com "Todas" (a escolha fica em `localStorage`, `table:<id>`), paginação no cliente (10/25/50/100, o tamanho em `table:pageSize`) e a barra com `toolbar` (filtros ou botão de criar, à esquerda) e `actions` (à direita, junto de "Colunas"). Dados e cabeçalhos ficam **centralizados** no primitivo `ui/table.tsx`: não reintroduzir `text-right` em `TableHead`/`TableCell`. Paginar no servidor fica pendente (`docs/status.md`).
+- **Filtros pelo `FilterBar`/`FilterField`:** caixa compacta do tamanho do conteúdo, com a ação (Exportar CSV) fora dela. O painel lateral da Elasticidade segue sem ele, de propósito.
+- **Criar é modal, não rota.** `AddDialog` (Novo workspace, Adicionar membro) e `NewSimulationDialog`; apagar e restaurar já eram `AlertDialog`. Login e trocar senha continuam rotas.
+- **Cabeçalho de página pelo `PageHeader`:** trilha (Workspaces › workspace › seção) com o título embaixo, que some quando repete o último item (`hideTitle`, o `h1` fica só para leitor de tela). Na simulação só a linha das abas, com o Rodar, fica fixa ao rolar.
+- **Formulários longos em seções recolhíveis (`FormSection`, sobre o `ui/field` do shadcn):** título com régua, uma frase e a grade de campos com colunas iguais em todas as seções. O conteúdo recolhido continua montado (os formulários não controlados leem `FormData`); erro ou campo obrigatório vazio abre a seção. Vale para Parâmetros, Mapeamento e o conector Google.
+- **Selects:** `popper` (abre embaixo) e valor centralizado, como as tabelas. Tooltip com o fundo do popover, não invertido.
+- **Ícone de IA:** a estrela do Gemini em cores (`GeminiIcon`) marca o botão de sugerir, o selo "Sugerido pelo Gemini" e o cartão de análise com texto do LLM; nada de varinha ou robô.
+
 ## O front não calcula
 
 Lift, IC, `rel_pct`, CPA, investimento pré × evento e KPI previsto × real vêm prontos do motor. O front formata (`Intl` pt-BR), compara sinal (aumento × queda) e conta status. Se um número novo for preciso na tela, ele entra no `results.json`, não no TypeScript.

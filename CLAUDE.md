@@ -122,7 +122,7 @@ Tone: Dense system — ferramenta interna de análise, densa e sóbria.
 - Theme: neutros frios + coral da Almap só como acento (`--primary`/`--ring`), tokens `success`/`warning`/`info`, raio único `--radius`, em `web/src/index.css`; o B10 traz os tokens do Almap Metrics
 - Fonts: Geist Sans + Geist Mono (números e tabelas, `tabular-nums`)
 - Showpiece: nenhum
-- Extras: —
+- Extras: Magic UI (`@magicui`, registry no `components.json`) só para o `striped-pattern` dos trilhos laterais estreitos do layout logado (`_auth.tsx`, não aparecem no login), como no Tally; padrões animados ficam de fora (motion: nenhum)
 
 Pick UI from this stack only. At the start of a UI task, offer once to scout the `ui-sources` catalog for components that fit this tone; load that skill for the scouting pass or when the stack can't cover a need. Todo componente de UI é primitivo de `web/src/components/ui/` (`bunx shadcn@latest add`); o MCP `shadcn` (`.mcp.json`) consulta o registry.
 
