@@ -136,7 +136,7 @@ def _event(outcome: "EventOutcome") -> CausalEvent:
         rel_pct=_num(data["relative_lift_pct"]),
     )
     event.p_value = _num(data["p_value"])
-    event.incremental_investment = _num(data["total_investment_post_period"])
+    event.incremental_investment = _num(data["total_investment_post_period"] - data["total_investment_pre_period"])
     event.cpa_incremental = None if lift == 0 else _num(data["cpa_incremental"])  # 0 was the "no lift" sentinel
     event.series = _series(outcome)
     return event

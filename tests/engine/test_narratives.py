@@ -185,14 +185,15 @@ def test_payload_floats_are_rounded_to_four_significant_digits():
     event = {**EVENT, "lift": {"abs": -1234.5678, "ci": [-2010.123456, -458.7], "rel_pct": 238.99107106472343}}
     payload = narratives.event_payload(event, "Pedidos", 0.05, [])
     assert payload["lift"] == {"abs": -1235.0, "ci": [-2010.0, -458.7], "rel_pct": 239.0}
-    assert payload["post_period_investment"] == 3_412_000.0
-    assert "incremental_investment" not in payload
+    assert payload["incremental_investment"] == 3_412_000.0
+    assert "post_period_investment" not in payload
 
 
 def test_the_event_duration_is_in_the_payload_so_it_can_be_cited():
     payload = narratives.event_payload(EVENT, "Pedidos", 0.05, [])
-    assert payload["post_period_days"] == 28
-    assert grounding.check("Em 28 dias o KPI caiu.", payload, {"CANAL_01"}, {"CANAL_01"}) == []
+    assert payload["post_period_days"] == 29  # 06/01 to 03/02, both days in the window
+    assert grounding.check("Em 29 dias o KPI caiu.", payload, {"CANAL_01"}, {"CANAL_01"}) == []
+    assert narratives.event_payload(EVENT, "Pedidos", 0.05, [], period_days=7)["post_period_days"] == 35
 
 
 def test_a_tiny_p_value_is_written_as_a_bound_that_passes_the_grounding():
@@ -221,8 +222,6 @@ def test_a_short_history_still_narrates_the_planner_with_a_caveat():
     assert narratives.NOT_OK_RULE not in llm.calls[0] and narratives.CAVEAT_RULE in llm.calls[0]
 
 
-def test_the_deterministic_text_calls_the_spend_post_period():
+def test_the_deterministic_text_calls_the_spend_incremental():
     payload = narratives.event_payload(EVENT, "Pedidos", 0.05, [])
-    assert (
-        "investimento no pós-período de r$ 3.412.000,00" in narratives.deterministic_event(payload)["analysis"].lower()
-    )
+    assert "investimento incremental de r$ 3.412.000,00" in narratives.deterministic_event(payload)["analysis"].lower()

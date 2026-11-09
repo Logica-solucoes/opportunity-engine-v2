@@ -127,8 +127,11 @@ def text_of(obj: Any) -> str:
     return ""
 
 
-def event_payload(event: dict, kpi: str, p_value_threshold: float, sufficiency_reasons: list[str]) -> dict:
+def event_payload(
+    event: dict, kpi: str, p_value_threshold: float, sufficiency_reasons: list[str], period_days: int = 1
+) -> dict:
     fit = event.get("fit") or {}
+    days = _days_between(event.get("start"), event.get("end"))
     return _sig(
         {
             "kpi_name": kpi,
@@ -137,11 +140,11 @@ def event_payload(event: dict, kpi: str, p_value_threshold: float, sufficiency_r
             "channels": event["channels"],
             "start": event.get("start"),
             "end": event.get("end"),
-            "post_period_days": _days_between(event.get("start"), event.get("end")),
+            "post_period_days": None if days is None else days + period_days,  # `end` is the last period's start
             "investment_change_pct": event.get("investment_change_pct"),
             "lift": event.get("lift"),
             "p_value": event.get("p_value"),
-            "post_period_investment": event.get("incremental_investment"),  # the whole post-period spend, not a delta
+            "incremental_investment": event.get("incremental_investment"),  # post-period spend minus the baseline
             "cpa_incremental": event.get("cpa_incremental"),
             "fit": {"r2": fit.get("r2"), "wmape": fit.get("wmape")},
             "placebo_p_value": (event.get("placebo") or {}).get("p_value"),
@@ -223,8 +226,8 @@ def deterministic_event(p: dict) -> dict:
         verdict += "."
     fit = p.get("fit") or {}
     facts = []
-    if p.get("post_period_investment") is not None:
-        facts.append(f"investimento no pós-período de {_money(p['post_period_investment'])}")
+    if p.get("incremental_investment") is not None:
+        facts.append(f"investimento incremental de {_money(p['incremental_investment'])}")
     if p.get("cpa_incremental") is not None:
         facts.append(f"CPA incremental de {_money(p['cpa_incremental'])}")
     if fit.get("r2") is not None:
@@ -339,8 +342,14 @@ def jobs(document: dict, config: EngineConfig) -> list[tuple[str, Kind, dict, se
     kpi = config.column_mapping.get("performance_file", {}).get("kpi_col") or "KPI"
     revenue = config.kpi_is_monetary or config.optimization_target == "REVENUE"
     sufficiency = (document.get("sufficiency") or {}).get("reasons") or []
+    period_days = (document.get("validation") or {}).get("period_days") or 1
     found = [
-        (event["id"], EVENT, event_payload(event, kpi, config.p_value_threshold, sufficiency), set(event["channels"]))
+        (
+            event["id"],
+            EVENT,
+            event_payload(event, kpi, config.p_value_threshold, sufficiency, period_days),
+            set(event["channels"]),
+        )
         for event in (document.get("causal") or {}).get("events") or []
         if event["status"] == "published"
     ]

@@ -616,7 +616,8 @@ def run_causal_impact_analysis(
             if total_investment_pre_period > 0
             else 0
         )
-        cpa_incremental = total_investment_post_period / abs_lift if abs_lift != 0 else 0
+        incremental_investment = total_investment_post_period - total_investment_pre_period
+        cpa_incremental = incremental_investment / abs_lift if abs_lift != 0 else 0
 
         start_date = pd.to_datetime(post_period[0])
         end_date = pd.to_datetime(post_period[1])
