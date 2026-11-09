@@ -135,7 +135,7 @@ O formato exato de cada seção é fechado no spec do item dono, e os nomes acim
 - Os eventos têm `selected` e `fit` com `mae`/`mape`.
 - Seções de itens futuros saem `null`.
 
-Em aberto: `incremental_investment` do evento hoje é o investimento total do pós-período (ver `docs/decisoes/engine.md`, limitações). Até o fim da semana 1, A entrega **fixtures** reais em `tests/fixtures/results/` (gerados a partir de `exemplo_csv/`) para B construir telas sem esperar o motor.
+Resolvido em 09/nov/2026: `incremental_investment` do evento é o delta do gasto sobre o baseline, calculado sobre o gasto como enviado (ver `docs/decisoes/engine.md`, auditoria). Até o fim da semana 1, A entrega **fixtures** reais em `tests/fixtures/results/` (gerados a partir de `exemplo_csv/`) para B construir telas sem esperar o motor.
 
 `on_log` (proposto pelo B4, a confirmar no spec do A0): `on_log(level: str, message: str)`, com `level` em `info|warning|error` e `message` já em pt-BR, pronta para a tela; o worker grava cada chamada em `run_logs`. `inputs` tem as mesmas chaves do `validate`. **Decidido no A0/A2:** `on_log` como proposto. O motor levanta `EngineError` (`engine/errors.py`), com mensagem pt-BR segura para a tela e `check_id` quando é um check do `validate`; o `run` valida antes e para no primeiro erro. Qualquer outra exceção sobe como está. A API usa o motor real desde 05/nov/2026: o worker mostra a mensagem do `EngineError` na tela e trata qualquer outra exceção como erro genérico (passo 7 do swap em `docs/decisoes/engine.md`).
 
