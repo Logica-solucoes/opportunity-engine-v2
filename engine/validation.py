@@ -43,8 +43,9 @@ def check_partial(investment_df: pd.DataFrame, kpi_df: pd.DataFrame, inv_cadence
                 id="partial_period_dropped",
                 level="info",
                 message=(
-                    f"{dropped_inv + dropped_kpi} período(s) parcial(is) serão descartados "
-                    f"({dropped_inv} no investimento, {dropped_kpi} na performance)."
+                    f"{dropped_inv + dropped_kpi} data(s) de período parcial saem da série "
+                    f"({dropped_inv} no investimento, {dropped_kpi} na performance): nas pontas, o período é "
+                    "descartado; no meio (ex.: semana partida na virada do ano), os valores são somados ao período."
                 ),
                 details={"investment": int(dropped_inv), "performance": int(dropped_kpi)},
             )

@@ -136,7 +136,11 @@ def _passing(event_id, group="YOUTUBE"):
 def test_an_insufficient_run_demotes_the_passing_events_as_new_outcomes(synthetic_prepared):
     good = _passing("e1")
     bad = pipeline.EventOutcome("e2", "YOUTUBE", "2024-10-28", {"oos_wmape": 0.1}, reasons=["not_significant"])
-    limits = {"spend_cv_min": 0.99, "oos_wmape_max": 0.3, "oos_skill_min": 0.1}  # YOUTUBE varies ~0.3 on the short synthetic
+    limits = {
+        "spend_cv_min": 0.99,
+        "oos_wmape_max": 0.3,
+        "oos_skill_min": 0.1,
+    }  # YOUTUBE varies ~0.3 on the short synthetic
 
     events, verdict = pipeline.judge_sufficiency(synthetic_prepared, [good, bad], {"cv_out_of_sample": True}, limits)
 

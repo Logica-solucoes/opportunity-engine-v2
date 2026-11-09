@@ -1180,6 +1180,14 @@ def test_suggest_causal_config_min_pre_period_days_matches_8x_cadence():
     assert result["min_pre_period_days"] == 56  # 8 * 7-day (weekly) cadence
 
 
+def test_suggest_causal_config_ignores_the_partial_edge_weeks_of_daily_data():
+    # constant daily spend from a Wednesday to a Tuesday: the edge weeks hold 5 and 2 days and are not drops
+    dates = pd.date_range("2025-01-01", "2025-03-25", freq="D")
+    df = pd.DataFrame({"Date": dates, "Product Group": "A", "investment": 100.0})
+    result = suggest_causal_config(df)
+    assert result["decrease_threshold_percent"] == 30  # the default: no drop was seen at all
+
+
 def test_suggest_causal_config_min_pre_period_days_capped_at_365():
     # 6 dates 60 days apart -> median 60 -> non-canonical cadence, raw 60.
     dates = pd.date_range("2025-01-01", periods=6, freq="60D")

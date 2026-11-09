@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from engine import identifiability, presentation
+from engine.scenario import DAYS_PER_MONTH
 
 if TYPE_CHECKING:
     from engine.pipeline import Computed
@@ -99,7 +100,7 @@ def _write_global(computed: "Computed", out_dir: Path, written: Written) -> None
     global_dir = out_dir / GLOBAL_DIR_NAME
     global_dir.mkdir(parents=True, exist_ok=True)
     written.global_dir = global_dir
-    factor = 30 / (cfg.get("period_days", 1) or 1)  # periods per month
+    factor = DAYS_PER_MONTH / (cfg.get("period_days", 1) or 1)  # periods per month
     baseline = computed.baseline_point
     total_monthly = baseline["Daily_Investment"] * factor if baseline and "Daily_Investment" in baseline else 0
 

@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import pandas as pd
 
+from engine.scenario import DAYS_PER_MONTH
+
 log = logging.getLogger(__name__)
 
 
@@ -254,7 +256,7 @@ def save_opportunity_curve_plot(
     # Reduces to the historical flat 30 for daily data (period_days=1);
     # scales correctly for weekly/monthly cadences.
     period_days = (config or {}).get("period_days", 1)
-    monthly_factor = 30 / (period_days or 1)
+    monthly_factor = DAYS_PER_MONTH / (period_days or 1)
 
     # Standardize to monthly for plotting
     if "Daily_Investment" in plot_df.columns:
@@ -421,7 +423,7 @@ def create_comparative_saturation_md(scenarios, output_filename, kpi_projections
     numbers for non-daily data). `scenarios`' own splits/projected_kpis are
     pre-scaled by the caller and don't need this factor again.
     """
-    monthly_factor = 30 / (period_days or 1)
+    monthly_factor = DAYS_PER_MONTH / (period_days or 1)
 
     markdown_content = "# Análise Comparativa de Alocação de Orçamento\n\n"
 

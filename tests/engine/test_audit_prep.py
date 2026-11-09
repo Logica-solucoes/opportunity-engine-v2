@@ -15,7 +15,9 @@ def _split_year_week():
     )
     rows = [(d, "TV", 7000.0) for d in weeks]
     rows += [(pd.Timestamp("2025-12-29"), "TV", 3000.0), (pd.Timestamp("2026-01-01"), "TV", 4000.0)]
-    return pd.DataFrame(rows, columns=["Date", "Product Group", "investment"]).sort_values("Date").reset_index(drop=True)
+    return (
+        pd.DataFrame(rows, columns=["Date", "Product Group", "investment"]).sort_values("Date").reset_index(drop=True)
+    )
 
 
 def test_pre3_year_boundary_fragment_is_merged_into_its_week():

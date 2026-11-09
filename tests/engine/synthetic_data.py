@@ -15,7 +15,7 @@ CHANNELS = {  # name -> (daily spend level, response weight)
     "DISPLAY": (300.0, 400.0),
     "SOCIAL": (400.0, 700.0),
 }
-START = "2024-01-02"  # a Tuesday: the engine buckets weeks as W-MON (Tue..Mon), so no partial week
+START = "2024-01-02"  # a Tuesday: weeks run Monday to Sunday, so the first (partial) detection week is dropped
 DAYS = 728  # whole weeks
 SPIKES = {
     "YOUTUBE": (300, 21, 2.5),

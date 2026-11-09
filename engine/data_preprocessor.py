@@ -279,8 +279,17 @@ def suggest_causal_config(daily_investment_df):
         if cadence >= 7:
             bucket_key = product_df["Date"]
         else:
-            bucket_key = product_df["Date"].dt.to_period("W-MON").dt.start_time
-        period_investment = product_df.assign(_bucket=bucket_key).groupby("_bucket")["investment"].sum().reset_index()
+            bucket_key = product_df["Date"].dt.to_period("W").dt.start_time
+        period_investment = (
+            product_df.assign(_bucket=bucket_key)
+            .groupby("_bucket")
+            .agg(investment=("investment", "sum"), days=("Date", "nunique"))
+            .reset_index()
+        )
+        # the same buckets as analysis.find_events: partial edge weeks would read as drops
+        partial = period_investment["days"] * cadence < 7
+        edge = period_investment.index.isin([0, len(period_investment) - 1])
+        period_investment = period_investment[~(partial & edge)].reset_index(drop=True)
         if len(period_investment) < 3:
             continue
 
