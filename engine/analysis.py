@@ -91,7 +91,7 @@ def periods_to_days(days_config, period_days, min_periods, label=""):
     raw_periods = days_config / period_days
     ceiled_periods = math.ceil(raw_periods)
     periods = max(min_periods, ceiled_periods)
-    if periods > ceiled_periods:
+    if periods > ceiled_periods and label:  # unlabelled: an internal reuse of a window already reported
         log.warning(
             f"   - AVISO: janela '{label}' configurada em {days_config} dia(s) "
             f"renderia menos que o mínimo de {min_periods} período(s) de dados "
@@ -120,6 +120,7 @@ def find_events(
         df = df.rename(columns={"Product Group": "product_group", "Date": "dates"})
 
         all_individual_events = []
+        post_window = pd.Timedelta(days=periods_to_days(post_event_days, period_days, 4)[0])
         product_groups = df["product_group"].unique()
         log.info(f"   - Analyzing {len(product_groups)} unique ad products for significant changes.")
 
@@ -137,8 +138,17 @@ def find_events(
                 # native per-row dates directly as the per-period series instead.
                 product_df["weeks"] = product_df["dates"]
             else:
-                product_df["weeks"] = product_df["dates"].dt.to_period("W-MON").dt.start_time
-            weekly_investment_df = product_df.groupby("weeks")["investment"].sum().reset_index()
+                # Monday-to-Sunday, the same week the event is labelled with, so the label is the bucket's first day
+                product_df["weeks"] = product_df["dates"].dt.to_period("W").dt.start_time
+            weekly_investment_df = (
+                product_df.groupby("weeks")
+                .agg(investment=("investment", "sum"), days=("dates", "nunique"))
+                .reset_index()
+            )
+            # the first and last weeks may hold only a few days of spend; summed as whole weeks they read as a drop
+            partial = weekly_investment_df["days"] * period_days < 7
+            edge = weekly_investment_df.index.isin([0, len(weekly_investment_df) - 1])
+            weekly_investment_df = weekly_investment_df[~(partial & edge)].reset_index(drop=True)
             if len(weekly_investment_df) < 3:
                 continue
 
@@ -171,7 +181,11 @@ def find_events(
                     f"({flagged_share:.0%})."
                 )
 
-            for _, row in significant_changes.iterrows():
+            # A sustained step stays above the lagged average for weeks: each flagged week inside the previous one's
+            # post window is the same change still showing, and its pre-period would already hold the treatment.
+            starts = significant_changes["weeks"]
+            repeats = starts < starts.shift(1) + post_window
+            for _, row in significant_changes[~repeats].iterrows():
                 all_individual_events.append(
                     {
                         "date": row["weeks"],
@@ -185,16 +199,9 @@ def find_events(
             return pd.DataFrame(), None, None
 
         individual_events_df = pd.DataFrame(all_individual_events)
-        individual_events_df["date"] = pd.to_datetime(individual_events_df["date"])
-        if period_days >= 7:
-            # Mesma guarda do agrupamento por produto acima: cada linha JÁ é um
-            # período. Re-bucketizar em semanas W-SUN rotula o evento com a
-            # segunda-feira que abre a semana -- para base semanal marcada no
-            # domingo isso vira sempre "data real - 6 dias", uma data que não
-            # existe no arquivo do cliente.
-            individual_events_df["event_week"] = individual_events_df["date"]
-        else:
-            individual_events_df["event_week"] = individual_events_df["date"].dt.to_period("W").dt.start_time
+        # each date is already a period start (a native row, or the Monday of a daily bucket): re-bucketing a
+        # Sunday-labelled weekly base into Monday weeks would label the event with a date not in the client's file
+        individual_events_df["event_week"] = pd.to_datetime(individual_events_df["date"])
 
         # Consolidate events that occur in the same week
         consolidated_events = []

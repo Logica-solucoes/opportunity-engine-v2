@@ -109,18 +109,21 @@ def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
         log.warning("Analysis complete: No events found for the specified products.")
         return pd.DataFrame(columns=columns)
 
-    span, _ = analysis.periods_to_days(cfg["post_event_days"], period_days, 4, label="post_event_days")
-    first_date = prepared.kpi_df["Date"].min().strftime("%Y-%m-%d")
+    _, periods = analysis.periods_to_days(cfg["post_event_days"], period_days, 4, label="post_event_days")
+    kpi_dates = pd.DatetimeIndex(prepared.kpi_df["Date"].sort_values().unique())
+    first_date = kpi_dates[0].strftime("%Y-%m-%d")
     earliest = pd.to_datetime(cfg["min_intervention_date"]) if cfg.get("min_intervention_date") else None
     rows = []
     for _, row in event_map.iterrows():
         day = pd.to_datetime(row["date"])
+        # the post window is its first `periods` rows, counted on the data: a 30-day step lands on 4 or 5 month labels
+        last = min(kpi_dates.searchsorted(day) + periods, len(kpi_dates)) - 1
         rows.append(
             {
                 "event_id": f"{cfg['advertiser_name']}_{row['ad_product'].replace(' ', '_')}_{day.date()}",
                 "start_date": first_date,
                 "intervention_date": day.strftime("%Y-%m-%d"),
-                "end_date": (day + timedelta(days=span)).strftime("%Y-%m-%d"),
+                "end_date": kpi_dates[last].strftime("%Y-%m-%d"),
                 "product_group": row["ad_product"],
                 "eligible": earliest is None or day >= earliest,
                 "investment_change_pct": float(row["percentage_change"]),
