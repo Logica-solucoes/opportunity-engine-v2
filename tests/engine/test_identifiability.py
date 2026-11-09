@@ -116,6 +116,17 @@ def test_the_contribution_log_leaves_out_channels_that_are_not_identifiable(capl
     assert "1 channel(s) not identifiable" in text
 
 
+def test_the_contribution_log_ignores_zero_spend_channels_the_model_never_saw(caplog):
+    from engine.pipeline import _log_contribution_split
+
+    mmm = {"contribution_pct": {"STRONG": 100.0, "ZERO": 0.0}}  # ZERO: all-zero spend, 0% but no verdict
+    with caplog.at_level("INFO", logger="engine.pipeline"):
+        _log_contribution_split(mmm, {"STRONG": {"identifiable": True}})
+
+    assert "STRONG: 100.00%" in caplog.text
+    assert "ZERO" not in caplog.text and "not identifiable" not in caplog.text
+
+
 def test_a_collinear_channel_is_never_identifiable():
     tight = list(np.linspace(0.9, 1.1, 200))
     verdicts = assess(_mmm({"A": tight, "B": tight}, {"A": 100.0, "B": 100.0}), {"B"})

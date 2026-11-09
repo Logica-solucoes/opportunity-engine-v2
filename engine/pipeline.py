@@ -213,7 +213,12 @@ def analyze_events(prepared: PreparedData, candidates: pd.DataFrame, cfg: dict) 
 def _log_contribution_split(mmm: dict, verdicts: dict) -> None:
     """Only identifiable channels: the log reaches the user live, and a share of the others is not published."""
     log.info("   --- Historical Contribution Split (Elasticity) ---")
-    shares = sorted(mmm["contribution_pct"].items(), key=lambda item: item[1], reverse=True)
+    # zero-spend channels are in contribution_pct (0%) but never entered the model, so they have no verdict
+    shares = sorted(
+        ((channel, pct) for channel, pct in mmm["contribution_pct"].items() if channel in verdicts),
+        key=lambda item: item[1],
+        reverse=True,
+    )
     shown = [(channel, pct) for channel, pct in shares if verdicts[channel]["identifiable"]]
     for channel, pct in shown:
         log.info(f"     - {channel}: {pct:.2f}%")
