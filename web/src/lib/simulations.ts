@@ -62,6 +62,14 @@ export const FIELD_LABELS: Record<string, string> = {
   trends_col: 'Trends',
 }
 
+export const ETAPAS = [
+  { value: 'arquivos', label: 'Arquivos' },
+  { value: 'mapeamento', label: 'Mapeamento' },
+  { value: 'parametros', label: 'Parâmetros' },
+  { value: 'execucoes', label: 'Execuções' },
+] as const
+export type Etapa = (typeof ETAPAS)[number]['value']
+
 export const LEVEL_LABELS: Record<Check['level'], string> = { error: 'Erro', warning: 'Aviso', info: 'Informação' }
 
 export const simulationsQuery = (slug: string) =>

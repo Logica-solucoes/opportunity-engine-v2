@@ -1,7 +1,7 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { XCircle, Info, Warning } from '@phosphor-icons/react'
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
+import { FileCsv, Info, Play, Sliders, Warning, XCircle } from '@phosphor-icons/react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { DeleteSimulation } from '@/components/DeleteSimulation'
 import { FileDrop } from '@/components/FileDrop'
 import { GoogleImport } from '@/components/GoogleImport'
@@ -10,11 +10,13 @@ import { RunStatusBadge } from '@/components/RunStatusBadge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { errorMessage, meQuery } from '@/lib/auth'
 import { paramsSaved } from '@/lib/params'
@@ -22,6 +24,8 @@ import { type Run, isActive, simulationRunsQuery } from '@/lib/runs'
 import {
   type Check,
   type ColumnMapping,
+  ETAPAS,
+  type Etapa,
   FIELD_LABELS,
   FILES,
   type FileSpec,
@@ -38,15 +42,27 @@ import {
 } from '@/lib/simulations'
 import { backLink, rowLink, textLink } from '@/lib/links'
 
-export const Route = createFileRoute('/_auth/w/$slug/simulacoes/$id')({ component: SimulationPage })
+export const Route = createFileRoute('/_auth/w/$slug/simulacoes/$id')({
+  validateSearch: (search: Record<string, unknown>): { etapa?: Etapa } => ({
+    etapa: ETAPAS.find((e) => e.value === search.etapa)?.value,
+  }),
+  component: SimulationPage,
+})
 
 const LEVEL_ICONS: Record<Check['level'], typeof Info> = { error: XCircle, warning: Warning, info: Info }
+const LEVEL_VARIANTS = { error: 'destructive', warning: 'warning', info: 'info' } as const
 
 function SimulationPage() {
   const { slug, id } = Route.useParams()
   const { data: me } = useSuspenseQuery(meQuery)
   const workspace = me.workspaces.find((w) => w.slug === slug)
-  if (workspace?.role === 'viewer') return <p>Sem permissão para editar simulações deste workspace.</p>
+  if (workspace?.role === 'viewer')
+    return (
+      <Alert variant="destructive">
+        <XCircle />
+        <AlertDescription>Sem permissão para editar simulações deste workspace.</AlertDescription>
+      </Alert>
+    )
   return (
     <SimulationDetail slug={slug} id={id} isAdmin={workspace?.role === 'admin'} google={Boolean(workspace?.google)} />
   )
@@ -68,58 +84,157 @@ function SimulationDetail({
   const { data: sim, isError } = useQuery(query)
   // one write at a time: a slower earlier response would overwrite the newer SimulationOut in the cache
   const busy = useIsMutating() > 0
-  const [paramsDirty, setParamsDirty] = useState(false)
   // 404 (another workspace or deleted) and 422 (non-numeric id) look the same to the user;
   // a failed refetch keeps the data, so only a missing simulation replaces the page
-  if (!sim) return isError ? <p>Simulação não encontrada.</p> : null
+  if (!sim)
+    return isError ? (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Simulação não encontrada.</EmptyTitle>
+        </EmptyHeader>
+      </Empty>
+    ) : null
 
   // every mutation answers with the whole SimulationOut, so the cache is set instead of refetched
   const saved = (next: Simulation) => {
     queryClient.setQueryData(query.queryKey, next)
     queryClient.invalidateQueries({ queryKey: simulationsQuery(slug).queryKey, exact: true })
   }
+
+  // a new report (new mapping or file) remounts the steps: the data suggestions and the confirmed warnings are stale
+  return (
+    <SimulationView
+      key={JSON.stringify(sim.validation)}
+      slug={slug}
+      sim={sim}
+      isAdmin={isAdmin}
+      google={google}
+      busy={busy}
+      onSaved={saved}
+    />
+  )
+}
+
+function SimulationView({
+  slug,
+  sim,
+  isAdmin,
+  google,
+  busy,
+  onSaved,
+}: {
+  slug: string
+  sim: Simulation
+  isAdmin: boolean
+  google: boolean
+  busy: boolean
+  onSaved: (sim: Simulation) => void
+}) {
+  const { etapa = 'arquivos' } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const [paramsDirty, setParamsDirty] = useState(false)
+  const gate = useRunGate(slug, sim, paramsSaved(sim) && !paramsDirty)
   // a new file resets the mapping form to that file's columns
   const filesKey = FILES.map((f) => sim.files[f.kind]?.sha256).join()
+  const go = (next: string) =>
+    navigate({ search: { etapa: next === 'arquivos' ? undefined : (next as Etapa) }, replace: true })
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-1">
+    <div className="space-y-6">
+      <div className="space-y-2">
         <Link to="/w/$slug" params={{ slug }} className={backLink}>
           ← Simulações
         </Link>
-        <h1 className="text-2xl font-semibold">{sim.name}</h1>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <h1 className="text-2xl font-semibold">{sim.name}</h1>
+          <RunAction slug={slug} gate={gate} busy={busy} />
+        </div>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium">Arquivos</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {FILES.map((spec) => (
-            <FileCard key={spec.kind} slug={slug} sim={sim} spec={spec} busy={busy} onSaved={saved} />
+      <Tabs value={etapa} onValueChange={go} className="flex-col gap-5">
+        <TabsList variant="line" aria-label="Etapas da simulação" className="h-9 w-full justify-start gap-4 rounded-none border-b p-0">
+          {ETAPAS.map((e) => (
+            <TabsTrigger
+              key={e.value}
+              value={e.value}
+              className="h-9 flex-none rounded-none px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
+            >
+              {e.label}
+            </TabsTrigger>
           ))}
-        </div>
-        {google && <GoogleImport slug={slug} sim={sim} busy={busy} onSaved={saved} />}
-      </section>
+        </TabsList>
 
-      {sim.files.investment && sim.files.performance && (
-        <MappingForm key={filesKey} slug={slug} sim={sim} busy={busy} onSaved={saved} />
-      )}
+        {/* forceMount: the parameters typed and not yet saved survive a trip to another step */}
+        <TabsContent value="arquivos" forceMount className="space-y-4 data-[state=inactive]:hidden">
+          <div className="grid gap-4 md:grid-cols-3">
+            {FILES.map((spec) => (
+              <FileCard key={spec.kind} slug={slug} sim={sim} spec={spec} busy={busy} onSaved={onSaved} />
+            ))}
+          </div>
+          {google && <GoogleImport slug={slug} sim={sim} busy={busy} onSaved={onSaved} />}
+        </TabsContent>
 
-      {/* a new report (new mapping or file) remounts the parameters too: their data suggestions changed */}
-      <ValidationBlock
-        key={JSON.stringify(sim.validation)}
-        slug={slug}
-        simId={sim.id}
-        report={sim.validation}
-        saved={paramsSaved(sim) && !paramsDirty}
-        busy={busy}
-      >
-        {sim.validation && (
-          <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={saved} onDirty={setParamsDirty} />
-        )}
-      </ValidationBlock>
+        <TabsContent value="mapeamento" forceMount className="space-y-4 data-[state=inactive]:hidden">
+          {sim.files.investment && sim.files.performance ? (
+            <MappingForm key={filesKey} slug={slug} sim={sim} busy={busy} onSaved={onSaved} />
+          ) : (
+            <StepEmpty
+              title="Falta enviar os arquivos"
+              text="Envie investimento e performance para mapear as colunas."
+              action={() => go('arquivos')}
+              actionLabel="Ir para arquivos"
+            />
+          )}
+          {sim.validation && <ValidationResult report={sim.validation} gate={gate} />}
+        </TabsContent>
+
+        <TabsContent value="parametros" forceMount className="data-[state=inactive]:hidden">
+          {sim.validation ? (
+            <ParamsForm slug={slug} sim={sim} busy={busy} onSaved={onSaved} onDirty={setParamsDirty} />
+          ) : (
+            <StepEmpty
+              title="Valide os arquivos primeiro"
+              text="Os parâmetros partem das sugestões que vêm da validação."
+              action={() => go('mapeamento')}
+              actionLabel="Ir para o mapeamento"
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="execucoes" forceMount className="data-[state=inactive]:hidden">
+          <RunList slug={slug} runs={gate.runs} />
+        </TabsContent>
+      </Tabs>
 
       {isAdmin && <DeleteSimulation slug={slug} sim={sim} />}
     </div>
+  )
+}
+
+function StepEmpty({
+  title,
+  text,
+  action,
+  actionLabel,
+}: {
+  title: string
+  text: string
+  action: () => void
+  actionLabel: string
+}) {
+  return (
+    <Empty className="border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Sliders />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        <EmptyDescription>{text}</EmptyDescription>
+      </EmptyHeader>
+      <Button variant="outline" onClick={action}>
+        {actionLabel}
+      </Button>
+    </Empty>
   )
 }
 
@@ -148,11 +263,11 @@ function FileCard({
   })
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {spec.label}
-          {spec.optional && <Badge variant="secondary">opcional</Badge>}
+          {spec.optional && <Badge variant="neutral">opcional</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -160,6 +275,8 @@ function FileCard({
           id={`file-${spec.kind}`}
           label={`Arquivo de ${spec.label.toLowerCase()}`}
           disabled={busy}
+          uploading={upload.isPending}
+          hasFile={Boolean(file)}
           onFile={(f) => {
             const p = fileProblem(f)
             setProblem(p)
@@ -167,20 +284,27 @@ function FileCard({
           }}
         />
         {file && (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{file.filename}</span> · {formatSize(file.size_bytes)} ·{' '}
-            {formatDate(file.uploaded_at)}
-          </p>
+          <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-3">
+            <FileCsv aria-hidden className="size-6 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 text-xs">
+              <span className="block truncate text-sm font-medium">{file.filename}</span>
+              <span className="text-muted-foreground">
+                {formatSize(file.size_bytes)} · {formatDate(file.uploaded_at)}
+              </span>
+            </div>
+          </div>
         )}
         {(problem || upload.isError) && (
           <p role="alert" className="text-sm text-destructive">
             {problem ?? errorMessage(upload.error)}
           </p>
         )}
-        <a href={spec.template} download className={textLink}>
+      </CardContent>
+      <CardFooter className="mt-auto">
+        <a href={spec.template} download className={`text-sm ${textLink}`}>
           Baixar template
         </a>
-      </CardContent>
+      </CardFooter>
     </Card>
   )
 }
@@ -215,77 +339,74 @@ function MappingForm({
   }
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">Mapeamento de colunas</h2>
-      <form onSubmit={submit} className="space-y-4">
-        {uploaded.map((spec) => {
-          const file = sim.files[spec.kind]!
-          return (
-            <fieldset key={spec.kind} className="space-y-2">
-              <legend className="text-sm font-medium">{spec.label}</legend>
-              <div className="flex flex-wrap gap-4">
-                {Object.keys(file.suggested).map((field) => {
-                  const id = `${spec.key}.${field}`
-                  return (
-                    <div key={field} className="space-y-1">
-                      <Label htmlFor={id}>{FIELD_LABELS[field] ?? field}</Label>
-                      <Select name={id} required defaultValue={initialColumn(sim, spec, field) || undefined}>
-                        <SelectTrigger id={id} className="w-full">
-                          <SelectValue placeholder="Escolha a coluna" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {file.columns.map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {c}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )
-                })}
-              </div>
-            </fieldset>
-          )
-        })}
-        {save.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(save.error)}
-          </p>
-        )}
-        <Button type="submit" disabled={busy}>
-          Validar
-        </Button>
-      </form>
-    </section>
+    <form onSubmit={submit}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Mapeamento de colunas</CardTitle>
+          <CardDescription>Diga qual coluna de cada arquivo tem cada informação.</CardDescription>
+        </CardHeader>
+        <CardContent className="divide-y">
+          {uploaded.map((spec) => {
+            const file = sim.files[spec.kind]!
+            return (
+              <fieldset key={spec.kind} className="grid gap-3 py-4 first:pt-0 last:pb-0 lg:grid-cols-[10rem_1fr]">
+                <legend className="sr-only">{spec.label}</legend>
+                <div aria-hidden className="pt-1 text-sm font-medium">
+                  {spec.label}
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {Object.keys(file.suggested).map((field) => {
+                    const id = `${spec.key}.${field}`
+                    return (
+                      <div key={field} className="space-y-1.5">
+                        <Label htmlFor={id}>{FIELD_LABELS[field] ?? field}</Label>
+                        <Select name={id} required defaultValue={initialColumn(sim, spec, field) || undefined}>
+                          <SelectTrigger id={id} className="w-full">
+                            <SelectValue placeholder="Escolha a coluna" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {file.columns.map((c) => (
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  })}
+                </div>
+              </fieldset>
+            )
+          })}
+        </CardContent>
+        <CardFooter className="gap-3">
+          <Button type="submit" disabled={busy}>
+            Validar
+          </Button>
+          {save.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(save.error)}
+            </p>
+          )}
+        </CardFooter>
+      </Card>
+    </form>
   )
 }
 
-function ValidationBlock({
-  slug,
-  simId,
-  report,
-  saved,
-  busy,
-  children,
-}: {
-  slug: string
-  simId: number
-  report: ValidationReport | null
-  saved: boolean
-  busy: boolean
-  children?: ReactNode
-}) {
+function useRunGate(slug: string, sim: Simulation, saved: boolean) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const runsQuery = simulationRunsQuery(slug, simId)
-  const { data: runs, isPending: runsPending } = useQuery(runsQuery)
+  const runsQuery = simulationRunsQuery(slug, sim.id)
+  const { data: runs, isPending } = useQuery(runsQuery)
   const activeRun = runs?.find((r) => isActive(r.status))
   // by index, since two checks may share an id; the server gets the ids of the confirmed ones
   const [confirmed, setConfirmed] = useState<Set<number>>(new Set())
+  const report = sim.validation
   const start = useMutation({
     mutationFn: () =>
-      api<Run>(`/w/${slug}/simulations/${simId}/runs`, {
+      api<Run>(`/w/${slug}/simulations/${sim.id}/runs`, {
         method: 'POST',
         body: {
           confirmed_warnings: (report?.checks ?? [])
@@ -318,104 +439,131 @@ function ValidationBlock({
     setConfirmed(next)
   }
 
+  return { runs: runs ?? [], isPending, activeRun, confirmed, toggle, reason, start, run }
+}
+
+type Gate = ReturnType<typeof useRunGate>
+
+function RunAction({ slug, gate, busy }: { slug: string; gate: Gate; busy: boolean }) {
+  const { reason, activeRun, start } = gate
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">Validação</h2>
-      {!report && (
-        <p className="text-muted-foreground">Envie investimento e performance e confirme o mapeamento para validar.</p>
-      )}
-      {report?.checks.map((check, i) => {
-        const Icon = LEVEL_ICONS[check.level]
-        return (
-          <Alert key={i} variant={check.level === 'error' ? 'destructive' : 'default'}>
-            <Icon />
-            <AlertTitle>{LEVEL_LABELS[check.level]}</AlertTitle>
-            <AlertDescription>
-              <p>{check.message}</p>
-              {check.level === 'warning' && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Checkbox
-                    id={`confirm-${i}`}
-                    checked={confirmed.has(i)}
-                    onCheckedChange={(v) => toggle(i, v === true)}
-                  />
-                  <Label htmlFor={`confirm-${i}`}>Estou ciente</Label>
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )
-      })}
-      {report && report.checks.length === 0 && <p>Nenhum problema encontrado.</p>}
-      {report && report.channels.length > 0 && (
-        <p className="text-sm">
-          <span className="font-medium">Canais:</span> {report.channels.join(', ')}
+    <div className="flex flex-col items-end gap-1.5">
+      <Button disabled={Boolean(reason) || busy || gate.isPending} onClick={gate.run}>
+        <Play aria-hidden weight="fill" />
+        Rodar
+      </Button>
+      {reason && (
+        <p className="text-xs text-muted-foreground">
+          {reason}{' '}
+          {activeRun && (
+            <Link to="/w/$slug/execucoes/$runId" params={{ slug, runId: String(activeRun.id) }} className={textLink}>
+              Acompanhar
+            </Link>
+          )}
         </p>
       )}
-      {children}
-      <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-        <Button disabled={Boolean(reason) || busy || runsPending} onClick={run}>
-          Rodar
-        </Button>
-        {reason && (
-          <p className="text-sm text-muted-foreground">
-            {reason}{' '}
-            {activeRun && (
-              <Link
-                to="/w/$slug/execucoes/$runId"
-                params={{ slug, runId: String(activeRun.id) }}
-                className={textLink}
-              >
-                Acompanhar
-              </Link>
-            )}
-          </p>
+      {start.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {errorMessage(start.error)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ValidationResult({ report, gate }: { report: ValidationReport; gate: Gate }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Validação</CardTitle>
+        {report.channels.length > 0 && (
+          <CardDescription className="flex flex-wrap items-center gap-1.5">
+            <span>Canais:</span>
+            {report.channels.map((c) => (
+              <Badge key={c} variant="neutral">
+                {c}
+              </Badge>
+            ))}
+          </CardDescription>
         )}
-        {start.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(start.error)}
-          </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {report.checks.length === 0 && (
+          <Alert variant="info">
+            <Info />
+            <AlertDescription>Nenhum problema encontrado.</AlertDescription>
+          </Alert>
         )}
-      </div>
-      {runs && runs.length > 0 && <RunList slug={slug} runs={runs} />}
-    </section>
+        {report.checks.map((check, i) => {
+          const Icon = LEVEL_ICONS[check.level]
+          return (
+            <Alert key={i} variant={LEVEL_VARIANTS[check.level]}>
+              <Icon />
+              <AlertTitle>{LEVEL_LABELS[check.level]}</AlertTitle>
+              <AlertDescription>
+                <p>{check.message}</p>
+                {check.level === 'warning' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Checkbox
+                      id={`confirm-${i}`}
+                      checked={gate.confirmed.has(i)}
+                      onCheckedChange={(v) => gate.toggle(i, v === true)}
+                    />
+                    <Label htmlFor={`confirm-${i}`}>Estou ciente</Label>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )
+        })}
+      </CardContent>
+    </Card>
   )
 }
 
 function RunList({ slug, runs }: { slug: string; runs: Run[] }) {
+  if (runs.length === 0)
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Play />
+          </EmptyMedia>
+          <EmptyTitle>Nenhuma execução ainda</EmptyTitle>
+          <EmptyDescription>Valide, salve os parâmetros e use Rodar.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
   return (
-    <div className="space-y-2">
-      <h3 className="font-medium">Execuções</h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Execução</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Criada por</TableHead>
-            <TableHead>Criada em</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {runs.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell>
-                <Link
-                  to="/w/$slug/execucoes/$runId"
-                  params={{ slug, runId: String(r.id) }}
-                  className={rowLink}
-                >
-                  #{r.id}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <RunStatusBadge status={r.status} />
-              </TableCell>
-              <TableCell>{r.created_by_name}</TableCell>
-              <TableCell>{formatDate(r.created_at)}</TableCell>
+    <Card>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Execução</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Criada por</TableHead>
+              <TableHead>Criada em</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {runs.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell>
+                  <Link to="/w/$slug/execucoes/$runId" params={{ slug, runId: String(r.id) }} className={rowLink}>
+                    #{r.id}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <RunStatusBadge status={r.status} />
+                </TableCell>
+                <TableCell>{r.created_by_name}</TableCell>
+                <TableCell>{formatDate(r.created_at)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   )
 }

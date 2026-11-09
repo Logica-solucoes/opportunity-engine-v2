@@ -39,11 +39,13 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
   })
 
   return (
-    <section className="space-y-2 border-t pt-6">
-      <h2 className="text-lg font-medium">Apagar simulação</h2>
-      <p className="text-sm text-muted-foreground">
-        Apaga a simulação, todas as execuções dela e os arquivos enviados. Não dá para desfazer.
-      </p>
+    <section className="flex flex-wrap items-center justify-between gap-4 border-t pt-6">
+      <div className="space-y-1">
+        <h2 className="text-sm font-medium">Zona de perigo</h2>
+        <p className="text-sm text-muted-foreground">
+          Apaga a simulação, todas as execuções dela e os arquivos enviados. Não dá para desfazer.
+        </p>
+      </div>
       <AlertDialog
         onOpenChange={(open) => {
           if (!open) {
@@ -53,7 +55,9 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="destructive">Apagar simulação</Button>
+          <Button variant="outline" className="text-destructive hover:text-destructive">
+            Apagar simulação
+          </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
