@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Warning } from '@phosphor-icons/react'
 import { useState } from 'react'
+import { BlockSkeleton } from '@/components/LoadState'
 import { ExportBar } from '@/components/ExportBar'
 import { NarrativeCard } from '@/components/NarrativeCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -22,7 +23,7 @@ import { ScenarioTable } from './ScenarioTable'
 
 export function ElasticityTab({ slug, runId }: { slug: string; runId: string }) {
   const query = useQuery(resultsQuery(slug, runId))
-  if (query.isPending) return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (query.isPending) return <BlockSkeleton className="h-64" />
   if (query.isError)
     return (
       <p role="alert" className="text-sm text-destructive">
@@ -91,7 +92,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
 
   const error = query.error instanceof ApiError ? query.error : null
   if (!scenario) {
-    if (query.isPending) return <p className="text-sm text-muted-foreground">Carregando…</p>
+    if (query.isPending) return <BlockSkeleton className="h-64" />
     if (error?.status === 409) return <Inconclusive title="Sem cenário para simular" lines={[error.detail]} />
     return (
       <p role="alert" className="text-sm text-destructive">

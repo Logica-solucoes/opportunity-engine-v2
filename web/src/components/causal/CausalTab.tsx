@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Warning } from '@phosphor-icons/react'
 import { useState } from 'react'
+import { BlockSkeleton } from '@/components/LoadState'
 import { ExportBar } from '@/components/ExportBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -18,10 +19,11 @@ import {
 import { cn } from '@/lib/utils'
 import { EventDetail } from './EventDetail'
 import { ExperimentCard } from './ExperimentCard'
+import { textLink } from '@/lib/links'
 
 export function CausalTab({ slug, runId }: { slug: string; runId: string }) {
   const query = useQuery(resultsQuery(slug, runId))
-  if (query.isPending) return <p className="text-sm text-muted-foreground">Carregando…</p>
+  if (query.isPending) return <BlockSkeleton className="h-64" />
   if (query.isError)
     return (
       <p role="alert" className="text-sm text-destructive">
@@ -103,7 +105,7 @@ function CausalView({
             {listed.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nenhum evento publicado.{' '}
-                <button type="button" className="text-primary underline" onClick={() => setShowAll(true)}>
+                <button type="button" className={textLink} onClick={() => setShowAll(true)}>
                   Ver todos
                 </button>
               </p>
