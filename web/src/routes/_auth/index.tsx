@@ -1,6 +1,9 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, redirect } from '@tanstack/react-router'
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+import { ArrowRight, Buildings } from '@phosphor-icons/react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardTitle } from '@/components/ui/card'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { ROLE_LABELS, meQuery } from '@/lib/auth'
 import { textLink } from '@/lib/links'
 
@@ -16,31 +19,48 @@ export const Route = createFileRoute('/_auth/')({
 function Home() {
   const { data: me } = useSuspenseQuery(meQuery)
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Workspaces</h1>
-      {me.workspaces.length === 0 &&
-        (me.is_platform_admin ? (
-          <p>
-            Nenhum workspace ainda.{' '}
-            <Link to="/admin/workspaces" className={textLink}>
-              Criar o primeiro
+    <div className="space-y-6">
+      <h1 className="text-xl font-semibold text-balance">Workspaces</h1>
+      {me.workspaces.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Buildings />
+            </EmptyMedia>
+            <EmptyTitle>Nenhum workspace ainda</EmptyTitle>
+            <EmptyDescription>
+              {me.is_platform_admin ? (
+                <Link to="/admin/workspaces" className={textLink}>
+                  Criar o primeiro
+                </Link>
+              ) : (
+                'Você ainda não tem acesso a nenhum workspace. Fale com o administrador.'
+              )}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {me.workspaces.map((w) => (
+            <Link
+              key={w.slug}
+              to="/w/$slug"
+              params={{ slug: w.slug }}
+              className="group rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <Card className="transition-colors group-hover:bg-muted/50">
+                <CardContent className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 space-y-1.5">
+                    <CardTitle className="truncate">{w.name}</CardTitle>
+                    <Badge variant="neutral">{ROLE_LABELS[w.role]}</Badge>
+                  </div>
+                  <ArrowRight aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </CardContent>
+              </Card>
             </Link>
-          </p>
-        ) : (
-          <p>Você ainda não tem acesso a nenhum workspace. Fale com o administrador.</p>
-        ))}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {me.workspaces.map((w) => (
-          <Link key={w.slug} to="/w/$slug" params={{ slug: w.slug }}>
-            <Card className="transition hover:border-primary hover:shadow-md">
-              <CardHeader>
-                <CardTitle>{w.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{ROLE_LABELS[w.role]}</p>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
