@@ -7,7 +7,6 @@ import logging
 import math
 import os
 import warnings
-from datetime import timedelta
 
 import holidays
 import numpy as np
@@ -520,6 +519,16 @@ def run_causal_impact_analysis(
             if not selected_features:
                 selected_features = list(transformed_features.keys())
 
+        # The treated channel's own media stays in the model: without it, holding its spend changes nothing and the
+        # lift falls back to a level forecast. The unscaled variance filter drops Hill features far from s.
+        treated = [
+            feature
+            for channel in event_channels
+            if (feature := f"{channel.replace(' ', '_')}_transformed") in transformed_features
+            and pre_data_for_model[feature].std() > 0
+        ]
+        selected_features = treated + [feature for feature in selected_features if feature not in treated]
+
         log.info(f"   - Selected features for causal model: {selected_features}")
         model = _fit_state_space(pre_data_for_model, selected_features, period_days)
 
@@ -536,14 +545,21 @@ def run_causal_impact_analysis(
         log.info(f"   - Causal model R-squared (in-sample): {r_squared:.4f}")
         accuracy_df = accuracy_df.reset_index().tail(90)
 
+        # The baseline is the last 12 buckets (weeks; native periods when weekly or coarser) before the event. The
+        # counterfactual holds the treated spend at that level and the spend delta is measured from it, so the CPA
+        # divides two numbers about the same counterfactual. A per-row mean keeps partial weeks from reading as drops.
+        pre_dates = pre_data_for_model.index.to_series()
+        buckets = pre_dates if period_days >= 7 else pre_dates.dt.to_period("W").dt.start_time
+        baseline = pre_data_for_model[buckets >= buckets.drop_duplicates().iloc[-12:].iloc[0]]
+
         # The counterfactual cannot see the treated spend after the event: that spend is the intervention. It holds
-        # at its pre-period mean, carried through the same adstock and Hill as the model.
+        # at the baseline level, carried through the same adstock and Hill as the model.
         post_exog = post_data[selected_features].copy()
         before_event = model_data.index < post_data.index[0]
         for channel in event_channels:
             feature = f"{channel.replace(' ', '_')}_transformed"
             if feature in post_exog:
-                held = model_data[channel].where(before_event, pre_data_for_model[channel].mean())
+                held = model_data[channel].where(before_event, baseline[channel].mean())
                 transformed = hill_transform(geometric_decay(held, best_alpha), best_k, best_s)
                 post_exog[feature] = pd.Series(transformed, index=model_data.index).loc[post_data.index]
 
@@ -565,44 +581,7 @@ def run_causal_impact_analysis(
 
         event_investment_agg = event_investment_series.reset_index().rename(columns={0: "investment"})
         event_investment_agg["Date"] = pd.to_datetime(event_investment_agg["Date"])
-
-        # Calculate historical average investment up to the pre-period
-        pre_period_end_date = pd.to_datetime(pre_period[1])
-        historical_investment = event_investment_agg[event_investment_agg["Date"] <= pre_period_end_date].copy()
-
-        # Weekly aggregation for historical average calculation -- but only when
-        # the data is genuinely daily. When it's already weekly-or-coarser
-        # (period_days >= 7), re-bucketing via to_period("W") has the same
-        # boundary-misalignment risk as in find_events: use the native per-row
-        # dates directly so "historical_avg" is a per-native-period average.
-        if period_days >= 7:
-            historical_investment["weeks"] = historical_investment["Date"]
-        else:
-            historical_investment["weeks"] = historical_investment["Date"].dt.to_period("W").dt.start_time
-        weekly_investment_df = historical_investment.groupby("weeks")["investment"].sum().reset_index()
-
-        # Calculate expanding average and get the last value for the pre-event period
-        weekly_investment_df["historical_avg"] = (
-            weekly_investment_df["investment"].rolling(window=12, min_periods=1).mean().shift(1)
-        )
-
-        if not weekly_investment_df.empty and pd.notna(weekly_investment_df["historical_avg"].iloc[-1]):
-            # post_data rows are native periods. When historical_avg is a
-            # per-week average (period_days<7, re-bucketed above), each
-            # post_data row spans period_days days, so the post period spans
-            # len(post_data) * period_days / 7 weeks. When historical_avg is
-            # already per-native-period (period_days>=7, no re-bucketing),
-            # post_data's rows ARE the periods, so no conversion applies.
-            periods_in_post = len(post_data) if period_days >= 7 else len(post_data) * period_days / 7
-            total_investment_pre_period = weekly_investment_df["historical_avg"].iloc[-1] * periods_in_post
-        else:
-            # Fallback to like-for-like if historical average is not available
-            like_for_like_pre_period_end = pd.to_datetime(post_period[0]) - timedelta(days=1)
-            like_for_like_pre_period_start = like_for_like_pre_period_end - timedelta(days=len(post_data) - 1)
-            total_investment_pre_period = event_investment_agg[
-                (event_investment_agg["Date"] >= like_for_like_pre_period_start)
-                & (event_investment_agg["Date"] <= like_for_like_pre_period_end)
-            ]["investment"].sum()
+        total_investment_pre_period = baseline[event_channels].sum(axis=1).mean() * len(post_data)
 
         total_investment_post_period = event_investment_agg[event_investment_agg["Date"].isin(post_data.index)][
             "investment"

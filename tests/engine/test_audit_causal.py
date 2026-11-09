@@ -32,17 +32,25 @@ def _media(spend):
     return hill_transform(geometric_decay(spend, ALPHA), K, S)
 
 
-def _treated_event(factor, seed=3):
-    """KPI = 5000 + 4000·Hill(adstock(spend)) + noise; spend × factor from EVENT_DAY on; the model knows α, k, s."""
+def _treated_event(factor, seed=3, trend=False):
+    """KPI = 5000 + 4000·Hill(adstock(spend)) + noise; spend × factor from EVENT_DAY on; the model knows α, k, s.
+    The truth holds the spend at its level of the 12 weeks before the event, the baseline of the spend delta."""
     rng = np.random.default_rng(seed)
     dates = pd.date_range("2025-01-06", periods=210, freq="D")
-    spend = rng.uniform(800, 1200, len(dates))
     event = dates.get_loc(EVENT_DAY)
+    if trend:
+        base = np.linspace(500, 1000, len(dates))
+        base[event:] = 1000
+        spend = base * rng.uniform(0.9, 1.1, len(dates))
+    else:
+        spend = rng.uniform(800, 1200, len(dates))
     spend[event:] *= factor
     kpi = 5000 + BETA * _media(spend) + rng.normal(0, 60, len(dates))
     counterfactual = spend.copy()
-    counterfactual[event:] = spend[:event].mean()
-    true_lift = float((BETA * (_media(spend) - _media(counterfactual)))[event : event + 14].sum())
+    counterfactual[event:] = spend[event - 84 : event].mean()
+    window = slice(event, event + 14)
+    true_lift = float((BETA * (_media(spend) - _media(counterfactual)))[window].sum())
+    true_spend = float((spend - counterfactual)[window].sum())
 
     kpi_df = pd.DataFrame({"Date": dates, "kpi": kpi})
     investment = pd.DataFrame({"Date": dates, "Product Group": "A", "investment": spend})
@@ -59,7 +67,7 @@ def _treated_event(factor, seed=3):
         CAUSAL_CFG,
         contested=lambda _: False,
     )
-    return results, accuracy, true_lift
+    return results, accuracy, true_lift, true_spend
 
 
 @pytest.fixture(scope="module", params=[2.0, 0.5], ids=["step_up", "step_down"])
@@ -68,23 +76,32 @@ def treated(request):
 
 
 def test_causal_1_the_counterfactual_holds_the_treated_spend_and_recovers_the_lift(treated):
-    results, _, true_lift = treated
+    results, _, true_lift, _ = treated
     assert abs(true_lift) > 5000
     assert results["absolute_lift_ci_lower"] <= true_lift <= results["absolute_lift_ci_upper"]
     assert results["absolute_lift"] == pytest.approx(true_lift, rel=0.25)
 
 
 def test_causal_3_the_in_sample_fit_leaves_out_the_diffuse_burn_in(treated):
-    results, accuracy, _ = treated
+    results, accuracy, *_ = treated
     assert results["model_r_squared"] > 0.3  # a well-specified model; the burn-in zeros gave -15
     assert accuracy["Predicted"].min() > 4000  # no 0, 0, ... rows from the diffuse start
 
 
 def test_causal_4_cpa_is_incremental_spend_over_lift(treated):
-    results, _, _ = treated
+    results, *_ = treated
     incremental = results["total_investment_post_period"] - results["total_investment_pre_period"]
     assert results["cpa_incremental"] == pytest.approx(incremental / results["absolute_lift"])
     assert results["cpa_incremental"] > 0  # a drop in spend that loses KPI has a positive cost per unit
+
+
+@pytest.mark.parametrize("seed", [3, 4])
+def test_causal_1_4_lift_and_spend_delta_share_one_counterfactual_under_a_spend_trend(seed):
+    results, _, true_lift, true_spend = _treated_event(2.0, seed=seed, trend=True)
+    incremental = results["total_investment_post_period"] - results["total_investment_pre_period"]
+    assert incremental == pytest.approx(true_spend, rel=1e-9)
+    assert results["absolute_lift_ci_lower"] <= true_lift <= results["absolute_lift_ci_upper"]
+    assert results["cpa_incremental"] == pytest.approx(true_spend / true_lift, rel=0.05)
 
 
 def test_causal_4_results_and_narrative_publish_the_spend_delta():
