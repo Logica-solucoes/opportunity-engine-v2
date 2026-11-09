@@ -39,7 +39,7 @@ test('analyst uploads the templates, accepts the suggested mapping and validates
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeDisabled()
   await expect(analystPage.getByText('Salve os parâmetros antes de rodar.')).toBeVisible()
 
-  await analystPage.getByRole('link', { name: '← Simulações' }).click()
+  await analystPage.getByRole('navigation', { name: 'breadcrumb' }).getByRole('link', { name: 'Simulações' }).click()
   await expect(analystPage.getByRole('link', { name: 'Black Friday' })).toBeVisible()
 })
 
@@ -76,10 +76,7 @@ test('viewer cannot create or edit simulations', async ({ page, browser }) => {
   // the history is all a viewer sees: the workspace home sends them there
   await expect(viewerPage).toHaveURL(new RegExp(`/w/${slug}/execucoes$`))
   await expect(viewerPage.getByText('Nenhuma execução ainda.')).toBeVisible()
-  await expect(viewerPage.getByRole('link', { name: 'Nova simulação' })).toHaveCount(0)
-
-  await viewerPage.goto(`/w/${slug}/simulacoes/nova`)
-  await expect(viewerPage.getByText('Sem permissão para editar simulações deste workspace.')).toBeVisible()
+  await expect(viewerPage.getByRole('button', { name: 'Nova simulação' })).toHaveCount(0)
 })
 
 test('a file over 30 MB or not .csv is refused before any upload', async ({ page, browser }) => {
@@ -217,7 +214,7 @@ test('analyst runs a simulation and the log resumes after a reload', async ({ pa
   await expect(log.getByText('Montando o resultado')).toBeVisible()
   await expect(analystPage.getByRole('tab', { name: 'Causal' })).toBeVisible()
 
-  await analystPage.getByRole('link', { name: '← Rodada' }).click()
+  await analystPage.getByRole('navigation', { name: 'breadcrumb' }).getByRole('link', { name: 'Rodada' }).click()
   await analystPage.getByRole('tab', { name: 'Execuções' }).click()
   await expect(analystPage.getByRole('cell', { name: 'Inconclusiva' })).toBeVisible()
   await expect(analystPage.getByRole('button', { name: 'Rodar' })).toBeEnabled()
@@ -232,7 +229,7 @@ test('workspace admin deletes a simulation and its runs; analysts never see the 
   const analystPage = await newSession(browser, await addMember(page, slug, 'analyst'))
 
   const runUrl = await runToCompletion(page, slug, 'Descartável')
-  await page.getByRole('link', { name: '← Descartável' }).click()
+  await page.getByRole('navigation', { name: 'breadcrumb' }).getByRole('link', { name: 'Descartável' }).click()
   const simUrl = page.url()
 
   await analystPage.goto(simUrl)

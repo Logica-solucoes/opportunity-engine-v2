@@ -16,7 +16,7 @@ test('analyst filters the history, publishes a run and the viewer sees only that
   await expect(analystPage.getByText(/Publicada por Pessoa E2E/)).toBeVisible()
 
   await analystPage.goto(`/w/${slug}`)
-  await analystPage.getByRole('link', { name: 'Execuções' }).click()
+  await analystPage.getByRole('navigation').getByRole('link', { name: 'Execuções' }).click()
   await expect(analystPage.getByRole('cell', { name: 'Verão' })).toBeVisible()
   await expect(analystPage.getByRole('cell', { name: 'Inverno' })).toBeVisible()
 
@@ -58,7 +58,7 @@ test('rodar de novo restores the run parameters and the inputs download', async 
   await analystPage.getByRole('link', { name: 'investimento.csv' }).click()
   expect((await download).suggestedFilename()).toBe('investimento.csv')
 
-  await analystPage.getByRole('link', { name: '← Reprise' }).click()
+  await analystPage.getByRole('navigation', { name: 'breadcrumb' }).getByRole('link', { name: 'Reprise' }).click()
   await analystPage.getByRole('tab', { name: 'Parâmetros' }).click()
   const factor = analystPage.getByLabel('Fator limite de investimento')
   const original = await factor.inputValue()

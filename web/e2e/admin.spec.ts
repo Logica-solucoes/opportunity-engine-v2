@@ -12,6 +12,7 @@ test('platform admin creates a workspace and sees it on the home page', async ({
 test('duplicate slug shows the api message', async ({ page }) => {
   await loggedInAdmin(page)
   const slug = await createWorkspace(page)
+  await page.getByRole('button', { name: 'Novo workspace' }).click()
   await page.getByLabel('Nome').fill('Outra')
   await page.getByLabel('Slug').fill(slug)
   await page.getByRole('button', { name: 'Criar workspace' }).click()

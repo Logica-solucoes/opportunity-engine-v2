@@ -72,9 +72,10 @@ test('workspace admin only links existing accounts and has no controls on their 
   await expect(own.getByRole('button', { name: 'Remover' })).toHaveCount(0)
   await expect(adminPage.getByRole('row', { name: new RegExp(viewer.email) }).getByLabel('Papel')).toBeVisible()
 
+  await adminPage.getByRole('button', { name: 'Adicionar membro' }).click()
   await expect(adminPage.getByLabel('Nome')).toHaveCount(0)
   await adminPage.getByLabel('E-mail').fill(`ninguem-${uid()}@e2e.test`)
-  await adminPage.getByRole('button', { name: 'Adicionar' }).click()
+  await adminPage.getByRole('button', { name: 'Adicionar', exact: true }).click()
   await expect(adminPage.getByRole('alert').filter({ hasText: 'Essa conta não existe' })).toBeVisible()
 })
 
@@ -85,8 +86,9 @@ test('platform admin links an existing account leaving the name blank', async ({
   const member = await addMember(page, first, 'analyst')
 
   await page.goto(`/w/${second}/membros`)
+  await page.getByRole('button', { name: 'Adicionar membro' }).click()
   await page.getByLabel('E-mail').fill(member.email)
-  await page.getByRole('button', { name: 'Adicionar' }).click()
+  await page.getByRole('button', { name: 'Adicionar', exact: true }).click()
 
   await expect(page.getByRole('row', { name: new RegExp(member.email) })).toBeVisible()
 })

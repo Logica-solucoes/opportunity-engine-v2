@@ -29,3 +29,9 @@ export const pyEnv = {
   GOOGLE_APPLICATION_CREDENTIALS: join(tmpdir(), 'gem-e2e-no-such-credentials.json'),
   GOOGLE_CLOUD_PROJECT: 'gem-e2e',
 }
+
+// the tables paginate at 10; the specs create more rows than that and look them up by name
+export const storageState = {
+  cookies: [],
+  origins: [{ origin: `http://localhost:${PORT}`, localStorage: [{ name: 'table:pageSize', value: '100' }] }],
+}
