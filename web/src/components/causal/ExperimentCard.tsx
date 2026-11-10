@@ -17,12 +17,21 @@ function byChannel(designs: ExperimentCell[]) {
   return [...rows]
 }
 
-function Cell({ cell }: { cell?: ExperimentCell }) {
-  if (!cell) return <TableCell className="text-muted-foreground">—</TableCell>
+// below sm each channel becomes a block: name on top, the two tests side by side with their label
+const cellClass =
+  'max-sm:block max-sm:p-0 max-sm:whitespace-normal max-sm:before:mb-0.5 max-sm:before:block max-sm:before:text-xs max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]'
+
+function Cell({ cell, label }: { cell?: ExperimentCell; label: string }) {
+  if (!cell)
+    return (
+      <TableCell data-label={label} className={`text-muted-foreground ${cellClass}`}>
+        —
+      </TableCell>
+    )
   return (
-    <TableCell className="tabular-nums max-sm:whitespace-normal">
-      <div>{formatMoney(cell.budget_at_risk)}</div>
-      <div className="text-xs text-muted-foreground max-sm:text-[10px]">
+    <TableCell data-label={label} className={`tabular-nums ${cellClass}`}>
+      <div className="max-sm:font-medium">{formatMoney(cell.budget_at_risk)}</div>
+      <div className="text-xs text-muted-foreground">
         {cell.step != null && `+${formatShare(cell.step)} · `}
         {formatMoney(cell.spend_per_period)} por período
       </div>
@@ -61,8 +70,8 @@ export function ExperimentCard({ design }: { design: ExperimentDesign }) {
               </AlertDescription>
             </Alert>
           )}
-          <Table className="max-sm:text-xs max-sm:[&_td]:px-1 max-sm:[&_th]:px-1 max-sm:[&_th]:whitespace-normal">
-            <TableHeader>
+          <Table>
+            <TableHeader className="max-sm:sr-only">
               <TableRow>
                 <TableHead>Canal</TableHead>
                 <TableHead>Desligar canal</TableHead>
@@ -71,10 +80,12 @@ export function ExperimentCard({ design }: { design: ExperimentDesign }) {
             </TableHeader>
             <TableBody>
               {byChannel(design.designs).map(([channel, tests]) => (
-                <TableRow key={channel}>
-                  <TableCell className="font-medium max-sm:whitespace-normal">{channel}</TableCell>
-                  <Cell cell={tests.on_off} />
-                  <Cell cell={tests.step_up} />
+                <TableRow key={channel} className="max-sm:grid max-sm:grid-cols-2 max-sm:gap-x-4 max-sm:py-3">
+                  <TableCell className="font-medium max-sm:col-span-2 max-sm:mb-2 max-sm:block max-sm:p-0 max-sm:whitespace-normal">
+                    {channel}
+                  </TableCell>
+                  <Cell cell={tests.on_off} label="Desligar canal" />
+                  <Cell cell={tests.step_up} label="Aumentar orçamento" />
                 </TableRow>
               ))}
             </TableBody>
