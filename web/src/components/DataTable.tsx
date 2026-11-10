@@ -36,6 +36,8 @@ function loadPageSize() {
 
 type Sort = { id: string; dir: 'asc' | 'desc' } | null
 
+const NO_SORT = '__none'
+
 // below sm the rows turn into cards; one layout in the DOM at a time, never both
 const NARROW = '(max-width: 39.99rem)'
 const subscribe = (cb: () => void) => {
@@ -188,11 +190,34 @@ export function DataTable<T>({
       {narrow ? (
         <>
           {visible.some((c) => c.sort) && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span>Ordenar:</span>
-              {visible.filter((c) => c.sort).map((c) => (
-                <span key={c.id}>{sortButton(c)}</span>
-              ))}
+            <div className="flex items-center gap-2">
+              <Select
+                value={sort?.id ?? NO_SORT}
+                onValueChange={(v) => setSort(v === NO_SORT ? null : { id: v, dir: sort?.dir ?? 'asc' })}
+              >
+                <SelectTrigger aria-label="Ordenar por" size="sm" className="min-w-0 flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SORT}>Sem ordenação</SelectItem>
+                  {visible.filter((c) => c.sort).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      Ordenar por {c.header}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {sort && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label={sort.dir === 'asc' ? 'Ordem crescente' : 'Ordem decrescente'}
+                  onClick={() => setSort({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
+                >
+                  {sort.dir === 'asc' ? <CaretUp aria-hidden /> : <CaretDown aria-hidden />}
+                </Button>
+              )}
             </div>
           )}
           <ul className="divide-y rounded-lg border">
