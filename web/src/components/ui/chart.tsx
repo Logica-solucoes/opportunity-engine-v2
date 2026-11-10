@@ -245,15 +245,19 @@ function ChartTooltipContent({
                     >
                       <div className="grid gap-1.5">
                         {nestLabel ? tooltipLabel : null}
-                        <span className="text-muted-foreground">
+                        <span className="mr-4 text-muted-foreground">
                           {itemConfig?.label ?? item.name}
                         </span>
                       </div>
                       {item.value != null && (
                         <span className="font-mono font-medium text-foreground tabular-nums">
-                          {typeof item.value === "number"
-                            ? item.value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
-                            : String(item.value)}
+                          {Array.isArray(item.value)
+                            ? item.value
+                                .map((v) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 }))
+                                .join(" – ")
+                            : typeof item.value === "number"
+                              ? item.value.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
+                              : String(item.value)}
                         </span>
                       )}
                     </div>
