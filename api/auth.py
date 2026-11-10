@@ -22,6 +22,8 @@ from api.passwords import dummy_hash, verify_password
 log = logging.getLogger(__name__)
 
 COOKIE = "gem_session"
+# Off only while a deploy is served over plain HTTP: browsers drop a Secure cookie set by an http:// page
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
 IDLE_TIMEOUT = timedelta(hours=8)
 MAX_AGE = timedelta(days=7)
 TOUCH_EVERY = timedelta(minutes=1)
@@ -157,11 +159,11 @@ def drop_sessions(db: Session, user_id: int) -> None:
 
 
 def set_session_cookie(response: Response, token: str) -> None:
-    response.set_cookie(COOKIE, token, httponly=True, secure=True, samesite="lax", path="/")
+    response.set_cookie(COOKIE, token, httponly=True, secure=COOKIE_SECURE, samesite="lax", path="/")
 
 
 def clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(COOKIE, path="/", httponly=True, secure=True, samesite="lax")
+    response.delete_cookie(COOKIE, path="/", httponly=True, secure=COOKIE_SECURE, samesite="lax")
 
 
 def current_session(

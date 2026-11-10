@@ -40,6 +40,16 @@ def test_login_sets_hardened_cookie_and_returns_me(client, make_user, password):
     }
 
 
+def test_cookie_secure_off_for_plain_http_deploys(client, make_user, password, monkeypatch):
+    monkeypatch.setattr(auth, "COOKIE_SECURE", False)
+    make_user("ana@x.com")
+
+    r = client.post("/api/auth/login", json={"email": "ana@x.com", "password": password})
+
+    assert "Secure" not in r.headers["set-cookie"]
+    assert "Secure" not in client.post("/api/auth/logout").headers["set-cookie"]
+
+
 def test_session_stores_only_the_token_hash(client, db, make_user, login_as):
     login_as(client, make_user("ana@x.com"))
     token = client.cookies["gem_session"]
