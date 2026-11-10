@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { AuthCard } from '@/components/AuthCard'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { PasswordInput } from '@/components/PasswordInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
@@ -46,7 +47,7 @@ function Login() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="password">Senha</Label>
-          <Input id="password" name="password" type="password" autoComplete="current-password" required />
+          <PasswordInput id="password" name="password" autoComplete="current-password" required />
         </div>
         {login.isError && (
           <Alert variant="destructive">

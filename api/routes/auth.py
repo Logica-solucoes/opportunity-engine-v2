@@ -19,7 +19,7 @@ class LoginIn(BaseModel):
 
 class PasswordIn(BaseModel):
     current: Password
-    new: Password = Field(min_length=12)
+    new: Password = Field(min_length=8)
 
 
 class MyWorkspace(BaseModel):
