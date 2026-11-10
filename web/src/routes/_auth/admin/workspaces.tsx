@@ -4,6 +4,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { AddDialog } from '@/components/AddDialog'
 import { DataTable } from '@/components/DataTable'
+import { DeleteWorkspace } from '@/components/DeleteWorkspace'
 import { LoadState } from '@/components/LoadState'
 import { type AdminWorkspace, GoogleConnectorDialog } from '@/components/GoogleConnectorDialog'
 import { Plugs } from '@phosphor-icons/react'
@@ -161,6 +162,7 @@ function Workspaces() {
                       </TooltipTrigger>
                       <TooltipContent>Conector Google</TooltipContent>
                     </Tooltip>
+                    <DeleteWorkspace workspace={w} />
                     <Link to="/w/$slug/membros" params={{ slug: w.slug }} className={rowLink}>
                       Membros
                     </Link>
