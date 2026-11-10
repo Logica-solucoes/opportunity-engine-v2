@@ -30,6 +30,18 @@ sed -i "s/^TAG=.*/TAG=$TAG/" deploy/.env
 docker compose -f deploy/compose.yml --env-file deploy/.env up -d   # o migrate roda antes da api
 ```
 
+## Imagem no Docker Hub (provisório)
+Enquanto não há acesso ao servidor, a produção (`http://webapi.seudash.com.br:18085`) roda a imagem publicada no Docker Hub, com a tag fixa `logicasolucoesanaliticas/logicaprivado:opportunity_engine_v2_latest`. Atualizar a produção é buildar e pushar essa tag a partir do commit desejado (precisa de `docker login` com acesso ao repositório privado), e depois o servidor puxa a imagem e recria o container:
+
+```bash
+TAG=$(git rev-parse --short HEAD)
+IMG=logicasolucoesanaliticas/logicaprivado:opportunity_engine_v2_latest
+docker build --build-arg ENGINE_VERSION=$TAG -t $IMG -t gem:$TAG .
+docker push $IMG
+```
+
+A tag é única e sobrescrita a cada push, então não há rollback por tag: para voltar, builde de novo a partir do commit anterior. Esse ambiente roda em HTTP puro, sem TLS, por isso o `.env` dele precisa de `COOKIE_SECURE=false` (sem isso, o navegador descarta o cookie de sessão e todo acesso volta ao login). Quando o servidor próprio tiver proxy com TLS, remova a flag e passe a usar o fluxo acima, com tag por commit.
+
 ## Rollback
 Volte o `TAG` do `deploy/.env` para a tag anterior (`docker images gem`) e rode `up -d`. Se a versão nova trouxe migration, a imagem antiga pode não ler o schema novo. Nesse caso, restaure o backup de antes do deploy (abaixo). Rode o `backup.sh` antes de todo deploy com migration.
 
