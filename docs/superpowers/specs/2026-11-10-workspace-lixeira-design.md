@@ -14,7 +14,8 @@ Excluir um workspace por engano não pode custar o cliente inteiro. A exclusão 
 | Quem exclui e restaura? | Só o platform admin. Excluir continua pedindo a própria senha (mesma checagem e bloqueio de hoje). Restaurar não pede senha: não destrói nada. |
 | O que muda para quem usa o workspace? | Ele deixa de existir: `require_role` responde 404 (como slug inexistente), some do `/api/me` e do seletor do cabeçalho. Membros perdem acesso na hora, sem precisar remover vínculo. |
 | Prazo | 7 dias fixos, constante `TRASH_DAYS = 7` em `api/accounts.py`. Sem variável de ambiente enquanto ninguém pedir outro prazo. |
-| Quem dispara a purga? | Preguiçosa: `GET /api/admin/workspaces` purga os vencidos antes de listar, no mesmo padrão das sessões vencidas que somem no login. Não existe agendador na API e o servidor ainda não está acessível para um cron. Consequência aceita: o prazo é "no mínimo 7 dias"; o dado vencido some na próxima vez que um platform admin abre a lista. Se precisar de prazo exato (LGPD), o upgrade é um `python -m api.cli purge-workspaces` no cron do servidor, chamando a mesma função. |
+| Quem dispara a purga? | Comando de CLI `python -m api.cli purge-workspaces`, rodado pelo cron do servidor uma vez por dia (mesmo padrão do `backup.sh`). A API não tem agendador. Sem o cron configurado nada é purgado, e o workspace fica na lixeira indefinidamente (ainda restaurável): por isso o cron entra no `docs/deploy.md` como passo obrigatório. |
+| Excluir de vez agora | Comando de CLI `python -m api.cli delete-workspace <slug>`: apaga na hora, esteja o workspace ativo ou na lixeira, para pedido de LGPD ou limpeza. Sem tela: o acesso ao shell do servidor já é a autorização, então não pede senha. Pede confirmação digitando o slug de novo (ou `--yes` para script). Run em andamento barra, como na tela. |
 | Run em andamento | Continua barrando a exclusão com 409 (run morto há 20 min não conta). Assim nenhum worker escreve num workspace na lixeira. |
 | Slug na lixeira | Continua reservado até a purga (a restauração precisa dele). Criar workspace com esse slug → 409 com mensagem própria: "Esse slug é de um workspace na lixeira. Restaure-o ou aguarde a exclusão definitiva." |
 | Uso (`/admin/uso`) | Sem mudança: os runs de um workspace na lixeira continuam contando no mês em que rodaram. Depois da purga somem por cascade, como hoje. |
@@ -41,9 +42,24 @@ GET    /api/admin/workspaces                                     → 200 [Worksp
 
 - **DELETE:** mesma rota e mesmos erros de hoje (400 `invalid_current_password` contando no bloqueio, 429 `locked`, 409 run em andamento), mas só grava `deleted_at = now()` e `deleted_by`. Workspace já na lixeira ou inexistente → 404.
 - **restore:** platform admin. Só workspace na lixeira; ativo ou inexistente → 404. Zera `deleted_at` e `deleted_by`.
-- **GET:** antes de listar, `accounts.purge_trash(db)` apaga de vez quem tem `deleted_at < now() - TRASH_DAYS` (a lógica atual de `delete_workspace`: cascade nas linhas, depois `ws/{id}` do storage, `workspace.files_orphaned` se o disco falhar). Lista ativos e na lixeira; `WorkspaceOut` ganha `deleted_at` e `purge_at` (`deleted_at + TRASH_DAYS`, calculado no Python), ambos `null` no ativo.
+- **GET:** lista ativos e na lixeira; `WorkspaceOut` ganha `deleted_at` e `purge_at` (`deleted_at + TRASH_DAYS`, calculado no Python), ambos `null` no ativo. Não purga nada.
 - **POST /workspaces** com slug de workspace na lixeira → 409 com a mensagem da tabela.
-- **Logs:** `auth.workspace_trashed`, `auth.workspace_restored`, `auth.workspace_purged` com `workspace_id`, `slug` e `by` (a purga loga `by=purge`).
+- **Logs:** `auth.workspace_trashed`, `auth.workspace_restored`, `auth.workspace_purged` com `workspace_id`, `slug` e `by` (a CLI loga `by=cli`).
+
+## CLI (`api/cli.py`)
+
+```text
+python -m api.cli purge-workspaces                 # apaga de vez os que estão na lixeira há mais de 7 dias
+python -m api.cli delete-workspace <slug> [--yes]  # apaga de vez agora, ativo ou na lixeira
+```
+
+Os dois chamam `accounts.purge_workspace(db, workspace)`: a lógica atual de `delete_workspace` (cascade nas linhas, depois `ws/{id}` do storage, `workspace.files_orphaned` no log se o disco falhar). `purge-workspaces` seleciona `deleted_at < now() - TRASH_DAYS`, apaga um por vez (um que falhar não para os outros) e imprime quantos apagou; sai com código 0 mesmo sem nada a apagar. `delete-workspace` com slug inexistente ou run em andamento sai com código 1 e mensagem pt-BR.
+
+Cron sugerido no `docs/deploy.md`, depois do backup das 3h para o backup do dia ainda ter o workspace:
+
+```text
+30 3 * * * docker compose -f /opt/gem/deploy/compose.yml --env-file /opt/gem/deploy/.env exec -T api python -m api.cli purge-workspaces >> /var/log/gem-purge.log 2>&1
+```
 
 ## Tela (`/admin/workspaces`)
 
@@ -60,21 +76,22 @@ Em `tests/api/test_delete_workspace.py` (reescrito):
 - excluir de novo um que já está na lixeira → 404;
 - restaurar devolve acesso e dados; restaurar ativo → 404; não-platform → 403;
 - slug de workspace na lixeira em `POST /workspaces` → 409 com a mensagem;
-- purga: com `now` congelado (`auth.now`) 7 dias + 1 s depois, `GET /api/admin/workspaces` apaga linhas e `ws/{id}`; com 7 dias − 1 s, não apaga; falha de disco na purga ainda apaga as linhas e loga o órfão;
+- purga (`tests/api/test_cli.py`): com `now` congelado 7 dias + 1 s depois, `purge-workspaces` apaga linhas e `ws/{id}`; com 7 dias − 1 s, não apaga; workspace ativo nunca é purgado; falha de disco ainda apaga as linhas e loga o órfão;
+- `delete-workspace`: apaga ativo e da lixeira na hora; slug inexistente e run ativo saem com 1 sem apagar; sem `--yes` e confirmação errada não apaga;
 - `test_rbac.py`: rota de restore na matriz.
 
 ## Docs no mesmo commit
 
-`API-GUIDE.md` (rotas), `DATABASE.md` (colunas novas), `docs/decisoes/auth.md` (a seção "Excluir workspace pede a senha de quem exclui" passa a descrever a lixeira e a purga preguiçosa), `docs/deploy.md` (backup guarda workspace purgado por mais 7 dias).
+`API-GUIDE.md` (rotas), `DATABASE.md` (colunas novas), `docs/decisoes/auth.md` (a seção "Excluir workspace pede a senha de quem exclui" passa a descrever a lixeira, a purga pela CLI e o `delete-workspace`), `docs/deploy.md` (cron da purga como passo obrigatório, `delete-workspace` para LGPD, backup guarda workspace purgado por mais 7 dias).
 
 ## Fora do escopo
 
-- Botão "excluir de vez agora" (pular os 7 dias). Entra se aparecer pedido de LGPD com prazo; até lá, a purga em 7 dias basta.
+- "Excluir de vez" pela tela. Fica só na CLI.
+- Prazo configurável. `TRASH_DAYS = 7` fixo até alguém pedir outro.
 - Lixeira para simulação. Continua com hard delete e confirmação pelo nome.
-- Cron de purga. Só quando o servidor estiver acessível e o prazo exato importar.
 
-## Em aberto (decidir antes do plano)
+## Decidido em 10/nov/2026
 
-1. Purga preguiçosa na listagem do admin basta, ou já queremos o comando de CLI para o cron?
-2. Precisa do "excluir de vez agora" desde já (pedido de cliente/LGPD)?
-3. 7 dias fixos está bom, ou o prazo deve ser configurável por `.env`?
+1. Purga por comando de CLI no cron do servidor, não preguiçosa na API.
+2. "Excluir de vez agora" também por comando de CLI.
+3. Prazo fixo em 7 dias.
