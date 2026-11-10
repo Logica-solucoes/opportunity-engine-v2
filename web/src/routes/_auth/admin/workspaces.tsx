@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
@@ -43,6 +44,7 @@ function Workspaces() {
   const create = useMutation({
     mutationFn: (body: { name: string; slug: string }) => api<AdminWorkspace>('/admin/workspaces', { method: 'POST', body }),
     onSuccess: () => {
+      toast.success('Workspace criado.')
       setOpen(false)
       setName('')
       setSlug('')

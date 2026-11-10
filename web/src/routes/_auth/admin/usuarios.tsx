@@ -57,7 +57,10 @@ function Users() {
   })
   const setActive = useMutation({
     mutationFn: (u: User) => api<User>(`/admin/users/${u.id}`, { method: 'PATCH', body: { active: !u.active } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: USERS }),
+    onSuccess: (u) => {
+      queryClient.invalidateQueries({ queryKey: USERS })
+      toast.success(u.active ? 'Usuário reativado.' : 'Usuário desativado.')
+    },
     onError: (e) => toast.error(errorMessage(e)),
   })
 

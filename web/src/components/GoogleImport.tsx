@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -37,7 +38,10 @@ export function GoogleImport({ slug, sim, busy, onSaved }: Props) {
         method: 'POST',
         body: { start, end },
       }),
-    onSuccess: onSaved,
+    onSuccess: (sim) => {
+      onSaved(sim)
+      toast.success('Dados importados do Google.')
+    },
   })
 
   function submit(e: FormEvent) {

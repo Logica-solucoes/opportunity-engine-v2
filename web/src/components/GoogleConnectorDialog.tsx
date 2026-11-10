@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -47,18 +48,19 @@ function ConnectorForm({ workspace, onClose }: { workspace: AdminWorkspace; onCl
   const queryClient = useQueryClient()
   const google = workspace.google
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const done = () => {
+  const done = (message: string) => {
+    toast.success(message)
     queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] })
     queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
     onClose()
   }
   const save = useMutation({
     mutationFn: (body: GoogleConfig) => api(`/admin/workspaces/${workspace.id}/google`, { method: 'PUT', body }),
-    onSuccess: done,
+    onSuccess: () => done('Conector salvo.'),
   })
   const remove = useMutation({
     mutationFn: () => api<void>(`/admin/workspaces/${workspace.id}/google`, { method: 'DELETE' }),
-    onSuccess: done,
+    onSuccess: () => done('Conector removido.'),
   })
   const errorPaths = Object.keys(fieldErrors(save.error) ?? {})
   const hasHint = (path: string) => errorPaths.some((k) => k.startsWith(path))

@@ -1,4 +1,6 @@
+import { toast } from 'sonner'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import { Link, Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
 import { ClockCounterClockwise, XCircle } from '@phosphor-icons/react'
 import { RunStatusBadge } from '@/components/RunStatusBadge'
@@ -8,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { meQuery, roleIn } from '@/lib/auth'
 import { GROUNDING_LABELS, resultsQuery } from '@/lib/results'
-import { type Run, STATUS_LABELS, isPublishable, runQuery } from '@/lib/runs'
+import { type Run, type RunStatus, STATUS_LABELS, isActive, isPublishable, runQuery } from '@/lib/runs'
 import { formatDate } from '@/lib/simulations'
 import { PageHeader } from '@/components/PageHeader'
 
@@ -33,6 +35,18 @@ function RunLayout() {
   const canEdit = roleIn(me, slug) !== 'viewer'
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const current = TABS.find(([key]) => pathname.endsWith(`/${key}`))?.[0]
+
+  // only a change seen while the page is open: opening a finished run must not toast
+  const seen = useRef<RunStatus>(undefined)
+  const status = run?.status
+  useEffect(() => {
+    if (seen.current && isActive(seen.current) && status && !isActive(status)) {
+      if (status === 'succeeded') toast.success('Execução concluída.')
+      else if (status === 'inconclusive') toast.info('Execução concluída, sem resultado conclusivo.')
+      else toast.error('A execução falhou.')
+    }
+    seen.current = status
+  }, [status])
 
   // 404 covers another workspace, a run a viewer can't see yet and a non-numeric id
   if (!run)

@@ -71,12 +71,18 @@ function MemberAdmin({ slug, me }: { slug: string; me: Me }) {
   })
   const changeRole = useMutation({
     mutationFn: ({ id, role }: { id: number; role: Role }) => api(`${base}/${id}`, { method: 'PATCH', body: { role } }),
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh()
+      toast.success('Papel atualizado.')
+    },
     onError: (e) => toast.error(errorMessage(e)),
   })
   const remove = useMutation({
     mutationFn: (id: number) => api(`${base}/${id}`, { method: 'DELETE' }),
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh()
+      toast.success('Membro removido.')
+    },
     onError: (e) => toast.error(errorMessage(e)),
   })
 

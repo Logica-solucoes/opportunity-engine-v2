@@ -103,6 +103,7 @@ function ParamsFields({
     onSuccess: (saved) => {
       setState((s) => ({ ...s, origin: {} }))
       onSaved(saved)
+      toast.success('Parâmetros salvos.')
     },
   })
   const gemini = useMutation({

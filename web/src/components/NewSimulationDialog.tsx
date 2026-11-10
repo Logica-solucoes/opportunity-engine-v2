@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, type ReactNode, useState } from 'react'
@@ -29,6 +30,7 @@ export function NewSimulationDialog({ slug, children }: { slug: string; children
       queryClient.setQueryData(simulationQuery(slug, id).queryKey, sim)
       queryClient.invalidateQueries({ queryKey: simulationsQuery(slug).queryKey, exact: true })
       setOpen(false)
+      toast.success('Simulação criada.')
       navigate({ to: '/w/$slug/simulacoes/$id', params: { slug, id } })
     },
   })

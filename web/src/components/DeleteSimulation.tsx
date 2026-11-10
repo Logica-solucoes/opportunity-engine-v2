@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -31,6 +32,7 @@ export function DeleteSimulation({ slug, sim }: { slug: string; sim: Simulation 
       )
       // leave first: dropping the query while the page is mounted would refetch it into a 404
       await navigate({ to: '/w/$slug', params: { slug } })
+      toast.success('Simulação excluída.')
       queryClient.removeQueries({ queryKey: simulationQuery(slug, String(sim.id)).queryKey })
       queryClient.invalidateQueries({ queryKey: simulationsQuery(slug).queryKey })
       queryClient.invalidateQueries({ queryKey: ['runs', slug] })
