@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import func, select
 
@@ -142,3 +144,49 @@ def test_unknown_workspace_is_404(root_client, ws, password):
 
 def test_a_missing_password_is_422(root_client, ws):
     assert root_client.delete(f"/api/admin/workspaces/{ws.id}").status_code == 422
+
+
+def test_the_list_shows_the_trash_with_the_purge_date(root_client, ws, password):
+    delete(root_client, ws, password)
+
+    [item] = root_client.get("/api/admin/workspaces").json()
+
+    deleted = datetime.fromisoformat(item["deleted_at"])
+    assert datetime.fromisoformat(item["purge_at"]) - deleted == timedelta(days=7)
+
+
+def test_an_active_workspace_has_no_trash_dates(root_client, ws):
+    [item] = root_client.get("/api/admin/workspaces").json()
+
+    assert item["deleted_at"] is None and item["purge_at"] is None
+
+
+def test_restore_brings_back_access_and_data(make_client, db, ws, simulation, analyst, root, login_as, password):
+    member = make_client()
+    login_as(member, analyst)
+    root_c = make_client()
+    login_as(root_c, root)
+    delete(root_c, ws, password)
+
+    r = root_c.post(f"/api/admin/workspaces/{ws.id}/restore")
+
+    assert r.status_code == 200 and r.json()["deleted_at"] is None
+    assert member.get("/api/w/a/simulations").status_code == 200
+    db.refresh(ws)
+    assert ws.deleted_by is None
+
+
+def test_restoring_an_active_workspace_is_404(root_client, ws):
+    assert root_client.post(f"/api/admin/workspaces/{ws.id}/restore").status_code == 404
+
+
+def test_the_slug_of_a_trashed_workspace_stays_reserved(root_client, make_workspace, password):
+    trashed = make_workspace("lixo", [])
+    delete(root_client, trashed, password)
+
+    r = root_client.post("/api/admin/workspaces", json={"name": "Outra", "slug": "lixo"})
+
+    assert r.status_code == 409
+    assert r.json()["detail"] == (
+        "Esse slug é de um workspace na lixeira. Restaure-o ou aguarde a exclusão definitiva."
+    )

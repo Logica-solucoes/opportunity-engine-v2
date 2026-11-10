@@ -17,6 +17,10 @@ class Conflict(Exception):
     pass
 
 
+class SlugInTrash(Exception):
+    pass
+
+
 class WrongPassword(Exception):
     pass
 
@@ -141,8 +145,9 @@ def remove_member(db: Session, membership: Membership, by: User) -> None:
 
 
 def create_workspace(db: Session, name: str, slug: str) -> Workspace:
-    if db.scalar(select(Workspace.id).where(Workspace.slug == slug)) is not None:
-        raise Conflict
+    existing = db.scalar(select(Workspace).where(Workspace.slug == slug))
+    if existing is not None:
+        raise SlugInTrash if existing.deleted_at is not None else Conflict
     workspace = Workspace(name=name, slug=slug)
     db.add(workspace)
     commit_or_conflict(db)
@@ -164,6 +169,13 @@ def trash_workspace(db: Session, workspace: Workspace, by: User) -> None:
     workspace.deleted_by = by.id
     db.commit()
     log.info("auth.workspace_trashed workspace_id=%s slug=%s by=%s", workspace.id, workspace.slug, by.id)
+
+
+def restore_workspace(db: Session, workspace: Workspace, by: User) -> None:
+    workspace.deleted_at = None
+    workspace.deleted_by = None
+    db.commit()
+    log.info("auth.workspace_restored workspace_id=%s slug=%s by=%s", workspace.id, workspace.slug, by.id)
 
 
 def purge_workspace(db: Session, workspace: Workspace, by: str) -> None:

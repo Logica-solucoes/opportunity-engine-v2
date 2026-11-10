@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -27,10 +27,21 @@ class WorkspaceOut(BaseModel):
     slug: str
     created_at: datetime
     google: google_import.GoogleConfig | None
+    deleted_at: datetime | None
+    purge_at: datetime | None
 
 
 def workspace_out(w: Workspace) -> WorkspaceOut:
-    return WorkspaceOut(id=w.id, name=w.name, slug=w.slug, created_at=w.created_at, google=google_import.config_of(w))
+    purge_at = w.deleted_at + timedelta(days=accounts.TRASH_DAYS) if w.deleted_at else None
+    return WorkspaceOut(
+        id=w.id,
+        name=w.name,
+        slug=w.slug,
+        created_at=w.created_at,
+        google=google_import.config_of(w),
+        deleted_at=w.deleted_at,
+        purge_at=purge_at,
+    )
 
 
 def find_workspace(db: Session, workspace_id: int, trashed: bool = False) -> Workspace:
@@ -97,6 +108,8 @@ def list_workspaces(_: User = Depends(require_platform_admin), db: Session = Dep
 def create_workspace(body: WorkspaceIn, _: User = Depends(require_platform_admin), db: Session = Depends(get_db)):
     try:
         return workspace_out(accounts.create_workspace(db, body.name, body.slug))
+    except accounts.SlugInTrash:
+        raise HTTPException(409, "Esse slug é de um workspace na lixeira. Restaure-o ou aguarde a exclusão definitiva.")
     except accounts.Conflict:
         raise HTTPException(409, "Já existe um workspace com esse slug")
 
@@ -121,6 +134,15 @@ def delete_workspace(
     except accounts.ActiveRun:
         raise HTTPException(409, simulations.ACTIVE_RUN_ERROR)
     return Response(status_code=204)
+
+
+@router.post("/workspaces/{workspace_id}/restore", response_model=WorkspaceOut)
+def restore_workspace(
+    workspace_id: WorkspaceId, admin: User = Depends(require_platform_admin), db: Session = Depends(get_db)
+):
+    workspace = find_workspace(db, workspace_id, trashed=True)
+    accounts.restore_workspace(db, workspace, by=admin)
+    return workspace_out(workspace)
 
 
 @router.put("/workspaces/{workspace_id}/google", response_model=WorkspaceOut)
