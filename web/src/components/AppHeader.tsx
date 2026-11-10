@@ -25,19 +25,19 @@ import { setTheme } from '@/lib/theme'
 
 const LAST_WORKSPACE = 'lastWorkspace'
 
-const divider = <span aria-hidden className="hidden h-6 w-px shrink-0 bg-border md:block" />
+const divider = <span aria-hidden className="hidden h-6 w-px shrink-0 bg-border xl:block" />
 
 const navLink = (active: boolean) =>
   cn(
-    'flex items-center gap-1.5 border-b-2 px-3 transition-colors hover:text-foreground',
+    'flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 py-2 whitespace-nowrap transition-colors hover:text-foreground xl:px-3 xl:py-0',
     active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground',
   )
 
 function Logo({ light, dark, alt }: { light: string; dark: string; alt: string }) {
   return (
     <>
-      <img src={light} alt={alt} className="h-7 w-auto dark:hidden" />
-      <img src={dark} alt={alt} className="hidden h-7 w-auto dark:block" />
+      <img src={light} alt={alt} className="h-5.5 w-auto sm:h-7 dark:hidden" />
+      <img src={dark} alt={alt} className="hidden h-5.5 w-auto sm:h-7 dark:block" />
     </>
   )
 }
@@ -73,9 +73,10 @@ export function AppHeader() {
   const base = `/w/${slug}`
 
   return (
-    <header className="z-30 border-b bg-card md:sticky md:top-0 print:hidden">
-      <div className="mx-auto flex max-w-460 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-12 xl:px-14 md:h-14 md:py-0">
-        <Link to="/" className="flex shrink-0 items-center gap-3">
+    <header className="z-30 border-b bg-card xl:sticky xl:top-0 print:hidden">
+      {/* below xl: logo + actions, then workspace, then scrollable tabs; xl: one row */}
+      <div className="mx-auto flex max-w-460 flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-2 sm:gap-x-4 sm:px-12 xl:h-14 xl:flex-nowrap xl:px-14 xl:py-0">
+        <Link to="/" className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Logo light={dashLight} dark={dashDark} alt="DASH" />
           <span className="h-6 w-px bg-border" />
           <Logo light={almapLight} dark={almapDark} alt="AlmapBBDO" />
@@ -85,7 +86,7 @@ export function AppHeader() {
 
         {me.workspaces.length > 0 && (
           <Select value={slug ?? ''} onValueChange={(s) => navigate({ to: '/w/$slug', params: { slug: s } })}>
-            <SelectTrigger aria-label="Workspace" size="sm" className="min-w-40">
+            <SelectTrigger aria-label="Workspace" size="sm" className="order-3 w-full min-w-40 sm:w-64 md:order-1 md:w-auto xl:order-none">
               <SelectValue placeholder="Escolha um workspace" />
             </SelectTrigger>
             <SelectContent>
@@ -100,7 +101,7 @@ export function AppHeader() {
 
         {divider}
 
-        <nav className="flex gap-1 self-stretch text-sm">
+        <nav className="order-4 -mx-4 flex w-[calc(100%+2rem)] gap-1 self-stretch overflow-x-auto px-2 text-sm [scrollbar-width:none] sm:mx-0 sm:w-full sm:px-0 xl:order-none xl:w-auto xl:overflow-visible max-sm:[&_svg]:hidden xl:max-2xl:[&_svg]:hidden">
           {slug && role && role !== 'viewer' && (
             <Link to="/w/$slug" params={{ slug }} className={navLink(pathname === base || pathname.startsWith(`${base}/simulacoes`))}>
               <Flask aria-hidden />
@@ -127,7 +128,7 @@ export function AppHeader() {
           )}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="order-2 ml-auto flex items-center gap-1 sm:gap-2 xl:order-none">
           {slug && role && <RunningBadge slug={slug} />}
           <CommandMenu />
           {divider}
