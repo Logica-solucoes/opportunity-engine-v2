@@ -40,12 +40,12 @@ class MeOut(BaseModel):
 
 def me_out(db: Session, user: User) -> MeOut:
     if user.is_platform_admin:
-        rows = [(w, "admin") for w in db.scalars(select(Workspace).order_by(Workspace.name))]
+        rows = [(w, "admin") for w in db.scalars(accounts.active_workspaces().order_by(Workspace.name))]
     else:
         rows = db.execute(
             select(Workspace, Membership.role)
             .join(Membership, Membership.workspace_id == Workspace.id)
-            .where(Membership.user_id == user.id)
+            .where(Membership.user_id == user.id, Workspace.deleted_at.is_(None))
             .order_by(Workspace.name)
         ).all()
     return MeOut(

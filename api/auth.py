@@ -205,7 +205,7 @@ class Ctx:
 
 def require_role(min_role: str):
     def dependency(slug: str, user: User = Depends(active_user), db: Session = Depends(get_db)) -> Ctx:
-        workspace = db.scalar(select(Workspace).where(Workspace.slug == slug))
+        workspace = db.scalar(select(Workspace).where(Workspace.slug == slug, Workspace.deleted_at.is_(None)))
         if workspace is None:
             raise HTTPException(404)
         logs.tag(workspace_id=workspace.id)

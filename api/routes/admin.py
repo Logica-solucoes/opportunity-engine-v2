@@ -33,9 +33,9 @@ def workspace_out(w: Workspace) -> WorkspaceOut:
     return WorkspaceOut(id=w.id, name=w.name, slug=w.slug, created_at=w.created_at, google=google_import.config_of(w))
 
 
-def find_workspace(db: Session, workspace_id: int) -> Workspace:
+def find_workspace(db: Session, workspace_id: int, trashed: bool = False) -> Workspace:
     workspace = db.get(Workspace, workspace_id)
-    if workspace is None:
+    if workspace is None or (workspace.deleted_at is not None) != trashed:
         raise HTTPException(404)
     return workspace
 
@@ -117,7 +117,7 @@ def delete_workspace(
         raise HTTPException(400, "invalid_current_password")
     runs.fail_stale(db, Run.workspace_id == workspace.id)
     try:
-        accounts.delete_workspace(db, workspace, by=admin)
+        accounts.trash_workspace(db, workspace, by=admin)
     except accounts.ActiveRun:
         raise HTTPException(409, simulations.ACTIVE_RUN_ERROR)
     return Response(status_code=204)

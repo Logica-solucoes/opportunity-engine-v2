@@ -1,7 +1,7 @@
 import logging
 
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -39,6 +39,13 @@ class LastAdmin(Exception):
 
 class ActiveRun(Exception):
     pass
+
+
+TRASH_DAYS = 7
+
+
+def active_workspaces():
+    return select(Workspace).where(Workspace.deleted_at.is_(None))
 
 
 def commit_or_conflict(db: Session) -> None:
@@ -143,16 +150,29 @@ def create_workspace(db: Session, name: str, slug: str) -> Workspace:
     return workspace
 
 
-def delete_workspace(db: Session, workspace: Workspace, by: User) -> None:
+def ensure_no_active_run(db: Session, workspace: Workspace) -> None:
+    # FOR UPDATE: a run being created waits for this commit
     db.refresh(workspace, with_for_update=True)
     active = select(Run.id).where(Run.workspace_id == workspace.id, Run.status.in_(ACTIVE_RUN_STATUSES))
     if db.scalar(active.limit(1)) is not None:
         raise ActiveRun
+
+
+def trash_workspace(db: Session, workspace: Workspace, by: User) -> None:
+    ensure_no_active_run(db, workspace)
+    workspace.deleted_at = func.now()
+    workspace.deleted_by = by.id
+    db.commit()
+    log.info("auth.workspace_trashed workspace_id=%s slug=%s by=%s", workspace.id, workspace.slug, by.id)
+
+
+def purge_workspace(db: Session, workspace: Workspace, by: str) -> None:
+    ensure_no_active_run(db, workspace)
     wid, slug = workspace.id, workspace.slug
     # memberships, simulations, files, runs and run logs go with it through ON DELETE CASCADE; users stay
     db.execute(sql_delete(Workspace).where(Workspace.id == wid))
     db.commit()
-    log.info("auth.workspace_deleted workspace_id=%s slug=%s by=%s", wid, slug, by.id)
+    log.info("auth.workspace_purged workspace_id=%s slug=%s by=%s", wid, slug, by)
     # rows first: files gone with rows still standing would leave runs pointing at nothing
     prefix = f"ws/{wid}"
     try:
