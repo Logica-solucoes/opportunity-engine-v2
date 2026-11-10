@@ -1,11 +1,12 @@
 import logging
+from datetime import timedelta
 
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api import storage
+from api import runs, storage
 from api.auth import check_lock, drop_sessions, normalize_email, register_failure
 from api.models import ACTIVE_RUN_STATUSES, Membership, Run, User, UserSession, Workspace
 from api.passwords import hash_password, temp_password, verify_password
@@ -191,6 +192,23 @@ def purge_workspace(db: Session, workspace: Workspace, by: str) -> None:
         storage.delete_prefix(prefix)
     except OSError:
         log.exception("workspace.files_orphaned prefix=%s", prefix)
+
+
+def purge_trash(db: Session) -> int:
+    cutoff = func.now() - timedelta(days=TRASH_DAYS)
+    expired = db.scalars(select(Workspace).where(Workspace.deleted_at < cutoff)).all()
+    purged = 0
+    for workspace in expired:
+        wid = workspace.id
+        # one failure must not keep the others in the trash forever
+        try:
+            runs.fail_stale(db, Run.workspace_id == wid)
+            purge_workspace(db, workspace, by="cli")
+            purged += 1
+        except Exception:
+            db.rollback()
+            log.exception("workspace.purge_failed workspace_id=%s", wid)
+    return purged
 
 
 def reset_password(db: Session, user: User, by: User | None) -> str:
