@@ -162,7 +162,7 @@ function Planner({ slug, runId, elasticity }: { slug: string; runId: string; ela
       />
       <FiltersSummary filters={filters} />
       <div className="grid items-start gap-5 md:grid-cols-[17rem_minmax(0,1fr)] print:block">
-        <div className="md:sticky md:top-18 md:max-h-[calc(100svh-5.5rem)] md:overflow-y-auto print:static">
+        <div className="md:sticky md:top-4 md:max-h-[calc(100svh-2rem)] xl:top-18 xl:max-h-[calc(100svh-5.5rem)] md:overflow-y-auto print:static">
           <FiltersPanel
             filters={filters}
             onChange={setFilters}

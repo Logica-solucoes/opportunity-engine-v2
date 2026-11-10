@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/chart'
 import { formatAxisMoney, formatCompact, formatMoney, formatSmallMoney } from '@/lib/results'
 import { type CurveRow, type Mix, type Scenario, type TableRow, splitExtrapolated } from '@/lib/scenario'
+import { WrapTick } from '@/components/WrapTick'
 
 const investmentAxis = (
   <XAxis
@@ -164,7 +165,7 @@ export function MixChart({ mix }: { mix: Partial<Mix> }) {
     <ChartContainer config={mixConfig} className="h-64 w-full">
       <BarChart data={data}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="channel" />
+        <XAxis dataKey="channel" interval={0} height={44} tick={<WrapTick />} />
         <YAxis tickFormatter={formatCompact} width={56} />
         <Bar dataKey="historical" fill="var(--color-historical)" radius={4} />
         <Bar dataKey="optimized" fill="var(--color-optimized)" radius={4} />

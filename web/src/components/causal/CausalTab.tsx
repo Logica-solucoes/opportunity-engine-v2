@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CursorClick, Funnel, Warning } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { BlockSkeleton } from '@/components/LoadState'
 import { ExportBar } from '@/components/ExportBar'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -68,6 +68,12 @@ function CausalView({
   const published = causal.events.filter((e) => e.status === 'published')
   const [showAll, setShowAll] = useState(false)
   const [selectedId, setSelectedId] = useState(published[0]?.id ?? null)
+  const detailRef = useRef<HTMLDivElement>(null)
+  // stacked layout: the detail sits below the list, so bring it into view
+  function select(id: string) {
+    setSelectedId(id)
+    if (!matchMedia('(min-width: 48rem)').matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
   const listed = showAll ? causal.events : published
   const selected = causal.events.find((e) => e.id === selectedId)
 
@@ -109,7 +115,7 @@ function CausalView({
         <div className="grid items-start gap-5 md:grid-cols-[18rem_minmax(0,1fr)] print:block print:space-y-6">
           <section
             aria-label="Eventos"
-            className={cn('space-y-2 md:sticky md:top-18 print:static', listed.length === 0 && 'md:col-span-2')}
+            className={cn('space-y-2 md:sticky md:top-4 xl:top-18 print:static', listed.length === 0 && 'md:col-span-2')}
           >
             <ToggleGroup
               type="single"
@@ -141,14 +147,14 @@ function CausalView({
               </Empty>
             ) : (
               // on paper the whole list, not a scroll box
-              <ScrollArea className="rounded-lg border [&>[data-slot=scroll-area-viewport]]:max-h-[calc(100svh-8rem)] print:[&>[data-slot=scroll-area-viewport]]:max-h-none">
+              <ScrollArea className="rounded-lg border [&>[data-slot=scroll-area-viewport]]:max-h-72 md:[&>[data-slot=scroll-area-viewport]]:max-h-[calc(100svh-8rem)] print:[&>[data-slot=scroll-area-viewport]]:max-h-none">
                 <ul className="space-y-0.5 p-1">
                   {listed.map((e) => (
                     <li key={e.id}>
                       <button
                         type="button"
                         aria-current={e.id === selectedId}
-                        onClick={() => setSelectedId(e.id)}
+                        onClick={() => select(e.id)}
                         className={cn(
                           'w-full rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted',
                           e.id === selectedId && 'bg-muted',
@@ -168,7 +174,9 @@ function CausalView({
             )}
           </section>
           {selected ? (
-            <EventDetail event={selected} report={reports?.events[selected.id]} />
+            <div ref={detailRef} className="scroll-mt-4">
+              <EventDetail event={selected} report={reports?.events[selected.id]} />
+            </div>
           ) : listed.length > 0 ? (
             <Empty className="border">
               <EmptyHeader>

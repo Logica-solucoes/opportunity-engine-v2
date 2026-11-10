@@ -3,6 +3,7 @@ import { type ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, Char
 import { ChartCard } from './ChartCard'
 import { type ChannelFit, formatCompact, formatMoney, reasonLabel } from '@/lib/results'
 import { type ChannelCurve, splitExtrapolated } from '@/lib/scenario'
+import { WrapTick } from '@/components/WrapTick'
 
 const curveConfig = {
   band: { label: 'Faixa p5–p95', color: 'var(--chart-2)' },
@@ -61,7 +62,7 @@ export function ChannelCurves({ channels, hidden }: { channels: ChannelCurve[]; 
           <ChartContainer config={compareConfig} className="h-56 w-full">
             <BarChart data={channels.map((c) => ({ name: c.name, current: c.current, saturation: c.saturation }))}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="name" />
+              <XAxis dataKey="name" interval={0} height={44} tick={<WrapTick />} />
               <YAxis tickFormatter={formatCompact} width={56} />
               <Bar dataKey="current" fill="var(--color-current)" radius={4} />
               <Bar dataKey="saturation" fill="var(--color-saturation)" radius={4} />

@@ -20,9 +20,9 @@ function byChannel(designs: ExperimentCell[]) {
 function Cell({ cell }: { cell?: ExperimentCell }) {
   if (!cell) return <TableCell className="text-muted-foreground">—</TableCell>
   return (
-    <TableCell className="tabular-nums">
+    <TableCell className="tabular-nums max-sm:whitespace-normal">
       <div>{formatMoney(cell.budget_at_risk)}</div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-xs text-muted-foreground max-sm:text-[10px]">
         {cell.step != null && `+${formatShare(cell.step)} · `}
         {formatMoney(cell.spend_per_period)} por período
       </div>
@@ -61,7 +61,7 @@ export function ExperimentCard({ design }: { design: ExperimentDesign }) {
               </AlertDescription>
             </Alert>
           )}
-          <Table>
+          <Table className="max-sm:text-xs max-sm:[&_td]:px-1 max-sm:[&_th]:px-1 max-sm:[&_th]:whitespace-normal">
             <TableHeader>
               <TableRow>
                 <TableHead>Canal</TableHead>
@@ -72,7 +72,7 @@ export function ExperimentCard({ design }: { design: ExperimentDesign }) {
             <TableBody>
               {byChannel(design.designs).map(([channel, tests]) => (
                 <TableRow key={channel}>
-                  <TableCell className="font-medium">{channel}</TableCell>
+                  <TableCell className="font-medium max-sm:whitespace-normal">{channel}</TableCell>
                   <Cell cell={tests.on_off} />
                   <Cell cell={tests.step_up} />
                 </TableRow>
