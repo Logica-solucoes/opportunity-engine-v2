@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useIsMutating, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { CheckCircle, FileCsv, Flask, Info, Play, Sliders, Warning, XCircle } from '@phosphor-icons/react'
@@ -266,7 +267,10 @@ function FileCard({
       body.append('file', f)
       return api<Simulation>(`/w/${slug}/simulations/${sim.id}/files/${spec.kind}`, { method: 'PUT', body })
     },
-    onSuccess: onSaved,
+    onSuccess: (sim) => {
+      onSaved(sim)
+      toast.success('Arquivo enviado.')
+    },
   })
 
   return (
@@ -330,7 +334,10 @@ function MappingForm({
   const save = useMutation({
     mutationFn: (body: ColumnMapping) =>
       api<Simulation>(`/w/${slug}/simulations/${sim.id}/mapping`, { method: 'PUT', body }),
-    onSuccess: onSaved,
+    onSuccess: (sim) => {
+      onSaved(sim)
+      toast.success('Mapeamento salvo e validado.')
+    },
   })
   const uploaded = FILES.filter((spec) => sim.files[spec.kind])
 
@@ -352,16 +359,13 @@ function MappingForm({
           <CardTitle>Mapeamento de colunas</CardTitle>
           <CardDescription>Diga qual coluna de cada arquivo tem cada informação.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-x-10 gap-y-8 2xl:grid-cols-2">
+        <CardContent className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] items-start gap-4">
           {uploaded.map((spec) => {
             const file = sim.files[spec.kind]!
             return (
-              <FormSection
-                key={spec.kind}
-                title={spec.label}
-                description={`Colunas de ${file.filename}`}
-              >
-                <FieldGrid className="sm:grid-cols-2">
+              <div key={spec.kind} className="rounded-lg border bg-muted/20 p-4">
+              <FormSection title={spec.label} description={`Colunas de ${file.filename}`}>
+                <FieldGrid className="grid-cols-1">
                   {Object.keys(file.suggested).map((field) => {
                     const id = `${spec.key}.${field}`
                     return (
@@ -386,6 +390,7 @@ function MappingForm({
                   })}
                 </FieldGrid>
               </FormSection>
+              </div>
             )
           })}
         </CardContent>
@@ -437,7 +442,10 @@ function useRunGate(slug: string, sim: Simulation, saved: boolean) {
   function run() {
     // passed to mutate, not useMutation: leaving the page during the POST must not pull the user back
     start.mutate(undefined, {
-      onSuccess: (created) => navigate({ to: '/w/$slug/execucoes/$runId', params: { slug, runId: String(created.id) } }),
+      onSuccess: (created) => {
+        toast.success('Execução iniciada.')
+        navigate({ to: '/w/$slug/execucoes/$runId', params: { slug, runId: String(created.id) } })
+      },
     })
   }
 
