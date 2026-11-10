@@ -243,7 +243,7 @@ function Params({ run }: { run: Run }) {
             <CardTitle>Mapeamento de colunas</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            <Table className="max-sm:text-xs max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
               <TableHeader>
                 <TableRow>
                   <TableHead>Arquivo</TableHead>
@@ -283,7 +283,7 @@ function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boole
         <CardTitle>Entradas</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
+        <Table className="max-sm:text-xs max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
           <TableHeader>
             <TableRow>
               <TableHead>Entrada</TableHead>
@@ -306,7 +306,7 @@ function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boole
                   )}
                 </TableCell>
                 <TableCell>
-                  <code className="font-mono text-xs text-muted-foreground" title={input.sha256}>
+                  <code className="font-mono text-xs break-all text-muted-foreground" title={input.sha256}>
                     {input.sha256.slice(0, 12)}
                   </code>
                 </TableCell>

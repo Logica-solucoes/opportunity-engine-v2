@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,10 +37,11 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
         <CardDescription className="text-xs">Valores mensais</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Table className="tabular-nums [&_td]:px-2 [&_th]:px-2">
+        {/* below sm the label gets its own row, so the three scenarios still sit side by side */}
+        <Table className="tabular-nums [&_td]:px-2 [&_th]:px-2 max-sm:text-xs max-sm:[&_td]:px-1 max-sm:[&_th]:px-1">
           <TableHeader>
             <Row>
-              <TableHead className="w-24" />
+              <TableHead className="w-24 max-sm:hidden" />
               {columns.map(([name, r]) => (
                 <TableHead key={name} className="whitespace-normal">
                   {name} {r?.extrapolated && <Badge variant="warning">extrapolado</Badge>}
@@ -50,8 +51,14 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
           </TableHeader>
           <TableBody>
             {lines.map(([label, show]) => (
-              <Row key={label}>
-                <TableCell className="whitespace-normal text-muted-foreground">{label}</TableCell>
+              <Fragment key={label}>
+              <Row className="border-b-0 sm:hidden">
+                <TableCell colSpan={columns.length} className="pb-0 text-left text-muted-foreground">
+                  {label}
+                </TableCell>
+              </Row>
+              <Row>
+                <TableCell className="whitespace-normal text-muted-foreground max-sm:hidden">{label}</TableCell>
                 {columns.map(([name, r]) => (
                   <TableCell key={name} className="whitespace-normal">
                     {r ? (
@@ -71,9 +78,15 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
                   </TableCell>
                 ))}
               </Row>
+              </Fragment>
             ))}
+            <Row className="border-b-0 sm:hidden">
+              <TableCell colSpan={columns.length} className="pb-0 text-left text-muted-foreground">
+                Rampa
+              </TableCell>
+            </Row>
             <Row>
-              <TableCell className="text-muted-foreground">Rampa</TableCell>
+              <TableCell className="text-muted-foreground max-sm:hidden">Rampa</TableCell>
               {columns.map(([name, r]) => (
                 <TableCell key={name}>
                   {r?.ramp && (

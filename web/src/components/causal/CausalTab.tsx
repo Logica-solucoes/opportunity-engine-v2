@@ -112,7 +112,7 @@ function CausalView({
       </Card>
 
       {causal.events.length > 0 && (
-        <div className="grid items-start gap-5 md:grid-cols-[18rem_minmax(0,1fr)] print:block print:space-y-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 md:grid-cols-[18rem_minmax(0,1fr)] print:block print:space-y-6">
           <section
             aria-label="Eventos"
             className={cn('space-y-2 md:sticky md:top-4 xl:top-18 print:static', listed.length === 0 && 'md:col-span-2')}

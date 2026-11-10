@@ -154,12 +154,12 @@ function SimulationView({
         />
         {/* the title scrolls away; the tabs line, with Rodar, stays in reach from any step */}
         <div className="z-20 flex flex-wrap items-center justify-between gap-x-4 border-b bg-background/90 backdrop-blur md:sticky md:top-0 xl:top-14">
-          <TabsList variant="line" aria-label="Etapas da simulação" className="h-11 w-auto max-w-full justify-start gap-3 overflow-x-auto rounded-none p-0 [scrollbar-width:none] sm:gap-4">
+          <TabsList variant="line" aria-label="Etapas da simulação" className="h-11 w-full justify-between gap-0 overflow-x-auto rounded-none p-0 [scrollbar-width:none] sm:w-auto sm:justify-start sm:gap-4">
             {ETAPAS.map((e) => (
               <TabsTrigger
                 key={e.value}
                 value={e.value}
-                className="h-11 flex-none rounded-none px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-0 sm:after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
+                className="h-11 flex-none rounded-none px-0 max-sm:text-[0.8125rem] sm:px-1 data-[state=active]:text-foreground after:inset-x-0 after:bottom-0 sm:after:bottom-[-1px] after:h-0.5 after:bg-primary data-[state=active]:after:opacity-100"
               >
                 {e.label}
               </TabsTrigger>
@@ -554,12 +554,12 @@ function RunList({ slug, runs }: { slug: string; runs: Run[] }) {
   return (
     <Card>
       <CardContent>
-        <Table>
+        <Table className="max-sm:text-xs max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
           <TableHeader>
             <TableRow>
               <TableHead>Execução</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Criada por</TableHead>
+              <TableHead className="max-sm:hidden">Criada por</TableHead>
               <TableHead>Criada em</TableHead>
             </TableRow>
           </TableHeader>
@@ -574,7 +574,7 @@ function RunList({ slug, runs }: { slug: string; runs: Run[] }) {
                 <TableCell>
                   <RunStatusBadge status={r.status} />
                 </TableCell>
-                <TableCell>{r.created_by_name}</TableCell>
+                <TableCell className="max-sm:hidden">{r.created_by_name}</TableCell>
                 <TableCell>{formatDate(r.created_at)}</TableCell>
               </TableRow>
             ))}
