@@ -9,8 +9,10 @@ import { ROLE_LABELS, meQuery } from '@/lib/auth'
 import { textLink } from '@/lib/links'
 
 export const Route = createFileRoute('/_auth/')({
-  beforeLoad: ({ context: { me } }) => {
-    if (!me.is_platform_admin && me.workspaces.length === 1) {
+  // ?lista=1 is the breadcrumb: with a single workspace, `/` jumps straight into it unless the list was asked for
+  validateSearch: (s: Record<string, unknown>): { lista?: true } => (s.lista ? { lista: true } : {}),
+  beforeLoad: ({ context: { me }, search }) => {
+    if (!search.lista && !me.is_platform_admin && me.workspaces.length === 1) {
       throw redirect({ to: '/w/$slug', params: { slug: me.workspaces[0].slug } })
     }
   },

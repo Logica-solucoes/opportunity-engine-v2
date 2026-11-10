@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { meQuery } from '@/lib/auth'
 
-export type Crumb = { label: string; link?: { to: string; params?: Record<string, string> } }
+export type Crumb = { label: string; link?: { to: string; params?: Record<string, string>; search?: Record<string, unknown> } }
 
 // trail (workspace first when `slug` is given) + title with an icon tile; `children` sit beside the title (badge, meta)
 export function PageHeader({
@@ -34,7 +34,7 @@ export function PageHeader({
   const { data: me } = useSuspenseQuery(meQuery)
   const workspace = slug ? me.workspaces.find((w) => w.slug === slug) : undefined
   const crumbs: Crumb[] = [
-    ...(slug ? [{ label: 'Workspaces', link: { to: '/' } }, { label: workspace?.name ?? slug, link: { to: '/w/$slug', params: { slug } } }] : []),
+    ...(slug ? [{ label: 'Workspaces', link: { to: '/', search: { lista: true } } }, { label: workspace?.name ?? slug, link: { to: '/w/$slug', params: { slug } } }] : []),
     ...trail,
   ]
 

@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, notFound, useRouterState } from '@tanstack/react-router'
-import { ShieldCheck } from '@phosphor-icons/react'
+import { GearSix } from '@phosphor-icons/react'
 import { PageHeader } from '@/components/PageHeader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -22,7 +22,7 @@ function AdminLayout() {
   const current = tab?.[0]
   return (
     <div className="space-y-6">
-      <PageHeader trail={[{ label: 'Admin', link: { to: '/admin/workspaces' } }, { label: tab?.[1] ?? 'Administração' }]} title="Administração" icon={ShieldCheck} hideTitle />
+      <PageHeader trail={[{ label: 'Admin', link: { to: '/admin/workspaces' } }, { label: tab?.[1] ?? 'Administração' }]} title="Administração" icon={GearSix} hideTitle />
       <Tabs value={current ?? ''} className="gap-6">
         <TabsList variant="line" aria-label="Seções da administração">
           {TABS.map(([key, label]) => (

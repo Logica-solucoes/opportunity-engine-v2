@@ -64,6 +64,10 @@ O card aparece quando o `results.json` traz `experiment_design` (só run `inconc
 - **Formulários longos em seções recolhíveis (`FormSection`, sobre o `ui/field` do shadcn):** título com régua, uma frase e a grade de campos com colunas iguais em todas as seções. O conteúdo recolhido continua montado (os formulários não controlados leem `FormData`); erro ou campo obrigatório vazio abre a seção. Vale para Parâmetros, Mapeamento e o conector Google.
 - **Selects:** `popper` (abre embaixo) e valor centralizado, como as tabelas. Tooltip com o fundo do popover, não invertido.
 - **Ícone de IA:** a estrela do Gemini em cores (`GeminiIcon`) marca o botão de sugerir, o selo "Sugerido pelo Gemini" e o cartão de análise com texto do LLM; nada de varinha ou robô.
+- **Parâmetros e mapeamento em painéis (09/nov/2026).** Cada grupo de parâmetros da execução e cada arquivo do mapeamento é um painel com borda (`FormSection` dentro), com altura própria (`items-start`) para o recolhido encolher. Campos achatados, rótulo e valor centralizados, valor no fim da célula para alinhar mesmo com rótulo em duas linhas; unidade (dias, %) ao lado do valor; Sim/Não em badge; campo vazio sai da grade e vira a linha "Não definidos". Colunas balanceadas por grupo (11 campos viram 6 + 5).
+- **Toasts de sucesso** nas ações principais (salvar parâmetros, mapear, enviar arquivo, rodar, publicar, criar, excluir, membros, admin) e quando um run muda de ativo para concluído, inconclusivo ou falho com a página aberta (abrir run já terminado não avisa).
+- **Senha:** `PasswordInput` (olho de mostrar/ocultar) em todos os campos; na troca, tooltip com os requisitos e barra fraca/média/forte (maiúscula, minúscula e número, com 8+ caracteres; é dica, o servidor só exige 8).
+- **Cabeçalho fora de `/w/<slug>`** (admin, home) mantém as abas do último workspace (`localStorage`); o link "Workspaces" da trilha abre a lista (`/?lista=1`) mesmo com um workspace só, que no `/` puro segue redirecionando.
 
 ## O front não calcula
 

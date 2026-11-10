@@ -49,7 +49,7 @@ export function CommandMenu() {
       <Button variant="outline" size="sm" onClick={() => setOpen(true)} aria-label="Buscar" className="text-muted-foreground">
         <MagnifyingGlass aria-hidden />
         <span className="hidden lg:inline">Buscar…</span>
-        <kbd className="hidden rounded border bg-muted px-1 font-mono text-[0.7rem] lg:inline">Ctrl K</kbd>
+        <kbd className="hidden rounded border bg-muted px-1 font-mono text-[0.7rem] lg:inline">Ctrl + K</kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen} title="Buscar" description="Salte para uma simulação, execução ou workspace." className="sm:max-w-2xl">
         <Command>

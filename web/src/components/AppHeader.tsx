@@ -1,6 +1,7 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { Link, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
-import { ClockCounterClockwise, Desktop, Flask, Key, Moon, ShieldCheck, SignOut, Sun, User, UsersThree } from '@phosphor-icons/react'
+import { ClockCounterClockwise, Desktop, Flask, GearSix, Key, Moon, SignOut, Sun, User, UsersThree } from '@phosphor-icons/react'
 import almapDark from '@/assets/logos/almap-negativo.png'
 import almapLight from '@/assets/logos/almap-positivo.png'
 import dashDark from '@/assets/logos/dash-negativo.png'
@@ -21,6 +22,8 @@ import { meQuery, roleIn, useLogout } from '@/lib/auth'
 import { isActive, workspaceRunsQuery } from '@/lib/runs'
 import { cn } from '@/lib/utils'
 import { setTheme } from '@/lib/theme'
+
+const LAST_WORKSPACE = 'lastWorkspace'
 
 const divider = <span aria-hidden className="hidden h-6 w-px shrink-0 bg-border md:block" />
 
@@ -56,7 +59,13 @@ function RunningBadge({ slug }: { slug: string }) {
 
 export function AppHeader() {
   const { data: me } = useSuspenseQuery(meQuery)
-  const { slug } = useParams({ strict: false })
+  const { slug: urlSlug } = useParams({ strict: false })
+  // outside /w/$slug (admin, home) the tabs keep pointing at the last workspace instead of vanishing
+  useEffect(() => {
+    if (urlSlug) localStorage.setItem(LAST_WORKSPACE, urlSlug)
+  }, [urlSlug])
+  const saved = localStorage.getItem(LAST_WORKSPACE)
+  const slug = urlSlug ?? (me.workspaces.some((w) => w.slug === saved) ? saved! : me.workspaces[0]?.slug)
   const navigate = useNavigate()
   const logout = useLogout()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
@@ -112,7 +121,7 @@ export function AppHeader() {
           )}
           {me.is_platform_admin && (
             <Link to="/admin/workspaces" className={navLink(pathname.startsWith('/admin'))}>
-              <ShieldCheck aria-hidden />
+              <GearSix aria-hidden />
               Admin
             </Link>
           )}
