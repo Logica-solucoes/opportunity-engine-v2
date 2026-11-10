@@ -52,3 +52,11 @@ Skills usadas: `web-design-guidelines` (regras do Vercel, grep em `web/src`, ~4.
 - Filtros do histórico em estado local: o guideline pede URL refletindo filtros (search params do router).
 - `lucide-react` e `Inter` aparecem como "discouraged" nas duas skills: reforça Phosphor + Geist (já no T0).
 - Checklist de redesign: `box-shadow` sem tinta, bordas + fundo em todos os cards (usar `Card` só onde há hierarquia; resto com `divide-y`/espaço), raio único a decidir, badge em pílula para status (trocar por quadrado/ponto semântico com cor).
+
+## Passe mobile (09/nov/2026)
+
+Varredura em 360, 390, 640, 768, 1024 e 1280 px (Playwright, overflow horizontal medido em todas as telas logadas, diálogos, busca e abas). O que mudou:
+- **Header** (`AppHeader`): uma linha só a partir de `xl` (é quando cabe; também é quando fica sticky). Abaixo disso: logo + ações na 1ª linha, workspace (linha própria abaixo de `md`) e abas roláveis na horizontal; ícones das abas somem abaixo de `sm` e entre `xl` e `2xl`. As barras sticky abaixo dele (`simulacoes/$id`, lista de eventos, filtros da elasticidade) usam `xl:top-*` pelo mesmo motivo.
+- Abas da simulação roláveis; tabela do desenho de experimento compacta abaixo de `sm`; legendas dos gráficos quebram por item; eixo de canal dos gráficos de barra usa `WrapTick` (quebra o nome em vez de o Recharts esconder rótulos alternados).
+- Causal no mobile: tocar num evento rola até o detalhe (que fica abaixo da lista) e a lista tem altura menor.
+- Tabelas largas (membros, uso, execuções) seguem com rolagem horizontal dentro do card: decisão consciente, a página não estoura.
