@@ -243,7 +243,7 @@ function Params({ run }: { run: Run }) {
             <CardTitle>Mapeamento de colunas</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table className="max-sm:text-xs max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
+            <Table className="max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
               <TableHeader>
                 <TableRow>
                   <TableHead>Arquivo</TableHead>
@@ -256,7 +256,7 @@ function Params({ run }: { run: Run }) {
                   <TableRow key={`${spec.key}.${field}`}>
                     <TableCell className="text-muted-foreground">{spec.label}</TableCell>
                     <TableCell>{FIELD_LABELS[field] ?? field}</TableCell>
-                    <TableCell className="font-mono text-xs">{column}</TableCell>
+                    <TableCell className="font-mono text-xs break-all">{column}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -283,7 +283,7 @@ function Inputs({ slug, run, canEdit }: { slug: string; run: Run; canEdit: boole
         <CardTitle>Entradas</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table className="max-sm:text-xs max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
+        <Table className="max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
           <TableHeader>
             <TableRow>
               <TableHead>Entrada</TableHead>

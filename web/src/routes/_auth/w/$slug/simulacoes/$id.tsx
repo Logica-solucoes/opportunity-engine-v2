@@ -554,7 +554,7 @@ function RunList({ slug, runs }: { slug: string; runs: Run[] }) {
   return (
     <Card>
       <CardContent>
-        <Table className="max-sm:text-xs max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
+        <Table className="max-sm:[&_td]:px-1.5 max-sm:[&_td]:whitespace-normal max-sm:[&_th]:px-1.5 max-sm:[&_th]:whitespace-normal">
           <TableHeader>
             <TableRow>
               <TableHead>Execução</TableHead>
