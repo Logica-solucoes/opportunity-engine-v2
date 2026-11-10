@@ -19,6 +19,12 @@ const LINES: Line[] = [
   ['KPI incremental', (r) => formatSigned(r.incremental_kpi), false],
 ]
 
+// below sm every value row stacks the three scenarios, each with its name on the left
+const scenarioLabel = (name: string, r: TableRow | null) => (r?.extrapolated ? `${name} (extrapolado)` : name)
+
+const stacked =
+  'max-sm:flex max-sm:justify-between max-sm:gap-3 max-sm:px-0 max-sm:text-right max-sm:before:text-left max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]'
+
 export function ScenarioTable({ scenario }: { scenario: Scenario }) {
   const [open, setOpen] = useState<string | null>(null)
   const columns: [string, TableRow | null][] = [
@@ -37,9 +43,9 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
         <CardDescription className="text-xs">Valores mensais</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* below sm the label gets its own row, so the three scenarios still sit side by side */}
-        <Table className="tabular-nums [&_td]:px-2 [&_th]:px-2 max-sm:text-xs max-sm:[&_td]:px-1 max-sm:[&_th]:px-1">
-          <TableHeader>
+        {/* below sm the label gets its own row and the scenarios stack under it */}
+        <Table className="tabular-nums [&_td]:px-2 [&_th]:px-2">
+          <TableHeader className="max-sm:sr-only">
             <Row>
               <TableHead className="w-24 max-sm:hidden" />
               {columns.map(([name, r]) => (
@@ -53,14 +59,14 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
             {lines.map(([label, show]) => (
               <Fragment key={label}>
               <Row className="border-b-0 sm:hidden">
-                <TableCell colSpan={columns.length} className="pb-0 text-left text-muted-foreground">
+                <TableCell colSpan={columns.length} className="pb-0 pt-3 text-left font-medium">
                   {label}
                 </TableCell>
               </Row>
-              <Row>
+              <Row className="max-sm:block max-sm:py-1">
                 <TableCell className="whitespace-normal text-muted-foreground max-sm:hidden">{label}</TableCell>
                 {columns.map(([name, r]) => (
-                  <TableCell key={name} className="whitespace-normal">
+                  <TableCell key={name} data-label={scenarioLabel(name, r)} className={`whitespace-normal ${stacked}`}>
                     {r ? (
                       show(r)
                         .split(' – ')
@@ -81,14 +87,14 @@ export function ScenarioTable({ scenario }: { scenario: Scenario }) {
               </Fragment>
             ))}
             <Row className="border-b-0 sm:hidden">
-              <TableCell colSpan={columns.length} className="pb-0 text-left text-muted-foreground">
+              <TableCell colSpan={columns.length} className="pb-0 pt-3 text-left font-medium">
                 Rampa
               </TableCell>
             </Row>
-            <Row>
+            <Row className="max-sm:block max-sm:py-1">
               <TableCell className="text-muted-foreground max-sm:hidden">Rampa</TableCell>
               {columns.map(([name, r]) => (
-                <TableCell key={name}>
+                <TableCell key={name} data-label={scenarioLabel(name, r)} className={stacked}>
                   {r?.ramp && (
                     <Button
                       variant="link"
