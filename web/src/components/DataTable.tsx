@@ -1,5 +1,5 @@
 import { CaretDown, CaretLeft, CaretRight, CaretUp, CaretUpDown, Columns } from '@phosphor-icons/react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 
 export type Column<T> = {
   id: string
@@ -34,6 +35,15 @@ function loadPageSize() {
 }
 
 type Sort = { id: string; dir: 'asc' | 'desc' } | null
+
+// below sm the rows turn into cards; one layout in the DOM at a time, never both
+const NARROW = '(max-width: 39.99rem)'
+const subscribe = (cb: () => void) => {
+  const m = matchMedia(NARROW)
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
+}
+const useNarrow = () => useSyncExternalStore(subscribe, () => matchMedia(NARROW).matches)
 
 const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' })
 
@@ -75,6 +85,7 @@ export function DataTable<T>({
   const [hidden, setHidden] = useState(() => loadHidden(id, columns))
   const visible = columns.filter((c) => !hidden.includes(c.id))
   const toggleable = columns.filter((c) => c.header && !c.fixed)
+  const narrow = useNarrow()
 
   const sorted = useMemo(() => {
     const by = columns.find((c) => c.id === sort?.id)?.sort
@@ -110,6 +121,23 @@ export function DataTable<T>({
     const next = on ? [] : toggleable.map((c) => c.id)
     setHidden(next)
     localStorage.setItem(`table:${id}`, JSON.stringify(next))
+  }
+
+  const sortButton = (c: Column<T>) => {
+    const active = sort?.id === c.id ? sort.dir : null
+    const Icon = active === 'asc' ? CaretUp : active === 'desc' ? CaretDown : CaretUpDown
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => cycle(c.id)}
+        className={`-mx-2 font-medium hover:text-foreground ${active ? 'text-foreground' : ''}`}
+      >
+        {c.header}
+        <Icon aria-hidden className={active ? '' : 'opacity-50'} />
+      </Button>
+    )
   }
 
   return (
@@ -157,29 +185,45 @@ export function DataTable<T>({
           </div>
         </div>
       )}
+      {narrow ? (
+        <>
+          {visible.some((c) => c.sort) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span>Ordenar:</span>
+              {visible.filter((c) => c.sort).map((c) => (
+                <span key={c.id}>{sortButton(c)}</span>
+              ))}
+            </div>
+          )}
+          <ul className="divide-y rounded-lg border">
+            {shown.map((row) => (
+              <li key={rowKey(row)} className={cn('space-y-1.5 p-3 text-sm', rowClassName)}>
+                {visible.map((c) =>
+                  c.header ? (
+                    <div key={c.id} className="flex items-baseline justify-between gap-3">
+                      <span className="shrink-0 text-xs text-muted-foreground">{c.header}</span>
+                      <span className={cn('min-w-0 text-right break-words', c.className, 'w-auto')}>{c.cell(row)}</span>
+                    </div>
+                  ) : (
+                    <div key={c.id} className="flex justify-end">
+                      {c.cell(row)}
+                    </div>
+                  ),
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               {visible.map((c) => {
                 const active = sort?.id === c.id ? sort.dir : null
-                const Icon = active === 'asc' ? CaretUp : active === 'desc' ? CaretDown : CaretUpDown
                 return (
                   <TableHead key={c.id} aria-sort={active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : undefined}>
-                    {c.sort ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => cycle(c.id)}
-                        className={`-mx-2 font-medium hover:text-foreground ${active ? 'text-foreground' : ''}`}
-                      >
-                        {c.header}
-                        <Icon aria-hidden className={active ? '' : 'opacity-50'} />
-                      </Button>
-                    ) : (
-                      c.header
-                    )}
+                    {c.sort ? sortButton(c) : c.header}
                   </TableHead>
                 )
               })}
@@ -198,6 +242,7 @@ export function DataTable<T>({
           </TableBody>
         </Table>
       </div>
+      )}
       {sorted.length > PAGE_SIZES[0] && (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
