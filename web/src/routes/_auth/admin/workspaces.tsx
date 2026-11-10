@@ -6,6 +6,7 @@ import { AddDialog } from '@/components/AddDialog'
 import { DataTable } from '@/components/DataTable'
 import { DeleteWorkspace } from '@/components/DeleteWorkspace'
 import { LoadState } from '@/components/LoadState'
+import { TrashedWorkspaces } from '@/components/TrashedWorkspaces'
 import { type AdminWorkspace, GoogleConnectorDialog } from '@/components/GoogleConnectorDialog'
 import { Plugs } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,8 @@ function Workspaces() {
     queryKey: ['admin', 'workspaces'],
     queryFn: () => api<AdminWorkspace[]>('/admin/workspaces'),
   })
+  const active = workspaces.data?.filter((w) => !w.deleted_at) ?? []
+  const trashed = workspaces.data?.filter((w) => w.deleted_at) ?? []
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AdminWorkspace | null>(null)
   const [name, setName] = useState('')
@@ -117,7 +120,7 @@ function Workspaces() {
     <TooltipProvider delayDuration={150}>
       <div className="space-y-6">
         <LoadState query={workspaces} />
-        {workspaces.data?.length === 0 && (
+        {workspaces.data && active.length === 0 && (
           <Empty className="border">
             <EmptyHeader>
               <EmptyTitle>Nenhum workspace</EmptyTitle>
@@ -126,11 +129,11 @@ function Workspaces() {
             <EmptyContent>{addButton}</EmptyContent>
           </Empty>
         )}
-        {!!workspaces.data?.length && (
+        {active.length > 0 && (
           <DataTable
             id="workspaces"
             toolbar={addButton}
-            rows={workspaces.data}
+            rows={active}
             rowKey={(w) => w.id}
             columns={[
               { id: 'name', header: 'Nome', fixed: true, sort: (w) => w.name, className: 'font-medium', cell: (w) => w.name },
@@ -172,6 +175,7 @@ function Workspaces() {
             ]}
           />
         )}
+        <TrashedWorkspaces workspaces={trashed} />
         <GoogleConnectorDialog workspace={editing} onClose={() => setEditing(null)} />
       </div>
     </TooltipProvider>

@@ -27,7 +27,7 @@ export function DeleteWorkspace({ workspace }: { workspace: AdminWorkspace }) {
   const remove = useMutation({
     mutationFn: () => api<void>(`/admin/workspaces/${workspace.id}`, { method: 'DELETE', body: { password } }),
     onSuccess: () => {
-      toast.success('Workspace excluído.')
+      toast.success('Workspace movido para a lixeira.')
       setOpen(false)
       queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] })
       queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
@@ -65,8 +65,8 @@ export function DeleteWorkspace({ workspace }: { workspace: AdminWorkspace }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir {workspace.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Apaga também simulações, execuções, arquivos enviados e vínculos dos membros, sem como desfazer. As contas dos usuários
-              continuam. Digite a sua senha para confirmar.
+              Vai para a lixeira e some para todos os membros agora. Dá para restaurar por 7 dias; depois disso é apagado de vez, com
+              simulações, execuções e arquivos. Digite a sua senha para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid gap-1.5">

@@ -17,7 +17,15 @@ export type GoogleConfig = {
   ga4: { dataset: string; event: string; metric: 'count' | 'revenue' }
 }
 
-export type AdminWorkspace = { id: number; name: string; slug: string; created_at: string; google: GoogleConfig | null }
+export type AdminWorkspace = {
+  id: number
+  name: string
+  slug: string
+  created_at: string
+  google: GoogleConfig | null
+  deleted_at: string | null
+  purge_at: string | null
+}
 
 // same rules as GoogleConfig in api/google_import.py; the server checks again
 const DATASET = '[a-z][a-z0-9\\-]{4,28}[a-z0-9]\\.[A-Za-z0-9_]{1,1024}'
