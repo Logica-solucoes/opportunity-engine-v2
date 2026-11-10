@@ -74,6 +74,8 @@ O `X-Forwarded-For` é sobrescrito com `$remote_addr` de propósito: com `$proxy
 
 ## Backup e restauração
 - Cron do dono: `0 3 * * * /opt/gem/deploy/backup.sh >> /var/log/gem-backup.log 2>&1`. Grava `db.dump` e `storage.tgz` em `/var/backups/gem/AAAA-MM-DD/` (ou `BACKUP_DIR`) e guarda 7 dias.
+- Cron da purga da lixeira de workspaces (obrigatório, depois do backup das 3h para o backup do dia ainda ter o workspace): `30 3 * * * docker compose -f /opt/gem/deploy/compose.yml --env-file /opt/gem/deploy/.env exec -T api python -m api.cli purge-workspaces >> /var/log/gem-purge.log 2>&1`. Sem ele, workspace excluído fica na lixeira para sempre.
+- Apagar um workspace na hora (LGPD): `docker compose -f deploy/compose.yml --env-file deploy/.env exec api python -m api.cli delete-workspace <slug>`. Um workspace purgado ainda existe nos backups por até 7 dias.
 - Restaurar: `deploy/restore.sh /var/backups/gem/AAAA-MM-DD`. Ele para a api, sobrescreve banco e arquivos e sobe a api de novo. Teste uma vez depois do primeiro deploy.
 - O backup fica no mesmo disco. Copiar para fora do servidor é decisão do time do servidor.
 

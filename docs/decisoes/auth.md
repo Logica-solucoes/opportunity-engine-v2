@@ -22,11 +22,13 @@ Recurso de outro workspace responde igual a recurso inexistente; um 403 confirma
 
 BRD › Journey 3: o Data Tech cria workspaces e usuários, monitora uso e logs de job e cuida da retenção. Isso exige enxergar dentro dos workspaces, então ele passa no `require_role` como `admin` sem precisar de membership.
 
-## Excluir workspace pede a senha de quem exclui
+## Workspace excluído vai para a lixeira; a CLI apaga de vez
 
-**Sintoma:** não havia como apagar um workspace; só SQL direto no banco, que deixa os arquivos do `STORAGE_DIR` órfãos.
+**Sintoma:** o primeiro desenho apagava tudo na hora; um clique errado de platform admin custava um cliente inteiro.
 
-`DELETE /api/admin/workspaces/{id}` é só do platform admin e leva a própria senha dele no corpo, porque a ação é irreversível e uma sessão roubada ou esquecida aberta não pode apagar um cliente inteiro. A checagem é a mesma da troca de senha (`accounts.confirm_password`): senha errada conta para o bloqueio de 5 falhas, então a rota não vira oráculo de senha. Run em andamento barra com 409 (run morto há mais de 20 min não conta, como na exclusão de simulação). As linhas saem por `ON DELETE CASCADE` e só depois a pasta `ws/{id}` é apagada; se o disco falhar, as linhas já se foram e o log `workspace.files_orphaned` diz o prefixo a limpar à mão. As contas dos usuários continuam, só o vínculo some.
+`DELETE /api/admin/workspaces/{id}` é só do platform admin, pede a própria senha (mesma checagem e bloqueio da troca de senha, `accounts.confirm_password`) e só grava `deleted_at`. O workspace some para os membros na hora (`require_role` e `/api/me` filtram a lixeira) e pode ser restaurado por 7 dias (`TRASH_DAYS`, fixo). O slug fica reservado até a purga. Run em andamento barra com 409.
+
+Quem apaga de vez é a CLI, não a API: a API não tem agendador. `purge-workspaces` roda no cron do servidor (`docs/deploy.md`) e apaga os vencidos; `delete-workspace <slug>` apaga um na hora, para pedido de LGPD. Sem o cron, nada é purgado e a lixeira cresce. A purga apaga as linhas por cascade e depois a pasta `ws/{id}`; se o disco falhar, o log `workspace.files_orphaned` diz o prefixo a limpar à mão. As contas dos usuários continuam.
 
 ## Conta é do platform admin, membership é do workspace
 

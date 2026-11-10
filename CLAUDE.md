@@ -35,7 +35,7 @@ api/              Python 3.13 + FastAPI + SQLAlchemy 2 + Alembic + psycopg 3 (uv
   validation.py   chama `engine.validate`
   engine_run.py   chama `engine.run`; fake com `ENGINE_FAKE=1` (E2E e testes)
   routes/         routers finos (auth, members, admin, simulations, runs, engine)
-  cli.py          python -m api.cli create-admin
+  cli.py          python -m api.cli create-admin, purge-workspaces, delete-workspace
   worker.py       executa um run (`python -m api.worker <run_id>`)
   alembic.ini     config do Alembic (rodar sempre com -c api/alembic.ini)
   migrations/     revisões Alembic (env.py lê DATABASE_URL de api/db.py)

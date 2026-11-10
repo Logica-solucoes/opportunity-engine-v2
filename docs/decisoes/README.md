@@ -7,7 +7,7 @@ Divisão de trabalho: o `CLAUDE.md` e os arquivos da raiz (`CODE-STYLE.md`, `DAT
 | Arquivo | Cobre |
 | --- | --- |
 | [infra-e-operacao.md](infra-e-operacao.md) | Hospedagem em servidor próprio sem GCP (04/nov), imagem única, health, SPA, CI, dependências |
-| [auth.md](auth.md) | Sessão, cookie, CSRF, 404 × 403, papéis, bloqueio, bootstrap, guardas do front, workspace na URL, tema |
+| [auth.md](auth.md) | Sessão, cookie, CSRF, 404 × 403, papéis, bloqueio, bootstrap, lixeira de workspace, guardas do front, workspace na URL, tema |
 | [upload-e-storage.md](upload-e-storage.md) | Simulação como rascunho, mapeamento antes do validate, limite de 30 MB, storage local por conteúdo, leitura do CSV, `validate` do motor |
 | [parametros-e-gemini.md](parametros-e-gemini.md) | `ParamsIn` recortado do `EngineConfig` do motor, rotas de sugestão, sugestão dos dados, o que o Gemini vê, validação das respostas |
 | [runs-e-jobs.md](runs-e-jobs.md) | motor real com fake por env, launcher local, gate no servidor, um run ativo, run morto sem heartbeat, log por linha, erro do motor, SSE |
