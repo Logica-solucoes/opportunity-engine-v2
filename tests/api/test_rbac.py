@@ -53,6 +53,7 @@ ROUTES = {
     ("GET", "/api/engine/config-schema"): (SESSION, 200, None),
     ("GET", "/api/admin/workspaces"): (PLATFORM, 200, None),
     ("POST", "/api/admin/workspaces"): (PLATFORM, 201, lambda e: {"name": "Nova", "slug": "nova"}),
+    ("DELETE", "/api/admin/workspaces/{workspace_id}"): (PLATFORM, 204, lambda e: {"password": e["password"]}),
     ("PUT", "/api/admin/workspaces/{workspace_id}/google"): (PLATFORM, 200, lambda e: GOOGLE_CONFIG),
     ("DELETE", "/api/admin/workspaces/{workspace_id}/google"): (PLATFORM, 204, None),
     ("GET", "/api/admin/users"): (PLATFORM, 200, None),

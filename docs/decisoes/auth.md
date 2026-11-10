@@ -22,6 +22,12 @@ Recurso de outro workspace responde igual a recurso inexistente; um 403 confirma
 
 BRD › Journey 3: o Data Tech cria workspaces e usuários, monitora uso e logs de job e cuida da retenção. Isso exige enxergar dentro dos workspaces, então ele passa no `require_role` como `admin` sem precisar de membership.
 
+## Excluir workspace pede a senha de quem exclui
+
+**Sintoma:** não havia como apagar um workspace; só SQL direto no banco, que deixa os arquivos do `STORAGE_DIR` órfãos.
+
+`DELETE /api/admin/workspaces/{id}` é só do platform admin e leva a própria senha dele no corpo, porque a ação é irreversível e uma sessão roubada ou esquecida aberta não pode apagar um cliente inteiro. A checagem é a mesma da troca de senha (`accounts.confirm_password`): senha errada conta para o bloqueio de 5 falhas, então a rota não vira oráculo de senha. Run em andamento barra com 409 (run morto há mais de 20 min não conta, como na exclusão de simulação). As linhas saem por `ON DELETE CASCADE` e só depois a pasta `ws/{id}` é apagada; se o disco falhar, as linhas já se foram e o log `workspace.files_orphaned` diz o prefixo a limpar à mão. As contas dos usuários continuam, só o vínculo some.
+
 ## Conta é do platform admin, membership é do workspace
 
 Um analista da Almap atende várias marcas. Se o admin da marca X pudesse resetar a senha ou desativar a conta, mexeria no acesso dele à marca Y. Então reset e desativação são do platform admin, e o admin do workspace vincula contas existentes, troca papel e remove. Senha temporária aparece uma vez na resposta e o admin a passa por fora; sem e-mail no M2.

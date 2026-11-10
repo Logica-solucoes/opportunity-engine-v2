@@ -52,6 +52,7 @@ REST em FastAPI, tudo sob `/api`. O `docs/m2/README.md` vence em dúvida de cont
 | GET | `/api/w/{slug}/runs/{run_id}/logs/stream` | Viewer+, mesma visibilidade. SSE: `id: <log id>` + `data: {ts, level, message}`; sem `Last-Event-ID` manda as 300 últimas, com ele as de id maior; `event: end` + `data: {status}` quando o run termina |
 | GET | `/api/admin/workspaces` | Platform admin. `[{id, name, slug, created_at, google: GoogleConfig \| null}]` |
 | POST | `/api/admin/workspaces` | Platform admin. `{name, slug}` (`^[a-z0-9-]{2,40}$`); 409 slug repetido |
+| DELETE | `/api/admin/workspaces/{workspace_id}` | Platform admin. Corpo `{password}` (a senha de quem exclui); 204. 400 `invalid_current_password` (conta o bloqueio), 429 `locked`, 409 com run em andamento. Apaga simulações, runs, logs, membros e `ws/{id}` do storage; as contas ficam |
 | PUT | `/api/admin/workspaces/{workspace_id}/google` | Platform admin. `GoogleConfig` = `{ads: {dataset, customer_ids}, ga4: {dataset, event, metric: count\|revenue}}` → `WorkspaceOut`; 422 fora do formato (dataset `projeto.dataset`, customer id de 10 dígitos); 404 workspace inexistente |
 | DELETE | `/api/admin/workspaces/{workspace_id}/google` | Platform admin. Remove o conector; 204, idempotente |
 | GET | `/api/admin/users` | Platform admin. `[{id, email, name, active, is_platform_admin, locked_until}]` |

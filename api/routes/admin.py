@@ -2,15 +2,16 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api import accounts, google_import, runs, usage
+from api import accounts, auth, google_import, runs, simulations, usage
 from api.auth import require_platform_admin
 from api.db import get_db
-from api.models import User, Workspace
-from api.routes import Name, UserId, WorkspaceId
+from api.models import Run, User, Workspace
+from api.routes import Name, Password, UserId, WorkspaceId
 
 router = APIRouter(prefix="/api/admin")
 
@@ -37,6 +38,10 @@ def find_workspace(db: Session, workspace_id: int) -> Workspace:
     if workspace is None:
         raise HTTPException(404)
     return workspace
+
+
+class ConfirmIn(BaseModel):
+    password: Password
 
 
 class UserOut(BaseModel):
@@ -94,6 +99,28 @@ def create_workspace(body: WorkspaceIn, _: User = Depends(require_platform_admin
         return workspace_out(accounts.create_workspace(db, body.name, body.slug))
     except accounts.Conflict:
         raise HTTPException(409, "Já existe um workspace com esse slug")
+
+
+@router.delete("/workspaces/{workspace_id}", status_code=204)
+def delete_workspace(
+    workspace_id: WorkspaceId,
+    body: ConfirmIn,
+    admin: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    workspace = find_workspace(db, workspace_id)
+    try:
+        accounts.confirm_password(db, admin, body.password)
+    except auth.AccountLocked as e:
+        return JSONResponse({"detail": "locked", "retry_after_s": e.retry_after_s}, status_code=429)
+    except accounts.WrongPassword:
+        raise HTTPException(400, "invalid_current_password")
+    runs.fail_stale(db, Run.workspace_id == workspace.id)
+    try:
+        accounts.delete_workspace(db, workspace, by=admin)
+    except accounts.ActiveRun:
+        raise HTTPException(409, simulations.ACTIVE_RUN_ERROR)
+    return Response(status_code=204)
 
 
 @router.put("/workspaces/{workspace_id}/google", response_model=WorkspaceOut)

@@ -1,11 +1,13 @@
 import logging
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from api import storage
 from api.auth import check_lock, drop_sessions, normalize_email, register_failure
-from api.models import Membership, User, UserSession, Workspace
+from api.models import ACTIVE_RUN_STATUSES, Membership, Run, User, UserSession, Workspace
 from api.passwords import hash_password, temp_password, verify_password
 
 log = logging.getLogger(__name__)
@@ -35,6 +37,10 @@ class LastAdmin(Exception):
     pass
 
 
+class ActiveRun(Exception):
+    pass
+
+
 def commit_or_conflict(db: Session) -> None:
     # two concurrent creates both pass the existence check; the unique constraint catches the loser
     try:
@@ -44,15 +50,20 @@ def commit_or_conflict(db: Session) -> None:
         raise Conflict
 
 
-def change_password(db: Session, session: UserSession, current: str, new: str) -> None:
-    user = session.user
+def confirm_password(db: Session, user: User, password: str) -> None:
+    # same lock and failure count as the login: a stolen session must not be a free password oracle
     db.refresh(user, with_for_update={"key_share": True})
     if not user.active:
         raise WrongPassword
     check_lock(user)
-    if not verify_password(current, user.password_hash):
+    if not verify_password(password, user.password_hash):
         register_failure(db, user)
         raise WrongPassword
+
+
+def change_password(db: Session, session: UserSession, current: str, new: str) -> None:
+    user = session.user
+    confirm_password(db, user, current)
     if new == current:
         raise SamePassword
     user.failed_logins = 0
@@ -130,6 +141,24 @@ def create_workspace(db: Session, name: str, slug: str) -> Workspace:
     commit_or_conflict(db)
     log.info("auth.workspace_created workspace_id=%s slug=%s", workspace.id, slug)
     return workspace
+
+
+def delete_workspace(db: Session, workspace: Workspace, by: User) -> None:
+    db.refresh(workspace, with_for_update=True)
+    active = select(Run.id).where(Run.workspace_id == workspace.id, Run.status.in_(ACTIVE_RUN_STATUSES))
+    if db.scalar(active.limit(1)) is not None:
+        raise ActiveRun
+    wid, slug = workspace.id, workspace.slug
+    # memberships, simulations, files, runs and run logs go with it through ON DELETE CASCADE; users stay
+    db.execute(sql_delete(Workspace).where(Workspace.id == wid))
+    db.commit()
+    log.info("auth.workspace_deleted workspace_id=%s slug=%s by=%s", wid, slug, by.id)
+    # rows first: files gone with rows still standing would leave runs pointing at nothing
+    prefix = f"ws/{wid}"
+    try:
+        storage.delete_prefix(prefix)
+    except OSError:
+        log.exception("workspace.files_orphaned prefix=%s", prefix)
 
 
 def reset_password(db: Session, user: User, by: User | None) -> str:
