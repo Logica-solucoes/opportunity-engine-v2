@@ -99,7 +99,7 @@ export function AppHeader() {
           </Select>
         )}
 
-        {divider}
+        {me.workspaces.length > 0 && divider}
 
         <nav className="order-4 -mx-4 flex w-[calc(100%+2rem)] gap-1 self-stretch overflow-x-auto px-2 text-sm [scrollbar-width:none] sm:mx-0 sm:w-full sm:px-0 xl:order-none xl:w-auto xl:overflow-visible max-sm:[&_svg]:hidden xl:max-2xl:[&_svg]:hidden">
           {slug && role && role !== 'viewer' && (
