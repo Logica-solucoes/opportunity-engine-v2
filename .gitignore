@@ -8,6 +8,7 @@ web/node_modules/
 web/dist/
 .serena/
 .playwright-mcp/
+.output/
 
 # client data and the BRD never go in the repo
 *.docx
