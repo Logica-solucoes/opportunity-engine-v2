@@ -40,6 +40,14 @@ docker build --build-arg ENGINE_VERSION=$TAG -t $IMG -t gem:$TAG .
 docker push $IMG
 ```
 
+**Migrations não rodam sozinhas aqui.** Sem o serviço `migrate` do compose, uma imagem com migration nova sobre o banco antigo quebra em runtime (`UndefinedColumn`, como `workspaces.deleted_at` da 0007). Depois de puxar a imagem e antes de a api atender, rode no servidor, com o `backup.sh` antes se a migration mexer em dados:
+
+```bash
+docker run --rm --env-file <env-da-api> $IMG alembic -c api/alembic.ini upgrade head
+```
+
+Ou, num container da api já de pé, `docker exec <container> alembic -c api/alembic.ini upgrade head`. Confira a versão aplicada com `alembic -c api/alembic.ini current`.
+
 A tag é única e sobrescrita a cada push, então não há rollback por tag: para voltar, builde de novo a partir do commit anterior. Esse ambiente roda em HTTP puro, sem TLS, por isso o `.env` dele precisa de `COOKIE_SECURE=false` (sem isso, o navegador descarta o cookie de sessão e todo acesso volta ao login). Quando o servidor próprio tiver proxy com TLS, remova a flag e passe a usar o fluxo acima, com tag por commit.
 
 ## Rollback
