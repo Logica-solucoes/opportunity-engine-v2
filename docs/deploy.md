@@ -40,13 +40,7 @@ docker build --build-arg ENGINE_VERSION=$TAG -t $IMG -t gem:$TAG .
 docker push $IMG
 ```
 
-**Migrations não rodam sozinhas aqui.** Sem o serviço `migrate` do compose, uma imagem com migration nova sobre o banco antigo quebra em runtime (`UndefinedColumn`, como `workspaces.deleted_at` da 0007). Depois de puxar a imagem e antes de a api atender, rode no servidor, com o `backup.sh` antes se a migration mexer em dados:
-
-```bash
-docker run --rm --env-file <env-da-api> $IMG alembic -c api/alembic.ini upgrade head
-```
-
-Ou, num container da api já de pé, `docker exec <container> alembic -c api/alembic.ini upgrade head`. Confira a versão aplicada com `alembic -c api/alembic.ini current`.
+**A imagem aplica as migrations ao subir.** O `CMD` padrão roda `alembic upgrade head` antes do uvicorn; se a migration falhar, o container não sobe (veja `docker logs`). Faça o `backup.sh` antes de um deploy com migration que mexa em dados. Comando com override (worker, `alembic`, o serviço `migrate` do compose) não passa por isso. Para conferir a versão: `docker exec <container> alembic -c api/alembic.ini current`. Imagens anteriores a essa mudança não migravam e quebravam com `UndefinedColumn` (foi o caso de `workspaces.deleted_at`, 0007): a primeira subida da imagem nova resolve.
 
 A tag é única e sobrescrita a cada push, então não há rollback por tag: para voltar, builde de novo a partir do commit anterior. Esse ambiente roda em HTTP puro, sem TLS, por isso o `.env` dele precisa de `COOKIE_SECURE=false` (sem isso, o navegador descarta o cookie de sessão e todo acesso volta ao login). Quando o servidor próprio tiver proxy com TLS, remova a flag e passe a usar o fluxo acima, com tag por commit.
 

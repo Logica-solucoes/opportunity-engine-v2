@@ -40,5 +40,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",\"8080\")}/api/health', timeout=3)" || exit 1
 
-# shell form so $PORT expands. Worker: `python -m api.worker`.
-CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# shell form so $PORT expands. Applies pending migrations first (a failure stops the container); a command override (worker, alembic) skips this.
+CMD ["sh", "-c", "alembic -c api/alembic.ini upgrade head && exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
