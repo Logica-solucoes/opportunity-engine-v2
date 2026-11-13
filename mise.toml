@@ -14,7 +14,7 @@ run = "uv run pytest"
 
 [tasks.api]
 description = "FastAPI with hot reload on :8000"
-run = "uv run uvicorn api.main:app --reload --port 8000"
+run = "uv run uvicorn api.main:app --reload --port 8000 --timeout-graceful-shutdown 3"
 
 [tasks.web]
 description = "Vite dev server (proxies /api to :8000)"
