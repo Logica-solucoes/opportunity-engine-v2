@@ -3,6 +3,7 @@ already published, checked by `grounding`, regenerated once, and replaced by a d
 
 import json
 import logging
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ log = logging.getLogger(__name__)
 TIMEOUT_S = 60
 # the whole narrative step must fit well inside the 20 min worker watchdog (api/runs.py)
 LLM_BUDGET_S = 300
+DEADLINE_RESERVE_S = 120  # left before the worker's watchdog (RUN_DEADLINE, api/worker.py) to write results.json
 CI_LEVEL_PCT = 95
 SEVERITY = {"passed": 0, "regenerated": 1, "blocked": 2}
 ELASTICITY_REASONS = {
@@ -368,10 +370,11 @@ def build(document: dict, config: EngineConfig, llm: LLM | None) -> dict:
         log.info("Gerando as narrativas com a IA e conferindo os números (grounding)...")
 
     started = time.monotonic()
+    budget = min(LLM_BUDGET_S, float(os.environ.get("RUN_DEADLINE", "inf")) - time.time() - DEADLINE_RESERVE_S)
     reports: dict = {"events": {}, "global": None, "grounding": None}
     for key, kind, payload, published in jobs_:
         narrative, judged = None, None
-        if llm is not None and time.monotonic() - started > LLM_BUDGET_S:
+        if llm is not None and time.monotonic() - started > budget:
             log.warning("AVISO: o tempo reservado para a IA acabou; os próximos relatórios usarão o texto padrão.")
             llm = None
         if llm is not None and payload.get("status") != "failed":

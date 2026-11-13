@@ -2,6 +2,7 @@
 
 import itertools
 import json
+import time
 from pathlib import Path
 
 from engine import grounding, narratives
@@ -179,6 +180,25 @@ def test_once_the_time_budget_is_spent_the_rest_skips_the_llm(monkeypatch):
     assert len(llm.calls) == 1
     assert reports["events"][EVENT["id"]]["source"] == "llm"
     assert reports["global"]["source"] == "deterministic" and reports["global"]["grounding"] is None
+
+
+def test_close_to_the_run_deadline_no_llm_is_called(monkeypatch):
+    monkeypatch.setenv("RUN_DEADLINE", str(time.time() + narratives.DEADLINE_RESERVE_S - 1))
+    llm = FakeLLM([json.dumps(EVENT_NARRATIVE)])
+
+    reports = _build(_document(INCONCLUSIVE), llm)
+
+    assert llm.calls == []
+    assert reports["global"]["source"] == "deterministic"
+
+
+def test_without_a_run_deadline_the_budget_is_unchanged(monkeypatch):
+    monkeypatch.delenv("RUN_DEADLINE", raising=False)
+    llm = FakeLLM([json.dumps(EVENT_NARRATIVE)] * 4)
+
+    _build(_document(INCONCLUSIVE), llm)
+
+    assert llm.calls
 
 
 def test_payload_floats_are_rounded_to_four_significant_digits():
