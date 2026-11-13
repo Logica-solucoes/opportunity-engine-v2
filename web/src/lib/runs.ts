@@ -115,6 +115,7 @@ export function useRunLog(slug: string, runId: string) {
     let ended = false
     const open = () => {
       if (source || ended) return
+      setState('open')
       source = new EventSource(`/api/w/${slug}/runs/${runId}/logs/stream`)
       source.onmessage = (e) => {
         const line: LogLine = { id: Number(e.lastEventId), ...JSON.parse(e.data) }
