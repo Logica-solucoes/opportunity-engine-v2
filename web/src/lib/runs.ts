@@ -111,21 +111,38 @@ export function useRunLog(slug: string, runId: string) {
   const [state, setState] = useState<LogState>('open')
 
   useEffect(() => {
-    const source = new EventSource(`/api/w/${slug}/runs/${runId}/logs/stream`)
-    source.onmessage = (e) => {
-      const line: LogLine = { id: Number(e.lastEventId), ...JSON.parse(e.data) }
-      // a reconnect resumes after Last-Event-ID, but a Fast Refresh reopens the stream and replays the backlog onto the kept lines
-      setLines((prev) => (prev.length && prev[prev.length - 1].id >= line.id ? prev : [...prev, line].slice(-MAX_LINES)))
+    let source: EventSource | null = null
+    let ended = false
+    const open = () => {
+      if (source || ended) return
+      source = new EventSource(`/api/w/${slug}/runs/${runId}/logs/stream`)
+      source.onmessage = (e) => {
+        const line: LogLine = { id: Number(e.lastEventId), ...JSON.parse(e.data) }
+        // a reopened stream replays the backlog: keep only lines past the last one we have
+        setLines((prev) => (prev.length && prev[prev.length - 1].id >= line.id ? prev : [...prev, line].slice(-MAX_LINES)))
+      }
+      source.addEventListener('end', () => {
+        ended = true
+        setState('ended')
+        close()
+      })
+      // a dropped connection is retried by the browser; CLOSED means an answer it won't retry (401, 404)
+      source.onerror = () => {
+        if (source?.readyState === EventSource.CLOSED) setState('lost')
+      }
     }
-    source.addEventListener('end', () => {
-      setState('ended')
-      source.close()
-    })
-    // a dropped connection is retried by the browser; CLOSED means an answer it won't retry (401, 404)
-    source.onerror = () => {
-      if (source.readyState === EventSource.CLOSED) setState('lost')
+    const close = () => {
+      source?.close()
+      source = null
     }
-    return () => source.close()
+    // a hidden tab gives its connection back: over HTTP/1.1 the browser allows 6 per host, and the 6th froze the app
+    const onVisibility = () => (document.visibilityState === 'visible' ? open() : close())
+    document.addEventListener('visibilitychange', onVisibility)
+    onVisibility()
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      close()
+    }
   }, [slug, runId])
 
   return { lines, state }
