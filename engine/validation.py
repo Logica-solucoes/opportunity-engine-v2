@@ -24,6 +24,7 @@ MAX_FINITE_VIF = 1e6  # above this (or negative, R² rounded past 1): perfect co
 MIN_WEEKS_FOR_WEEKDAY = 5
 MIN_OUTLIER_SHARE = 0.01  # an outlier also departs from its local level by more than 1% of the KPI's median
 CADENCE_LABEL = {1: "diária", 7: "semanal", 30: "mensal"}
+SPARSE_CHANNEL_SHARE = 0.05  # spend in fewer periods than this share: the MMM cannot fit its curve; A10 calibrates
 
 
 def _iso(dates) -> list[str]:
@@ -258,6 +259,29 @@ def check_short_series(wide: pd.DataFrame) -> list[Check]:
     ]
 
 
+def check_sparse_channels(kept_inv: pd.DataFrame, config: EngineConfig) -> list[Check]:
+    """Channels (as modelled, groups summed) with spend in few periods: three curve parameters each that the data
+    cannot pin down, and every one of them slows the MMM search. Grouping them clears the warning."""
+    modelled = apply_channel_groups(kept_inv, config.channel_groups)
+    periods = modelled["Date"].nunique()
+    active = modelled[modelled["investment"] > 0].groupby("Product Group")["Date"].nunique()
+    sparse = sorted(active[active < SPARSE_CHANNEL_SHARE * periods].index)
+    if not sparse:
+        return []
+    return [
+        Check(
+            id="sparse_channel",
+            level="warning",
+            message=(
+                f"{len(sparse)} canal(is) com investimento em menos de {SPARSE_CHANNEL_SHARE:.0%} dos períodos: "
+                f"{', '.join(sparse)}. O modelo de elasticidade não consegue medir a curva deles e fica mais lento; "
+                "agrupe-os com canais parecidos."
+            ),
+            details={"channels": sparse, "active_periods": {c: int(active[c]) for c in sparse}, "periods": periods},
+        )
+    ]
+
+
 def check_channel_overlap(wide: pd.DataFrame) -> list[Check]:
     """Two channels that move together and add up to the same total are probably one source reported twice."""
     checks = []
@@ -379,7 +403,7 @@ def validate(inputs: dict[str, Path | None], config: "dict | EngineConfig") -> V
         overlap = check_channel_overlap(wide)
         overlapping = {frozenset(c.details["channels"]) for c in overlap}
         found = collinearity(wide, engine_config, overlapping)
-        checks += [*overlap, *check_short_series(wide)]
+        checks += [*overlap, *check_short_series(wide), *check_sparse_channels(kept_inv, engine_config)]
         group_checks, found.unresolved = check_groups(
             kept_inv, set(investment["Product Group"]), engine_config, overlapping
         )

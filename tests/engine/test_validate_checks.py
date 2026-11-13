@@ -199,3 +199,14 @@ def test_channel_overlap_does_not_depend_on_channel_order(tmp_path):
         investment = [(d, first if c == "A" else second, v) for d, c, v in investment]
         report = validate(write_inputs(tmp_path / first, investment, kpi), _config())
         assert "dv360_cm360_overlap" in _by_id(report), (first, second)
+
+
+def test_sparse_channel_is_a_warning_that_grouping_clears(tmp_path):
+    investment, kpi = clean_rows(100)
+    investment += [(d, "RARO", 500) for d in days(100)[:3]]
+
+    check = _by_id(validate(write_inputs(tmp_path / "a", investment, kpi), _config()))["sparse_channel"]
+    assert check.level == "warning" and check.details["channels"] == ["RARO"]
+
+    grouped = {**_config(), "channel_groups": [["RARO", "SEARCH"]]}
+    assert "sparse_channel" not in _by_id(validate(write_inputs(tmp_path / "b", investment, kpi), grouped))
