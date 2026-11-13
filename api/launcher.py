@@ -23,7 +23,7 @@ WORKER_ENV = {
 }
 
 
-TIMEOUT_EXIT = 3  # the worker's watchdog (api/worker.py)
+TIMEOUT_EXIT = 124  # the worker's watchdog (api/worker.py); timeout(1)'s code, and not abort()'s 3 on Windows
 TIMEOUT_ERROR = (
     "A execução passou do limite de 20 minutos e foi interrompida. Agrupe canais ou encurte o período e rode de novo."
 )
@@ -48,13 +48,17 @@ def reap(proc, run_id: int) -> None:
     if code == 0:
         return
     error = TIMEOUT_ERROR if code == TIMEOUT_EXIT else CRASH_ERROR
-    with SessionLocal() as db:
-        failed = db.execute(
-            update(Run)
-            .where(Run.id == run_id, Run.status.in_(ACTIVE_RUN_STATUSES))
-            .values(status="failed", error=error, finished_at=func.now())
-        ).rowcount
-        if failed:
-            db.add(RunLog(run_id=run_id, level="error", message=error))
-        db.commit()
+    try:
+        with SessionLocal() as db:
+            failed = db.execute(
+                update(Run)
+                .where(Run.id == run_id, Run.status.in_(ACTIVE_RUN_STATUSES))
+                .values(status="failed", error=error, finished_at=func.now())
+            ).rowcount
+            if failed:
+                db.add(RunLog(run_id=run_id, level="error", message=error))
+            db.commit()
+    except Exception:  # database down: fail_stale catches the run later; keep the trace in the JSON log
+        log.exception("run.reap_failed run_id=%s exit=%s", run_id, code)
+        return
     log.warning("run.worker_died run_id=%s exit=%s failed=%s", run_id, code, bool(failed))

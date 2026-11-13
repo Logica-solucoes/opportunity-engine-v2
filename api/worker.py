@@ -114,7 +114,7 @@ if __name__ == "__main__":
     os.environ["RUN_DEADLINE"] = str(time.time() + STALE_AFTER.total_seconds())
     watchdog(STALE_AFTER.total_seconds())
     # a crash before execute (database down, bad RUN_ID) still reaches the log as one JSON line;
-    # the run stays queued until the API fails it as stale
+    # the launcher's reaper fails the run at once; fail_stale is the net if the API restarted
     try:
         main()
     except Exception:
