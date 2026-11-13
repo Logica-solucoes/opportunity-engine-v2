@@ -192,3 +192,16 @@ def test_the_extra_a6_fits_run_only_for_events_the_primary_gates_kept(synthetic_
     for event in analysed:
         diagnosed = {"placebo_p_value", "oos_wmape", "robust_p_value"} <= event.results_data.keys()
         assert diagnosed == (event in kept), event.event_id
+
+
+def test_the_pre_period_looks_back_at_most_a_year_of_rows(tmp_path):
+    _, prepared, legacy = _prepared(tmp_path, n_days=730)
+    candidates = pipeline.detect_events(prepared, legacy)
+    dates = prepared.kpi_df["Date"].sort_values().reset_index(drop=True)
+
+    rows_before = [
+        int(((dates >= row.start_date) & (dates < row.intervention_date)).sum()) for row in candidates.itertuples()
+    ]
+
+    assert max(rows_before) == pipeline.PRE_PERIOD_MAX_ROWS
+    assert min(rows_before) < pipeline.PRE_PERIOD_MAX_ROWS  # early events still start at the first date

@@ -21,6 +21,10 @@ from llm import get_llm
 
 log = logging.getLogger(__name__)
 
+# rows of history before an event that its causal fit sees: from the first date, every fit grew with the event's date
+# and the stage was quadratic in the history (~2 min on 1016 days × 46 channels). Daily: a year; weekly/monthly: all.
+PRE_PERIOD_MAX_ROWS = 365
+
 
 @dataclass
 class EventOutcome:
@@ -111,7 +115,6 @@ def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
 
     _, periods = analysis.periods_to_days(cfg["post_event_days"], period_days, 4, label="post_event_days")
     kpi_dates = pd.DatetimeIndex(prepared.kpi_df["Date"].sort_values().unique())
-    first_date = kpi_dates[0].strftime("%Y-%m-%d")
     earliest = pd.to_datetime(cfg["min_intervention_date"]) if cfg.get("min_intervention_date") else None
     rows = []
     for _, row in event_map.iterrows():
@@ -121,7 +124,7 @@ def detect_events(prepared: PreparedData, cfg: dict) -> pd.DataFrame:
         rows.append(
             {
                 "event_id": f"{cfg['advertiser_name']}_{row['ad_product'].replace(' ', '_')}_{day.date()}",
-                "start_date": first_date,
+                "start_date": kpi_dates[max(0, kpi_dates.searchsorted(day) - PRE_PERIOD_MAX_ROWS)].strftime("%Y-%m-%d"),
                 "intervention_date": day.strftime("%Y-%m-%d"),
                 "end_date": kpi_dates[last].strftime("%Y-%m-%d"),
                 "product_group": row["ad_product"],
