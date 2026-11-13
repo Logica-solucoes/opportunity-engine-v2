@@ -1,9 +1,11 @@
 import io
 import json
+from contextlib import nullcontext, suppress
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
 from api import bcb, engine_run, launcher, runs, simulations, storage, worker
 from api.engine_config import ParamsIn
@@ -639,3 +641,64 @@ def test_two_runs_in_two_workspaces_do_not_mix_logs_or_files(logged, stream_db, 
 
     assert logged.get(f"/api/w/a/runs/{run_b.id}").status_code == 404
     assert stream(logged, run_b.id, slug="a").status_code == 404
+
+
+def _reap(db, monkeypatch, run_id, code):
+    monkeypatch.setattr(launcher, "SessionLocal", lambda: nullcontext(db))
+    launcher.reap(SimpleNamespace(wait=lambda: code), run_id)
+    return db.get(Run, run_id)
+
+
+@pytest.mark.parametrize(
+    ("code", "error"),
+    [(launcher.TIMEOUT_EXIT, launcher.TIMEOUT_ERROR), (1, launcher.CRASH_ERROR), (-9, launcher.CRASH_ERROR)],
+)
+def test_a_dead_worker_fails_its_run_at_once(db, ready, analyst, monkeypatch, code, error):
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    run = _reap(db, monkeypatch, run.id, code)
+
+    db.refresh(run)
+    assert (run.status, run.error) == ("failed", error) and run.finished_at is not None
+    assert messages(db, run.id)[-1] == error
+
+
+def test_a_worker_that_exits_cleanly_leaves_the_run_alone(db, ready, analyst, monkeypatch):
+    run = runs.create(db, ready(), set(), by=analyst)
+
+    run = _reap(db, monkeypatch, run.id, 0)
+
+    db.refresh(run)
+    assert run.status == "queued" and messages(db, run.id) == []
+
+
+def test_the_reaper_never_overwrites_a_finished_run(db, ready, analyst, monkeypatch):
+    run = runs.create(db, ready(), set(), by=analyst)
+    worker.execute(db, run.id)
+
+    run = _reap(db, monkeypatch, run.id, 1)
+
+    db.refresh(run)
+    assert run.status == "succeeded" and launcher.CRASH_ERROR not in messages(db, run.id)
+
+
+def test_a_failed_log_commit_does_not_lose_the_run(db, ready, analyst, monkeypatch):
+    run = runs.create(db, ready(), set(), by=analyst)
+    fake_engine, real_commit = engine_run.run, db.commit
+
+    def poisoned_commit():
+        db.execute(text("SELECT 1/0"))  # a real database error: the transaction is aborted until a rollback
+
+    def engine(inputs, config, out, on_log):
+        monkeypatch.setattr(db, "commit", poisoned_commit)
+        with suppress(Exception):  # engine/logmessages.OnLogHandler swallows a failing on_log and the engine goes on
+            on_log("info", "linha")
+        monkeypatch.setattr(db, "commit", real_commit)
+        return fake_engine(inputs, config, out, lambda level, message: None)
+
+    monkeypatch.setattr(engine_run, "run", engine)
+
+    worker.execute(db, run.id)
+
+    db.refresh(run)
+    assert run.status == "succeeded" and run.finished_at is not None

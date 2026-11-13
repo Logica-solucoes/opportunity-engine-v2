@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 from sqlalchemy import func, update
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from api import engine_run, logs, simulations, storage
 from api.db import SessionLocal
+from api.launcher import TIMEOUT_EXIT
 from api.models import Run, RunLog
 from api.runs import STALE_AFTER
 from engine import EngineError
@@ -38,9 +40,15 @@ def execute(db: Session, run_id: int) -> None:
     log.info("worker.started run_id=%s", rid)
 
     def on_log(level: str, message: str) -> None:
-        db.add(RunLog(run_id=rid, level=level, message=message))
         # ponytail: one insert per line keeps the "running for N s" honest; batch if the engine gets chatty
-        db.commit()
+        try:
+            db.add(RunLog(run_id=rid, level=level, message=message))
+            db.commit()
+        except Exception:
+            # a failed commit poisons the session: without the rollback the final status update fails too and the
+            # run stays 'running'. The engine's log handler swallows the raise, so the run goes on.
+            db.rollback()
+            raise
 
     inputs = {
         key: storage.path(simulations.input_key(wid, sid, f["sha256"])) if f else None for key, f in files.items()
@@ -84,8 +92,8 @@ def execute(db: Session, run_id: int) -> None:
 
 
 def watchdog(seconds: float, exit=os._exit) -> threading.Timer:
-    """Kill the worker past the deadline; the API already fails the run as stale by then."""
-    timer = threading.Timer(seconds, lambda: (log.error("worker.timeout after %ss", seconds), exit(1)))
+    """Kill the worker past the deadline with TIMEOUT_EXIT, which the launcher's reaper turns into a timeout error."""
+    timer = threading.Timer(seconds, lambda: (log.error("worker.timeout after %ss", seconds), exit(TIMEOUT_EXIT)))
     timer.daemon = True
     timer.start()
     return timer
@@ -102,6 +110,8 @@ def main(argv: list[str] | None = None) -> None:
 if __name__ == "__main__":
     logs.setup()
     # no Cloud Run Job timeout on our own server: a hung engine would burn CPU forever
+    # the engine's narratives read it to stop calling the LLM before the watchdog fires (engine/narratives.py)
+    os.environ["RUN_DEADLINE"] = str(time.time() + STALE_AFTER.total_seconds())
     watchdog(STALE_AFTER.total_seconds())
     # a crash before execute (database down, bad RUN_ID) still reaches the log as one JSON line;
     # the run stays queued until the API fails it as stale
