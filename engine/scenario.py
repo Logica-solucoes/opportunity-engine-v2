@@ -24,6 +24,7 @@ TROAS_NOTE = (
     "aprendizado do lance automático antes de ler o resultado ou dar o próximo degrau."
 )
 _TOLERANCE = 1e-9
+MAX_RAMP_STEPS = 200  # past this a ramp is not a plan, and a step near 0 never reaches the target (1 + 1e-17 == 1)
 
 
 def bid_note(revenue_mode: bool) -> str:
@@ -47,6 +48,8 @@ def ramp(current: float | None, target: float, max_step: float, curve: list[dict
         return None
     up = target > current
     factor = 1 + max_step if up else 1 - max_step
+    if factor == 1 or math.log(target / current) / math.log(factor) > MAX_RAMP_STEPS:
+        return None
     tolerance = _TOLERANCE * current
     levels, level = [], current
     while True:

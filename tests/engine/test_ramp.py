@@ -74,3 +74,8 @@ def test_the_bid_note_follows_the_mode():
     assert bid_note(revenue_mode=False) == TCPA_NOTE
     assert bid_note(revenue_mode=True) == TROAS_NOTE
     assert "tCPA" in TCPA_NOTE and "tROAS" in TROAS_NOTE
+
+
+def test_a_step_too_small_to_ever_arrive_gives_no_ramp_instead_of_looping():
+    assert ramp(100.0, 150.0, 1e-17, CURVE) is None
+    assert ramp(100.0, 150.0, 1e-4, CURVE) is None  # thousands of steps is not a plan either

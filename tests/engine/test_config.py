@@ -181,3 +181,9 @@ def test_the_a6_limits_are_in_zero_one(name):
     with pytest.raises(EngineError) as raised:
         EngineConfig.from_input({"gate_thresholds": {name: 1.5}})
     assert str(raised.value) == f"Configuração inválida: campo 'gate_thresholds': limite fora de (0, 1): {name}"
+
+
+def test_max_budget_step_has_a_floor():
+    with pytest.raises(EngineError, match="max_budget_step"):
+        EngineConfig.from_input({"max_budget_step": 0.001})
+    assert EngineConfig.from_input({"max_budget_step": 0.01}).max_budget_step == 0.01

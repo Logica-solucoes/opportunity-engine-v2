@@ -43,7 +43,7 @@ class EngineConfig(Strict):
     conversion_rate_from_kpi_to_bo: float = Field(default=1.0, gt=0, le=1)
     financial_targets: FinancialTargets = Field(default_factory=FinancialTargets)
     investment_limit_factor: float = Field(default=1.5, gt=1, le=5)
-    max_budget_step: float = Field(default=0.2, gt=0, le=1)
+    max_budget_step: float = Field(default=0.2, ge=0.01, le=1)
     p_value_threshold: float = Field(default=0.05, gt=0, lt=1)
     min_pre_period_days: int = Field(default=14, ge=7)
     r_squared_threshold: float = Field(default=0.3, ge=0, le=1)
