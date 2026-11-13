@@ -289,6 +289,18 @@ _RULES = [
         "   - Etapa 2: otimizando a resposta de mídia sobre o ganho incremental...",
     ),
     (
+        r"Stage 2 search: start (\d+) of (\d+)",
+        "   - Etapa 2: tentativa {0} de {1}...",
+    ),
+    (
+        r"Walk-forward CV: fold (\d+) of (\d+)",
+        "   - Validação cruzada da Etapa 2: bloco {0} de {1}...",
+    ),
+    (
+        r"WARNING: Stage 2 search hit its deadline",
+        "   - AVISO: a Etapa 2 atingiu o tempo máximo; o motor segue com o melhor ajuste encontrado até aqui.",
+    ),
+    (
         r"WARNING: Optimization did not converge",
         "   - AVISO: a otimização não convergiu por completo; o ajuste pode ser menos preciso.",
     ),

@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import numpy as np
@@ -6,10 +7,12 @@ from scipy.optimize import minimize
 from sklearn.linear_model import Ridge
 
 from engine.elasticity_analysis import (
+    _media_ridge,
     bootstrap_coefficients,
     cap_channel_mix_share,
     cap_channel_share_per_channel,
     create_calendar_features,
+    fit_media_params,
     optimize_with_restarts,
     predict_clipped_kpi,
     walk_forward_cv_score,
@@ -123,6 +126,55 @@ class TestOptimizeWithRestarts(unittest.TestCase):
         result_b = optimize_with_restarts(two_basin_objective, [1.0], bounds, args=(None,), n_restarts=5, seed=42)
         self.assertEqual(result_a.fun, result_b.fun)
 
+    def test_a_passed_deadline_stops_after_one_iteration_and_keeps_the_best_point(self):
+        with self.assertLogs("engine.elasticity_analysis", level="WARNING") as logs:
+            result = optimize_with_restarts(
+                two_basin_objective, [1.0], [(0.0, 10.0)], args=(None,), n_restarts=5, deadline=time.monotonic() - 1
+            )
+        self.assertLessEqual(result.nit, 1)
+        self.assertTrue(np.isfinite(result.fun))
+        self.assertIn("deadline", "\n".join(logs.output))
+
+
+class TestMediaRidge(unittest.TestCase):
+    def test_reaches_the_exact_positive_ridge_optimum(self):
+        # 46 correlated channels: sklearn's positive Ridge stops short of the optimum here (relative gradient 4e-3 on its
+        # free coefficients), which made the Stage 2 objective noisy and hung the MMM on a 46-channel client
+        rng = np.random.default_rng(0)
+        base = rng.uniform(0, 1, (1000, 1))
+        X = np.clip(base + rng.normal(0, 0.3, (1000, 46)), 0, None)
+        y = X[:, :10] @ rng.uniform(50, 500, 10) - X[:, 10:15] @ rng.uniform(50, 500, 5) + rng.normal(0, 100, 1000)
+
+        model = _media_ridge().fit(X, y)
+
+        # KKT of min |yc - Xc w|² + |w|², w >= 0: zero gradient on the free coefficients, non-negative on the bound ones
+        Xc, yc = X - X.mean(axis=0), y - y.mean()
+        grad = 2 * (Xc.T @ (Xc @ model.coef_ - yc) + model.coef_)
+        scale = np.abs(2 * Xc.T @ yc).max()
+        free = model.coef_ > 0
+        self.assertTrue((model.coef_ >= 0).all())
+        self.assertTrue(free.any())
+        self.assertLess(np.abs(grad[free]).max() / scale, 1e-8)
+        self.assertGreater(grad[~free].min(initial=0) / scale, -1e-8)
+        self.assertAlmostEqual(model.intercept_, y.mean() - X.mean(axis=0) @ model.coef_)
+        np.testing.assert_allclose(model.predict(X), X @ model.coef_ + model.intercept_)
+
+
+class TestFitMediaParamsScale(unittest.TestCase):
+    def test_46_channels_finish_well_inside_the_worker_watchdog(self):
+        rng = np.random.default_rng(1)
+        n_rows, n_channels = 1000, 46
+        spend = pd.DataFrame(
+            rng.gamma(0.5, 1000, (n_rows, n_channels)) * (rng.uniform(0, 1, (n_rows, n_channels)) < 0.3),
+            columns=[f"C{i}" for i in range(n_channels)],
+        )
+        lift = spend.iloc[:, :4].sum(axis=1).to_numpy() * 0.01 + rng.normal(0, 5, n_rows)
+
+        start = time.monotonic()
+        fit_media_params(spend, lift - lift.mean(), deadline=start + 120)
+
+        self.assertLess(time.monotonic() - start, 150)
+
 
 class TestBootstrapCoefficients(unittest.TestCase):
     def test_recovers_a_zeroed_channels_true_contribution(self):
@@ -161,7 +213,7 @@ class TestBootstrapCoefficients(unittest.TestCase):
         coefs = np.zeros((30, 3))
         for b in range(30):
             idx = loop_rng.integers(0, 40, 40)
-            coefs[b] = Ridge(alpha=1.0, positive=True).fit(X[idx], y[idx]).coef_
+            coefs[b] = _media_ridge().fit(X[idx], y[idx]).coef_
 
         np.testing.assert_array_equal(bootstrap_coefficients(X, y, n_bootstrap=30, seed=5, block=1)[0], coefs)
 

@@ -5,11 +5,12 @@ to determine the optimal budget allocation based on historical data.
 
 import json
 import logging
+import time
 
 import matplotlib
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+from scipy.optimize import minimize, nnls
 from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score
 from sklearn.model_selection import TimeSeriesSplit
@@ -163,20 +164,47 @@ def kpi_band(organic_baseline_mean, coef_samples, mkt_scaler, mkt_features) -> t
 
 def _transform_channels(df, spend_cols, alphas, ks, ss):
     """Adstock + Hill-saturate each channel's spend into a features DataFrame."""
-    transformed_df = pd.DataFrame()
-    for i, col in enumerate(spend_cols):
-        adstocked_spend = geometric_adstock(df[col].values, alphas[i])
-        transformed_df[col] = hill_transform(adstocked_spend, ks[i], ss[i])
-    return transformed_df
+    # built in one go: inserting column by column was ~60% of each Stage 2 objective evaluation
+    return pd.DataFrame(
+        {
+            col: hill_transform(geometric_adstock(df[col].values, alphas[i]), ks[i], ss[i])
+            for i, col in enumerate(spend_cols)
+        }
+    )
+
+
+class PositiveRidge:
+    """Ridge with positive coefficients and a free intercept, solved exactly: NNLS on the centered data stacked over
+    sqrt(alpha)·I. sklearn's Ridge(positive=True) stops short of this optimum (all zeros on 46 correlated channels),
+    which made the Stage 2 objective noisy: its numerical gradient wandered and the search ran for hours."""
+
+    def __init__(self, alpha=1.0):
+        self.alpha = alpha
+
+    def fit(self, X, y):
+        X, y = np.asarray(X, dtype=float), np.asarray(y, dtype=float)
+        x_mean, y_mean = X.mean(axis=0), y.mean()
+        stacked = np.vstack([X - x_mean, np.sqrt(self.alpha) * np.eye(X.shape[1])])
+        self.coef_, _ = nnls(stacked, np.concatenate([y - y_mean, np.zeros(X.shape[1])]), maxiter=50 * X.shape[1])
+        self.intercept_ = float(y_mean - x_mean @ self.coef_)
+        return self
+
+    def predict(self, X):
+        return np.asarray(X, dtype=float) @ self.coef_ + self.intercept_
 
 
 def _media_ridge():
     """Stage 2: positive media coefficients and a free intercept. The lift has mean 0 and the Hill features do not, so
     without the intercept every slope shrank by var/(var + mean²) and always-on channels went to 0 (MMM F1)."""
-    return Ridge(alpha=1.0, positive=True, fit_intercept=True)
+    return PositiveRidge(alpha=1.0)
 
 
 CV_SPLITS = 3
+# ponytail: wall-clock cap on the whole Stage 2 search (full fit + CV folds), half the worker watchdog (20 min) so the
+# causal stage and the curve still fit. Past it the search keeps its best point and warns; the numbers then depend on
+# the machine's speed. Upgrade path: an analytic gradient instead of L-BFGS-B's finite differences.
+STAGE2_SECONDS = 600
+FOLD_RESTARTS = 1  # the CV folds only score the search; the full fit keeps its 3 restarts
 ADSTOCK_WINDOW = 12  # geometric_adstock's max_len
 HILL_K_MIN = 0.1
 HILL_S_MIN_OF_MEAN = 0.01
@@ -241,7 +269,7 @@ def elasticity_objective_function(params, df, kpi_lift, spend_cols):
     return mse
 
 
-def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5, seed=42):
+def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5, seed=42, deadline=None):
     """
     Runs scipy.optimize.minimize from `initial_params` plus `n_restarts` additional
     starting points sampled uniformly within `bounds`, and returns whichever run
@@ -250,22 +278,37 @@ def optimize_with_restarts(objective, initial_params, bounds, args, n_restarts=5
     Guards against the optimizer settling into a bad local minimum from a single
     starting point -- which is what happens with the Stage-2 elasticity fit on
     collinear channel spend (see docs/superpowers/specs/2026-07-06-dashboard-inconsistencies-fix-design.md).
+
+    `deadline` (a time.monotonic() value) stops the current start at its next iteration and skips the others; the best
+    point found so far is returned.
     """
     rng = np.random.default_rng(seed)
     candidate_starts = [initial_params] + [[rng.uniform(low, high) for low, high in bounds] for _ in range(n_restarts)]
 
+    def past_deadline():
+        return deadline is not None and time.monotonic() > deadline
+
+    def stop_at_deadline(intermediate_result):
+        if past_deadline():
+            raise StopIteration
+
     best_result = None
-    for candidate in candidate_starts:
+    for i, candidate in enumerate(candidate_starts, start=1):
+        log.info(f"   - Stage 2 search: start {i} of {len(candidate_starts)}")
         candidate_result = minimize(
             objective,
             candidate,
             args=args,
             bounds=bounds,
             method="L-BFGS-B",
-            options={"maxiter": 500, "disp": False},
+            options={"maxiter": 500},
+            callback=stop_at_deadline,
         )
         if best_result is None or candidate_result.fun < best_result.fun:
             best_result = candidate_result
+        if past_deadline():
+            log.warning("   - WARNING: Stage 2 search hit its deadline; keeping the best fit found so far.")
+            break
 
     return best_result
 
@@ -323,7 +366,7 @@ def fit_baseline(X_base, y):
     return lambda X: model.predict(scaler.transform(X))
 
 
-def fit_media_params(spend, lift):
+def fit_media_params(spend, lift, n_restarts=3, deadline=None):
     """Adstock alpha, Hill k and Hill s per channel of `spend`, picked by the walk-forward CV MSE of Stage 2."""
     n = spend.shape[1]
     bounds = (
@@ -358,7 +401,8 @@ def fit_media_params(spend, lift):
         initial_params,
         bounds,
         args=(spend, lift, list(spend.columns)),
-        n_restarts=3,
+        n_restarts=n_restarts,
+        deadline=deadline,
     )
     if not result.success:
         log.warning(f"   - WARNING: Optimization did not converge fully. Details: {result.message}")
@@ -375,18 +419,20 @@ def floor_from_bound(spend, features, ks, ss) -> np.ndarray:
     return on_bound & (features.min().to_numpy() > 0)
 
 
-def out_of_sample_r2(df, base_features, spend_cols, kpi_col="kpi"):
+def out_of_sample_r2(df, base_features, spend_cols, kpi_col="kpi", deadline=None):
     """
     The published cv_r2 (MMM F5): pooled R² of the media model on the lift of each held-out fold, with Stage 1, the
     adstock/Hill search and the Ridge all fit on the training rows only, against the training lift's mean. The adstock
     runs over the whole series, so a held-out row carries the spend before it; its KPI is never seen before scoring.
     """
     sq_err = sq_tot = 0.0
-    for train, test in TimeSeriesSplit(n_splits=cv_folds(len(df))).split(df):
+    n_folds = cv_folds(len(df))
+    for fold, (train, test) in enumerate(TimeSeriesSplit(n_splits=n_folds).split(df), start=1):
+        log.info(f"   - Walk-forward CV: fold {fold} of {n_folds}")
         fit, held = df.iloc[train], df.iloc[test]
         baseline = fit_baseline(fit[base_features], fit[kpi_col])
         lift = (fit[kpi_col] - baseline(fit[base_features])).to_numpy()
-        alphas, ks, ss = fit_media_params(fit[spend_cols], lift)
+        alphas, ks, ss = fit_media_params(fit[spend_cols], lift, n_restarts=FOLD_RESTARTS, deadline=deadline)
         features = _transform_channels(df, spend_cols, alphas, ks, ss).to_numpy()
         scaler = MinMaxScaler().fit(features[train])
         model = _media_ridge().fit(scaler.transform(features[train]), lift)
@@ -472,7 +518,8 @@ def run_mmm_engine(config, prepared):
     y_lift = y_total - df["kpi_organic_baseline"]
 
     log.info("   - Stage 2: Optimizing Marketing Response on Incremental Lift...")
-    final_alphas, final_ks, final_ss = fit_media_params(df[active_spend_cols], y_lift)
+    deadline = time.monotonic() + STAGE2_SECONDS
+    final_alphas, final_ks, final_ss = fit_media_params(df[active_spend_cols], y_lift, deadline=deadline)
 
     transformed_mkt = _transform_channels(df, active_spend_cols, final_alphas, final_ks, final_ss)
     # Divided by the range, without the shift: z = 0 is zero spend, so contributions and the curve start from no media
@@ -498,7 +545,11 @@ def run_mmm_engine(config, prepared):
     # worse than its own mean on held-out days) -- treat the mix/ROAS below as
     # unreliable when that happens.
     cv_out_of_sample = cv_folds(len(df)) >= 2  # False: too few rows to split, cv_r2 is the in-sample R² (A6)
-    cv_r2 = out_of_sample_r2(df, base_features, active_spend_cols, kpi_col) if cv_out_of_sample else final_r2
+    cv_r2 = (
+        out_of_sample_r2(df, base_features, active_spend_cols, kpi_col, deadline=deadline)
+        if cv_out_of_sample
+        else final_r2
+    )
     log.info(f"   - Marketing Model R² (in-sample on lift): {final_r2:.4f}")
     log.info(f"   - Marketing Model R² (walk-forward CV): {cv_r2:.4f}")
     if cv_r2 <= 0:
