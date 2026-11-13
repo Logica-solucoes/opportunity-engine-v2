@@ -523,7 +523,7 @@ def run_causal_impact_analysis(
         varianced_features = _select_variance_threshold_features(pre_data_for_model, potential_exog_vars)
 
         if not varianced_features:
-            selected_features = list(transformed_features.keys())
+            selected_features = []
         else:
             # Scale features for LassoCV to handle different scales (e.g. Trends vs transformed investment)
             scaler_lasso = MinMaxScaler()
@@ -532,8 +532,6 @@ def run_causal_impact_analysis(
             folds = lasso_folds(len(pre_data_for_model))
             lasso = LassoCV(cv=folds, random_state=0, max_iter=10000).fit(X_lasso_scaled, pre_data_for_model["kpi"])
             selected_features = [var for i, var in enumerate(varianced_features) if lasso.coef_[i] != 0]
-            if not selected_features:
-                selected_features = list(transformed_features.keys())
 
         # The treated channel's own media stays in the model: without it, holding its spend changes nothing and the
         # lift falls back to a level forecast. The unscaled variance filter drops Hill features far from s.
@@ -544,6 +542,9 @@ def run_causal_impact_analysis(
             and pre_data_for_model[feature].std() > 0
         ]
         selected_features = treated + [feature for feature in selected_features if feature not in treated]
+        if not selected_features:
+            # nothing survived and the event's own channel has no variance: the old all-channels fallback
+            selected_features = list(transformed_features.keys())
 
         log.info(f"   - Selected features for causal model: {selected_features}")
         model = _fit_state_space(pre_data_for_model, selected_features, period_days)

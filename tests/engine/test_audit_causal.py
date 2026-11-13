@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from engine import grounding, narratives, pipeline
+from engine import analysis, grounding, narratives, pipeline
 from engine.analysis import (
     _fit_state_space,
     cumulative_p_value,
@@ -220,3 +220,37 @@ def test_causal_8_the_seasonal_cycle_follows_the_cadence_and_there_is_no_silent_
     assert model.seasonal is seasonal and model.trend is False
     if seasonal:
         assert model.seasonal_periods == 7
+
+
+def test_causal_lasso_empty_keeps_only_the_treated_channel(monkeypatch):
+    rng = np.random.default_rng(7)
+    dates = pd.date_range("2025-01-06", periods=210, freq="D")
+    kpi_df = pd.DataFrame({"Date": dates, "kpi": 5000 + rng.normal(0, 60, len(dates))})
+    investment = pd.concat(
+        [
+            pd.DataFrame({"Date": dates, "Product Group": name, "investment": rng.uniform(800, 1200, len(dates))})
+            for name in "ABC"
+        ]
+    )
+    used = []
+    original = analysis._fit_state_space
+
+    def spy(data, features, period_days):
+        used.append(list(features))
+        return original(data, features, period_days)
+
+    monkeypatch.setattr(analysis, "_fit_state_space", spy)
+    run_causal_impact_analysis(
+        kpi_df,
+        investment,
+        pd.DataFrame(columns=["Date"]),
+        pd.DataFrame(),
+        ["2025-01-06", "2025-07-06"],
+        ["2025-07-07", "2025-07-20"],
+        "e",
+        "A",
+        {"alpha": ALPHA, "k": K, "s": S},
+        CAUSAL_CFG,
+        contested=lambda _: False,
+    )
+    assert used[0] == ["A_transformed"]
