@@ -274,7 +274,7 @@ def test_launch_failure_fails_the_run(logged, ready, monkeypatch):
 
 
 def make_stale(db, run_id):
-    db.get(Run, run_id).created_at = func.now() - timedelta(minutes=21)
+    db.get(Run, run_id).created_at = func.now() - timedelta(minutes=22)
     db.commit()
 
 
@@ -719,6 +719,26 @@ def test_a_stale_run_elsewhere_does_not_hold_a_slot(logged, ready, db, monkeypat
     make_stale(db, post_run(logged, ready()).json()["id"])
 
     assert post_run(logged, ready()).status_code == 201
+
+
+def test_at_the_cap_the_sgs_is_not_called(logged, ready, db, monkeypatch):
+    monkeypatch.setenv("MAX_CONCURRENT_RUNS", "1")
+    assert post_run(logged, ready()).status_code == 201
+    simulation = ready()
+    simulations.save_params(db, simulation, {**PARAMS, "controls": ["bcb_ipca"]})
+    monkeypatch.setattr(bcb, "fetch", lambda controls: pytest.fail("fetched at the cap"))
+
+    second = post_run(logged, simulation)
+
+    assert (second.status_code, second.json()["detail"]) == (409, runs.BUSY_ERROR)
+
+
+def test_a_run_inside_the_grace_is_not_failed_as_stale(logged, ready, db):
+    run_id = post_run(logged, ready()).json()["id"]
+    db.get(Run, run_id).created_at = func.now() - timedelta(minutes=20, seconds=30)
+    db.commit()
+
+    assert logged.get(f"/api/w/a/runs/{run_id}").json()["status"] != "failed"
 
 
 def test_the_sgs_is_called_with_no_transaction_open(logged, ready, db, monkeypatch):

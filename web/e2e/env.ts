@@ -19,6 +19,8 @@ export const pyEnv = {
   // the worker subprocess inherits this env: the fake engine takes ~5 s per run, long enough to see "Rodando"
   // and reload mid-run; the real one needs months of data
   ENGINE_FAKE: '1',
+  // 2 parallel workers; the default cap (cpu_count - 1) is 1 on a 2-vCPU runner
+  MAX_CONCURRENT_RUNS: '100',
   FAKE_ENGINE_STEP_SECONDS: '1',
   FAKE_ENGINE_FAIL: '',
   // every E2E run returns the anonymized Gol as the engine wrote it before the audit fixes (08/nov/2026): the current

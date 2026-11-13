@@ -19,6 +19,8 @@ log = logging.getLogger(__name__)
 
 # the worker's watchdog kills it at 20 min (api/worker.py): a run still active after that is dead
 STALE_AFTER = timedelta(minutes=20)
+# created_at precedes the worker's clock (Popen + imports): without it fail_stale beats the watchdog by seconds
+STALE_GRACE = timedelta(minutes=1)
 ACTIVE = ACTIVE_RUN_STATUSES
 PUBLISHABLE = ("succeeded", "inconclusive")
 PUBLISH_ERROR = "Só execuções concluídas podem ser publicadas."
@@ -32,6 +34,11 @@ def max_concurrent_runs() -> int:
     return int(os.environ.get("MAX_CONCURRENT_RUNS") or max(1, (os.cpu_count() or 2) - 1))
 
 
+def at_capacity(db: Session) -> bool:
+    # server capacity, not a workspace resource: the one query here that counts across workspaces
+    return db.scalar(select(func.count()).select_from(Run).where(Run.status.in_(ACTIVE))) >= max_concurrent_runs()
+
+
 class Blocked(Exception):
     pass
 
@@ -39,7 +46,7 @@ class Blocked(Exception):
 def fail_stale(db: Session, *where) -> None:
     db.execute(
         update(Run)
-        .where(Run.status.in_(ACTIVE), Run.created_at < func.now() - STALE_AFTER, *where)
+        .where(Run.status.in_(ACTIVE), Run.created_at < func.now() - STALE_AFTER - STALE_GRACE, *where)
         .values(status="failed", error=STALE_ERROR, finished_at=func.now())
     )
     db.commit()
@@ -85,6 +92,9 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
     reason = block_reason(simulation, confirmed)
     if reason:
         raise Blocked(reason)
+    fail_stale(db)  # a dead run must not hold a slot
+    if at_capacity(db):  # cheap: no SGS call for a run the lock will refuse anyway
+        raise Blocked(BUSY_ERROR)
     fetched_controls = list(simulation.config.get("controls") or [])
     workspace_id, simulation_id = simulation.workspace_id, simulation.id
     db.rollback()  # no transaction (and no pooled connection) held during the HTTP calls
@@ -96,8 +106,7 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
         raise Blocked(reason)
     if (simulation.config.get("controls") or []) != fetched_controls:
         raise Blocked("Os parâmetros mudaram enquanto as séries do Banco Central eram buscadas. Rode de novo.")
-    # server capacity, not a workspace resource: the one query here that counts across workspaces
-    if db.scalar(select(func.count()).select_from(Run).where(Run.status.in_(ACTIVE))) >= max_concurrent_runs():
+    if at_capacity(db):
         raise Blocked(BUSY_ERROR)
 
     files = {f.kind: f for f in simulation.files}
