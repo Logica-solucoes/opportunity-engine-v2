@@ -81,6 +81,12 @@ def no_bcb_network(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def roomy_server(monkeypatch):
+    # the cap defaults to cpu_count - 1: 1 on a 2-core CI box, and many tests keep several runs active
+    monkeypatch.setenv("MAX_CONCURRENT_RUNS", "100")
+
+
+@pytest.fixture(autouse=True)
 def launched(monkeypatch):
     # no test ever spawns a real worker against the test db; the ones that run it call worker.execute
     ids = []

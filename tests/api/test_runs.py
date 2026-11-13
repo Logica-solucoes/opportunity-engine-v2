@@ -702,3 +702,30 @@ def test_a_failed_log_commit_does_not_lose_the_run(db, ready, analyst, monkeypat
 
     db.refresh(run)
     assert run.status == "succeeded" and run.finished_at is not None
+
+
+def test_the_server_refuses_a_run_past_the_concurrency_cap(logged, ready, db, monkeypatch):
+    monkeypatch.setenv("MAX_CONCURRENT_RUNS", "1")
+    first = post_run(logged, ready())
+
+    second = post_run(logged, ready())
+
+    assert first.status_code == 201
+    assert (second.status_code, second.json()["detail"]) == (409, runs.BUSY_ERROR)
+
+
+def test_a_stale_run_elsewhere_does_not_hold_a_slot(logged, ready, db, monkeypatch):
+    monkeypatch.setenv("MAX_CONCURRENT_RUNS", "1")
+    make_stale(db, post_run(logged, ready()).json()["id"])
+
+    assert post_run(logged, ready()).status_code == 201
+
+
+def test_the_sgs_is_called_with_no_transaction_open(logged, ready, db, monkeypatch):
+    seen = []
+    monkeypatch.setattr(bcb, "fetch", lambda controls: seen.append(db.in_transaction()) or BCB_CSV)
+    simulation = ready()
+    simulations.save_params(db, simulation, {**PARAMS, "controls": ["bcb_ipca"]})
+
+    assert post_run(logged, simulation).status_code == 201
+    assert seen == [False]

@@ -1,11 +1,12 @@
 import hashlib
 import json
 import logging
+import os
 import tempfile
 from datetime import timedelta
 from pathlib import Path
 
-from sqlalchemy import func, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,6 +24,12 @@ PUBLISHABLE = ("succeeded", "inconclusive")
 PUBLISH_ERROR = "Só execuções concluídas podem ser publicadas."
 STALE_ERROR = "A execução parou de responder."
 LAUNCH_ERROR = "Não foi possível iniciar a execução."
+BUSY_ERROR = "Há muitas execuções em andamento no servidor. Tente de novo em alguns minutos."
+
+
+def max_concurrent_runs() -> int:
+    # ponytail: soft cap without a lock (two requests can both pass); a queue if contention gets real
+    return int(os.environ.get("MAX_CONCURRENT_RUNS") or max(1, (os.cpu_count() or 2) - 1))
 
 
 class Blocked(Exception):
@@ -60,9 +67,8 @@ def block_reason(simulation: Simulation, confirmed: set[str]) -> str | None:
     return None
 
 
-def snapshot_bcb(simulation: Simulation) -> dict | None:
+def snapshot_bcb(controls: list[str], workspace_id: int, simulation_id: int) -> dict | None:
     """The Banco Central series the analyst asked for, stored like an upload; raises bcb.Unavailable."""
-    controls = simulation.config.get("controls") or []
     if not controls:
         return None
     content = bcb.fetch(controls)
@@ -70,7 +76,7 @@ def snapshot_bcb(simulation: Simulation) -> dict | None:
     with tempfile.TemporaryDirectory() as tmp:
         local = Path(tmp) / "bcb.csv"
         local.write_bytes(content)
-        storage.put(simulations.input_key(simulation.workspace_id, simulation.id, sha256), local)
+        storage.put(simulations.input_key(workspace_id, simulation_id, sha256), local)
     return {"sha256": sha256, "filename": "bcb.csv"}
 
 
@@ -80,14 +86,19 @@ def create(db: Session, simulation: Simulation, confirmed: set[str], by: User) -
     if reason:
         raise Blocked(reason)
     fetched_controls = list(simulation.config.get("controls") or [])
-    bcb_file = snapshot_bcb(simulation)  # before the lock: no row lock held during the HTTP calls
-    fail_stale(db, Run.simulation_id == simulation.id)
+    workspace_id, simulation_id = simulation.workspace_id, simulation.id
+    db.rollback()  # no transaction (and no pooled connection) held during the HTTP calls
+    bcb_file = snapshot_bcb(fetched_controls, workspace_id, simulation_id)
+    fail_stale(db)  # every workspace: a dead run elsewhere must not hold a server slot
     simulations.lock(db, simulation)
     reason = block_reason(simulation, confirmed)
     if reason:
         raise Blocked(reason)
     if (simulation.config.get("controls") or []) != fetched_controls:
         raise Blocked("Os parâmetros mudaram enquanto as séries do Banco Central eram buscadas. Rode de novo.")
+    # server capacity, not a workspace resource: the one query here that counts across workspaces
+    if db.scalar(select(func.count()).select_from(Run).where(Run.status.in_(ACTIVE))) >= max_concurrent_runs():
+        raise Blocked(BUSY_ERROR)
 
     files = {f.kind: f for f in simulation.files}
     warning_ids = {c["id"] for c in simulation.validation["checks"] if c["level"] == "warning"}
