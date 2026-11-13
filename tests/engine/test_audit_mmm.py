@@ -287,3 +287,19 @@ def test_a_hill_on_its_bound_does_not_extrapolate_an_always_on_channel_to_zero(c
     assert mmm["organic_baseline_mean"] > 0.9 * level
     if verdicts["A"]["identifiable"]:
         assert mmm["model"].coef_[i] * mmm["channel_totals"][i] == pytest.approx(media["A"].sum(), rel=0.5)
+
+
+def test_stage_2_stops_before_the_run_deadline(monkeypatch, caplog):
+    """Stage 2 gets what the run deadline leaves minus the reserve for the bootstrap, curve and narratives."""
+    import time
+
+    monkeypatch.setenv("RUN_DEADLINE", str(time.time() + 60))
+    rng = np.random.default_rng(1)
+    n = 60
+    spend = {"A": rng.uniform(100, 1000, n)}
+    prepared = _prepared(spend, TRUE_LEVEL + spend["A"] + rng.normal(0, 10, n))
+
+    with threadpool_limits(limits=1), caplog.at_level("WARNING", logger="engine.elasticity_analysis"):
+        run_mmm_engine({"country_code": "BR", "period_days": 1, "min_marketing_contribution": 0.05}, prepared)
+
+    assert "Stage 2 search hit its deadline" in caplog.text

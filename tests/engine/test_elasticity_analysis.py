@@ -424,3 +424,21 @@ class TestRunMmmEngineDoesNotLoadData:
         )
 
         assert run_mmm_engine({"period_days": 1}, prepared) is None  # no channel with spend: the path past the load
+
+
+def test_positive_ridge_falls_back_when_nnls_hits_maxiter(monkeypatch):
+    from engine import elasticity_analysis as ea
+
+    rng = np.random.default_rng(0)
+    X = rng.uniform(0, 1, (80, 5))
+    y = X @ np.array([3.0, 0.0, 2.0, 0.5, 0.0]) + rng.normal(0, 0.05, 80)
+    expected = ea.PositiveRidge(alpha=1.0).fit(X, y).coef_
+
+    def too_many_iterations(*args, **kwargs):
+        raise RuntimeError("Maximum number of iterations reached.")
+
+    monkeypatch.setattr(ea, "nnls", too_many_iterations)
+    got = ea.PositiveRidge(alpha=1.0).fit(X, y).coef_
+
+    assert (got >= 0).all()
+    np.testing.assert_allclose(got, expected, atol=1e-4)

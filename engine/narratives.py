@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 TIMEOUT_S = 60
 # the whole narrative step must fit well inside the 20 min worker watchdog (api/runs.py)
 LLM_BUDGET_S = 300
-DEADLINE_RESERVE_S = 120  # left before the worker's watchdog (RUN_DEADLINE, api/worker.py) to write results.json
+DEADLINE_RESERVE_S = 2 * TIMEOUT_S + 60  # a job's worst case (2 tries) plus writing results.json, before RUN_DEADLINE
 CI_LEVEL_PCT = 95
 SEVERITY = {"passed": 0, "regenerated": 1, "blocked": 2}
 ELASTICITY_REASONS = {

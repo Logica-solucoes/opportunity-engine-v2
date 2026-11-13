@@ -10,7 +10,7 @@ import time
 import matplotlib
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize, nnls
+from scipy.optimize import lsq_linear, minimize, nnls
 from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score
 from sklearn.model_selection import TimeSeriesSplit
@@ -185,7 +185,11 @@ class PositiveRidge:
         X, y = np.asarray(X, dtype=float), np.asarray(y, dtype=float)
         x_mean, y_mean = X.mean(axis=0), y.mean()
         stacked = np.vstack([X - x_mean, np.sqrt(self.alpha) * np.eye(X.shape[1])])
-        self.coef_, _ = nnls(stacked, np.concatenate([y - y_mean, np.zeros(X.shape[1])]), maxiter=50 * X.shape[1])
+        rhs = np.concatenate([y - y_mean, np.zeros(X.shape[1])])
+        try:
+            self.coef_, _ = nnls(stacked, rhs, maxiter=50 * X.shape[1])
+        except RuntimeError:  # scipy 1.18 raises past maxiter; same problem, other solver
+            self.coef_ = lsq_linear(stacked, rhs, bounds=(0, np.inf)).x
         self.intercept_ = float(y_mean - x_mean @ self.coef_)
         return self
 
@@ -204,6 +208,8 @@ CV_SPLITS = 3
 # causal stage and the curve still fit. Past it the search keeps its best point and warns; the numbers then depend on
 # the machine's speed. Upgrade path: an analytic gradient instead of L-BFGS-B's finite differences.
 STAGE2_SECONDS = 600
+# left of the run deadline (api/worker.py) for the bootstrap, the curve and the narratives' 300 s LLM budget
+STAGE2_RESERVE_S = 420
 FOLD_RESTARTS = 1  # the CV folds only score the search; the full fit keeps its 3 restarts
 ADSTOCK_WINDOW = 12  # geometric_adstock's max_len
 HILL_K_MIN = 0.1
@@ -518,7 +524,9 @@ def run_mmm_engine(config, prepared):
     y_lift = y_total - df["kpi_organic_baseline"]
 
     log.info("   - Stage 2: Optimizing Marketing Response on Incremental Lift...")
-    deadline = time.monotonic() + STAGE2_SECONDS
+    now = time.monotonic()
+    run_left = float(os.environ.get("RUN_DEADLINE", "inf")) - time.time() - STAGE2_RESERVE_S
+    deadline = min(now + STAGE2_SECONDS, now + run_left)
     final_alphas, final_ks, final_ss = fit_media_params(df[active_spend_cols], y_lift, deadline=deadline)
 
     transformed_mkt = _transform_channels(df, active_spend_cols, final_alphas, final_ks, final_ss)
