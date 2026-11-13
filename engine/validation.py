@@ -161,15 +161,25 @@ def spend_matrix(investment_df: pd.DataFrame) -> pd.DataFrame:
     return wide.loc[:, wide.std() > 0]
 
 
-def channel_vif(wide: pd.DataFrame) -> dict[str, float | None]:
-    """VIF of each channel's spend on the others; None when one channel is an exact mix of the others."""
+def _vif_by_regression(wide: pd.DataFrame) -> np.ndarray:
     x = np.column_stack([np.ones(len(wide)), wide.to_numpy(dtype=float)])
-    out = {}
+    return np.array([float(variance_inflation_factor(x, i)) for i in range(1, x.shape[1])])
+
+
+def channel_vif(wide: pd.DataFrame) -> dict[str, float | None]:
+    """VIF of each channel's spend on the others (with an intercept): the diagonal of the inverse correlation matrix.
+    None when one channel is an exact mix of the others."""
+    corr = np.atleast_2d(np.corrcoef(wide.to_numpy(dtype=float), rowvar=False))
     with np.errstate(divide="ignore", invalid="ignore"):
-        for i, name in enumerate(wide.columns, start=1):
-            value = float(variance_inflation_factor(x, i))
-            out[name] = round(value, 4) if np.isfinite(value) and 0 < value <= MAX_FINITE_VIF else None
-    return out
+        try:
+            singular = np.linalg.cond(corr) > 1 / np.finfo(float).eps
+        except np.linalg.LinAlgError:
+            singular = True
+        values = _vif_by_regression(wide) if singular else np.diag(np.linalg.inv(corr))
+    return {
+        name: round(float(v), 4) if np.isfinite(v) and 0 < v <= MAX_FINITE_VIF else None
+        for name, v in zip(wide.columns, values, strict=True)
+    }
 
 
 def _connected(edges: list[tuple[str, str]]) -> list[list[str]]:

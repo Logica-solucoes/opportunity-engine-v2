@@ -301,3 +301,22 @@ def test_a_group_named_like_a_channel_already_in_the_file_is_an_error(tmp_path):
 
     check = next(c for c in report.checks if c.id == "channel_group_name_taken")
     assert not report.ok and check.level == "error" and check.details == {"channels": ["A + B"]}
+
+
+def test_vif_of_many_channels_matches_statsmodels_and_is_fast():
+    import time
+
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+    rng = np.random.default_rng(3)
+    base = rng.normal(0, 1, (1000, 1))
+    wide = pd.DataFrame(base + rng.normal(0, 1, (1000, 80)), columns=[f"C{i}" for i in range(80)])
+    x = np.column_stack([np.ones(1000), wide.to_numpy()])
+    expected = [variance_inflation_factor(x, i) for i in range(1, 81)]
+
+    start = time.perf_counter()
+    vif = channel_vif(wide)
+    elapsed = time.perf_counter() - start
+
+    assert [vif[c] for c in wide.columns] == pytest.approx(expected, abs=1e-4)
+    assert elapsed < 0.2
