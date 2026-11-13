@@ -22,6 +22,8 @@ O `POST …/runs` refaz a conta do `runBlockReason` da tela, com as mesmas frase
 
 O trilha-b pedia heartbeat. O desenho era um Cloud Run Job com timeout de 15 min, então run ativo com `created_at` há mais de 20 min está morto por definição, sem coluna nova. Sem o Job, quem mata o processo é o watchdog do worker (`worker.watchdog`, desde 05/nov/2026), no mesmo `STALE_AFTER`, saindo com código 124. A API marca esses runs como `failed` ("A execução parou de responder.") ao criar run, ao ler run e lista, e no stream a cada 15 s sem linha nova (junto com o ping, não a cada volta). O worker grava o resultado com `WHERE status = 'running'`: um run já dado como morto não ressuscita. Um worker pendurado se encerra sozinho aos 20 min pelo watchdog. Um worker que morre antes disso não espera os 20 min: ver "Reaper e limites" abaixo (o `STALE_AFTER` fica como rede de segurança).
 
+`fail_stale` só age após `STALE_AFTER + STALE_GRACE` (1 min): o `created_at` vem antes do relógio do worker (Popen + imports pesados), então sem a folga o stale disparava segundos antes do watchdog e do reaper, a mensagem de timeout nunca aparecia e um run que terminasse nessa janela perdia o resultado.
+
 ## Reaper e limites (12/nov/2026)
 
 Sintoma: o worker morria (OOM, Ctrl+C do `uvicorn --reload`, crash) e o run ficava `running` até o `fail_stale` dos 20 min.
@@ -30,7 +32,7 @@ Sintoma: o worker morria (OOM, Ctrl+C do `uvicorn --reload`, crash) e o run fica
 - **Windows.** O worker sobe com `CREATE_NEW_PROCESS_GROUP`: o Ctrl+C do `uvicorn --reload` matava o worker junto.
 - **Rollback no `on_log`.** O handler de log do motor engole a exceção; sem `rollback` depois de um commit que falhou, o `UPDATE` final de status também falhava e o run ficava `running`.
 - **`RUN_DEADLINE`.** O worker exporta o prazo (epoch, início + 20 min) para o motor; as narrativas usam para parar de chamar o LLM (`docs/decisoes/engine.md`).
-- **Teto de runs simultâneos.** `MAX_CONCURRENT_RUNS` (padrão: núcleos − 1, mínimo 1). No teto, `POST /runs` dá 409 "Há muitas execuções em andamento no servidor. Tente de novo em alguns minutos.". Teto mole, sem lock (dois POSTs simultâneos podem passar). É a única query que conta runs de todos os workspaces, de propósito: o recurso é a CPU do servidor. O `fail_stale` roda em todos os workspaces antes da contagem, para run morto não ocupar vaga.
+- **Teto de runs simultâneos.** `MAX_CONCURRENT_RUNS` (padrão: núcleos − 1, mínimo 1). No teto, `POST /runs` dá 409 "Há muitas execuções em andamento no servidor. Tente de novo em alguns minutos.". Teto mole, sem lock (dois POSTs simultâneos podem passar). É a única query que conta runs de todos os workspaces, de propósito: o recurso é a CPU do servidor. O `fail_stale` roda em todos os workspaces antes da contagem, para run morto não ocupar vaga. A contagem também roda uma vez antes da chamada ao SGS (`at_capacity`), só para não buscar séries de um run que será recusado; a checagem que vale continua sendo a de depois do lock.
 - **SGS fora da transação.** `POST /runs` faz `db.rollback()` antes das chamadas HTTP ao Banco Central, para não segurar transação nem conexão do pool durante a espera.
 
 ## Uma linha de log por insert
