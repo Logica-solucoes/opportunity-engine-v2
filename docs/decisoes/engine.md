@@ -86,7 +86,7 @@ Um run com CSVs novos de cliente (Diageo: 812 dias × 25 canais; Elo: 1016 × 46
 - **VIF** pela diagonal da inversa da matriz de correlação, com fallback para a regressão por canal se a matriz for singular (1000×80: 1,6 s para 2 ms).
 - **`max_budget_step` ≥ 0,01** e `ramp` devolve `None` além de `MAX_RAMP_STEPS = 200` (passo minúsculo fazia o laço rodar para sempre).
 - **Narrativas** param de chamar o LLM `DEADLINE_RESERVE_S = 120` s antes do `RUN_DEADLINE` e caem no texto determinístico.
-- **Curva de resposta (SLSQP):** objetivo vetorizado em numpy com gradiente analítico (`jac=True`); limite superior `min(teto do canal, orçamento)` quando os tetos absorvem o orçamento; se o SLSQP para no `maxiter` mas supera o ponto inicial, fica o `result.x`. Mesmo KPI de antes; 40 canais passaram de minutos para segundos. Junto com o NNLS, muda números: os goldens de paridade precisam ser regenerados.
+- **Curva de resposta (SLSQP):** objetivo vetorizado em numpy com gradiente analítico (`jac=True`); limite superior `min(teto do canal, orçamento)` quando os tetos absorvem o orçamento; se o SLSQP para no `maxiter` mas supera o ponto inicial, fica o `result.x`. Mesmo KPI de antes; a curva com 80 canais passou de 35 s para 1 s. Junto com o NNLS, muda números: os goldens de paridade precisam ser regenerados.
 
 ## `results.json` v1 (A1, 04/nov/2026)
 
