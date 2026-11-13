@@ -1,5 +1,6 @@
 """Audit findings F3-F9 of section 4 (curve and planner), on hand-built MMMs where the truth is known."""
 
+import time
 from types import SimpleNamespace
 
 import numpy as np
@@ -285,3 +286,45 @@ def test_the_scenario_month_has_365_25_over_12_days():
     got = scenario(_strategic_doc(), ScenarioFilters(), 0.2)
 
     assert got["current"]["investment"] == pytest.approx(20.0 * 365.25 / 12)
+
+
+# --- the mix optimizer scales to many channels ---
+
+
+def _wide_mmm(n_channels=40) -> dict:
+    rng = np.random.default_rng(1)
+    cols = [f"c{i}" for i in range(n_channels)]
+    df = pd.DataFrame({c: rng.uniform(100, 200, 120) for c in cols})
+    params = {
+        "alphas": [0.0] * n_channels,
+        "ks": list(rng.uniform(0.3, 1.0, n_channels)),
+        "ss": list(df.mean() * rng.uniform(0.9, 1.1, n_channels)),
+    }
+    features = np.column_stack(
+        [hill_transform(df[c].values, params["ks"][i], params["ss"][i]) for i, c in enumerate(cols)]
+    )
+    scaler = MinMaxScaler().fit(features)
+    scaler.min_ = np.zeros(n_channels)  # the engine's scaler divides by the range without shifting
+    model = Ridge(alpha=1.0, positive=True, fit_intercept=False)
+    model.fit(scaler.transform(features), features @ rng.uniform(1, 5, n_channels))
+    return {
+        "dataframe": df,
+        "spend_cols": cols,
+        "optimal_params": params,
+        "model": model,
+        "scaler": scaler,
+        "organic_baseline_mean": 1000.0,
+        "cv_r_squared": 0.9,
+        "coef_samples": model.coef_ * rng.uniform(0.8, 1.2, (50, n_channels)),
+    }
+
+
+def test_the_curve_with_many_channels_is_fast_and_never_worse_than_the_historical_mix():
+    start = time.perf_counter()
+    frame = _curve(_wide_mmm(80), reallocation_min_cv_r2=0.1)[0]
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 20
+    for i in (25, 50, 75):
+        row = frame.iloc[i]
+        assert row["Projected_Total_KPIs"] >= row["Projected_Total_KPIs_Historical"] - 1e-6

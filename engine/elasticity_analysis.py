@@ -659,9 +659,9 @@ def cap_channel_share_per_channel(mix, per_channel_max_share, historical_mix):
 
     Needed because the SLSQP solve in optimize_spend_mix_for_budget only sees
     a *clipped* simulated response past each channel's per-channel spend cap
-    (see _capped_channel_spend) -- the objective goes flat there, so nothing
-    stops the optimizer from still reporting an allocation past that cap for
-    a channel with no more gradient to follow. That nominal allocation then
+    (see _capped_channel_spend). Its bounds stop at the cap, except when the
+    caps can't absorb the budget, where the solve can still report an
+    allocation past it. That nominal allocation then
     leaks into the UI (e.g. the individual response-curve chart's "Recomendado"
     line, drawn using this exact value, could land far to the right of where
     the plotted curve itself was capped and stops). Capping the *reported* mix
@@ -800,6 +800,31 @@ def generate_aggregated_response_curve(
         point["Extrapolated"] = is_extrapolated(point["Daily_Investment"], mix)
         return point
 
+    ks = np.asarray(opt_params["ks"], dtype=float)
+    ss = np.asarray(opt_params["ss"], dtype=float)
+    multipliers_arr = np.array([adstock_multipliers[col] for col in active_spend_cols])
+    caps = np.array([historical_max_daily_spend.get(col, 0) * per_channel_limit_factor for col in active_spend_cols])
+    caps = np.where(caps > 0, caps, np.inf)
+    weights = np.asarray(mkt_model.coef_, dtype=float) * mkt_scaler.scale_
+    shifts = mkt_scaler.min_
+    level = organic_baseline_mean + float(mkt_model.intercept_)
+
+    def mix_objective(spend):
+        # the same KPI as simulate_kpi (hill_transform + predict_clipped_kpi), in numpy, with its gradient
+        x = np.minimum(spend, caps) * multipliers_arr
+        on = x > 1e-9
+        ratio = np.where(on, np.maximum(x / (ss + 1e-9), 1e-9), 1.0)
+        h = np.where(on, 1 / (1 + ratio**-ks), 0.0)
+        z = h * mkt_scaler.scale_ + shifts
+        active = z > 0
+        value = level + float(np.asarray(mkt_model.coef_) @ np.where(active, z, 0.0))
+        # a channel at zero spend gets the slope one finite-difference step above it: with k < 1 the slope there is steep,
+        # and a flat 0 would trap the solve on whatever channels it starts with
+        xg = np.maximum(x, 1.5e-8)
+        hg = 1 / (1 + np.maximum(xg / (ss + 1e-9), 1e-9) ** -ks)
+        grad = weights * (z >= 0) * ks * hg * (1 - hg) / xg * multipliers_arr * (spend < caps)
+        return -value, -grad
+
     def optimize_spend_mix_for_budget(total_budget, previous_optimal_mix=None):
         if total_budget <= 0:
             return {col: 0.0 for col in active_spend_cols}
@@ -808,26 +833,26 @@ def generate_aggregated_response_curve(
             # note above) so no budget is reshuffled between channels on noise.
             return dict(historical_mix)
 
-        def objective(spend_array):
-            mkt_features = []
-            for i, col in enumerate(active_spend_cols):
-                simulated_adstocked = _capped_channel_spend(spend_array[i], col) * adstock_multipliers[col]
-                mkt_features.append(hill_transform(simulated_adstocked, opt_params["ks"][i], opt_params["ss"][i]))
-            return -predict_clipped_kpi(organic_baseline_mean, mkt_model, mkt_scaler, mkt_features)
-
         if previous_optimal_mix is None:
             init_guess = np.array([total_budget * historical_mix.get(col, 0) for col in active_spend_cols])
         else:
             init_guess = np.array([total_budget * previous_optimal_mix.get(col, 0) for col in active_spend_cols])
 
-        bounds = [(0, total_budget) for _ in active_spend_cols]
-        constraints = [{"type": "eq", "fun": lambda x: np.sum(x) - total_budget}]
-
+        # past its cap a channel's response is flat: bounding there keeps the solve from parking budget where it does nothing
+        upper = np.minimum(caps, total_budget) if caps.sum() >= total_budget else np.full(len(caps), total_budget)
+        bounds = [(0, hi) for hi in upper]
+        constraints = [{"type": "eq", "fun": lambda x: np.sum(x) - total_budget, "jac": lambda x: np.ones_like(x)}]
         result = minimize(
-            objective, init_guess, bounds=bounds, constraints=constraints, method="SLSQP", options={"disp": False}
+            mix_objective,
+            init_guess,
+            jac=True,
+            bounds=bounds,
+            constraints=constraints,
+            method="SLSQP",
         )
-
-        optimal_spends = result.x if result.success else init_guess
+        # past maxiter SLSQP still often lands above the start: keep it when it does
+        better = result.success or mix_objective(result.x)[0] < mix_objective(init_guess)[0]
+        optimal_spends = result.x if better else init_guess
         optimal_spends = np.maximum(0, optimal_spends)
         if np.sum(optimal_spends) > 0:
             optimal_spends = optimal_spends / np.sum(optimal_spends) * total_budget
@@ -843,9 +868,8 @@ def generate_aggregated_response_curve(
         # Combine that 40%-of-mix cap with each channel's own absolute-spend
         # cap (as a fraction of this specific total_budget) into one ceiling
         # per channel, whichever is tighter -- _capped_channel_spend already
-        # makes the simulated response flat past the absolute cap, but doesn't
-        # stop the optimizer from still *reporting* an allocation past it (see
-        # cap_channel_share_per_channel's docstring).
+        # makes the simulated response flat past the absolute cap; the solve's bounds stop there too, except when the
+        # caps can't absorb the budget (see cap_channel_share_per_channel's docstring).
         absolute_share = {
             col: historical_max_daily_spend.get(col, 0) * per_channel_limit_factor / total_budget
             for col in active_spend_cols
