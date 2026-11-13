@@ -81,6 +81,12 @@ Um run com CSVs novos de cliente (Diageo: 812 dias × 25 canais; Elo: 1016 × 46
 - **Prazo:** `STAGE2_SECONDS = 600` para a Etapa 2 inteira (busca + folds), metade do watchdog. Estourou: o start atual para na próxima iteração, os outros são pulados, fica o melhor ponto e o log avisa ("a Etapa 2 atingiu o tempo máximo"). Nesse caso o número depende da velocidade da máquina; o próximo passo, se precisar, é gradiente analítico.
 - O log mostra "tentativa i de n" e "validação cruzada: bloco j de k", para a tela não parecer travada.
 - **Depois:** Diageo 283 s e Elo 360 s no run completo (`python -m engine`; Elo 356 s com os pins do worker), sem bater no prazo.
+- **Pré-período do causal** limitado a `PRE_PERIOD_MAX_ROWS = 365` linhas antes do evento (diário = 1 ano; semanal e mensal na prática sem teto). Só muda o resultado de evento com mais de 365 linhas de histórico antes dele.
+- **Fallback do Lasso/variância** não passa mais todos os canais ao modelo causal, só as features do canal tratado; todos os canais só se nem isso sobrar.
+- **VIF** pela diagonal da inversa da matriz de correlação, com fallback para a regressão por canal se a matriz for singular (1000×80: 1,6 s para 2 ms).
+- **`max_budget_step` ≥ 0,01** e `ramp` devolve `None` além de `MAX_RAMP_STEPS = 200` (passo minúsculo fazia o laço rodar para sempre).
+- **Narrativas** param de chamar o LLM `DEADLINE_RESERVE_S = 120` s antes do `RUN_DEADLINE` e caem no texto determinístico.
+- **Curva de resposta (SLSQP):** objetivo vetorizado em numpy com gradiente analítico (`jac=True`); limite superior `min(teto do canal, orçamento)` quando os tetos absorvem o orçamento; se o SLSQP para no `maxiter` mas supera o ponto inicial, fica o `result.x`. Mesmo KPI de antes; 40 canais passaram de minutos para segundos. Junto com o NNLS, muda números: os goldens de paridade precisam ser regenerados.
 
 ## `results.json` v1 (A1, 04/nov/2026)
 
